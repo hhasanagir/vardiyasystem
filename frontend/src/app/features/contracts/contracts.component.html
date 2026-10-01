@@ -1,0 +1,106 @@
+<p-toast></p-toast>
+
+<div class="page-header">
+  <h1>
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
+    </svg>
+    Sözleşmeler
+  </h1>
+  <div class="header-actions">
+    <p-button
+      icon="pi pi-refresh"
+      label="Yenile"
+      severity="secondary"
+      (onClick)="loadContracts()"
+    ></p-button>
+    <p-button icon="pi pi-plus" label="Yeni Sözleşme" (onClick)="onCreate()"></p-button>
+  </div>
+</div>
+
+<div class="kpi-grid">
+  <p-card class="kpi-card">
+    <div class="kpi-value" style="color: #22c55e">{{ activeCount() }}</div>
+    <div class="kpi-label">Aktif</div>
+  </p-card>
+  <p-card class="kpi-card">
+    <div class="kpi-value" style="color: #f97316">{{ expiringCount() }}</div>
+    <div class="kpi-label">Sona Eren (30 Gün)</div>
+  </p-card>
+  <p-card class="kpi-card">
+    <div class="kpi-value" style="color: #ef4444">{{ expiredCount() }}</div>
+    <div class="kpi-label">Süresi Dolmuş</div>
+  </p-card>
+</div>
+
+@if (isLoading()) {
+  <div class="loading">
+    <p-progressSpinner></p-progressSpinner>
+  </div>
+}
+
+<p-table
+  [value]="contracts()"
+  [paginator]="true"
+  [rows]="10"
+  [tableStyle]="{ 'min-width': '60rem' }"
+>
+  <ng-template pTemplate="header">
+    <tr>
+      <th style="width: 130px">Sözleşme No</th>
+      <th>Başlık</th>
+      <th>Tedarikçi</th>
+      <th>Durum</th>
+      <th>Tutar</th>
+      <th>Başlangıç</th>
+      <th>Bitiş</th>
+      <th style="width: 120px">İşlemler</th>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-contract>
+    <tr [class.expiring-soon]="isExpiringSoon(contract)" [class.expired]="isExpired(contract)">
+      <td>
+        <strong>{{ contract.contractNumber }}</strong>
+      </td>
+      <td>{{ contract.title }}</td>
+      <td>{{ contract.supplierName || '-' }}</td>
+      <td>
+        <p-tag [value]="contract.status" [severity]="getStatusSeverity(contract.status)"></p-tag>
+        @if (isExpiringSoon(contract)) {
+          <p-tag value="Sona Eriyor" severity="warn" style="margin-left: 0.5rem"></p-tag>
+        }
+      </td>
+      <td>{{ contract.value | number: '1.2-2' }} {{ contract.currency }}</td>
+      <td>{{ contract.startDate | date: 'dd.MM.yyyy' }}</td>
+      <td>{{ contract.endDate | date: 'dd.MM.yyyy' }}</td>
+      <td>
+        <div class="action-buttons">
+          <p-button
+            icon="pi pi-pencil"
+            severity="info"
+            [rounded]="true"
+            [text]="true"
+            pTooltip="Düzenle"
+            (onClick)="onEdit(contract)"
+          ></p-button>
+        </div>
+      </td>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td colspan="8" style="text-align: center; padding: 2rem; opacity: 0.5">Kayıt bulunamadı</td>
+    </tr>
+  </ng-template>
+</p-table>

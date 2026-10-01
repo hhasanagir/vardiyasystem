@@ -1,0 +1,61 @@
+{{- if .Values.backup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "vardiya.fullname" . }}-postgres-backup
+  labels: {{- include "vardiya.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: postgres:{{ .Values.version }}-alpine
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.existingSecret }}
+                      key: postgres_password
+                - name: PGUSER
+                  value: vardiya
+                - name: PGHOST
+                  value: {{ include "vardiya.fullname" . }}-postgres
+                - name: PGDATABASE
+                  value: vardiyasystem
+              command:
+                - sh
+                - -c
+                - |
+                  TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                  FILENAME="vardiya_backup_$${TIMESTAMP}.dump"
+                  pg_dump --format=custom --compress=9 --file=/backups/$${FILENAME}
+                  echo "Backup created: $${FILENAME}"
+                  find /backups -name "vardiya_backup_*.dump" -mtime +{{ .Values.backup.retention }} -delete
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: {{ include "vardiya.fullname" . }}-postgres-backups
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "vardiya.fullname" . }}-postgres-backups
+  labels: {{- include "vardiya.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: {{ .Values.backup.storage.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.backup.storage.size }}
+{{- end }}

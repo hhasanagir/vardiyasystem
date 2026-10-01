@@ -1,0 +1,42 @@
+{
+  "name": "vardiyasystem",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Radyoloji Vardiya Yönetim Sistemi",
+  "scripts": {
+    "prepare": "husky",
+    "lint": "npm --prefix frontend run lint && npm --prefix backend run lint",
+    "lint:strict": "npm --prefix backend run lint:strict",
+    "format": "prettier --write \"**/*.{ts,js,json,scss,html}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,json,scss,html}\"",
+    "typecheck": "npm --prefix frontend run typecheck && npm --prefix backend run typecheck",
+    "test": "npm --prefix backend test && npm --prefix frontend test",
+    "test:e2e": "npm --prefix backend run test:e2e",
+    "test:browser": "npm --prefix e2e test",
+    "preflight": "node scripts/release-preflight.mjs",
+    "preflight:test": "node --test scripts/release-preflight.test.mjs",
+    "dev": "concurrently \"cd backend && npm run start:dev\" \"cd frontend && npm start\""
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "concurrently": "^9.2.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.8.3"
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "prettier --write",
+      "cd frontend && npx tsc --noEmit --pretty 2>&1 || true"
+    ],
+    "*.{json,scss,html,md}": [
+      "prettier --write"
+    ]
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  }
+}

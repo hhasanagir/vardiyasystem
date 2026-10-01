@@ -1,0 +1,216 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vardiya-backend
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/component: backend
+    release: vardiya-prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  namespaceSelector:
+    matchNames:
+      - vardiya
+  endpoints:
+    - port: http
+      path: /api/v1/metrics
+      interval: 15s
+      scrapeTimeout: 10s
+      relabelings:
+        - action: replace
+          targetLabel: job
+          replacement: vardiya-backend
+        - sourceLabels: [__meta_kubernetes_pod_node_name]
+          targetLabel: node
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: "vardiya_.*"
+          action: keep
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vardiya-postgres
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    release: vardiya-prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: postgres
+  namespaceSelector:
+    matchNames:
+      - vardiya
+  endpoints:
+    - port: metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vardiya-pgbouncer
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    release: vardiya-prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: pgbouncer
+  namespaceSelector:
+    matchNames:
+      - vardiya
+  endpoints:
+    - port: metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vardiya-redis
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    release: vardiya-prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: redis
+  namespaceSelector:
+    matchNames:
+      - vardiya
+  endpoints:
+    - port: redis
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vardiya-unleash
+  namespace: vardiya-feature-flags
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    release: vardiya-prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: unleash
+  namespaceSelector:
+    matchNames:
+      - vardiya-feature-flags
+  endpoints:
+    - port: http
+      path: /internal-backstage/prometheus
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: vardiya-istio-proxies
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    release: vardiya-prometheus
+spec:
+  selector:
+    matchExpressions:
+      - key: sidecar.istio.io/inject
+        operator: In
+        values: ["true"]
+  namespaceSelector:
+    matchNames:
+      - vardiya
+  podMetricsEndpoints:
+    - port: http-envoy-prom
+      path: /stats/prometheus
+      interval: 15s
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_container_name]
+          action: keep
+          regex: "istio-proxy"
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: vardiya-backend-rules
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    release: vardiya-prometheus
+spec:
+  groups:
+    - name: vardiya-backend
+      interval: 30s
+      rules:
+        - alert: VardiyaBackendDown
+          expr: up{job="vardiya-backend"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Backend instance {{ $labels.instance }} down"
+            description: "Backend has been down for over 1 minute"
+        - alert: VardiyaHighErrorRate
+          expr: |
+            sum(rate(vardiya_http_requests_total{status=~"5.."}[5m])) /
+            sum(rate(vardiya_http_requests_total[5m])) > 0.05
+          for: 3m
+          labels:
+            severity: critical
+          annotations:
+            summary: "High backend error rate"
+            description: "Error rate is {{ $value | humanizePercentage }}"
+        - alert: VardiyaHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(vardiya_http_request_duration_seconds_bucket[5m])) by (le)
+            ) > 2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High backend latency"
+            description: "p95 latency is {{ $value }}s"
+        - alert: VardiyaDatabaseConnectionsHigh
+          expr: pg_stat_database_numbackends > 80
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High database connections"
+            description: "Active connections: {{ $value }}"
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: vardiya-redis-rules
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    release: vardiya-prometheus
+spec:
+  groups:
+    - name: vardiya-redis
+      interval: 30s
+      rules:
+        - alert: VardiyaRedisDown
+          expr: redis_up == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Redis instance {{ $labels.instance }} down"
+        - alert: VardiyaRedisMemoryHigh
+          expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85 and redis_memory_max_bytes > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Redis memory usage high ({{ $value | humanizePercentage }})"

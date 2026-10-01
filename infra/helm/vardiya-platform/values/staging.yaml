@@ -1,0 +1,33 @@
+global:
+  environment: staging
+  imagePullPolicy: Always
+  publicHost: staging.vardiya.example.com
+
+backend:
+  replicaCount: 2
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 3
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+postgres:
+  replicaCount: 1
+  storage:
+    size: 20Gi
+    storageClass: standard
+
+monitoring:
+  prometheus:
+    retention: 7d
+    storage:
+      size: 20Gi
+  loki:
+    retention: 168h
+    storage:
+      size: 20Gi

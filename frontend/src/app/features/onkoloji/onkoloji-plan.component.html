@@ -1,0 +1,445 @@
+<div class="plan-page">
+  <header class="plan-header glass">
+    <div class="header-left">
+      <div class="unit-badge" style="--unit-color: ${ONK_COLOR}">
+        <span class="unit-dot" style="background: ${ONK_COLOR}"></span>
+        <span class="unit-label">Radyasyon Onkolojisi</span>
+      </div>
+      <div class="month-nav">
+        <button class="nav-btn" (click)="previousMonth()">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <span class="current-month">{{ monthLabel() }}</span>
+        <button class="nav-btn" (click)="nextMonth()">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="legend">
+        <span class="legend-item"><span class="dot sabah-dot"></span> Sabah</span>
+        <span class="legend-item"><span class="dot ogle-dot"></span> Öğleden</span>
+        <span class="legend-item"><span class="dot aksam-dot"></span> Akşam</span>
+      </div>
+      <button class="action-btn" (click)="exportExcel()">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" /></svg
+        >Excel
+      </button>
+      <button class="action-btn" (click)="exportPdf()">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" /></svg
+        >PDF
+      </button>
+      <button class="action-btn" (click)="refreshData()">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="23 4 23 10 17 10" />
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg
+        >Yenile
+      </button>
+      <button class="action-btn primary onc-btn" (click)="generateSchedule()">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83" /></svg
+        >Plan Oluştur
+      </button>
+    </div>
+  </header>
+
+  <div class="unit-dashboard-strip" style="--unit-accent: ${ONK_COLOR}">
+    <div class="unit-kpi-row">
+      <div class="kpi-card">
+        <span class="kpi-value">{{ dailyFractions() }}</span
+        ><span class="kpi-label">Fraksiyon</span>
+      </div>
+      <div class="kpi-card accent">
+        <span class="kpi-value">{{ deviceOccupancy() }}%</span
+        ><span class="kpi-label">Cihaz Doluluk</span>
+      </div>
+      <div class="kpi-card danger">
+        <span class="kpi-value">{{ criticalSessionGaps() }}</span
+        ><span class="kpi-label">Kritik Seans</span>
+      </div>
+      <div class="kpi-card warn">
+        <span class="kpi-value">{{ patientBacklog() }}</span
+        ><span class="kpi-label">Hasta Backlog</span>
+      </div>
+      <div class="kpi-card holiday">
+        <span class="kpi-value">{{ holidayCount() }}</span
+        ><span class="kpi-label">Tatil Günü</span>
+      </div>
+    </div>
+    <div class="unit-legend-card">
+      <div class="legend-title">Cihaz Lejantı</div>
+      <div class="legend-items">
+        <div class="legend-item">
+          <span class="legend-swatch linac-swatch"></span><span>LİNAC</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch tomo-swatch"></span><span>TOMOTERAPİ</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch ctsim-swatch"></span><span>CT-SİM</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch onk-bos-swatch"></span><span>Boş Seans</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch kritik-swatch"></span><span>Kritik</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch tatil-swatch"></span><span>Resmî Tatil</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch tatil-swatch-religious"></span><span>Dini Bayram</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (holidayAssignmentWarning()) {
+    <div class="holiday-warning-bar">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4" />
+        <path d="M12 9v4" />
+        <path d="M12 17h.01" />
+      </svg>
+      <span>{{ holidayAssignmentWarning() }}</span>
+    </div>
+  }
+
+  @if (isLoading()) {
+    <div class="skeleton-container">
+      <div class="skeleton-header-row skeleton-shimmer"></div>
+      @for (i of [1, 2, 3, 4]; track i) {
+        <div class="skeleton-row">
+          <div class="skeleton-label skeleton-shimmer"></div>
+          @for (j of [1, 2, 3, 4, 5, 6, 7]; track j) {
+            <div class="skeleton-cell skeleton-shimmer"></div>
+          }
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="schedule-shell">
+      <div class="schedule-scroll" (scroll)="onScheduleScroll($event)">
+        <table class="schedule-table">
+          <thead>
+            <tr>
+              <th class="left-header">Cihaz / Seans</th>
+              @for (day of days(); track day.dayNumber) {
+                <th
+                  class="date-col"
+                  [class.today]="day.isToday"
+                  [class.holiday]="day.isHoliday"
+                  [class.national-holiday]="day.isHoliday && day.holidayType === 'national'"
+                  [class.religious-holiday]="day.isHoliday && day.holidayType === 'religious'"
+                  [class.weekend]="day.isWeekend"
+                >
+                  <div class="date-display">
+                    <span class="day-label">{{ day.dayName }}</span>
+                    <span class="num-label">{{ day.dayNumber }}</span>
+                  </div>
+                  @if (day.isHoliday) {
+                    <span
+                      class="holiday-label"
+                      [class.national]="day.holidayType === 'national'"
+                      [class.religious]="day.holidayType === 'religious'"
+                      >{{ day.holidayName?.substring(0, 3) }}</span
+                    >
+                  }
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (device of devices(); track device.id) {
+              <tr class="onc-row" [class.maintenance]="device.status === 'maintenance'">
+                <td class="shift-label onc-label-cell">
+                  <div class="device-info">
+                    <span class="device-code" style="color: ${ONK_COLOR}">{{ device.code }}</span>
+                    <span class="device-name">{{ device.name }}</span>
+                  </div>
+                  <span class="device-status-badge" [class]="device.status">
+                    {{
+                      device.status === 'active'
+                        ? 'Aktif'
+                        : device.status === 'maintenance'
+                          ? 'Bakım'
+                          : 'Kapalı'
+                    }}
+                  </span>
+                </td>
+                @for (day of days(); track day.dayNumber) {
+                  <td
+                    class="onc-cell"
+                    [class.weekend]="day.isWeekend"
+                    [class.holiday]="day.isHoliday"
+                    [class.today]="day.isToday"
+                  >
+                    @if (device.status !== 'offline') {
+                      <div class="session-slots">
+                        <div
+                          class="session-slot sabah-slot"
+                          (click)="openCellEditor(device, day, 'SABAH')"
+                        >
+                          @if (getSessionByType(device.id, day.date, 'SABAH'); as session) {
+                            <span
+                              class="slot-content"
+                              (mouseenter)="onHoverSession($event, device, session)"
+                              (mousemove)="onMoveTooltip($event)"
+                              (mouseleave)="onLeaveTooltip()"
+                            >
+                              <span class="slot-count">{{ session.patientCount }}</span>
+                              <span class="slot-tech">{{
+                                getInitials(session.technicianName)
+                              }}</span>
+                            </span>
+                          } @else {
+                            <span class="slot-empty">S</span>
+                          }
+                        </div>
+                        <div
+                          class="session-slot ogle-slot"
+                          (click)="openCellEditor(device, day, 'OGLE')"
+                        >
+                          @if (getSessionByType(device.id, day.date, 'OGLE'); as session) {
+                            <span
+                              class="slot-content"
+                              (mouseenter)="onHoverSession($event, device, session)"
+                              (mousemove)="onMoveTooltip($event)"
+                              (mouseleave)="onLeaveTooltip()"
+                            >
+                              <span class="slot-count">{{ session.patientCount }}</span>
+                              <span class="slot-tech">{{
+                                getInitials(session.technicianName)
+                              }}</span>
+                            </span>
+                          } @else {
+                            <span class="slot-empty">Ö</span>
+                          }
+                        </div>
+                        <div
+                          class="session-slot aksam-slot"
+                          (click)="openCellEditor(device, day, 'AKSAM')"
+                        >
+                          @if (getSessionByType(device.id, day.date, 'AKSAM'); as session) {
+                            <span
+                              class="slot-content"
+                              (mouseenter)="onHoverSession($event, device, session)"
+                              (mousemove)="onMoveTooltip($event)"
+                              (mouseleave)="onLeaveTooltip()"
+                            >
+                              <span class="slot-count">{{ session.patientCount }}</span>
+                              <span class="slot-tech">{{
+                                getInitials(session.technicianName)
+                              }}</span>
+                            </span>
+                          } @else {
+                            <span class="slot-empty">A</span>
+                          }
+                        </div>
+                      </div>
+                    } @else {
+                      <span class="offline-label">—</span>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+        @if (showOnboarding()) {
+          <div class="onboarding-hint">
+            <div class="hint-content" style="border-color: ${ONK_COLOR}40">
+              <svg
+                class="hint-svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="${ONK_COLOR}"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+              <span class="hint-text">Seans bazlı cihaz ataması yapın</span>
+              <button class="hint-dismiss" (click)="dismissOnboarding()">✕</button>
+            </div>
+          </div>
+        }
+      </div>
+      <div class="schedule-fade schedule-fade-left" [class.visible]="showLeftFade()"></div>
+      <div class="schedule-fade schedule-fade-right" [class.visible]="showRightFade()"></div>
+    </div>
+
+    <div class="session-legend">
+      <div class="legend-row">
+        <span class="legend-title">Cihaz:</span>
+        <span class="legend-chip linac-chip">LİNAC</span>
+        <span class="legend-chip tomo-chip">TOMOTERAPİ</span>
+        <span class="legend-chip ctsim-chip">CT-SİM</span>
+      </div>
+      <div class="legend-row" style="margin-top: 6px">
+        <span class="legend-title">Seans:</span>
+        <span class="legend-chip sabah-chip">Sabah 08:00-14:00</span>
+        <span class="legend-chip ogle-chip">Öğleden 14:00-20:00</span>
+        <span class="legend-chip aksam-chip">Akşam 20:00-02:00</span>
+      </div>
+    </div>
+
+    @if (tooltipVisible()) {
+      @let tip = tooltipData();
+      @if (tip) {
+        <div class="assign-tooltip" [style.left.px]="tooltipX()" [style.top.px]="tooltipY()">
+          <div class="tip-name">{{ tip.deviceName }}</div>
+          <div class="tip-row">
+            <span class="tip-key">Seans</span><span class="tip-val">{{ tip.sessionType }}</span>
+          </div>
+          <div class="tip-row">
+            <span class="tip-key">Hasta</span><span class="tip-val">{{ tip.patientCount }}</span>
+          </div>
+          <div class="tip-row">
+            <span class="tip-key">Teknisyen</span
+            ><span class="tip-val">{{ tip.technicianName }}</span>
+          </div>
+          <div class="tip-row">
+            <span class="tip-key">Fraksiyon</span
+            ><span class="tip-val">{{ tip.fractionCount }}</span>
+          </div>
+          <div class="tip-row">
+            <span class="tip-key">Tedavi</span><span class="tip-val">{{ tip.treatmentType }}</span>
+          </div>
+        </div>
+      }
+    }
+  }
+
+  @if (showModal()) {
+    <div class="modal-overlay" (click)="closeModal()">
+      <div class="modal-container glass" (click)="$event.stopPropagation()">
+        <header class="modal-header">
+          <div class="modal-title">
+            <h2>{{ selectedDevice()?.name || 'Cihaz' }}</h2>
+            <span class="modal-date">{{ formatModalDate() }}</span>
+          </div>
+          <button class="modal-close" (click)="closeModal()">&times;</button>
+        </header>
+        <div class="modal-body">
+          <div class="session-types">
+            @for (type of sessionTypes; track type.value) {
+              <button
+                class="session-type-btn"
+                [class.active]="selectedSessionType() === type.value"
+                [class]="type.class"
+                (click)="selectSessionType(type.value)"
+              >
+                <span class="type-icon">{{ type.icon }}</span>
+                <span class="type-label">{{ type.label }}</span>
+                <span class="type-time">{{ type.time }}</span>
+              </button>
+            }
+          </div>
+          <div class="form-section">
+            <label>Hasta Sayısı</label>
+            <input
+              type="number"
+              name="patientCount"
+              [(ngModel)]="patientCount"
+              class="form-input"
+              min="1"
+              max="20"
+              placeholder="0"
+            />
+          </div>
+          <div class="personnel-section">
+            <label>Teknisyen Seçimi</label>
+            <div class="personnel-list">
+              @for (tech of technicians(); track tech.id) {
+                <button
+                  class="personnel-btn"
+                  [class.selected]="selectedTechnician() === tech.id"
+                  (click)="selectTechnician(tech.id, tech.name)"
+                >
+                  <span class="person-avatar" [style.background]="getAvatarColor(tech.id)">
+                    {{ tech.name.charAt(0) }}
+                  </span>
+                  <span class="person-name">{{ tech.name }}</span>
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+        <footer class="modal-footer">
+          @if (existingSession()) {
+            <button class="btn btn-danger" (click)="removeSession()">Sil</button>
+          }
+          <button class="btn btn-secondary" (click)="closeModal()">İptal</button>
+          <button class="btn btn-primary" (click)="saveSession()" [disabled]="!canSave()">
+            {{ existingSession() ? 'Güncelle' : 'Kaydet' }}
+          </button>
+        </footer>
+      </div>
+    </div>
+  }
+</div>
+`,

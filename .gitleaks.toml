@@ -1,0 +1,30 @@
+title = "VardiyaOS Gitleaks Configuration"
+
+[extend]
+# Use the base Gitleaks rules
+useDefault = true
+
+[[rules.allowlist]]
+description = "Test and example secrets"
+regexes = [
+  "(?i)ci-(validation|deploy|e2e)-secret",
+  "(?i)CHANGE_ME",
+  "(?i)changethis",
+  "your-approle-role-id",
+  "your-approle-secret-id",
+]
+paths = [
+  ".env.production.example",
+  "backend/.env.example",
+  "README.md",
+  "**/*.md",
+  "secrets/README.md",
+]
+
+[[rules.allowlist]]
+description = "Known false positives — commit hashes and example data"
+regexes = [
+  "(?i)AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "0000000000000000000000000000000000000000",
+  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+]

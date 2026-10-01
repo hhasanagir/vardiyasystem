@@ -1,0 +1,121 @@
+name: Weekly Security Scan
+run-name: "Security scan — ${{ github.event_name == 'schedule' && 'weekly' || 'manual' }}"
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.workspace }}/package-lock.json
+      - run: npm ci
+        working-directory: ${{ matrix.workspace }}
+      - name: npm audit full report
+        run: npx audit-ci --high --report-type full || true
+        working-directory: ${{ matrix.workspace }}
+      - name: Check for outdated packages
+        run: npx npm-check-updates --target minor 2>&1 || true
+        working-directory: ${{ matrix.workspace }}
+        continue-on-error: true
+
+  secret-scan:
+    name: Secret Leak Detection
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks full scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: TruffleHog scan (additional)
+        uses: trufflesecurity/trufflehog@v3
+        with:
+          extra_args: --only-verified --no-entropy
+
+  code-scan:
+    name: Code Security Scan
+    runs-on: ubuntu-24.04
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: CodeQL Initialization
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-and-quality
+      - name: CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
+
+  sbom-generate:
+    name: SBOM Generation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: ./
+          format: spdx-json
+          output-file: sbom.spdx.json
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.spdx.json
+          retention-days: 90
+
+  report:
+    name: Security Report
+    runs-on: ubuntu-24.04
+    needs: [dependency-scan, secret-scan, code-scan, sbom-generate]
+    if: always()
+    steps:
+      - name: Check outcomes
+        run: |
+          echo "## Weekly Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+
+          declare -A JOBS=(
+            ["dependency-scan"]="${{ needs.dependency-scan.result }}"
+            ["secret-scan"]="${{ needs.secret-scan.result }}"
+            ["code-scan"]="${{ needs.code-scan.result }}"
+            ["sbom-generate"]="${{ needs.sbom-generate.result }}"
+          )
+
+          OVERALL="success"
+          for job in "${!JOBS[@]}"; do
+            STATUS="${JOBS[$job]}"
+            if [ "$STATUS" = "failure" ] || [ "$STATUS" = "cancelled" ]; then
+              OVERALL="failure"
+            fi
+            echo "| $job | $STATUS |" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Overall: $OVERALL**" >> $GITHUB_STEP_SUMMARY

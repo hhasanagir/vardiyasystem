@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  k6-prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: k6-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - k6_prometheus_data:/prometheus
+    networks:
+      - k6-test
+
+  k6-grafana:
+    image: grafana/grafana:11.1.0
+    container_name: k6-grafana
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+    ports:
+      - "127.0.0.1:3002:3000"
+    volumes:
+      - k6_grafana_data:/var/lib/grafana
+      - ./grafana-dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana-datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - k6-test
+
+  k6-influxdb:
+    image: influxdb:1.11
+    container_name: k6-influxdb
+    ports:
+      - "127.0.0.1:8086:8086"
+    environment:
+      INFLUXDB_DB: k6
+    networks:
+      - k6-test
+
+networks:
+  k6-test:
+    driver: bridge
+
+volumes:
+  k6_prometheus_data:
+  k6_grafana_data:

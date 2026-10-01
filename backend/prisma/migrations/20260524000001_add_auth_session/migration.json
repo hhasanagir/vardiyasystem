@@ -1,0 +1,13 @@
+{
+  "version": "5.2",
+  "steps": [
+    {
+      "tag": "CreateSource",
+      "source": "prisma/schema.prisma"
+    },
+    {
+      "tag": "CreateMigration",
+      "migration_name": "add_auth_session"
+    }
+  ]
+}

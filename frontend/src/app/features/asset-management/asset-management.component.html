@@ -1,0 +1,209 @@
+<p-toast></p-toast>
+
+<div class="page-header">
+  <h1>
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
+      <rect x="2" y="3" width="20" height="14" rx="2" />
+      <line x1="8" y1="21" x2="16" y2="21" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+    Cihaz Yönetimi
+  </h1>
+  <div class="header-actions">
+    <p-button
+      icon="pi pi-refresh"
+      label="Yenile"
+      severity="secondary"
+      (onClick)="loadAssets()"
+    ></p-button>
+    <p-button icon="pi pi-plus" label="Yeni Cihaz" (onClick)="onCreate()"></p-button>
+  </div>
+</div>
+
+@if (dashboard(); as d) {
+  <div class="kpi-grid">
+    <p-card class="kpi-card">
+      <div class="kpi-value" style="color: #3b82f6">{{ d.totalAssets }}</div>
+      <div class="kpi-label">Toplam Cihaz</div>
+    </p-card>
+    <p-card class="kpi-card">
+      <div class="kpi-value" style="color: #22c55e">{{ d.activeCount }}</div>
+      <div class="kpi-label">Aktif</div>
+    </p-card>
+    <p-card class="kpi-card">
+      <div class="kpi-value" style="color: #f97316">{{ d.maintenanceCount }}</div>
+      <div class="kpi-label">Bakımda</div>
+    </p-card>
+    <p-card class="kpi-card">
+      <div class="kpi-value" style="color: #ef4444">{{ d.faultCount }}</div>
+      <div class="kpi-label">Arızalı</div>
+    </p-card>
+    <p-card class="kpi-card">
+      <div class="kpi-value" style="color: #a855f7">{{ d.totalAssets - d.assetsWithNoQR }}</div>
+      <div class="kpi-label">QR Kodlu</div>
+    </p-card>
+    <p-card class="kpi-card">
+      <div class="kpi-value" style="color: #eab308">{{ d.assetsExpiringWarranty }}</div>
+      <div class="kpi-label">Garanti Bitecek</div>
+    </p-card>
+  </div>
+}
+
+@if (dashboard(); as d) {
+  <div class="mini-charts">
+    <p-card header="Kategori Dağılımı" styleClass="chart-card">
+      <div class="chart-content">
+        @for (item of d.categoryDistribution; track item.category) {
+          <div class="chart-row">
+            <span class="chart-label">{{ getCategoryLabel(item.category) }}</span>
+            <div class="chart-bar-track">
+              <div
+                class="chart-bar"
+                [style.width.%]="(item._count / d.totalAssets) * 100"
+                [style.background]="'var(--primary-color)'"
+              ></div>
+            </div>
+            <span class="chart-value">{{ item._count }}</span>
+          </div>
+        }
+      </div>
+    </p-card>
+    <p-card header="Durum Dağılımı" styleClass="chart-card">
+      <div class="chart-content">
+        @for (item of d.statusDistribution; track item.status) {
+          <div class="chart-row">
+            <span class="chart-label">{{ getStatusLabel(item.status) }}</span>
+            <div class="chart-bar-track">
+              <div
+                class="chart-bar"
+                [style.width.%]="(item._count / d.totalAssets) * 100"
+                [style.background]="'var(--primary-color)'"
+              ></div>
+            </div>
+            <span class="chart-value">{{ item._count }}</span>
+          </div>
+        }
+      </div>
+    </p-card>
+  </div>
+}
+
+<div class="filter-bar">
+  <span class="p-input-icon-left search-wrapper">
+    <i class="pi pi-search"></i>
+    <input
+      pInputText
+      type="text"
+      name="assetSearch"
+      [(ngModel)]="searchQuery"
+      (keyup.enter)="onSearch()"
+      placeholder="Ara (isim, varlık no, seri no, model, barkod)"
+      class="search-input"
+    />
+  </span>
+  <p-select
+    [options]="categoryOptions"
+    [(ngModel)]="selectedCategory"
+    optionLabel="label"
+    optionValue="value"
+    placeholder="Kategori"
+    styleClass="filter-select"
+    (onChange)="onFilterChange()"
+  ></p-select>
+  <p-select
+    [options]="statusOptions"
+    [(ngModel)]="selectedStatus"
+    optionLabel="label"
+    optionValue="value"
+    placeholder="Durum"
+    styleClass="filter-select"
+    (onChange)="onFilterChange()"
+  ></p-select>
+</div>
+
+@if (isLoading()) {
+  <div class="loading">
+    <p-progressSpinner></p-progressSpinner>
+  </div>
+}
+
+<p-table
+  [value]="assets()"
+  [tableStyle]="{ 'min-width': '70rem' }"
+  [paginator]="true"
+  [rows]="15"
+  [showCurrentPageReport]="true"
+  currentPageReportTemplate="{first} - {last} / {totalRecords}"
+  [rowsPerPageOptions]="[15, 25, 50, 100]"
+>
+  <ng-template pTemplate="header">
+    <tr>
+      <th style="width: 100px">Varlık No</th>
+      <th>Cihaz Adı</th>
+      <th style="width: 100px">Kategori</th>
+      <th style="width: 110px">Durum</th>
+      <th>Üretici</th>
+      <th style="width: 110px">Model</th>
+      <th style="width: 120px">Seri No</th>
+      <th style="width: 80px">Aksiyon</th>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-asset>
+    <tr (click)="viewDetail(asset)" style="cursor: pointer" class="clickable-row">
+      <td>
+        <strong>{{ asset.assetNumber }}</strong>
+      </td>
+      <td>{{ asset.name }}</td>
+      <td>{{ getCategoryLabel(asset.category) }}</td>
+      <td>
+        <p-tag
+          [value]="getStatusLabel(asset.status)"
+          [severity]="getStatusSeverity(asset.status)"
+        ></p-tag>
+      </td>
+      <td>{{ asset.manufacturer || '-' }}</td>
+      <td>{{ asset.model || '-' }}</td>
+      <td>{{ asset.serialNumber || '-' }}</td>
+      <td>
+        <div class="action-buttons" (click)="$event.stopPropagation()">
+          <p-button
+            icon="pi pi-eye"
+            severity="info"
+            [rounded]="true"
+            [text]="true"
+            pTooltip="Detay"
+            (onClick)="viewDetail(asset)"
+          ></p-button>
+          <p-button
+            icon="pi pi-pencil"
+            severity="warn"
+            [rounded]="true"
+            [text]="true"
+            pTooltip="Düzenle"
+            (onClick)="onEdit(asset)"
+          ></p-button>
+          <p-button
+            icon="pi pi-trash"
+            severity="danger"
+            [rounded]="true"
+            [text]="true"
+            pTooltip="Sil"
+            (onClick)="onDelete(asset)"
+          ></p-button>
+        </div>
+      </td>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td colspan="8" style="text-align: center; padding: 2rem; opacity: 0.5">Kayıt bulunamadı</td>
+    </tr>
+  </ng-template>
+</p-table>

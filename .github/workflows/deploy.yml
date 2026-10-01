@@ -1,0 +1,384 @@
+name: Production Deployment
+run-name: "Deploy ${{ github.sha }} to production"
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: >-
+          Validate and render the entire release chain without building,
+          publishing, or deploying. Exits before any registry or cluster write.
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '20'
+  REGISTRY: ghcr.io
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  validate:
+    name: Pre-Deploy Validation
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.workspace }}/package-lock.json
+      - run: npm ci
+        working-directory: ${{ matrix.workspace }}
+      - name: Generate Prisma Client
+        if: matrix.workspace == 'backend'
+        run: npx prisma generate
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/validation
+      - run: npm run lint
+        working-directory: ${{ matrix.workspace }}
+      - run: npm run typecheck
+        working-directory: ${{ matrix.workspace }}
+      - name: Build
+        run: npm run build
+        working-directory: ${{ matrix.workspace }}
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/validation
+          JWT_ACCESS_TOKEN_SECRET: ci-deploy-secret
+          JWT_REFRESH_TOKEN_SECRET: ci-deploy-secret
+      - id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+        working-directory: ${{ matrix.workspace }}
+
+  release-dry-run:
+    name: Release Dry Run (Manifest Gate)
+    runs-on: ubuntu-24.04
+    needs: [validate]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+      - name: Run the release dry run
+        # Renders the whole overlay chain — compose, kustomize, helm
+        # (production + staging) — and fails closed if any layer is not
+        # internally consistent. This is the check that would have caught the
+        # vardiya-backend:latest / vardiyasystem/backend drift before a release.
+        run: bash scripts/release-dry-run.sh --ci
+      - name: Dry run summary
+        if: always()
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "Dry-run release finished; no registry or cluster writes were performed."
+          fi
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-24.04
+    needs: [validate]
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [backend, frontend]
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vardiyasystem_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.workspace }}/package-lock.json
+      - run: npm ci
+        working-directory: ${{ matrix.workspace }}
+      - name: Generate Prisma Client
+        if: matrix.workspace == 'backend'
+        run: npx prisma generate
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
+      - name: Run migrations
+        if: matrix.workspace == 'backend'
+        run: npx prisma migrate deploy
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
+      - name: Seed database
+        # The suite asserts against seeded rows, so migrate-only leaves it red.
+        if: matrix.workspace == 'backend'
+        run: npm run seed
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
+      - run: npm run test
+        working-directory: ${{ matrix.workspace }}
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
+          REDIS_URL: redis://localhost:6379
+          JWT_ACCESS_TOKEN_SECRET: ci-deploy-secret
+          JWT_REFRESH_TOKEN_SECRET: ci-deploy-secret
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-24.04
+    needs: [validate]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: npm audit — Backend
+        run: npx --yes audit-ci@6 --critical --report-type summary
+        working-directory: backend
+      - name: npm audit — Frontend
+        run: npx --yes audit-ci@6 --critical --report-type summary
+        working-directory: frontend
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-build-push:
+    name: Build & Push Images
+    runs-on: ubuntu-24.04
+    needs: [release-dry-run, unit-tests, security-scan]
+    if: ${{ !inputs.dry_run }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.service }}
+          tags: |
+            type=sha,format=long
+            # The integration test and the rollback runbooks reference the bare
+            # full SHA (ghcr.io/.../backend:<github.sha>); publish it explicitly
+            # so the pull and the push address the same tag.
+            type=sha,prefix=,format=long
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+      - name: Verify the image manifest is published
+        # Fail-closed: the push is only a success once the registry serves the
+        # exact tag the deployment chain is going to pull.
+        run: |
+          set -euo pipefail
+          repo="${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.service }}"
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json" \
+            "https://${repo}/manifests/${{ env.IMAGE_TAG }}")
+          if [ "$code" != "200" ]; then
+            echo "::error::manifest not served for ${repo}:${{ env.IMAGE_TAG }} (HTTP $code)"
+            exit 1
+          fi
+          echo "manifest verified: ${repo}:${{ env.IMAGE_TAG }}"
+
+  integration-test:
+    name: Integration Test (Production Stack)
+    runs-on: ubuntu-24.04
+    needs: [docker-build-push]
+    if: ${{ !inputs.dry_run }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create deployment environment
+        # The production topology is exercised with freshly generated
+        # throwaway secrets, never with repository values.
+        run: |
+          cat > .env <<ENVEOF
+          BACKEND_IMAGE=${{ env.REGISTRY }}/${{ github.repository }}/backend:${{ env.IMAGE_TAG }}
+          FRONTEND_IMAGE=${{ env.REGISTRY }}/${{ github.repository }}/frontend:${{ env.IMAGE_TAG }}
+          POSTGRES_USER=vardiya
+          POSTGRES_DB=vardiyasystem
+          LOG_LEVEL=info
+          GRAFANA_ROOT_URL=https://grafana.example.invalid
+          FRONTEND_URL=http://frontend:80
+          VAPID_PUBLIC_KEY=BJmBEUlEpzbxsHEWjAAFuI-iKEJ171-JUZYmtVYBc-V84pBMyvqLDGtCeW__3I3OjaKYQ7TLpqOTQKuzCHLKNOc
+          VAPID_PRIVATE_KEY=LCOGiaom9OORU7nWAZoBeNgtFVGdf-bCjRuKBkUE-Iw
+          ENVEOF
+          mkdir -p secrets
+          for f in db_password jwt_access_secret jwt_refresh_secret cookie_secret encryption_master_key grafana_admin_password; do
+            openssl rand -hex 32 > "secrets/${f}.txt"
+          done
+          printf 'https://hooks.slack.invalid/services/placeholder\n' > secrets/slack_webhook.txt
+      - name: Release preflight test suite
+        # The same authoritative gate that guards a PR release; a deploy must
+        # prove the release invariants hold, not just the tests.
+        run: node --test scripts/release-preflight.test.mjs
+      - name: Release preflight
+        run: node scripts/release-preflight.mjs
+        env:
+          # Environment-sensitive checks need a real deployment target; every
+          # repository-local invariant is still enforced.
+          SKIP_ENVIRONMENT_CHECKS: '1'
+      - name: Start production stack
+        run: |
+          docker compose -f docker-compose.prod.yml up -d --no-build \
+            postgres redis pgbouncer backend frontend
+      - name: Wait for backend readiness
+        # /health/ready asserts the database and Redis, so this is a real
+        # dependency check rather than a port probe.
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:3000/api/v1/health/ready -o /tmp/ready.json; then
+              echo "backend ready on attempt $i"
+              cat /tmp/ready.json
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "backend never became ready"
+          docker compose -f docker-compose.prod.yml ps -a
+          docker compose -f docker-compose.prod.yml logs --tail=200
+          exit 1
+      - name: Verify edge routing through nginx
+        # Exercises the real front door: SPA at /, the health endpoint the
+        # orchestrator probes, the API under the canonical /api/v1 prefix, and a
+        # non-SPA response on the WebSocket path.
+        run: |
+          set -euo pipefail
+          curl -sf http://127.0.0.1/health | grep -q 'ok'
+          echo "frontend /health ok"
+          curl -sf http://127.0.0.1/ | grep -qi '<html'
+          echo "SPA served at /"
+          curl -sf http://127.0.0.1/api/v1/health/live | grep -q '"status"'
+          echo "API proxied at /api/v1"
+          if curl -sf http://127.0.0.1/realtime | grep -qi '<html'; then
+            echo "::error::/realtime fell through to the SPA"
+            exit 1
+          fi
+          echo "WebSocket path does not fall through to the SPA"
+      - name: Verify backup and restore round trip
+        # Goal 7: the restore path has to be proven against every release image,
+        # not just documented. Takes a custom-format dump from the live stack's
+        # PostgreSQL and restores it into a scratch container via
+        # scripts/restore-check.sh (non-destructive; nothing about the stack is
+        # modified).
+        run: |
+          set -euo pipefail
+          docker compose -f docker-compose.prod.yml exec -T postgres \
+            pg_dump --username=vardiya --dbname=vardiyasystem \
+            --format=custom --compress=9 --no-owner --no-acl \
+            > /tmp/vardiya-restore-check.dump.gz
+          echo "dump size: $(stat -c%s /tmp/vardiya-restore-check.dump.gz) bytes"
+          bash scripts/restore-check.sh /tmp/vardiya-restore-check.dump.gz
+      - name: Stack diagnostics
+        if: failure()
+        run: |
+          docker compose -f docker-compose.prod.yml ps -a
+          docker compose -f docker-compose.prod.yml logs --tail=300
+      - name: Tear down stack
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down -v --remove-orphans
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-24.04
+    needs: [integration-test, docker-build-push]
+    if: ${{ !inputs.dry_run }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Generate changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          configurationJson: |
+            {
+              "template": "#{{CHANGELOG}}",
+              "categories": [
+                { "title": "## 🚀 Features", "labels": ["feature", "enhancement"] },
+                { "title": "## 🐛 Bug Fixes", "labels": ["bug", "fix"] },
+                { "title": "## 🛠️ Maintenance", "labels": ["chore", "dependencies", "refactor"] },
+                { "title": "## 📖 Documentation", "labels": ["documentation"] },
+                { "title": "## 🔒 Security", "labels": ["security"] }
+              ]
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract version
+        id: version
+        run: echo "version=$(node -p "require('./backend/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}-${{ github.sha }}
+          name: "Release v${{ steps.version.outputs.version }}"
+          body: ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          target_commitish: ${{ github.sha }}

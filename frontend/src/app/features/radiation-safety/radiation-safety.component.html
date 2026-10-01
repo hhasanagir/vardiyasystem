@@ -1,0 +1,187 @@
+<p-toast></p-toast>
+
+<div class="page-header">
+  <h1>
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="4" />
+      <line x1="21.17" y1="8" x2="12" y2="8" />
+      <line x1="3.95" y1="6.06" x2="8.54" y2="14" />
+      <line x1="10.88" y1="21.94" x2="15.46" y2="14" />
+    </svg>
+    Işın Güvenliği
+  </h1>
+  <div class="header-actions">
+    <p-button
+      icon="pi pi-refresh"
+      label="Yenile"
+      severity="secondary"
+      (onClick)="loadDosimeters(); loadMeasurements(); loadAreas()"
+    ></p-button>
+  </div>
+</div>
+
+@if (isLoading()) {
+  <div class="loading">
+    <p-progressSpinner></p-progressSpinner>
+  </div>
+}
+
+<p-tabs [value]="activeTab()" (onValueChange)="onTabChange($event)">
+  <p-tablist>
+    <p-tab value="dosimeters">Dozimetreler</p-tab>
+    <p-tab value="measurements">Ölçümler</p-tab>
+    <p-tab value="areas">Alanlar</p-tab>
+  </p-tablist>
+
+  <p-tabpanel value="dosimeters">
+    <p-table
+      [value]="dosimeters()"
+      [paginator]="true"
+      [rows]="10"
+      [tableStyle]="{ 'min-width': '50rem' }"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width: 130px">Dozimetre No</th>
+          <th>Tür</th>
+          <th>Durum</th>
+          <th>Kullanıcı</th>
+          <th>Birim</th>
+          <th>Kalibrasyon</th>
+          <th>Sonraki Kalibrasyon</th>
+          <th>Süre Dolumu</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-dosimeter>
+        <tr>
+          <td>
+            <strong>{{ dosimeter.dosimeterNumber }}</strong>
+          </td>
+          <td>{{ dosimeter.type }}</td>
+          <td>
+            <p-tag
+              [value]="dosimeter.status"
+              [severity]="getDosimeterStatusSeverity(dosimeter.status)"
+            ></p-tag>
+          </td>
+          <td>{{ dosimeter.assignedToName || '-' }}</td>
+          <td>{{ dosimeter.department || '-' }}</td>
+          <td>{{ dosimeter.calibrationDate | date: 'dd.MM.yyyy' }}</td>
+          <td>{{ dosimeter.nextCalibrationDate | date: 'dd.MM.yyyy' }}</td>
+          <td>{{ dosimeter.expiryDate | date: 'dd.MM.yyyy' }}</td>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 2rem; opacity: 0.5">
+            Kayıt bulunamadı
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </p-tabpanel>
+
+  <p-tabpanel value="measurements">
+    <p-table
+      [value]="measurements()"
+      [paginator]="true"
+      [rows]="10"
+      [tableStyle]="{ 'min-width': '50rem' }"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Dozimetre</th>
+          <th>Alan</th>
+          <th>Değer</th>
+          <th>Birim</th>
+          <th>Tür</th>
+          <th>Ölçen</th>
+          <th>Tarih</th>
+          <th>Notlar</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-measurement>
+        <tr>
+          <td>{{ measurement.dosimeterNumber || '-' }}</td>
+          <td>{{ measurement.areaName || '-' }}</td>
+          <td>
+            <strong>{{ measurement.value }}</strong>
+          </td>
+          <td>{{ measurement.unit }}</td>
+          <td><p-tag [value]="measurement.measurementType" [rounded]="true"></p-tag></td>
+          <td>{{ measurement.measuredByName }}</td>
+          <td>{{ measurement.measuredAt | date: 'dd.MM.yyyy HH:mm' }}</td>
+          <td>{{ measurement.notes || '-' }}</td>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 2rem; opacity: 0.5">
+            Kayıt bulunamadı
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </p-tabpanel>
+
+  <p-tabpanel value="areas">
+    <p-table
+      [value]="areas()"
+      [paginator]="true"
+      [rows]="10"
+      [tableStyle]="{ 'min-width': '50rem' }"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width: 100px">Kod</th>
+          <th>Ad</th>
+          <th>Tür</th>
+          <th>Durum</th>
+          <th>Maks Doz</th>
+          <th>Mevcut Doz</th>
+          <th>Sorumlu</th>
+          <th>Son Ölçüm</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-area>
+        <tr
+          [class.dose-warning]="area.currentDose / area.maxAllowedDose >= 0.7"
+          [class.dose-danger]="area.currentDose / area.maxAllowedDose >= 0.9"
+        >
+          <td>
+            <strong>{{ area.code }}</strong>
+          </td>
+          <td>{{ area.name }}</td>
+          <td>{{ area.type }}</td>
+          <td>
+            <p-tag [value]="area.status" [severity]="getAreaStatusSeverity(area.status)"></p-tag>
+          </td>
+          <td>{{ area.maxAllowedDose }} {{ area.unit }}</td>
+          <td>
+            <p-tag
+              [value]="area.currentDose + ' ' + area.unit"
+              [severity]="getDoseSeverity(area.currentDose, area.maxAllowedDose)"
+            ></p-tag>
+          </td>
+          <td>{{ area.responsiblePersonName || '-' }}</td>
+          <td>{{ area.lastMeasurementDate | date: 'dd.MM.yyyy' }}</td>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 2rem; opacity: 0.5">
+            Kayıt bulunamadı
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </p-tabpanel>
+</p-tabs>

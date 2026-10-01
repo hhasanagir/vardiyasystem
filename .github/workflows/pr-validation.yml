@@ -1,0 +1,576 @@
+name: PR Validation
+run-name: "PR #${{ github.event.pull_request.number }} — ${{ github.event.pull_request.title }}"
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  DB_NAME: vardiyasystem_test
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
+  REDIS_URL: redis://localhost:6379
+  JWT_ACCESS_TOKEN_SECRET: ci-validation-secret
+  JWT_REFRESH_TOKEN_SECRET: ci-validation-secret
+  # Prisma only needs the variable to be present when generating the client; it
+  # never dials the database during `generate`.
+  PRISMA_STUB_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
+
+jobs:
+  lint-typecheck:
+    name: Lint & Type Check
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.workspace }}/package-lock.json
+      - run: npm ci
+        working-directory: ${{ matrix.workspace }}
+      - name: Lint
+        run: npm run lint
+        working-directory: ${{ matrix.workspace }}
+      - name: Type check
+        run: npm run typecheck
+        working-directory: ${{ matrix.workspace }}
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [backend, frontend]
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: ${{ env.DB_USER }}
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.workspace }}/package-lock.json
+      - run: npm ci
+        working-directory: ${{ matrix.workspace }}
+      - name: Generate Prisma Client
+        if: matrix.workspace == 'backend'
+        run: npx prisma generate
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.PRISMA_STUB_URL }}
+      - name: Validate Prisma schema
+        if: matrix.workspace == 'backend'
+        run: npx prisma validate
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.PRISMA_STUB_URL }}
+      - name: Run migrations
+        if: matrix.workspace == 'backend'
+        run: npx prisma migrate deploy
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+      - name: Seed database
+        # The suite asserts against real seeded rows (units, personnel, roles),
+        # so migrate-only leaves it red.
+        if: matrix.workspace == 'backend'
+        run: npm run seed
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+      - name: Run unit tests
+        run: npm run test
+        working-directory: ${{ matrix.workspace }}
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          REDIS_URL: ${{ env.REDIS_URL }}
+          JWT_ACCESS_TOKEN_SECRET: ${{ env.JWT_ACCESS_TOKEN_SECRET }}
+          JWT_REFRESH_TOKEN_SECRET: ${{ env.JWT_REFRESH_TOKEN_SECRET }}
+
+  coverage:
+    # Reported, not enforced: the backend vitest config carries 80% thresholds
+    # that this tree does not meet yet, and the frontend has no coverage
+    # provider installed. Track it; do not let it silently gate a release.
+    name: Coverage Report (advisory)
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: ${{ env.DB_USER }}
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.PRISMA_STUB_URL }}
+      - name: Run migrations
+        run: npx prisma migrate deploy
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+      - name: Seed database
+        run: npm run seed
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+      - name: Run tests with coverage
+        run: npm run test:coverage
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          REDIS_URL: ${{ env.REDIS_URL }}
+          JWT_ACCESS_TOKEN_SECRET: ${{ env.JWT_ACCESS_TOKEN_SECRET }}
+          JWT_REFRESH_TOKEN_SECRET: ${{ env.JWT_REFRESH_TOKEN_SECRET }}
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./backend/coverage/coverage-final.json
+          flags: backend-unittests
+          name: backend-coverage
+          fail_ci_if_error: false
+
+  build-check:
+    name: Build Check
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.workspace }}/package-lock.json
+      - run: npm ci
+        working-directory: ${{ matrix.workspace }}
+      - name: Generate Prisma Client
+        if: matrix.workspace == 'backend'
+        run: npx prisma generate
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.PRISMA_STUB_URL }}
+      - name: Build
+        run: npm run build
+        working-directory: ${{ matrix.workspace }}
+        env:
+          DATABASE_URL: ${{ env.PRISMA_STUB_URL }}
+          JWT_ACCESS_TOKEN_SECRET: ${{ env.JWT_ACCESS_TOKEN_SECRET }}
+          JWT_REFRESH_TOKEN_SECRET: ${{ env.JWT_REFRESH_TOKEN_SECRET }}
+
+  backend-e2e:
+    name: Backend E2E
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: ${{ env.DB_USER }}
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.PRISMA_STUB_URL }}
+      - name: Run migrations
+        run: npx prisma migrate deploy
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+      - name: Seed database
+        run: npm run seed
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+      - name: Build application
+        run: npm run build
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          JWT_ACCESS_TOKEN_SECRET: ${{ env.JWT_ACCESS_TOKEN_SECRET }}
+          JWT_REFRESH_TOKEN_SECRET: ${{ env.JWT_REFRESH_TOKEN_SECRET }}
+      - name: Run backend E2E
+        run: npm run test:e2e
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          REDIS_URL: ${{ env.REDIS_URL }}
+          JWT_ACCESS_TOKEN_SECRET: ${{ env.JWT_ACCESS_TOKEN_SECRET }}
+          JWT_REFRESH_TOKEN_SECRET: ${{ env.JWT_REFRESH_TOKEN_SECRET }}
+          NODE_ENV: test
+
+  browser-acceptance:
+    # The real browser gate: the compiled Nest API plus the Angular dev server,
+    # both started by playwright.config.ts (CI never reuses a running server).
+    name: Browser Acceptance
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: ${{ env.DB_USER }}
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+            e2e/package-lock.json
+      - name: Install workspace dependencies
+        run: |
+          npm ci --prefix backend
+          npm ci --prefix frontend
+          npm ci --prefix e2e
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.PRISMA_STUB_URL }}
+      - name: Run migrations
+        run: npx prisma migrate deploy
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+      - name: Seed database
+        run: npm run seed
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+      - name: Build backend
+        run: npm run build
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          JWT_ACCESS_TOKEN_SECRET: ${{ env.JWT_ACCESS_TOKEN_SECRET }}
+          JWT_REFRESH_TOKEN_SECRET: ${{ env.JWT_REFRESH_TOKEN_SECRET }}
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      - name: Run browser acceptance suite
+        run: npm test
+        working-directory: e2e
+        env:
+          CI: 'true'
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          REDIS_URL: ${{ env.REDIS_URL }}
+          JWT_ACCESS_TOKEN_SECRET: ${{ env.JWT_ACCESS_TOKEN_SECRET }}
+          JWT_REFRESH_TOKEN_SECRET: ${{ env.JWT_REFRESH_TOKEN_SECRET }}
+          E2E_BASE_URL: http://localhost:4200
+          E2E_API_URL: http://127.0.0.1:3000
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          retention-days: 7
+
+  docker-build-validation:
+    name: Docker Build Validation
+    runs-on: ubuntu-24.04
+    needs: [build-check, lint-typecheck]
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build ${{ matrix.service }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.service }}
+          push: false
+          tags: vardiya/${{ matrix.service }}:pr-${{ github.event.pull_request.number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: npm audit — Backend
+        run: npx --yes audit-ci@6 --critical --report-type summary
+        working-directory: backend
+      - name: npm audit — Frontend
+        run: npx --yes audit-ci@6 --critical --report-type summary
+        working-directory: frontend
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check for tracked secret material
+        # Path-anchored patterns with an explicit allowlist. The previous version
+        # grepped for the substring ".env", which matched unrelated paths such as
+        # docs/environment.md and made the gate fail on clean trees.
+        run: |
+          set -euo pipefail
+          git ls-files > /tmp/tracked.txt
+          fail=0
+
+          # 1) .env files, excluding committed templates
+          if grep -E '(^|/)\.env(\.[^/]*)?$' /tmp/tracked.txt | grep -vE '\.(example|template|sample)$'; then
+            echo "::error::tracked .env file(s) above must not be committed"
+            fail=1
+          fi
+
+          # 2) private keys, keystores and certificates
+          if grep -Ei '(\.(pem|key|p12|pfx|jks|keystore)$)|(^|/)id_(rsa|dsa|ecdsa|ed25519)$' /tmp/tracked.txt; then
+            echo "::error::tracked key/certificate material above must not be committed"
+            fail=1
+          fi
+
+          # 3) the runtime secrets/ directory, documentation only
+          if grep -E '^secrets/' /tmp/tracked.txt | grep -vE '^secrets/README\.md$'; then
+            echo "::error::runtime secret files above must not be committed"
+            fail=1
+          fi
+
+          if [ "$fail" -ne 0 ]; then
+            echo "Sensitive material is tracked. Remove it and rotate if it was ever real."
+            exit 1
+          fi
+          echo "No tracked secret material."
+
+  security-tests:
+    name: Security Invariant Tests
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: ${{ env.DB_USER }}
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.PRISMA_STUB_URL }}
+      - name: Run migrations
+        run: npx prisma migrate deploy
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+      - name: Seed database
+        run: npm run seed
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+      - name: Run security invariant tests
+        run: npx vitest run --reporter=verbose src/modules/schedules/__tests__/security-invariants.spec.ts
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          REDIS_URL: ${{ env.REDIS_URL }}
+          JWT_ACCESS_TOKEN_SECRET: ${{ env.JWT_ACCESS_TOKEN_SECRET }}
+          JWT_REFRESH_TOKEN_SECRET: ${{ env.JWT_REFRESH_TOKEN_SECRET }}
+          NODE_ENV: test
+
+  docker-compose-validation:
+    name: Docker Compose Validation
+    runs-on: ubuntu-24.04
+    needs: [docker-build-validation]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create placeholder environment and secret files
+        # `config -q` fails on a missing env_file or secret file, so the gate
+        # needs stand-ins. These are throwaway literals, not credentials.
+        run: |
+          cat > .env <<'ENVEOF'
+          BACKEND_IMAGE=ghcr.io/anomalyco/vardiyasystem/backend:pr-validate
+          FRONTEND_IMAGE=ghcr.io/anomalyco/vardiyasystem/frontend:pr-validate
+          POSTGRES_USER=vardiya
+          POSTGRES_DB=vardiyasystem
+          LOG_LEVEL=info
+          GRAFANA_ROOT_URL=https://grafana.example.invalid
+          ENVEOF
+          mkdir -p secrets
+          for f in db_password jwt_access_secret jwt_refresh_secret jwt_secret grafana_admin_password; do
+            printf 'placeholder-not-a-real-secret\n' > "secrets/${f}.txt"
+          done
+          printf 'https://hooks.slack.invalid/services/placeholder\n' > secrets/slack_webhook.txt
+      - name: Validate docker-compose.yml
+        run: docker compose -f docker-compose.yml config -q
+      - name: Validate docker-compose.prod.yml
+        run: docker compose -f docker-compose.prod.yml config -q
+      - name: Assert production images are pinned
+        # The prod file must not silently resolve to a floating :latest tag.
+        run: |
+          rendered=$(docker compose -f docker-compose.prod.yml config)
+          if echo "$rendered" | grep -E '^\s*image: .*:latest\s*$'; then
+            echo "::error::docker-compose.prod.yml resolves an image to :latest"
+            exit 1
+          fi
+          echo "All production image references are pinned."
+      - name: Release preflight
+        run: node scripts/release-preflight.mjs
+        env:
+          # Skip the checks that need a real deployment target; everything
+          # repository-local is still enforced.
+          SKIP_ENVIRONMENT_CHECKS: '1'
+      - name: Release preflight test suite
+        # The preflight has to prove its own gates work (a gate that cannot go
+        # red is not a gate); same command the deploy path runs.
+        run: node --test scripts/release-preflight.test.mjs
+
+  manifest-render:
+    name: Manifest Render (Kustomize + Helm)
+    runs-on: ubuntu-24.04
+    needs: [docker-compose-validation]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+      - name: Render and validate the release chain
+        # One script, one source of truth: compose config, kustomize renders,
+        # helm templates for production and staging, and the image/sealed
+        # secret invariants. Fails closed on any drift.
+        run: bash scripts/release-dry-run.sh --ci

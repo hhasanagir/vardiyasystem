@@ -1,0 +1,99 @@
+<p-toast></p-toast>
+
+<div class="page-header">
+  <h1>
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
+      <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+    Kalite Yönetimi
+  </h1>
+  <div class="header-actions">
+    <p-button
+      icon="pi pi-refresh"
+      label="Yenile"
+      severity="secondary"
+      (onClick)="loadRecords()"
+    ></p-button>
+    <p-button icon="pi pi-plus" label="Yeni Kayıt" (onClick)="onCreate()"></p-button>
+  </div>
+</div>
+
+<div class="kpi-grid">
+  <p-card class="kpi-card">
+    <div class="kpi-value" style="color: #f97316">{{ openCount() }}</div>
+    <div class="kpi-label">Açık</div>
+  </p-card>
+  <p-card class="kpi-card">
+    <div class="kpi-value" style="color: #3b82f6">{{ inProgressCount() }}</div>
+    <div class="kpi-label">Devam Ediyor</div>
+  </p-card>
+  <p-card class="kpi-card">
+    <div class="kpi-value" style="color: #22c55e">{{ closedCount() }}</div>
+    <div class="kpi-label">Kapalı</div>
+  </p-card>
+</div>
+
+@if (isLoading()) {
+  <div class="loading">
+    <p-progressSpinner></p-progressSpinner>
+  </div>
+}
+
+<p-table [value]="records()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '60rem' }">
+  <ng-template pTemplate="header">
+    <tr>
+      <th style="width: 130px">Kayıt No</th>
+      <th>Başlık</th>
+      <th>Tür</th>
+      <th>Durum</th>
+      <th>Ciddiyet</th>
+      <th>Bildiren</th>
+      <th>Birim</th>
+      <th>Bitiş Tarihi</th>
+      <th style="width: 80px">İşlem</th>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-record let-expanded="expanded">
+    <tr>
+      <td>
+        <strong>{{ record.recordNumber }}</strong>
+      </td>
+      <td>{{ record.title }}</td>
+      <td><p-tag [value]="record.type" [rounded]="true"></p-tag></td>
+      <td><p-tag [value]="record.status" [severity]="getStatusSeverity(record.status)"></p-tag></td>
+      <td>
+        <p-tag
+          [value]="record.severity"
+          [severity]="getSeveritySeverity(record.severity)"
+          [rounded]="true"
+        ></p-tag>
+      </td>
+      <td>{{ record.reportedByName }}</td>
+      <td>{{ record.department || '-' }}</td>
+      <td>{{ record.dueDate | date: 'dd.MM.yyyy' }}</td>
+      <td>
+        <p-button
+          icon="pi pi-pencil"
+          severity="info"
+          [rounded]="true"
+          [text]="true"
+          pTooltip="Düzenle"
+          (onClick)="onEdit(record)"
+        ></p-button>
+      </td>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td colspan="9" style="text-align: center; padding: 2rem; opacity: 0.5">Kayıt bulunamadı</td>
+    </tr>
+  </ng-template>
+</p-table>

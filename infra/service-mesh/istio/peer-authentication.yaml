@@ -1,0 +1,69 @@
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: vardiya-strict-mtls
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: vardiya
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: vardiya-permissive-monitoring
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  mtls:
+    mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: vardiya-backend-authz
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/vardiya/sa/istio-ingressgateway-service-account
+      to:
+        - operation:
+            ports: ["3000"]
+    - from:
+        - source:
+            namespaces: ["vardiya"]
+      to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/api/v1/health/*"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: vardiya-jwt-authn
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  jwtRules:
+    - issuer: vardiya-auth
+      jwksUri: https://app.vardiya.com/.well-known/jwks.json
+      forwardOriginalToken: true
+      outputPayloadToHeader: x-jwt-payload

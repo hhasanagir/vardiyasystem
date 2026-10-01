@@ -1,0 +1,132 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: vardiya-frontend
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/managed-by: argo-rollouts
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: vardiya
+        app.kubernetes.io/component: frontend
+        version: stable
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/anomalyco/vardiyasystem/frontend:v1.0.0
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: vardiya-frontend-config
+            - secretRef:
+                name: vardiya-frontend-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+runAsNonRoot: true
+        runAsUser: 100
+        allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+  strategy:
+    canary:
+      canaryService: vardiya-frontend-canary
+      stableService: vardiya-frontend-stable
+      trafficRouting:
+        istio:
+          virtualService:
+            name: vardiya-main
+            routes:
+              - primary
+      steps:
+        - setWeight: 10
+        - pause:
+            duration: 5m
+        - analysis:
+            templates:
+              - templateName: rollout-analysis-success-rate
+            args:
+              - name: canary-hash
+                valueFrom:
+                  podTemplateHashValue: Latest
+        - setWeight: 30
+        - pause:
+            duration: 5m
+        - setWeight: 50
+        - pause:
+            duration: 10m
+        - setWeight: 70
+        - pause:
+            duration: 5m
+        - setWeight: 100
+      antiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: frontend
+            topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vardiya-frontend-stable
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/component: frontend
+spec:
+  selector:
+    app.kubernetes.io/component: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vardiya-frontend-canary
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/component: frontend
+spec:
+  selector:
+    app.kubernetes.io/component: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

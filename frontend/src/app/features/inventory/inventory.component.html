@@ -1,0 +1,322 @@
+<p-toast></p-toast>
+
+<div class="page-header">
+  <h1>
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
+      <path
+        d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+      />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+      <line x1="12" y1="22.08" x2="12" y2="12" />
+    </svg>
+    Akıllı Envanter
+  </h1>
+  <div class="header-actions">
+    <p-button
+      icon="pi pi-refresh"
+      label="Yenile"
+      severity="secondary"
+      (onClick)="loadAll()"
+    ></p-button>
+  </div>
+</div>
+
+<div class="kpi-cards">
+  <p-card styleClass="kpi-card">
+    <div class="kpi-content">
+      <span class="kpi-value">{{ totalStockItems() }}</span>
+      <span class="kpi-label">Toplam Stok Kalemi</span>
+    </div>
+  </p-card>
+  <p-card styleClass="kpi-card">
+    <div class="kpi-content">
+      <span class="kpi-value">{{ pendingTransfers() }}</span>
+      <span class="kpi-label">Bekleyen Transfer</span>
+    </div>
+  </p-card>
+  <p-card styleClass="kpi-card">
+    <div class="kpi-content">
+      <span class="kpi-value">{{ unresolvedAlerts() }}</span>
+      <span class="kpi-label">Çözülmemiş Uyarı</span>
+    </div>
+  </p-card>
+  <p-card styleClass="kpi-card">
+    <div class="kpi-content">
+      <span class="kpi-value">{{ totalCounts() }}</span>
+      <span class="kpi-label">Toplam Sayım</span>
+    </div>
+  </p-card>
+</div>
+
+@if (isLoading()) {
+  <div class="loading">
+    <p-progressSpinner></p-progressSpinner>
+  </div>
+}
+
+<p-tabs [value]="activeTab()">
+  <p-tablist>
+    <p-tab value="0">Stok</p-tab>
+    <p-tab value="1">Transferler</p-tab>
+    <p-tab value="2">Tüketim</p-tab>
+    <p-tab value="3">Sayaçlar</p-tab>
+    <p-tab value="4">Uyarılar</p-tab>
+  </p-tablist>
+  <p-tabpanels>
+    <p-tabpanel value="0">
+      <p-table
+        [value]="stock()"
+        [paginator]="true"
+        [rows]="10"
+        [tableStyle]="{ 'min-width': '60rem' }"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Katalog Kodu</th>
+            <th>Ad</th>
+            <th>Depo</th>
+            <th>Miktar</th>
+            <th>Min Stok</th>
+            <th>Maks Stok</th>
+            <th>Birim</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-item>
+          <tr>
+            <td>
+              <strong>{{ item.catalogCode }}</strong>
+            </td>
+            <td>{{ item.catalogName }}</td>
+            <td>{{ item.warehouseName }}</td>
+            <td>
+              <p-tag
+                [value]="item.quantity + ' ' + item.unit"
+                [severity]="getStockSeverity(item.quantity, item.minStock, item.maxStock)"
+              ></p-tag>
+            </td>
+            <td>{{ item.minStock }}</td>
+            <td>{{ item.maxStock }}</td>
+            <td>{{ item.unit }}</td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 2rem; opacity: 0.5">
+              Kayıt bulunamadı
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabpanel>
+
+    <p-tabpanel value="1">
+      <p-table
+        [value]="transfers()"
+        [paginator]="true"
+        [rows]="10"
+        [tableStyle]="{ 'min-width': '60rem' }"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Transfer No</th>
+            <th>Gönderen Depo</th>
+            <th>Alıcı Depo</th>
+            <th>Katalog</th>
+            <th>Miktar</th>
+            <th>Durum</th>
+            <th>Tarih</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-transfer>
+          <tr>
+            <td>
+              <strong>{{ transfer.transferNumber }}</strong>
+            </td>
+            <td>{{ transfer.fromWarehouseName }}</td>
+            <td>{{ transfer.toWarehouseName }}</td>
+            <td>{{ transfer.catalogName }}</td>
+            <td>{{ transfer.quantity }}</td>
+            <td>
+              <p-tag
+                [value]="transfer.status"
+                [severity]="getTransferStatusSeverity(transfer.status)"
+              ></p-tag>
+            </td>
+            <td>{{ transfer.createdAt | date: 'dd.MM.yyyy HH:mm' }}</td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 2rem; opacity: 0.5">
+              Kayıt bulunamadı
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabpanel>
+
+    <p-tabpanel value="2">
+      <p-table
+        [value]="consumptions()"
+        [paginator]="true"
+        [rows]="10"
+        [tableStyle]="{ 'min-width': '60rem' }"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Katalog</th>
+            <th>Miktar</th>
+            <th>Tür</th>
+            <th>Varlık</th>
+            <th>Muayene Türü</th>
+            <th>Tarih</th>
+            <th>Maliyet</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-record>
+          <tr>
+            <td>{{ record.catalogName }}</td>
+            <td>
+              <strong>{{ record.quantity }}</strong>
+            </td>
+            <td><p-tag [value]="record.consumptionType" [rounded]="true"></p-tag></td>
+            <td>{{ record.assetName || '-' }}</td>
+            <td>{{ record.examinationType || '-' }}</td>
+            <td>{{ record.recordedAt | date: 'dd.MM.yyyy HH:mm' }}</td>
+            <td>{{ record.cost ? (record.cost | number: '1.2-2') + ' TL' : '-' }}</td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 2rem; opacity: 0.5">
+              Kayıt bulunamadı
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabpanel>
+
+    <p-tabpanel value="3">
+      <p-table
+        [value]="counts()"
+        [paginator]="true"
+        [rows]="10"
+        [tableStyle]="{ 'min-width': '60rem' }"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Sayım No</th>
+            <th>Depo</th>
+            <th>Katalog</th>
+            <th>Beklenen</th>
+            <th>Gerçek</th>
+            <th>Fark</th>
+            <th>Durum</th>
+            <th>Tarih</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-count>
+          <tr>
+            <td>
+              <strong>{{ count.countNumber }}</strong>
+            </td>
+            <td>{{ count.warehouseName }}</td>
+            <td>{{ count.catalogName }}</td>
+            <td>{{ count.expectedQty }}</td>
+            <td>{{ count.actualQty }}</td>
+            <td>
+              <p-tag
+                [value]="
+                  count.difference > 0 ? '+' + count.difference : count.difference.toString()
+                "
+                [severity]="
+                  count.difference === 0 ? 'success' : count.difference > 0 ? 'info' : 'danger'
+                "
+              ></p-tag>
+            </td>
+            <td>
+              <p-tag
+                [value]="count.status"
+                [severity]="getCountStatusSeverity(count.status)"
+              ></p-tag>
+            </td>
+            <td>{{ count.countedAt | date: 'dd.MM.yyyy HH:mm' }}</td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 2rem; opacity: 0.5">
+              Kayıt bulunamadı
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabpanel>
+
+    <p-tabpanel value="4">
+      <p-table
+        [value]="alerts()"
+        [paginator]="true"
+        [rows]="10"
+        [tableStyle]="{ 'min-width': '60rem' }"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Katalog</th>
+            <th>Uyarı Türü</th>
+            <th>Mevcut Değer</th>
+            <th>Eşik Değeri</th>
+            <th>Mesaj</th>
+            <th>Önem</th>
+            <th>Durum</th>
+            <th style="width: 100px">İşlem</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-alert>
+          <tr>
+            <td>{{ alert.catalogName }}</td>
+            <td><p-tag [value]="alert.alertType" [rounded]="true"></p-tag></td>
+            <td>{{ alert.currentValue }}</td>
+            <td>{{ alert.threshold }}</td>
+            <td>{{ alert.message }}</td>
+            <td>
+              <p-tag [value]="alert.severity" [severity]="getAlertSeverity(alert.severity)"></p-tag>
+            </td>
+            <td>
+              <p-tag
+                [value]="alert.isResolved ? 'Çözüldü' : 'Açık'"
+                [severity]="alert.isResolved ? 'success' : 'danger'"
+              ></p-tag>
+            </td>
+            <td>
+              @if (!alert.isResolved) {
+                <p-button
+                  icon="pi pi-check"
+                  severity="success"
+                  [rounded]="true"
+                  [text]="true"
+                  pTooltip="Çöz"
+                  (onClick)="resolveAlert(alert.id)"
+                ></p-button>
+              }
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 2rem; opacity: 0.5">
+              Kayıt bulunamadı
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabpanel>
+  </p-tabpanels>
+</p-tabs>

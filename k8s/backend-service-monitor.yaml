@@ -1,0 +1,70 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vardiya-backend
+  namespace: vardiya
+  labels:
+    app: vardiya
+    component: backend
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      component: backend
+  namespaceSelector:
+    matchNames:
+      - vardiya
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_node_name]
+          targetLabel: node
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_service_name]
+          targetLabel: service
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vardiya-postgres-exporter
+  namespace: vardiya
+  labels:
+    app: vardiya
+    component: postgres-exporter
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      component: postgres-exporter
+  namespaceSelector:
+    matchNames:
+      - vardiya
+  endpoints:
+    - port: metrics
+      interval: 15s
+      scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vardiya-redis-exporter
+  namespace: vardiya
+  labels:
+    app: vardiya
+    component: redis-exporter
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      component: redis-exporter
+  namespaceSelector:
+    matchNames:
+      - vardiya
+  endpoints:
+    - port: metrics
+      interval: 15s
+      scrapeTimeout: 10s

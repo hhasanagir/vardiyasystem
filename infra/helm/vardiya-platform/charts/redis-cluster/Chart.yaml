@@ -1,0 +1,6 @@
+apiVersion: v2
+name: redis-cluster
+description: Redis cluster with Sentinel high-availability
+type: application
+version: 1.0.0
+appVersion: "7"

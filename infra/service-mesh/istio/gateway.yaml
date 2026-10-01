@@ -1,0 +1,111 @@
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: vardiya-gateway
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/managed-by: istio
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: vardiya-tls
+      hosts:
+        - app.vardiya.com
+        - api.vardiya.com
+        - "*.vardiya.example.com"
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - app.vardiya.com
+        - api.vardiya.com
+        - "*.vardiya.example.com"
+      tls:
+        httpsRedirect: true
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: vardiya-main
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  hosts:
+    - app.vardiya.com
+    - api.vardiya.com
+    - "*.vardiya.example.com"
+  gateways:
+    - vardiya-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /api
+        - uri:
+            prefix: /socket.io
+      route:
+        - destination:
+            host: vardiya-backend
+            port:
+              number: 3000
+          weight: 100
+        - destination:
+            host: vardiya-backend-canary
+            port:
+              number: 3000
+          weight: 0
+      timeout: 60s
+      retries:
+        attempts: 3
+        perTryTimeout: 10s
+        retryOn: connect-failure,refused-stream,unavailable,cancelled
+      corsPolicy:
+        allowOrigins:
+          - exact: https://app.vardiya.com
+        allowMethods: [GET, POST, PUT, DELETE, PATCH]
+        allowHeaders: [Content-Type, Authorization, X-CSRF-Token]
+        maxAge: 86400s
+    - match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: vardiya-frontend
+            port:
+              number: 80
+          weight: 100
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: vardiya-backend
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  hosts:
+    - vardiya-backend
+  http:
+    - route:
+        - destination:
+            host: vardiya-backend
+            port:
+              number: 3000
+      retries:
+        attempts: 3
+        perTryTimeout: 5s
+      fault:
+        abort:
+          percentage:
+            value: 0
+          httpStatus: 503

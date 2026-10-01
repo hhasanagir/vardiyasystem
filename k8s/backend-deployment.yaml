@@ -1,0 +1,183 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vardiya-backend
+  namespace: vardiya
+  labels:
+    app: vardiya
+    component: backend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: vardiya
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: vardiya
+        component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: vardiya-backend
+      terminationGracePeriodSeconds: 30
+      # The backend image ships USER vardiya (alpine adduser -S → uid 100).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        fsGroup: 100
+      initContainers:
+        # Same migration gate as the compose stack and the helm chart: run
+        # `prisma migrate deploy` against the DIRECT database before any pod
+        # accepts traffic.
+        - name: migrate
+          image: ghcr.io/anomalyco/vardiyasystem/backend:v1.0.0
+          imagePullPolicy: IfNotPresent
+          command: [npx, prisma, migrate, deploy]
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vardiya-secrets
+                  key: db_password
+            - name: DATABASE_URL
+              value: "postgresql://vardiya:$(DB_PASSWORD)@vardiya-postgres:5432/vardiyasystem?schema=public&connection_limit=5"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 100
+      containers:
+        - name: backend
+          image: ghcr.io/anomalyco/vardiyasystem/backend:v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: vardiya-config
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vardiya-secrets
+                  key: db_password
+            - name: DATABASE_URL
+              value: "postgresql://vardiya:$(DB_PASSWORD)@vardiya-pgbouncer:6432/vardiyasystem?schema=public&connection_limit=25&pgbouncer=true"
+            - name: DATABASE_DIRECT_URL
+              value: "postgresql://vardiya:$(DB_PASSWORD)@vardiya-postgres:5432/vardiyasystem?schema=public&connection_limit=5"
+            - name: JWT_ACCESS_TOKEN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: vardiya-secrets
+                  key: jwt_access_secret
+            - name: JWT_REFRESH_TOKEN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: vardiya-secrets
+                  key: jwt_refresh_secret
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: vardiya-secrets
+                  key: slack_webhook
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "1"
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health/live
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health/ready
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /api/v1/health/live
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vardiya-backend-hpa
+  namespace: vardiya
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vardiya-backend
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vardiya-backend-pdb
+  namespace: vardiya
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: vardiya
+      component: backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vardiya-backend
+  namespace: vardiya
+  labels:
+    app: vardiya
+    component: backend
+spec:
+  selector:
+    app: vardiya
+    component: backend
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: http
+  type: ClusterIP

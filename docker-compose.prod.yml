@@ -1,0 +1,418 @@
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  jwt_access_secret:
+    file: ./secrets/jwt_access_secret.txt
+  jwt_refresh_secret:
+    file: ./secrets/jwt_refresh_secret.txt
+  cookie_secret:
+    file: ./secrets/cookie_secret.txt
+  encryption_master_key:
+    file: ./secrets/encryption_master_key.txt
+  slack_webhook:
+    file: ./secrets/slack_webhook.txt
+  grafana_admin_password:
+    file: ./secrets/grafana_admin_password.txt
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: vardiya-redis
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: vardiya-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vardiya}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: ${POSTGRES_DB:-vardiyasystem}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vardiya}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    secrets:
+      - db_password
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+
+  pgbouncer:
+    image: bitnamilegacy/pgbouncer:1.24.1-debian-12-r10
+    container_name: vardiya-pgbouncer
+    restart: unless-stopped
+    environment:
+      POSTGRESQL_HOST: postgres
+      POSTGRESQL_PORT: 5432
+      POSTGRESQL_USERNAME: ${POSTGRES_USER:-vardiya}
+      POSTGRESQL_DATABASE: ${POSTGRES_DB:-vardiyasystem}
+      PGBOUNCER_DATABASE: ${POSTGRES_DB:-vardiyasystem}
+      PGBOUNCER_PORT: 6432
+      PGBOUNCER_POOL_MODE: transaction
+      PGBOUNCER_DEFAULT_POOL_SIZE: 25
+      PGBOUNCER_MAX_CLIENT_CONN: 200
+      PGBOUNCER_MAX_DB_CONNECTIONS: 50
+      PGBOUNCER_SERVER_IDLE_TIMEOUT: 600
+      PGBOUNCER_QUERY_TIMEOUT: 30
+    ports:
+      - "127.0.0.1:6432:6432"
+    secrets:
+      - db_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./scripts/pgbouncer-entrypoint.sh:/entrypoint-pgbouncer.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint-pgbouncer.sh"]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "pgbouncer", "--version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  backend:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set to an immutable tag, e.g. ghcr.io/anomalyco/vardiyasystem/backend:v1.0.0}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vardiya-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      LOG_DIR: /var/log/vardiya
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL must be the non-localhost public URL (e.g. https://vardiya.local)}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:?VAPID_PUBLIC_KEY is required in production}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:?VAPID_PRIVATE_KEY is required in production}
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+      redis:
+        condition: service_started
+    secrets:
+      - db_password
+      - jwt_access_secret
+      - jwt_refresh_secret
+      - cookie_secret
+      - encryption_master_key
+      - slack_webhook
+    volumes:
+      - vardiya_logs:/var/log/vardiya
+    command: >
+      sh -c "
+        set -e &&
+        DB_PASSWORD=$$(cat /run/secrets/db_password) &&
+        export DATABASE_URL=\"postgresql://${POSTGRES_USER:-vardiya}:$$DB_PASSWORD@pgbouncer:6432/${POSTGRES_DB:-vardiyasystem}?schema=public&connection_limit=25&pgbouncer=true\" &&
+        export DATABASE_DIRECT_URL=\"postgresql://${POSTGRES_USER:-vardiya}:$$DB_PASSWORD@postgres:5432/${POSTGRES_DB:-vardiyasystem}?schema=public&connection_limit=5\" &&
+        export JWT_ACCESS_TOKEN_SECRET=\"$$(cat /run/secrets/jwt_access_secret)\" &&
+        export JWT_REFRESH_TOKEN_SECRET=\"$$(cat /run/secrets/jwt_refresh_secret)\" &&
+        export COOKIE_SECRET=\"$$(cat /run/secrets/cookie_secret)\" &&
+        export ENCRYPTION_MASTER_KEY=\"$$(cat /run/secrets/encryption_master_key)\" &&
+        npx prisma generate &&
+        npx prisma migrate deploy &&
+        node dist/src/main
+      "
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3000/api/v1/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  startup-verifier:
+    image: alpine:3.19
+    container_name: vardiya-startup-verifier
+    restart: "no"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      API_URL: http://backend:3000
+      TIMEOUT_SEC: "120"
+      INTERVAL_SEC: "5"
+    volumes:
+      - ./scripts/startup-verify.sh:/verify.sh:ro
+      - vardiya_logs:/var/log/vardiya
+    command: >
+      sh -c "
+        apk add --no-cache curl python3 2>/dev/null &&
+        sh /verify.sh
+      "
+
+  frontend:
+    image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE must be set to an immutable tag, e.g. ghcr.io/anomalyco/vardiyasystem/frontend:v1.0.0}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vardiya-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+
+  backup-cron:
+    image: alpine:3.19
+    container_name: vardiya-backup-cron
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      BACKUP_DIR: /backups/vardiya
+      CRON_SCHEDULE: "0 3 * * *"
+      PGUSER: ${POSTGRES_USER:-vardiya}
+      PGDATABASE: ${POSTGRES_DB:-vardiyasystem}
+      PGHOST: postgres
+      PGPASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    volumes:
+      - ./scripts/backup-db.sh:/usr/local/bin/backup-db.sh:ro
+      - ./scripts/verify-backup.sh:/usr/local/bin/verify-backup.sh:ro
+      - backup_data:/backups
+      - vardiya_logs:/var/log/vardiya
+    command: >
+      sh -c "
+        apk add --no-cache postgresql-client bash 2>/dev/null &&
+        export POSTGRES_PASSWORD=\"$$(cat /run/secrets/db_password)\" &&
+        printf '%s\n' \"$$CRON_SCHEDULE /usr/local/bin/backup-db.sh $$BACKUP_DIR >> /var/log/vardiya/cron-backup.log 2>&1\" > /etc/crontabs/root &&
+        printf '%s\n' \"15 3 * * * /usr/local/bin/verify-backup.sh $$BACKUP_DIR/latest.sql.gz >> /var/log/vardiya/cron-backup.log 2>&1\" >> /etc/crontabs/root &&
+        /usr/local/bin/backup-db.sh $$BACKUP_DIR &&
+        /usr/local/bin/verify-backup.sh $$BACKUP_DIR/latest.sql.gz &&
+        crond -f -l 2
+      "
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: vardiya-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: vardiya-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3001}
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboard.json:/var/lib/grafana/dashboards/vardiya-dashboard.json:ro
+    depends_on:
+      - prometheus
+    secrets:
+      - grafana_admin_password
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: vardiya-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki-config.yml
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  tempo:
+    image: grafana/tempo:2.6.0
+    container_name: vardiya-tempo
+    restart: unless-stopped
+    command: -config.file=/etc/tempo/tempo-config.yml
+    ports:
+      - "127.0.0.1:3200:3200"
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+    volumes:
+      - ./tempo/tempo-config.yml:/etc/tempo/tempo-config.yml:ro
+      - tempo_data:/var/tempo
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: vardiya-alertmanager
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=https://alertmanager.vardiya.local'
+    ports:
+      - "127.0.0.1:9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    secrets:
+      - slack_webhook
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: vardiya-postgres-exporter
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vardiya}
+      POSTGRES_DB: ${POSTGRES_DB:-vardiyasystem}
+    ports:
+      - "127.0.0.1:9187:9187"
+    secrets:
+      - db_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./scripts/postgres-exporter-entrypoint.sh:/entrypoint-exporter.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint-exporter.sh"]
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.1'
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.61.0
+    container_name: vardiya-redis-exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    ports:
+      - "127.0.0.1:9121:9121"
+    depends_on:
+      redis:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.1'
+
+  pgbouncer-exporter:
+    image: prometheuscommunity/pgbouncer-exporter:v0.11.0
+    container_name: vardiya-pgbouncer-exporter
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9127:9127"
+    secrets:
+      - db_password
+    depends_on:
+      pgbouncer:
+        condition: service_started
+    volumes:
+      - ./scripts/pgbouncer-exporter-entrypoint.sh:/entrypoint-exporter.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint-exporter.sh"]
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.1'
+
+volumes:
+  postgres_data:
+    name: vardiya_postgres_data
+  vardiya_logs:
+  backup_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  tempo_data:
+  alertmanager_data:

@@ -1,0 +1,83 @@
+# Dependencies
+node_modules/
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+dist/
+build/
+out/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.production
+!.env.example
+backend/.env
+frontend/.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Docker
+.docker/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Backend
+backend/dist/
+backend/node_modules/
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Docker secrets (real secret files — never commit)
+secrets/*.txt
+
+# Runtime/stray artifacts (release integrity: never commit)
+dump.rdb
+server_log.txt
+/query
+
+# Generated FE bundles staged inside backend (served by nginx in prod; rebuilt in CI)
+backend/static/
+
+# Stray nested duplicates (unreferenced by build: angular sourceRoot "src"/main.ts, nest main.ts)
+frontend/src/src/
+backend/src/src/
+
+# Misc
+*.tgz
+.cache/

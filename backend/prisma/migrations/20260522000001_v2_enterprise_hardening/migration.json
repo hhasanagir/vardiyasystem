@@ -1,0 +1,98 @@
+{
+  "version": "5.22.0",
+  "steps": [
+    {
+      "tag": "CreateIndex",
+      "table": "personnel",
+      "unique": true,
+      "columns": ["email"]
+    },
+    {
+      "tag": "CreateIndex",
+      "table": "personnel",
+      "unique": true,
+      "columns": ["employeeNo"]
+    },
+    {
+      "tag": "CreateIndex",
+      "table": "assignments",
+      "unique": true,
+      "columns": ["personnelId", "date", "shiftType"]
+    },
+    {
+      "tag": "CreateIndex",
+      "table": "assignments",
+      "columns": ["personnelId", "date"]
+    },
+    {
+      "tag": "CreateForeignKey",
+      "table": "swap_requests",
+      "constraint": "swap_requests_requesterId_fkey",
+      "columns": ["requesterId"],
+      "referencedTable": "personnel",
+      "referencedColumns": ["id"],
+      "onDelete": "CASCADE",
+      "onUpdate": "CASCADE"
+    },
+    {
+      "tag": "CreateForeignKey",
+      "table": "swap_requests",
+      "constraint": "swap_requests_targetPersonnelId_fkey",
+      "columns": ["targetPersonnelId"],
+      "referencedTable": "personnel",
+      "referencedColumns": ["id"],
+      "onDelete": "CASCADE",
+      "onUpdate": "CASCADE"
+    },
+    {
+      "tag": "CreateForeignKey",
+      "table": "swap_requests",
+      "constraint": "swap_requests_fromAssignmentId_fkey",
+      "columns": ["fromAssignmentId"],
+      "referencedTable": "assignments",
+      "referencedColumns": ["id"],
+      "onDelete": "CASCADE",
+      "onUpdate": "CASCADE"
+    },
+    {
+      "tag": "CreateForeignKey",
+      "table": "swap_requests",
+      "constraint": "swap_requests_toAssignmentId_fkey",
+      "columns": ["toAssignmentId"],
+      "referencedTable": "assignments",
+      "referencedColumns": ["id"],
+      "onDelete": "SET_NULL",
+      "onUpdate": "CASCADE"
+    },
+    {
+      "tag": "CreateForeignKey",
+      "table": "notifications",
+      "constraint": "notifications_userId_fkey",
+      "columns": ["userId"],
+      "referencedTable": "users",
+      "referencedColumns": ["id"],
+      "onDelete": "CASCADE",
+      "onUpdate": "CASCADE"
+    },
+    {
+      "tag": "CreateIndex",
+      "table": "swap_requests",
+      "columns": ["requesterId"]
+    },
+    {
+      "tag": "CreateIndex",
+      "table": "swap_requests",
+      "columns": ["targetPersonnelId"]
+    },
+    {
+      "tag": "CreateIndex",
+      "table": "swap_requests",
+      "columns": ["status"]
+    },
+    {
+      "tag": "CreateIndex",
+      "table": "notifications",
+      "columns": ["organizationId"]
+    }
+  ]
+}

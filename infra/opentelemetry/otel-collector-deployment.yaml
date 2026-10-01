@@ -1,0 +1,249 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vardiya-observability
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/managed-by: argocd
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: vardiya-observability
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/component: otel-collector
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      jaeger:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:14250
+          thrift_http:
+            endpoint: 0.0.0.0:14268
+      zipkin:
+        endpoint: 0.0.0.0:9411
+
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 1024
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 512
+        spike_limit_mib: 128
+      attributes:
+        actions:
+          - key: environment
+            value: production
+            action: upsert
+      filter:
+        error_mode: ignore
+        traces:
+          span:
+            - 'attributes["http.target"] == "/api/v1/health/live"'
+            - 'attributes["http.target"] == "/api/v1/health/ready"'
+
+    exporters:
+      otlp:
+        endpoint: vardiya-tempo:4317
+        tls:
+          insecure: true
+        sending_queue:
+          queue_size: 5000
+          num_consumers: 10
+        retry_on_failure:
+          enabled: true
+          max_elapsed_time: 60s
+      prometheus:
+        endpoint: 0.0.0.0:8889
+        namespace: vardiya
+        resource_to_telemetry_conversion:
+          enabled: true
+      debug:
+        verbosity: basic
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp, jaeger, zipkin]
+          processors: [memory_limiter, batch, attributes, filter]
+          exporters: [otlp, debug]
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, batch, attributes]
+          exporters: [prometheus, debug]
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, batch, attributes]
+          exporters: [debug]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: vardiya-observability
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/component: otel-collector
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: otel-collector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: vardiya
+        app.kubernetes.io/component: otel-collector
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8889"
+    spec:
+      containers:
+        - name: otel-collector
+          image: otel/opentelemetry-collector-contrib:0.120.0
+          args:
+            - --config=/etc/otel/config.yaml
+          ports:
+            - containerPort: 4317
+              name: otlp-grpc
+              protocol: TCP
+            - containerPort: 4318
+              name: otlp-http
+              protocol: TCP
+            - containerPort: 14250
+              name: jaeger-grpc
+              protocol: TCP
+            - containerPort: 14268
+              name: jaeger-thrift
+              protocol: TCP
+            - containerPort: 9411
+              name: zipkin
+              protocol: TCP
+            - containerPort: 8889
+              name: metrics
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otel
+              readOnly: true
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+      volumes:
+        - name: config
+          configMap:
+            name: otel-collector-config
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/component: otel-collector
+                topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: vardiya-observability
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/component: otel-collector
+spec:
+  selector:
+    app.kubernetes.io/component: otel-collector
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+    - name: jaeger-grpc
+      port: 14250
+      targetPort: 14250
+    - name: jaeger-thrift
+      port: 14268
+      targetPort: 14268
+    - name: zipkin
+      port: 9411
+      targetPort: 9411
+    - name: metrics
+      port: 8889
+      targetPort: 8889
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: otel-collector
+  namespace: vardiya-observability
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/component: otel-collector
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: otel-collector
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: otel-collector
+  namespace: vardiya-observability
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    release: vardiya-prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: otel-collector
+  namespaceSelector:
+    matchNames:
+      - vardiya-observability
+  endpoints:
+    - port: metrics
+      interval: 15s

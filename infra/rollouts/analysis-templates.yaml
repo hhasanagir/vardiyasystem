@@ -1,0 +1,106 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: rollout-analysis-success-rate
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/managed-by: argo-rollouts
+spec:
+  args:
+    - name: canary-hash
+  metrics:
+    - name: success-rate
+      successCondition: result >= 0.95
+      failureLimit: 3
+      interval: 1m
+      count: 5
+      provider:
+        prometheus:
+          address: http://vardiya-prometheus-server:9090
+          query: |
+            sum(rate(
+              istio_requests_total{
+                reporter="destination",
+                destination_workload_namespace="vardiya",
+                destination_canonical_revision="{{args.canary-hash}}",
+                response_code!~"5.*"
+              }[1m]
+            ))
+            /
+            sum(rate(
+              istio_requests_total{
+                reporter="destination",
+                destination_workload_namespace="vardiya",
+                destination_canonical_revision="{{args.canary-hash}}"
+              }[1m]
+            ))
+    - name: error-rate
+      successCondition: result <= 0.05
+      failureLimit: 3
+      interval: 1m
+      count: 5
+      provider:
+        prometheus:
+          address: http://vardiya-prometheus-server:9090
+          query: |
+            sum(rate(
+              istio_requests_total{
+                reporter="destination",
+                destination_workload_namespace="vardiya",
+                destination_canonical_revision="{{args.canary-hash}}",
+                response_code=~"5.*"
+              }[1m]
+            ))
+            /
+            sum(rate(
+              istio_requests_total{
+                reporter="destination",
+                destination_workload_namespace="vardiya",
+                destination_canonical_revision="{{args.canary-hash}}"
+              }[1m]
+            ))
+    - name: latency-p95
+      successCondition: result <= 2000
+      failureLimit: 3
+      interval: 1m
+      count: 5
+      provider:
+        prometheus:
+          address: http://vardiya-prometheus-server:9090
+          query: |
+            histogram_quantile(0.95,
+              sum(rate(
+                istio_request_duration_milliseconds_bucket{
+                  reporter="destination",
+                  destination_workload_namespace="vardiya",
+                  destination_canonical_revision="{{args.canary-hash}}"
+                }[1m]
+              )) by (le)
+            )
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: rollout-analysis-smoke
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  metrics:
+    - name: health-check
+      successCondition: result == 200
+      provider:
+        http:
+          url: http://vardiya-backend-preview:3000/api/v1/health/live
+          headers:
+            - key: Content-Type
+              value: application/json
+    - name: readiness-check
+      successCondition: result == 200
+      provider:
+        http:
+          url: http://vardiya-backend-preview:3000/api/v1/health/ready
+          headers:
+            - key: Content-Type
+              value: application/json

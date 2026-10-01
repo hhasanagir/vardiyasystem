@@ -1,0 +1,167 @@
+/* ============================================================
+   VardiyaOS Shared Table Scroll System
+   ------------------------------------------------------------
+   Ortak scroll mimarisi. Tüm tablo/grid container'ları aynı
+   X+Y scroll, sticky header, sticky kolon ve profesyonel dark
+   scrollbar davranışını bu partial üzerinden paylaşır.
+
+   Kullanım:
+   - HTML table :  <div class="scroll-container scroll-sticky-head [scroll-sticky-col]"> <table>...
+   - PrimeNG    :  <div class="scroll-x"> <p-table>...
+   ============================================================ */
+
+@mixin app-scrollbar {
+  scrollbar-width: auto;
+  scrollbar-color: var(--border-default) transparent;
+
+  &::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-default);
+    border-radius: 5px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--border-strong);
+    border-radius: 5px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+/* ---- Container: her iki eksende scroll ---- */
+.scroll-container,
+.table-scroll {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  @include app-scrollbar;
+}
+
+/* ---- Container: yalnızca yatay scroll ---- */
+.scroll-x,
+.table-scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  @include app-scrollbar;
+}
+
+/* ---- Tablolar en az içerik genişliğinde kalır -> taştığında yatay scroll üretir ----
+   (width:100% ile birleşince: dar ekranda içerik genişliğine büyür, geniş ekranda container'ı doldurur) */
+.scroll-container table,
+.scroll-x table,
+.table-scroll table,
+.scroll-sticky-head table {
+  min-width: max-content;
+}
+
+/* ---- Sticky header (opak zemin, scroll'da üstte kalır) ---- */
+.scroll-sticky-head table thead th,
+.scroll-sticky-head thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg-surface);
+}
+
+/* ---- Sticky ilk kolon ---- */
+.scroll-sticky-col table thead th:first-child,
+.scroll-sticky-col table tbody td:first-child,
+.scroll-sticky-col table tfoot td:first-child,
+.scroll-sticky-col thead th:first-child,
+.scroll-sticky-col tbody td:first-child,
+.scroll-sticky-col tfoot td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 6;
+}
+
+/* ---- Sticky köşe hücresi (ilk kolon + header kesişimi) ---- */
+.scroll-sticky-head.scroll-sticky-col table thead th:first-child,
+.scroll-sticky-col.scroll-sticky-head thead th:first-child,
+.scroll-sticky-head.scroll-sticky-col thead th:first-child {
+  z-index: 10;
+}
+
+/* ---- İnce yatay kaydırma imleci: Shift+wheel / iki parmak ---- */
+.scroll-container,
+.scroll-x {
+  scrollbar-gutter: stable;
+}
+
+/* ---- Kenar fade göstergesi (içerik taştığını hissettirir) ---- */
+.scroll-fade {
+  position: relative;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 24px;
+    z-index: 3;
+    pointer-events: none;
+    transition: opacity var(--transition-fast);
+  }
+
+  &::before {
+    left: 0;
+    background: linear-gradient(to right, var(--bg-primary), transparent);
+    opacity: 0;
+  }
+
+  &::after {
+    right: 0;
+    background: linear-gradient(to left, var(--bg-primary), transparent);
+    opacity: 1;
+  }
+}
+
+/* ---- PrimeNG p-table desteği ---- */
+.p-datatable-wrapper,
+.p-datatable-scrollable-body,
+.p-datatable-scrollable-view {
+  @include app-scrollbar;
+}
+
+/* PrimeNG tablosu wrapper içinde taştığında yatay scroll üret */
+.scroll-x > .p-datatable,
+.scroll-container > .p-datatable {
+  .p-datatable-wrapper {
+    overflow-x: auto;
+  }
+}
+
+/* ---- PrimeNG global: tüm p-tablolara tutarlı scroll + sticky header ---- */
+.p-datatable-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.p-datatable:not(.p-datatable-scrollable) .p-datatable-table {
+  min-width: max-content;
+}
+
+.p-datatable-thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-surface);
+}

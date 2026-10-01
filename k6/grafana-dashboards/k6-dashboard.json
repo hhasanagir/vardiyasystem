@@ -1,0 +1,81 @@
+{
+  "title": "K6 Load Test Dashboard",
+  "uid": "k6-load-test",
+  "tags": ["k6", "load-test"],
+  "schemaVersion": 38,
+  "version": 1,
+  "panels": [
+    {
+      "title": "HTTP Request Duration (P50/P95/P99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_req_duration_bucket[1m])) by (le))",
+          "legendFormat": "P50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_req_duration_bucket[1m])) by (le))",
+          "legendFormat": "P95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_req_duration_bucket[1m])) by (le))",
+          "legendFormat": "P99"
+        }
+      ]
+    },
+    {
+      "title": "Error Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "rate(errors_total[1m])", "legendFormat": "Error Rate" }
+      ]
+    },
+    {
+      "title": "Active VUs",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 8 },
+      "targets": [{ "expr": "max(vus)", "legendFormat": "Max VUs" }]
+    },
+    {
+      "title": "Request Rate",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 8 },
+      "targets": [
+        { "expr": "rate(http_reqs_total[1m])", "legendFormat": "Requests/s" }
+      ]
+    },
+    {
+      "title": "Failed Requests",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(http_req_failed_total[1m])",
+          "legendFormat": "Failures/s"
+        }
+      ]
+    },
+    {
+      "title": "Endpoint Latency (P95 by endpoint)",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_req_duration_bucket[1m])) by (le, name))",
+          "legendFormat": "{{name}}"
+        }
+      ]
+    },
+    {
+      "title": "Checks Pass/Fail",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        { "expr": "rate(checks{status=\"pass\"}[1m])", "legendFormat": "Pass" },
+        { "expr": "rate(checks{status=\"fail\"}[1m])", "legendFormat": "Fail" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vardiya-postgres
+  namespace: vardiya
+  labels:
+    app: vardiya
+    component: postgres
+spec:
+  selector:
+    app: vardiya
+    component: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+  clusterIP: None
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vardiya-pgbouncer
+  namespace: vardiya
+  labels:
+    app: vardiya
+    component: pgbouncer
+spec:
+  selector:
+    app: vardiya
+    component: pgbouncer
+  ports:
+    - port: 6432
+      targetPort: 6432
+      name: pgbouncer
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vardiya-postgres
+  namespace: vardiya
+  labels:
+    app: vardiya
+    component: postgres
+spec:
+  serviceName: vardiya-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vardiya
+      component: postgres
+  template:
+    metadata:
+      labels:
+        app: vardiya
+        component: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              value: "vardiya"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vardiya-secrets
+                  key: db_password
+            - name: POSTGRES_DB
+              value: "vardiyasystem"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "2"
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "vardiya"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "vardiya"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+              subPath: postgres
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: standard
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vardiya-pgbouncer
+  namespace: vardiya
+  labels:
+    app: vardiya
+    component: pgbouncer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vardiya
+      component: pgbouncer
+  template:
+    metadata:
+      labels:
+        app: vardiya
+        component: pgbouncer
+    spec:
+      containers:
+        - name: pgbouncer
+          image: bitnamilegacy/pgbouncer:1.24.1-debian-12-r10
+          ports:
+            - containerPort: 6432
+              name: pgbouncer
+          env:
+            - name: POSTGRESQL_HOST
+              value: "vardiya-postgres"
+            - name: POSTGRESQL_PORT
+              value: "5432"
+            - name: POSTGRESQL_USERNAME
+              value: "vardiya"
+            - name: POSTGRESQL_DATABASE
+              value: "vardiyasystem"
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vardiya-secrets
+                  key: db_password
+            - name: PGBOUNCER_PORT
+              value: "6432"
+            - name: PGBOUNCER_POOL_MODE
+              value: "transaction"
+            - name: PGBOUNCER_DEFAULT_POOL_SIZE
+              value: "25"
+            - name: PGBOUNCER_MAX_CLIENT_CONN
+              value: "200"
+            - name: PGBOUNCER_MAX_DB_CONNECTIONS
+              value: "50"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "128Mi"
+              cpu: "250m"

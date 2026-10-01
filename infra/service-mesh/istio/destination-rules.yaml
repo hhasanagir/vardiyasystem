@@ -1,0 +1,84 @@
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: vardiya-backend
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  host: vardiya-backend
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_CONN
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 5s
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 200
+        maxRequestsPerConnection: 100
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 50
+  subsets:
+    - name: stable
+      labels:
+        version: stable
+    - name: canary
+      labels:
+        version: canary
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: vardiya-frontend
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  host: vardiya-frontend
+  trafficPolicy:
+    loadBalancer:
+      simple: ROUND_ROBIN
+  subsets:
+    - name: stable
+      labels:
+        version: stable
+    - name: canary
+      labels:
+        version: canary
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: vardiya-postgres
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  host: vardiya-postgres
+  trafficPolicy:
+    loadBalancer:
+      simple: ROUND_ROBIN
+    connectionPool:
+      tcp:
+        maxConnections: 50
+  tls:
+    mode: DISABLE
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: vardiya-redis
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  host: vardiya-redis-cluster
+  trafficPolicy:
+    tls:
+      mode: DISABLE

@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "vardiya.fullname" . }}-redis
+  labels: {{- include "vardiya.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+    release: prometheus
+spec:
+  jobLabel: redis
+  endpoints:
+    - port: redis
+      interval: 15s
+      path: /metrics
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: redis

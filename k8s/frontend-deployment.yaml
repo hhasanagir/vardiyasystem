@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vardiya-frontend
+  namespace: vardiya
+  labels:
+    app: vardiya
+    component: frontend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: vardiya
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: vardiya
+        component: frontend
+    spec:
+      serviceAccountName: vardiya-frontend
+      terminationGracePeriodSeconds: 15
+      # The frontend image ships USER vardiya (alpine adduser -S → uid 100).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        fsGroup: 100
+      containers:
+        - name: frontend
+          image: ghcr.io/anomalyco/vardiyasystem/frontend:v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vardiya-frontend-hpa
+  namespace: vardiya
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vardiya-frontend
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vardiya-frontend-pdb
+  namespace: vardiya
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: vardiya
+      component: frontend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vardiya-frontend
+  namespace: vardiya
+  labels:
+    app: vardiya
+    component: frontend
+spec:
+  selector:
+    app: vardiya
+    component: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http
+  type: ClusterIP

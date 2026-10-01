@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vardiya.fullname" . }}-pgbouncer
+  labels: {{- include "vardiya.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pgbouncer
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels: {{- include "vardiya.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: pgbouncer
+  template:
+    metadata:
+      labels: {{- include "vardiya.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: pgbouncer
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9127"
+    spec:
+      {{- include "vardiya.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: pgbouncer
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: 6432
+              protocol: TCP
+              name: pgbouncer
+          env:
+            - name: POSTGRESQL_HOST
+              value: {{ include "vardiya.fullname" . }}-postgres
+            - name: POSTGRESQL_PORT
+              value: "5432"
+            - name: POSTGRESQL_USERNAME
+              value: vardiya
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: postgres_password
+            - name: POSTGRESQL_DATABASE
+              value: vardiyasystem
+            - name: PGBOUNCER_POOL_MODE
+              value: {{ .Values.config.poolMode }}
+            - name: PGBOUNCER_DEFAULT_POOL_SIZE
+              value: {{ .Values.config.defaultPoolSize | quote }}
+            - name: PGBOUNCER_MAX_CLIENT_CONN
+              value: {{ .Values.config.maxClientConn | quote }}
+            - name: PGBOUNCER_MAX_DB_CONNECTIONS
+              value: {{ .Values.config.maxDBConnections | quote }}
+            - name: PGBOUNCER_QUERY_TIMEOUT
+              value: {{ .Values.config.queryTimeout | quote }}
+            - name: PGBOUNCER_SERVER_IDLE_TIMEOUT
+              value: {{ .Values.config.serverIdleTimeout | quote }}
+          resources: {{ toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            tcpSocket:
+              port: 6432
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            tcpSocket:
+              port: 6432
+            initialDelaySeconds: 5
+            periodSeconds: 10
+        - name: pgbouncer-exporter
+          image: prometheuscommunity/pgbouncer-exporter:v0.11.0
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: 9127
+              protocol: TCP
+              name: metrics
+          env:
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: postgres_password
+            - name: PGBOUNCER_DSN
+              value: "postgresql://vardiya:$(POSTGRESQL_PASSWORD)@localhost:6432/pgbouncer?sslmode=disable"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+          livenessProbe:
+            httpGet:
+              port: 9127
+              path: /metrics
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              port: 9127
+              path: /metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10

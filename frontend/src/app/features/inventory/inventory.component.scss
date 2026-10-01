@@ -1,0 +1,87 @@
+:host {
+  display: block;
+  padding: 1.25rem;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+}
+
+.kpi-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+
+  ::ng-deep .kpi-card {
+    .p-card-body {
+      padding: 1rem;
+    }
+  }
+
+  .kpi-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .kpi-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--primary-color);
+  }
+
+  .kpi-label {
+    font-size: 0.85rem;
+    color: var(--text-color-secondary);
+  }
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+}
+
+:host ::ng-deep .p-tabview .p-tabview-panels {
+  padding: 1rem 0 0;
+}
+
+:host ::ng-deep .p-table {
+  background: var(--surface-card);
+  border-radius: 8px;
+
+  th {
+    background: var(--surface-ground);
+    color: var(--text-color);
+    font-weight: 600;
+  }
+
+  td {
+    color: var(--text-color);
+    border-color: var(--surface-border);
+  }
+
+  tr:nth-child(even) {
+    background: var(--surface-ground);
+  }
+}

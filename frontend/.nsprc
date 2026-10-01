@@ -1,0 +1,16 @@
+{
+  "ignore": [
+    "GHSA-xffm-g5w8-qvg7",
+    "GHSA-jxxr-4gwj-5jf2",
+    "GHSA-q3j6-qgpj-74h6",
+    "GHSA-v39h-62p7-jpjc",
+    "GHSA-qp7p-654g-cw7p",
+    "GHSA-hm8q-7f3q-5f36",
+    "GHSA-p77w-8qqv-26rm",
+    "GHSA-9vqf-7f2p-gf9v",
+    "GHSA-69xw-7hcm-h432",
+    "GHSA-v2v4-37r5-5v8g",
+    "GHSA-q8mj-m7cp-5q26",
+    "GHSA-58qx-3vcg-4xpx"
+  ]
+}

@@ -1,0 +1,104 @@
+<p-toast></p-toast>
+
+<div class="page-header">
+  <h1>
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
+      <path
+        d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"
+      />
+    </svg>
+    Biyomedikal Bakım
+  </h1>
+  <div class="header-actions">
+    <p-button
+      icon="pi pi-refresh"
+      label="Yenile"
+      severity="secondary"
+      (onClick)="loadMaintenanceList()"
+    ></p-button>
+    <p-button icon="pi pi-plus" label="Yeni Emir" (onClick)="onCreate()"></p-button>
+  </div>
+</div>
+
+<div class="kpi-grid">
+  <p-card class="kpi-card">
+    <div class="kpi-value" style="color: #f97316">{{ openCount() }}</div>
+    <div class="kpi-label">Açık</div>
+  </p-card>
+  <p-card class="kpi-card">
+    <div class="kpi-value" style="color: #3b82f6">{{ inProgressCount() }}</div>
+    <div class="kpi-label">Devam Ediyor</div>
+  </p-card>
+  <p-card class="kpi-card">
+    <div class="kpi-value" style="color: #22c55e">{{ completedCount() }}</div>
+    <div class="kpi-label">Tamamlanan</div>
+  </p-card>
+  <p-card class="kpi-card">
+    <div class="kpi-value" style="color: var(--text-color)">{{ records().length }}</div>
+    <div class="kpi-label">Toplam</div>
+  </p-card>
+</div>
+
+@if (isLoading()) {
+  <div class="loading">
+    <p-progressSpinner></p-progressSpinner>
+  </div>
+}
+
+<p-table [value]="records()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '50rem' }">
+  <ng-template pTemplate="header">
+    <tr>
+      <th style="width: 130px">Sipariş No</th>
+      <th>Başlık</th>
+      <th>Tür</th>
+      <th>Durum</th>
+      <th>Öncelik</th>
+      <th>Cihaz</th>
+      <th>Sorumlu</th>
+      <th>Tarih</th>
+      <th style="width: 80px">İşlem</th>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-record>
+    <tr>
+      <td>
+        <strong>{{ record.workOrderNumber }}</strong>
+      </td>
+      <td>{{ record.title }}</td>
+      <td>{{ record.type }}</td>
+      <td><p-tag [value]="record.status" [severity]="getStatusSeverity(record.status)"></p-tag></td>
+      <td>
+        <p-tag
+          [value]="record.priority"
+          [severity]="getPrioritySeverity(record.priority)"
+          [rounded]="true"
+        ></p-tag>
+      </td>
+      <td>{{ record.assetName || '-' }}</td>
+      <td>{{ record.assignedToName || '-' }}</td>
+      <td>{{ record.scheduledDate | date: 'dd.MM.yyyy' }}</td>
+      <td>
+        <p-button
+          icon="pi pi-pencil"
+          severity="info"
+          [rounded]="true"
+          [text]="true"
+          pTooltip="Düzenle"
+          (onClick)="onEdit(record)"
+        ></p-button>
+      </td>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td colspan="9" style="text-align: center; padding: 2rem; opacity: 0.5">Kayıt bulunamadı</td>
+    </tr>
+  </ng-template>
+</p-table>

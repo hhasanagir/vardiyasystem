@@ -1,0 +1,223 @@
+<div class="person-shift-view">
+  <div class="view-header">
+    <div class="view-title">
+      <h2>Personel Nöbetleri — {{ unitLabel() }}</h2>
+      <span class="view-subtitle"
+        >{{ monthLabel() }} · {{ data()?.groups?.length || 0 }} grup ·
+        {{ totalAssignments() }} atama</span
+      >
+    </div>
+    <div class="view-tabs">
+      <button class="tab-btn" [class.active]="view() === 'grid'" (click)="setView('grid')">
+        Nöbet Planı
+      </button>
+      <button class="tab-btn" [class.active]="view() === 'report'" (click)="setView('report')">
+        Rapor
+      </button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="state-box">
+      <div class="spinner"></div>
+      <span>Yükleniyor...</span>
+    </div>
+  } @else if (error()) {
+    <div class="state-box error">{{ error() }}</div>
+  } @else if (!data()) {
+    <div class="state-box">Veri bulunamadı</div>
+  } @else if (blocks().length === 0) {
+    <div class="state-box">Bu birim için tanımlı nöbet grubu yok.</div>
+  } @else if (view() === 'grid') {
+    <div class="grid-wrap">
+      <div class="grid-table" [style.--col-count]="days().length + 2">
+        <div class="grid-head">
+          <div class="head-corner">Grup / Vardiya</div>
+          @for (day of days(); track day.date) {
+            <div class="head-cell" [class.weekend]="day.isWeekend" [class.today]="day.isToday">
+              <span class="head-day">{{ day.num }}</span>
+              <span class="head-name">{{ day.name }}</span>
+            </div>
+          }
+          <div class="head-corner end">Toplam</div>
+        </div>
+
+        @for (block of blocks(); track block.group.id) {
+          <div class="group-section">
+            <div class="group-header">
+              <div class="group-title">
+                <span class="group-badge" [style.background]="groupColor(block.group.id)">{{
+                  block.group.code
+                }}</span>
+                <span class="group-name">{{ block.group.name }}</span>
+                @if (block.group.description) {
+                  <span class="group-desc">{{ block.group.description }}</span>
+                }
+              </div>
+              <div class="group-meta">
+                {{ block.group.personnelCount }} personel · {{ block.totalAssigned }} atama
+              </div>
+            </div>
+
+            @for (row of block.rows; track row.template.id) {
+              <div class="grid-row">
+                <div class="row-label">
+                  <span
+                    class="shift-dot"
+                    [style.background]="shiftColor(row.template.shiftType)"
+                  ></span>
+                  <span class="shift-name">{{ row.template.name }}</span>
+                  <span class="shift-time"
+                    >{{ row.template.startTime }} - {{ row.template.endTime }}</span
+                  >
+                </div>
+                @for (cell of row.cells; track cell.date) {
+                  <div
+                    class="grid-cell"
+                    [class.weekend]="cell.isWeekend"
+                    [class.today]="cell.isToday"
+                    [class.filled]="!!cell.assignment"
+                    [class.clickable]="editable()"
+                    [class.night]="isNightShift(row.template.shiftType)"
+                    (click)="openDialog(block, row, cell)"
+                    [title]="cellTitle(cell, row)"
+                  >
+                    @if (cell.assignment) {
+                      <div
+                        class="cell-person"
+                        [style.border-color]="shiftColor(cell.assignment.shiftType)"
+                        [style.background]="personBg(cell.assignment.personnelId)"
+                      >
+                        <span class="cell-initials">{{
+                          initials(cell.assignment.personnelName || '?')
+                        }}</span>
+                        <span class="cell-name">{{ cell.assignment.personnelName }}</span>
+                      </div>
+                    } @else if (editable()) {
+                      <span class="cell-empty">+</span>
+                    }
+                  </div>
+                }
+                <div class="row-total">
+                  {{ row.cells.filter((c) => !!c.assignment).length }}
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="report-view">
+      <div class="report-controls">
+        <label class="filter-label">Grup</label>
+        <select
+          [ngModel]="reportGroupFilter()"
+          (ngModelChange)="reportGroupFilter.set($event)"
+          class="filter-select"
+        >
+          <option value="">Tüm Gruplar</option>
+          @for (g of report()?.groups || []; track g.groupId) {
+            <option [value]="g.groupId">{{ g.groupName }}</option>
+          }
+        </select>
+      </div>
+
+      @if (report()?.summary) {
+        <div class="summary-cards">
+          <div class="summary-card">
+            <span class="sum-value">{{ report()!.summary.totalAssignments }}</span
+            ><span class="sum-label">Toplam Nöbet</span>
+          </div>
+          <div class="summary-card">
+            <span class="sum-value">{{ report()!.summary.totalHours }}</span
+            ><span class="sum-label">Toplam Saat</span>
+          </div>
+          <div class="summary-card">
+            <span class="sum-value">{{ report()!.summary.nightShifts }}</span
+            ><span class="sum-label">Gece Nöbeti</span>
+          </div>
+          <div class="summary-card">
+            <span class="sum-value">{{ report()!.summary.weekendShifts }}</span
+            ><span class="sum-label">Hafta Sonu</span>
+          </div>
+        </div>
+      }
+
+      @if (reportGroupFilter()) {
+        <div class="group-summary">
+          @for (g of report()?.groups || []; track g.groupId) {
+            @if (g.groupId === reportGroupFilter()) {
+              <div class="group-summary-item">
+                <span class="gs-name">{{ g.groupName }}</span>
+                <span class="gs-meta"
+                  >{{ g.assignedPersonnel }}/{{ g.personnelCount }} personel ·
+                  {{ g.totalShifts }} nöbet · {{ g.totalHours }} saat · {{ g.nightShifts }} gece ·
+                  {{ g.weekendShifts }} hf</span
+                >
+              </div>
+            }
+          }
+        </div>
+      }
+
+      @if (filteredReportRows().length === 0) {
+        <div class="state-box">Bu filtre için rapor satırı yok.</div>
+      } @else {
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Personel</th>
+              <th>Grup</th>
+              <th>Toplam Nöbet</th>
+              <th>Toplam Saat</th>
+              <th>Gündüz</th>
+              <th>Akşam</th>
+              <th>Gece</th>
+              <th>Hafta Sonu</th>
+              <th>Tarihler</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of filteredReportRows(); track row.personnelId) {
+              <tr>
+                <td class="cell-person-name">{{ row.personnelName }}</td>
+                <td>{{ row.groupName }}</td>
+                <td class="num">{{ row.totalShifts }}</td>
+                <td class="num">{{ row.totalHours }}</td>
+                <td class="num">{{ row.dayShifts }}</td>
+                <td class="num">{{ row.eveningShifts }}</td>
+                <td class="num night">{{ row.nightShifts }}</td>
+                <td class="num">{{ row.weekendShifts }}</td>
+                <td class="cell-dates">
+                  @for (d of row.dates; track d.date) {
+                    <span class="date-chip" [class.night-chip]="d.isNight"
+                      >{{ d.date }} ({{ shiftLabel(d.shiftType) }})</span
+                    >
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  }
+</div>
+
+@if (dialog(); as dlg) {
+  <app-person-assignment-dialog
+    [scheduleId]="data()?.scheduleId || ''"
+    [unitId]="data()?.unitId || ''"
+    [unitLabel]="unitLabel()"
+    [unitType]="unit()"
+    [group]="dlg.group"
+    [template]="dlg.template"
+    [date]="dlg.date"
+    [existingAssignments]="data()?.groups?.flatMap((g) => g.assignments || []) || []"
+    [existingAssignmentId]="dlg.assignment?.id || ''"
+    [existingPersonnelId]="dlg.assignment?.personnelId || ''"
+    (closeDialog)="dialog.set(null)"
+    (assignmentSaved)="onSaved()"
+  />
+}

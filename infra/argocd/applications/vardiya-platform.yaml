@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vardiya-platform
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: vardiya
+  source:
+    repoURL: https://github.com/anomalyco/vardiyasystem.git
+    targetRevision: HEAD
+    path: infra/helm/vardiya-platform
+    helm:
+      valueFiles:
+        - values/production.yaml
+      parameters:
+        - name: global.environment
+          value: production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vardiya
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+      - RespectIgnoreDifferences=true
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=true
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/part-of: vardiya
+        environment: production
+  revisionHistoryLimit: 10
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+        - /spec/template/spec/containers/0/image
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      jsonPointers:
+        - /spec/metrics

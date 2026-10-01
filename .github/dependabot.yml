@@ -1,0 +1,121 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Europe/Istanbul
+    versioning-strategy: auto
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - backend
+    commit-message:
+      prefix: chore
+      prefix-development: chore
+      include: scope
+    groups:
+      nestjs-core:
+        patterns:
+          - '@nestjs/common'
+          - '@nestjs/core'
+          - '@nestjs/platform-*'
+          - '@nestjs/testing'
+          - '@nestjs/cli'
+        update-types:
+          - minor
+          - patch
+      prisma:
+        patterns:
+          - '@prisma/*'
+          - 'prisma'
+        update-types:
+          - minor
+          - patch
+      typescript-eslint:
+        patterns:
+          - '@typescript-eslint/*'
+          - 'typescript-eslint'
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: '@nestjs/*'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Europe/Istanbul
+    versioning-strategy: auto
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - frontend
+    commit-message:
+      prefix: chore
+      prefix-development: chore
+      include: scope
+    groups:
+      angular-core:
+        patterns:
+          - '@angular/*'
+          - '@angular-devkit/*'
+        update-types:
+          - minor
+          - patch
+      testing:
+        patterns:
+          - '@vitest/*'
+          - 'vitest'
+          - 'playwright'
+          - '@playwright/*'
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Europe/Istanbul
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      actions:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
+    directory: /frontend
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies
+      - docker

@@ -1,0 +1,128 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vardiya-infrastructure
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: vardiya
+  source:
+    path: infra
+    repoURL: https://github.com/anomalyco/vardiyasystem.git
+    targetRevision: HEAD
+    directory:
+      recurse: true
+      include: "{networking/*.yaml,cert-manager/*.yaml,sealed-secrets/*.yaml,opentelemetry/*.yaml}"
+      exclude: "{**/docs/**}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vardiya
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - PruneLast=true
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/part-of: vardiya
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vardiya-service-mesh
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  project: vardiya
+  source:
+    path: infra/service-mesh/istio
+    repoURL: https://github.com/anomalyco/vardiyasystem.git
+    targetRevision: HEAD
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vardiya
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vardiya-rollouts
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  project: vardiya
+  source:
+    path: infra/rollouts
+    repoURL: https://github.com/anomalyco/vardiyasystem.git
+    targetRevision: HEAD
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vardiya
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vardiya-feature-flags
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  project: vardiya
+  source:
+    path: infra/feature-flags/unleash
+    repoURL: https://github.com/anomalyco/vardiyasystem.git
+    targetRevision: HEAD
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vardiya
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vardiya-prometheus-operator
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  project: vardiya
+  source:
+    path: infra/prometheus-operator
+    repoURL: https://github.com/anomalyco/vardiyasystem.git
+    targetRevision: HEAD
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vardiya
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

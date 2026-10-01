@@ -1,0 +1,116 @@
+{{- if .Values.loki.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vardiya.fullname" . }}-loki-config
+  labels: {{- include "vardiya.labels" . | nindent 4 }}
+data:
+  loki-config.yml: |
+    auth_enabled: false
+    server:
+      http_listen_port: 3100
+    ingester:
+      wal:
+        enabled: true
+        dir: /loki/wal
+      lifecycler:
+        ring:
+          kvstore:
+            store: inmemory
+          replication_factor: 1
+    schema_config:
+      configs:
+        - from: 2024-01-01
+          store: boltdb-shipper
+          object_store: filesystem
+          schema: v11
+          index:
+            prefix: index_
+            period: 24h
+    storage_config:
+      boltdb_shipper:
+        active_index_directory: /loki/index
+        cache_location: /loki/cache
+        shared_store: filesystem
+      filesystem:
+        directory: /loki/chunks
+    compactor:
+      working_directory: /loki/compactor
+      shared_store: filesystem
+    limits_config:
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+    table_manager:
+      retention_deletes_enabled: true
+      retention_period: {{ .Values.loki.retention }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "vardiya.fullname" . }}-loki
+  labels: {{- include "vardiya.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: {{ .Values.loki.storage.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.loki.storage.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vardiya.fullname" . }}-loki
+  labels: {{- include "vardiya.labels" . | nindent 4 }}
+    app.kubernetes.io/component: loki
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: loki
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: loki
+    spec:
+      containers:
+        - name: loki
+          image: grafana/loki:3.1.0
+          args:
+            - -config.file=/etc/loki/loki-config.yml
+          ports:
+            - containerPort: 3100
+              name: http
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 2
+              memory: 2Gi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki
+            - name: storage
+              mountPath: /loki
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "vardiya.fullname" . }}-loki-config
+        - name: storage
+          persistentVolumeClaim:
+            claimName: {{ include "vardiya.fullname" . }}-loki
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vardiya.fullname" . }}-loki
+  labels: {{- include "vardiya.labels" . | nindent 4 }}
+    app.kubernetes.io/component: loki
+spec:
+  ports:
+    - port: 3100
+      targetPort: 3100
+      name: http
+  selector:
+    app.kubernetes.io/component: loki
+{{- end }}

@@ -1,0 +1,54 @@
+{
+  "version": "5.22.0",
+  "steps": [
+    {
+      "tag": "CreateTable",
+      "table": "auth_attempts",
+      "columns": [
+        { "name": "id", "type": "Text", "default": "uuid" },
+        { "name": "email", "type": "Text", "isOptional": true },
+        { "name": "ip_address", "type": "Text", "isOptional": true },
+        { "name": "user_agent", "type": "Text", "isOptional": true },
+        { "name": "attempt_type", "type": "Text", "default": "'LOGIN'" },
+        { "name": "success", "type": "Boolean", "default": false },
+        { "name": "lockout_until", "type": "Timestamp", "isOptional": true },
+        { "name": "jti", "type": "Text", "isOptional": true },
+        { "name": "metadata", "type": "Json", "isOptional": true },
+        { "name": "created_at", "type": "Timestamp", "default": "now()" }
+      ],
+      "pk": { "name": "auth_attempts_pkey", "columns": ["id"] }
+    },
+    {
+      "tag": "CreateIndex",
+      "index": {
+        "name": "auth_attempts_email_created_at_idx",
+        "table": "auth_attempts",
+        "columns": ["email", "created_at"]
+      }
+    },
+    {
+      "tag": "CreateIndex",
+      "index": {
+        "name": "auth_attempts_ip_address_created_at_idx",
+        "table": "auth_attempts",
+        "columns": ["ip_address", "created_at"]
+      }
+    },
+    {
+      "tag": "CreateIndex",
+      "index": {
+        "name": "auth_attempts_created_at_idx",
+        "table": "auth_attempts",
+        "columns": ["created_at"]
+      }
+    },
+    {
+      "tag": "CreateIndex",
+      "index": {
+        "name": "auth_attempts_jti_idx",
+        "table": "auth_attempts",
+        "columns": ["jti"]
+      }
+    }
+  ]
+}

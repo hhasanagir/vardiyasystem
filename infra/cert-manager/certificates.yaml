@@ -1,0 +1,63 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: vardiya-tls
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/managed-by: cert-manager
+spec:
+  secretName: vardiya-tls
+  duration: 2160h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  issuerRef:
+    name: vardiya-letsencrypt-production
+    kind: ClusterIssuer
+  dnsNames:
+    - app.vardiya.com
+    - api.vardiya.com
+    - "*.vardiya.example.com"
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: vardiya-unleash-tls
+  namespace: vardiya-feature-flags
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  secretName: vardiya-unleash-tls
+  duration: 2160h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: vardiya-letsencrypt-production
+    kind: ClusterIssuer
+  dnsNames:
+    - unleash.vardiya.example.com
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: vardiya-grafana-tls
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  secretName: vardiya-grafana-tls
+  duration: 2160h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: vardiya-letsencrypt-production
+    kind: ClusterIssuer
+  dnsNames:
+    - grafana.vardiya.example.com

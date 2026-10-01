@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vardiya-config
+  namespace: vardiya
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  FRONTEND_URL: "https://vardiya.example.com"
+  WS_CORS_ORIGIN: "https://vardiya.example.com"
+  REDIS_URL: "redis://vardiya-redis:6379"
+  LOG_LEVEL: "info"
+  JWT_ACCESS_TOKEN_EXPIRES_IN: "15m"
+  JWT_REFRESH_TOKEN_EXPIRES_IN: "7d"
+  GLOBAL_THROTTLE_TTL: "60000"
+  GLOBAL_THROTTLE_LIMIT: "200"
+  AUTH_LOGIN_LIMIT: "10"
+  AUTH_LOCKOUT_THRESHOLD: "5"
+  AUTH_LOCKOUT_DURATION_MS: "900000"
+  TRUST_PROXY_LEVEL: "1"
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://vardiya-tempo:4317"
+  OTEL_SERVICE_NAME: "vardiya-backend"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: vardiya
+data:
+  nginx.conf: |
+    events {
+      worker_connections 1024;
+    }
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+
+      limit_req_zone $binary_remote_addr zone=login:10m rate=5r/s;
+      limit_req_zone $binary_remote_addr zone=api:10m rate=100r/s;
+      limit_req_zone $binary_remote_addr zone=websocket:10m rate=10r/s;
+
+      upstream backend {
+        server vardiya-backend:3000;
+      }
+
+      server {
+        listen 80;
+        server_name vardiya.example.com;
+        return 301 https://$server_name$request_uri;
+      }
+
+      server {
+        listen 443 ssl http2;
+        server_name vardiya.example.com;
+
+        ssl_certificate /etc/nginx/certs/tls.crt;
+        ssl_certificate_key /etc/nginx/certs/tls.key;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!MD5;
+
+        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+        add_header X-Frame-Options DENY always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+        location /api/ {
+          limit_req zone=api burst=150 nodelay;
+          proxy_pass http://backend;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /socket.io/ {
+          limit_req zone=websocket burst=20 nodelay;
+          proxy_pass http://backend;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection "upgrade";
+          proxy_set_header Host $host;
+        }
+
+        location / {
+          root /usr/share/nginx/html;
+          try_files $uri $uri/ /index.html;
+          expires 1y;
+          add_header Cache-Control "public, immutable";
+        }
+      }
+    }

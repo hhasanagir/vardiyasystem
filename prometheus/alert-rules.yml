@@ -1,0 +1,83 @@
+groups:
+  - name: vardiya-backend
+    rules:
+      - alert: BackendDown
+        expr: up{job="backend"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend is down"
+          description: "Backend has been unreachable for more than 30 seconds."
+
+      - alert: HighErrorRate
+        expr: rate(vardiya_http_requests_total{status=~"5.."}[5m]) / rate(vardiya_http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP error rate ({{ $value | humanizePercentage }})"
+          description: "Error rate is above 5% for 2 minutes."
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.99, rate(vardiya_http_request_duration_seconds_bucket[5m])) > 2
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p99 latency ({{ $value }}s)"
+          description: "p99 latency is above 2 seconds."
+
+      - alert: HighRequestRate
+        expr: rate(vardiya_http_requests_total[1m]) > 200
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request rate ({{ $value }} req/s)"
+          description: "Request rate exceeded 200 req/s."
+
+  - name: vardiya-database
+    rules:
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is down"
+
+      - alert: PostgresHighConnections
+        expr: pg_stat_database_numbackends > 40
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High PostgreSQL connections ({{ $value }})"
+          description: "Database connections above 40."
+
+      - alert: PgBouncerDown
+        expr: up{job="pgbouncer"} == 0
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "PgBouncer is down"
+
+  - name: vardiya-redis
+    rules:
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+
+      - alert: RedisHighMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 80 and redis_memory_max_bytes > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory usage at {{ $value | humanizePercentage }}"

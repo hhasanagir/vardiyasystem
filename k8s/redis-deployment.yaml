@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vardiya-redis
+  namespace: vardiya
+  labels:
+    app: vardiya
+    component: redis
+spec:
+  selector:
+    app: vardiya
+    component: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+      name: redis
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vardiya-redis
+  namespace: vardiya
+  labels:
+    app: vardiya
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vardiya
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: vardiya
+        component: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+              name: redis
+          args: ["--save", "300", "1", "--appendonly", "yes"]
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: vardiya-redis-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vardiya-redis-pvc
+  namespace: vardiya
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard

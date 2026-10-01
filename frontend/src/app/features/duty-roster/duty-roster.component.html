@@ -1,0 +1,175 @@
+<app-page-header [context]="pageContext()" />
+
+<div class="duty-roster-container">
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background: #3b82f620">
+        <i class="pi pi-calendar"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Toplam Nöbet</span>
+        <span class="kpi-value">{{ totalEntries() }}</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background: #f59e0b20">
+        <i class="pi pi-sun"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Gündüz</span>
+        <span class="kpi-value">{{ totalDayShifts() }}</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background: #8b5cf620">
+        <i class="pi pi-moon"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Akşam</span>
+        <span class="kpi-value">{{ totalEveningShifts() }}</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background: #1e293b20">
+        <i class="pi pi-star"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Gece</span>
+        <span class="kpi-value">{{ totalNightShifts() }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="date-navigation">
+        <button class="btn-icon" (click)="prevMonth()">
+          <i class="pi pi-chevron-left"></i>
+        </button>
+        <h3>{{ currentYear() }}.{{ formatMonth(currentMonth()) }}</h3>
+        <button class="btn-icon" (click)="nextMonth()">
+          <i class="pi pi-chevron-right"></i>
+        </button>
+      </div>
+      <div class="view-tabs">
+        <button
+          class="tab-btn"
+          [class.active]="selectedView() === 'daily'"
+          (click)="selectedView.set('daily')"
+        >
+          Günlük
+        </button>
+        <button
+          class="tab-btn"
+          [class.active]="selectedView() === 'weekly'"
+          (click)="selectedView.set('weekly')"
+        >
+          Haftalık
+        </button>
+        <button
+          class="tab-btn"
+          [class.active]="selectedView() === 'monthly'"
+          (click)="selectedView.set('monthly'); loadCalendar()"
+        >
+          Aylık
+        </button>
+      </div>
+    </div>
+
+    <div class="calendar-grid">
+      <div class="day-header">Pzt</div>
+      <div class="day-header">Sal</div>
+      <div class="day-header">Çar</div>
+      <div class="day-header">Per</div>
+      <div class="day-header">Cum</div>
+      <div class="day-header">Cmt</div>
+      <div class="day-header">Paz</div>
+
+      @for (day of calendarDays(); track day.date) {
+        <div
+          class="day-cell"
+          [class.today]="day.date === today()"
+          [class.selected]="day.date === selectedDate()"
+          [class.has-entries]="day.entries.length > 0"
+          (click)="onDayClick(day.date)"
+        >
+          <span class="day-number">{{ day.date.slice(-2) }}</span>
+          @if (day.entries.length > 0) {
+            <div class="day-dots">
+              @if (day.shiftSummary.day > 0) {
+                <span class="dot bg-day"></span>
+              }
+              @if (day.shiftSummary.evening > 0) {
+                <span class="dot bg-evening"></span>
+              }
+              @if (day.shiftSummary.night > 0) {
+                <span class="dot bg-night"></span>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>{{ selectedDate() }} - Günlük Nöbet Listesi</h3>
+      <span class="badge badge-count">{{ dailyEntries().length }} personel</span>
+    </div>
+
+    @if (loading()) {
+      <div class="state-box">
+        <i class="pi pi-spin pi-spinner"></i>
+        <p>Yükleniyor...</p>
+      </div>
+    } @else if (dailyEntries().length === 0) {
+      <div class="state-box">
+        <i class="pi pi-calendar-times"></i>
+        <p>Bu tarih için nöbet kaydı bulunamadı</p>
+      </div>
+    } @else {
+      <div class="entries-grid">
+        @for (entry of dailyEntries(); track entry.id) {
+          <div
+            class="entry-card"
+            [class.border-day]="entry.shiftType === 'day'"
+            [class.border-evening]="entry.shiftType === 'evening'"
+            [class.border-night]="entry.shiftType === 'night'"
+          >
+            <div class="entry-header">
+              <span class="shift-badge badge-{{ entry.shiftType }}">{{
+                getShiftLabel(entry.shiftType)
+              }}</span>
+              <span class="entry-time">{{ entry.startTime }} - {{ entry.endTime }}</span>
+            </div>
+            <div class="entry-body">
+              <div class="entry-personnel">
+                <div class="avatar">{{ (entry.personnel?.name || '?')[0] }}</div>
+                <div class="personnel-info">
+                  <span class="personnel-name">{{ entry.personnel?.name || 'Bilinmiyor' }}</span>
+                  <span class="role-badge badge-{{ entry.role }}">{{
+                    getRoleLabel(entry.role)
+                  }}</span>
+                </div>
+              </div>
+              @if (entry.unit || entry.device) {
+                <div class="entry-location">
+                  @if (entry.unit) {
+                    <span class="location-tag">{{ entry.unit.name }}</span>
+                  }
+                  @if (entry.device) {
+                    <span class="location-tag">{{ entry.device.name }}</span>
+                  }
+                </div>
+              }
+              @if (entry.notes) {
+                <div class="entry-notes">{{ entry.notes }}</div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

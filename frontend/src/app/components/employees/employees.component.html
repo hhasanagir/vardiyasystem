@@ -1,0 +1,792 @@
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+
+<div class="personnel-page">
+  <div class="page-header">
+    <div class="header-content">
+      <h1>Personel Yönetimi</h1>
+      <p class="subtitle">Radyoloji ekibi performans ve vardiya durumu</p>
+    </div>
+    <div class="header-actions">
+      @if (isAdmin()) {
+        <button class="btn-primary" (click)="openWizard()">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Yeni Personel
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="filters-bar">
+    <div class="filter-tabs">
+      <button
+        class="filter-tab"
+        [class.active]="departmentFilter() === 'all'"
+        (click)="filterByDepartment('all')"
+      >
+        Tümü
+      </button>
+      @for (d of departmentFilters; track d.value) {
+        <button
+          class="filter-tab"
+          [class]="d.value"
+          [class.active]="departmentFilter() === d.value"
+          (click)="filterByDepartment(d.value)"
+        >
+          {{ d.label }}
+        </button>
+      }
+    </div>
+    <div class="month-filter">
+      <select
+        name="monthFilter"
+        class="form-input month-select"
+        [ngModel]="selectedMonth()"
+        (ngModelChange)="changeMonth($event)"
+      >
+        @for (m of months; track m.value) {
+          <option [value]="m.value">{{ m.label }}</option>
+        }
+      </select>
+      <select
+        name="yearFilter"
+        class="form-input year-select"
+        [ngModel]="selectedYear()"
+        (ngModelChange)="changeYear($event)"
+      >
+        @for (y of years; track y) {
+          <option [value]="y">{{ y }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-status">
+      <button
+        class="status-filter"
+        [class.active]="statusFilter() === 'available'"
+        (click)="filterByStatus('available')"
+      >
+        <span class="dot available"></span> Uygun
+      </button>
+      <button
+        class="status-filter"
+        [class.active]="statusFilter() === 'busy'"
+        (click)="filterByStatus('busy')"
+      >
+        <span class="dot busy"></span> Yoğun
+      </button>
+      <button
+        class="status-filter"
+        [class.active]="statusFilter() === 'on-leave'"
+        (click)="filterByStatus('on-leave')"
+      >
+        <span class="dot leave"></span> İzinli
+      </button>
+      <button
+        class="status-filter"
+        [class.active]="statusFilter() === 'overloaded'"
+        (click)="filterByStatus('overloaded')"
+      >
+        <span class="dot risk"></span> Riskli Yük
+      </button>
+    </div>
+    <div class="search-box">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <circle cx="11" cy="11" r="8" />
+        <path d="M21 21l-4.35-4.35" />
+      </svg>
+      <input
+        type="text"
+        name="searchTerm"
+        placeholder="Personel ara..."
+        [(ngModel)]="searchTerm"
+        (ngModelChange)="onSearch($event)"
+      />
+    </div>
+  </div>
+
+  <div class="stats-summary">
+    <div class="summary-card">
+      <div class="summary-icon available">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+      </div>
+      <div class="summary-info">
+        <span class="summary-value">{{ getAvailableCount() }}</span>
+        <span class="summary-label">Uygun</span>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-icon busy">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      </div>
+      <div class="summary-info">
+        <span class="summary-value">{{ getBusyCount() }}</span>
+        <span class="summary-label">Yoğun</span>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-icon leave">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+      </div>
+      <div class="summary-info">
+        <span class="summary-value">{{ getLeaveCount() }}</span>
+        <span class="summary-label">İzinli</span>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-icon risk">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+          />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      </div>
+      <div class="summary-info">
+        <span class="summary-value">{{ getOverloadedCount() }}</span>
+        <span class="summary-label">Riskli</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="personnel-grid">
+    @for (person of filteredPersonnel(); track person.id; let i = $index) {
+      <div
+        class="personnel-card"
+        [class]="'dept-' + person.department.toLowerCase()"
+        [style.animation-delay]="i * 50 + 'ms'"
+      >
+        <div class="card-header">
+          <div class="avatar" [style.background]="getAvatarGradient(person.department)">
+            {{ person.initials }}
+          </div>
+          <div class="availability-indicator" [class]="person.availability"></div>
+        </div>
+        <div class="card-body">
+          <h3 class="person-name">{{ person.name }}</h3>
+          <p class="person-role">{{ getRoleLabel(person.role) }}</p>
+          <div class="department-badge" [class]="person.department">
+            {{ getDepartmentLabel(person.department) }}
+          </div>
+          <div class="workload-bar">
+            <div class="workload-header">
+              <span class="workload-label">İş Yükü</span>
+              <span
+                class="workload-value"
+                [class]="getWorkloadClass(person.stats.workloadPercentage)"
+                >{{ person.stats.workloadPercentage }}%</span
+              >
+            </div>
+            <div class="workload-track">
+              <div
+                class="workload-fill"
+                [style.width.%]="person.stats.workloadPercentage"
+                [class]="getWorkloadClass(person.stats.workloadPercentage)"
+              ></div>
+            </div>
+          </div>
+          @if (person.deviceSkills.length > 0) {
+            <div class="skills-row">
+              @for (skill of person.deviceSkills; track skill) {
+                <span class="skill-chip">{{ skill }}</span>
+              }
+            </div>
+          }
+          <div class="stats-grid">
+            <div class="stat-item">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              <span class="stat-value">{{ person.stats.totalShifts }}</span>
+              <span class="stat-label">Aylık Vardiya</span>
+            </div>
+            <div class="stat-item">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+              <span class="stat-value">{{ person.stats.nightShifts }}</span>
+              <span class="stat-label">Gece Vardiya</span>
+            </div>
+            <div class="stat-item">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span class="stat-value">{{ person.stats.weeklyHours }}h</span>
+              <span class="stat-label">Haftalık</span>
+            </div>
+            <div class="stat-item fatigue" [class]="person.fatigueLevel">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              <span class="stat-value">{{ getFatigueLabel(person.fatigueLevel) }}</span>
+              <span class="stat-label">Yorgunluk</span>
+            </div>
+          </div>
+          <div class="availability-badges">
+            @switch (person.availability) {
+              @case ('available') {
+                <span class="badge available">Uygun</span>
+              }
+              @case ('busy') {
+                <span class="badge busy">Yoğun</span>
+              }
+              @case ('on-leave') {
+                <span class="badge leave">İzinli</span>
+              }
+              @case ('overloaded') {
+                <span class="badge risk">Riskli Yük</span>
+              }
+            }
+          </div>
+          <div class="night-badge-row">
+            @if (person.nightShiftEligible) {
+              <span class="night-badge eligible">🌙 Gece Uygun</span>
+            } @else {
+              <span class="night-badge ineligible">☀️ Sadece Gündüz</span>
+            }
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="action-btn primary" (click)="assignShift(person)">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <line x1="3" y1="10" x2="21" y2="10" /></svg
+            >Vardiya Ata
+          </button>
+          <button class="action-btn secondary" (click)="viewDetails(person)">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" /></svg
+            >Detay
+          </button>
+          <button class="action-btn secondary" (click)="requestLeave(person)">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" /></svg
+            >İzin Tanımla
+          </button>
+          <button class="action-btn secondary" (click)="requestChange(person)">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="16 3 21 3 21 8" />
+              <line x1="4" y1="20" x2="21" y2="3" /></svg
+            >Değişiklik
+          </button>
+        </div>
+        @if (isAdmin()) {
+          <div class="card-admin">
+            <button class="admin-btn" (click)="openWizard(person)">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+            <button class="admin-btn danger" (click)="deletePerson(person)">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path
+                  d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                />
+              </svg>
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  @if (filteredPersonnel().length === 0) {
+    <div class="empty-state">
+      <div class="empty-icon">
+        <svg
+          width="64"
+          height="64"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      </div>
+      <h3>Personel Bulunamadı</h3>
+      <p>Arama kriterlerinize uygun personel yok.</p>
+    </div>
+  }
+</div>
+
+@if (wizardVisible()) {
+  <div class="wizard-overlay" (click)="closeWizard()">
+    <div class="wizard-container" (click)="$event.stopPropagation()">
+      <div class="wizard-header">
+        <h2>{{ wizardEditId() ? 'Personel Güncelle' : 'Yeni Personel Ekle' }}</h2>
+        @if (wizardEditId()) {
+          <span class="edit-badge">Düzenleniyor: {{ wizardData.name }}</span>
+        }
+        <button class="wizard-close" (click)="closeWizard()">&times;</button>
+      </div>
+
+      <div class="wizard-steps">
+        @for (step of wizardSteps; track step.index; let i = $index) {
+          <div
+            class="wizard-step"
+            [class.active]="wizardStep() === step.index"
+            [class.completed]="wizardStep() > step.index"
+          >
+            <div class="step-number">{{ wizardStep() > step.index ? '✓' : step.index }}</div>
+            <div class="step-info">
+              <span class="step-label">{{ step.label }}</span>
+              <span class="step-desc">{{ step.desc }}</span>
+            </div>
+            @if (i < wizardSteps.length - 1) {
+              <div class="step-line" [class.completed]="wizardStep() > step.index"></div>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="wizard-body">
+        @if (wizardStep() === 1) {
+          <div class="wizard-panel">
+            <div class="panel-header">
+              <h3>Kimlik Bilgileri</h3>
+              <p>Personelin temel kimlik ve iletişim bilgileri</p>
+            </div>
+            <div class="panel-fields">
+              <div class="field-row">
+                <div class="field-group">
+                  <label>Ad Soyad <span class="req">*</span></label>
+                  <input
+                    type="text"
+                    name="employeeName"
+                    class="form-input"
+                    placeholder="Ad soyad girin"
+                    [(ngModel)]="wizardData.name"
+                    (ngModelChange)="validateStep(1)"
+                  />
+                </div>
+                <div class="field-group">
+                  <label>Sicil No</label>
+                  <input
+                    type="text"
+                    name="employeeNo"
+                    class="form-input"
+                    placeholder="Örn: RNK-001"
+                    [(ngModel)]="wizardData.employeeNo"
+                  />
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field-group">
+                  <label>E-posta</label>
+                  <input
+                    type="email"
+                    name="employeeEmail"
+                    class="form-input"
+                    placeholder="ornek@hastane.com"
+                    [(ngModel)]="wizardData.email"
+                  />
+                </div>
+                <div class="field-group">
+                  <label>Telefon</label>
+                  <input
+                    type="tel"
+                    name="employeePhone"
+                    class="form-input"
+                    placeholder="05XX XXX XX XX"
+                    [(ngModel)]="wizardData.phone"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (wizardStep() === 2) {
+          <div class="wizard-panel">
+            <div class="panel-header">
+              <h3>Mesleki Bilgiler</h3>
+              <p>Personelin rolü, departmanı ve uzmanlık alanı</p>
+            </div>
+            <div class="panel-fields">
+              <div class="field-row">
+                <div class="field-group">
+                  <label>Rol <span class="req">*</span></label>
+                  <select
+                    name="employeeRole"
+                    class="form-input"
+                    [(ngModel)]="wizardData.role"
+                    (change)="validateStep(2)"
+                  >
+                    <option value="" disabled>Rol seçiniz</option>
+                    @for (r of roles; track r.value) {
+                      <option [value]="r.value">{{ r.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="field-group">
+                  <label>Departman</label>
+                  <select
+                    name="employeeDepartment"
+                    class="form-input"
+                    [(ngModel)]="wizardData.department"
+                  >
+                    <option value="" disabled>Birim seçiniz</option>
+                    @for (d of departments; track d.value) {
+                      <option [value]="d.value">{{ d.label }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field-group">
+                  <label>Uzmanlık Alanı</label>
+                  <input
+                    type="text"
+                    name="employeeSpecialization"
+                    class="form-input"
+                    placeholder="Örn: MR Görüntüleme"
+                    [(ngModel)]="wizardData.specialization"
+                  />
+                </div>
+                <div class="field-group">
+                  <label>Tecrübe (Yıl)</label>
+                  <input
+                    type="number"
+                    name="employeeExperience"
+                    class="form-input"
+                    placeholder="0"
+                    min="0"
+                    max="50"
+                    [(ngModel)]="wizardData.experienceYears"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (wizardStep() === 3) {
+          <div class="wizard-panel">
+            <div class="panel-header">
+              <h3>Operasyonel Ayarlar</h3>
+              <p>Vardiya tercihleri, cihaz yetkinlikleri ve çalışma düzeni</p>
+            </div>
+            <div class="panel-fields">
+              <div class="field-row">
+                <div class="field-group">
+                  <label>İzin Günleri</label>
+                  <div class="day-picker">
+                    @for (d of weekDays; track d.value) {
+                      <button
+                        class="day-chip"
+                        [class.selected]="wizardData.offDays.includes(d.value)"
+                        (click)="toggleOffDay(d.value)"
+                      >
+                        {{ d.name.substring(0, 2) }}
+                      </button>
+                    }
+                  </div>
+                </div>
+                <div class="field-group">
+                  <label>Maks. Haftalık Saat</label>
+                  <input
+                    type="number"
+                    name="employeeMaxWeeklyHours"
+                    class="form-input"
+                    placeholder="40"
+                    min="0"
+                    max="80"
+                    [(ngModel)]="wizardData.maxWeeklyHours"
+                  />
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field-group">
+                  <label>Cihaz Yetkinlikleri</label>
+                  <div class="chip-grid">
+                    @for (skill of deviceSkillOptions; track skill) {
+                      <button
+                        class="chip"
+                        [class.selected]="wizardData.deviceSkills.includes(skill)"
+                        (click)="toggleSkill(skill)"
+                      >
+                        {{ skill }}
+                      </button>
+                    }
+                  </div>
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field-group">
+                  <label class="toggle-label">
+                    <span>Gece Vardiyasına Uygun</span>
+                    <input
+                      type="checkbox"
+                      name="employeeNightShiftEligible"
+                      class="toggle-input"
+                      [(ngModel)]="wizardData.nightShiftEligible"
+                    />
+                    <span class="toggle-switch"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (wizardStep() === 4) {
+          <div class="wizard-panel">
+            <div class="panel-header">
+              <h3>Durum ve Onay</h3>
+              <p>Personelin çalışma durumu ve kayıt bilgileri</p>
+            </div>
+            <div class="panel-fields">
+              <div class="field-row">
+                <div class="field-group">
+                  <label>Çalışma Durumu</label>
+                  <select
+                    name="employeeEmploymentStatus"
+                    class="form-input"
+                    [(ngModel)]="wizardData.employmentStatus"
+                  >
+                    <option value="" disabled>İstihdam durumu seçiniz</option>
+                    <option value="active">Aktif</option>
+                    <option value="probation">Deneme Sürecinde</option>
+                    <option value="leave">İzinli</option>
+                    <option value="inactive">Pasif</option>
+                  </select>
+                </div>
+                <div class="field-group">
+                  <label>Başlangıç Tarihi</label>
+                  <input
+                    type="date"
+                    name="employeeStartDate"
+                    class="form-input"
+                    [(ngModel)]="wizardData.startDate"
+                  />
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field-group full">
+                  <label>Notlar</label>
+                  <textarea
+                    name="employeeNotes"
+                    class="form-input form-textarea"
+                    placeholder="Personel hakkında notlar..."
+                    rows="3"
+                    [(ngModel)]="wizardData.notes"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="summary-section">
+              <h4>Özet</h4>
+              <div class="summary-grid">
+                <div class="summary-item">
+                  <span class="summary-key">Ad Soyad</span
+                  ><span class="summary-val">{{ wizardData.name || '—' }}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-key">Sicil No</span
+                  ><span class="summary-val">{{ wizardData.employeeNo || '—' }}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-key">Rol</span
+                  ><span class="summary-val">{{ getRoleLabel(wizardData.role) }}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-key">Departman</span
+                  ><span class="summary-val">{{ wizardData.department || '—' }}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-key">Tecrübe</span
+                  ><span class="summary-val">{{ wizardData.experienceYears || 0 }} yıl</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-key">Gece Vardiyası</span
+                  ><span class="summary-val">{{
+                    wizardData.nightShiftEligible ? 'Uygun' : 'Uygun Değil'
+                  }}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-key">İzin Günleri</span
+                  ><span class="summary-val">{{
+                    wizardData.offDays.length > 0
+                      ? wizardData.offDays.map((d) => getDayName(d)).join(', ')
+                      : 'Yok'
+                  }}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-key">Durum</span
+                  ><span class="summary-val">{{
+                    getStatusLabel(wizardData.employmentStatus)
+                  }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="wizard-footer">
+        @if (wizardStep() > 1) {
+          <button class="btn btn-ghost" (click)="prevStep()">Geri</button>
+        }
+        <div class="footer-right">
+          <button class="btn btn-secondary" (click)="closeWizard()">İptal</button>
+          @if (wizardStep() < 4) {
+            <button class="btn btn-primary" (click)="nextStep()" [disabled]="!stepValid()">
+              Devam
+            </button>
+          } @else {
+            <button
+              class="btn btn-primary"
+              (click)="saveWizard()"
+              [disabled]="saving() || !stepValid()"
+            >
+              @if (saving()) {
+                <span class="btn-spinner"></span>
+              }
+              {{ wizardEditId() ? 'Güncelle' : 'Kaydet' }}
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}
+`,

@@ -1,0 +1,17 @@
+node_modules
+# Keep environment variables out of version control
+.env
+
+/generated/prisma
+
+# Development artifacts
+build_errors.txt
+check.sql
+check-user.js
+cleanup.sql
+cleanup1.sql
+cleanup2.sql
+cleanup3.sql
+cleanup4.sql
+cleanup5.sql
+query.sql

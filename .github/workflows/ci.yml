@@ -1,0 +1,41 @@
+# Legacy "ci" check, kept for backward compatibility.
+#
+# The original CI page was folded into pr-validation.yml; this workflow exists
+# so that an existing branch-protection rule named "ci ..." (or any external
+# status check using this name) keeps receiving a green signal. It runs the
+# same release-preflight gates against the tree without needing any service
+# dependency, and fails closed exactly like the main pipeline.
+#
+# Deployment:               .github/workflows/deploy.yml
+# PR validation:            .github/workflows/pr-validation.yml
+# Weekly security scan:     .github/workflows/security-scan.yml
+
+name: ci
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  preflight:
+    name: Release Preflight
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Release preflight test suite
+        run: node --test scripts/release-preflight.test.mjs
+      - name: Release preflight
+        run: node scripts/release-preflight.mjs
+        env:
+          SKIP_ENVIRONMENT_CHECKS: '1'

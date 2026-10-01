@@ -1,0 +1,86 @@
+{{- if index .Values "cluster" "sentinel" "enabled" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vardiya.fullname" . }}-redis-sentinel
+  labels: {{- include "vardiya.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis-sentinel
+spec:
+  replicas: {{ index .Values "cluster" "sentinel" "replicas" }}
+  selector:
+    matchLabels: {{- include "vardiya.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis-sentinel
+  template:
+    metadata:
+      labels: {{- include "vardiya.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: redis-sentinel
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/component: redis-sentinel
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: sentinel
+          image: "{{ index .Values "image" "repository" }}:{{ index .Values "image" "tag" }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: 26379
+              protocol: TCP
+              name: sentinel
+          command:
+            - redis-sentinel
+            - /etc/redis/sentinel.conf
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ index .Values "existingSecret" }}
+                  key: redis_password
+          volumeMounts:
+            - name: config
+              mountPath: /etc/redis
+          readinessProbe:
+            tcpSocket:
+              port: 26379
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "vardiya.fullname" . }}-redis-sentinel-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vardiya.fullname" . }}-redis-sentinel-config
+  labels: {{- include "vardiya.labels" . | nindent 4 }}
+data:
+  sentinel.conf: |
+    port 26379
+    dir /tmp
+    sentinel monitor vardiya-cluster {{ include "vardiya.fullname" . }}-redis-0.{{ include "vardiya.fullname" . }}-redis 6379 2
+    sentinel down-after-milliseconds vardiya-cluster 5000
+    sentinel failover-timeout vardiya-cluster 10000
+    sentinel parallel-syncs vardiya-cluster 1
+    sentinel auth-pass vardiya-cluster $(REDIS_PASSWORD)
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vardiya.fullname" . }}-redis-sentinel
+  labels: {{- include "vardiya.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis-sentinel
+spec:
+  clusterIP: None
+  ports:
+    - port: 26379
+      targetPort: 26379
+      name: sentinel
+  selector:
+    app.kubernetes.io/component: redis-sentinel
+{{- end }}

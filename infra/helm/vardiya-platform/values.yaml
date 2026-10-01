@@ -1,0 +1,230 @@
+# VardiyaOS Platform - Global values
+# Override per-environment in values/production.yaml or values/staging.yaml
+
+global:
+  environment: production
+  clusterDomain: cluster.local
+  # Aligns the release so that "vardiya.fullname" collapses to the short
+  # release name (vardiya-<component>) on the standard release name, keeping
+  # every subchart Service name consistent with the DNS names the backend
+  # helpers and pgbouncer/redis configs resolve (vardiya-postgres,
+  # vardiya-pgbouncer, vardiya-redis-cluster).
+  nameOverride: vardiya
+  registry: ghcr.io/anomalyco
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
+  # Single source for the public hostname. The Ingress routes and the
+  # frontend API_URL are built from this; override per environment in
+  # values/<env>.yaml (global.publicHost).
+  publicHost: vardiya.example.com
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/managed-by: helm
+
+backend:
+  enabled: true
+  replicaCount: 2
+  image:
+    # Must match the image path the CI build-push publishes
+    # (ghcr.io/<owner>/<repo>/backend) and an immutable tag.
+    repository: vardiyasystem/backend
+    tag: v1.0.0
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  probes:
+    liveness:
+      path: /api/v1/health/live
+      initialDelaySeconds: 30
+      periodSeconds: 15
+    readiness:
+      path: /api/v1/health/ready
+      initialDelaySeconds: 15
+      periodSeconds: 10
+    startup:
+      path: /api/v1/health/live
+      initialDelaySeconds: 0
+      periodSeconds: 5
+      failureThreshold: 30
+  service:
+    port: 3000
+    targetPort: 3000
+  config:
+    NODE_ENV: production
+    PORT: "3000"
+    GLOBAL_THROTTLE_TTL: "60000"
+    GLOBAL_THROTTLE_LIMIT: "100"
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    LOG_LEVEL: log
+  existingSecret: vardiya-backend-secrets
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+    path: /api/v1/metrics
+
+frontend:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: vardiyasystem/frontend
+    tag: v1.0.0
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  service:
+    port: 80
+    targetPort: 80
+
+postgres:
+  enabled: true
+  version: "15"
+  replicaCount: 1
+  image:
+    repository: postgres
+    tag: 15-alpine
+  storage:
+    size: 10Gi
+    storageClass: standard
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2
+      memory: 2Gi
+  backup:
+    enabled: true
+    schedule: "0 3 * * *"
+    retention: 30
+    storage:
+      size: 20Gi
+      storageClass: standard
+  existingSecret: vardiya-db-secrets
+  extensions:
+    - uuid-ossp
+    - pgcrypto
+
+pgbouncer:
+  enabled: true
+  image:
+    # Same image the compose stack is smoke-tested against
+    # (docker-compose.prod.yml); bitnamilegacy is the current home of the
+    # Bitnami pgbouncer image.
+    repository: bitnamilegacy/pgbouncer
+    tag: 1.24.1-debian-12-r10
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+  config:
+    poolMode: transaction
+    defaultPoolSize: 25
+    maxClientConn: 200
+    maxDBConnections: 50
+    queryTimeout: 30
+    serverIdleTimeout: 600
+  existingSecret: vardiya-db-secrets
+
+redis-cluster:
+  enabled: true
+  cluster:
+    enabled: true
+    replicas: 3
+    sentinel:
+      enabled: true
+      replicas: 3
+  image:
+    repository: redis
+    tag: 7-alpine
+  storage:
+    size: 5Gi
+    storageClass: standard
+  resources:
+    requests:
+      cpu: 200m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  existingSecret: vardiya-redis-secrets
+
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    retention: 30d
+    storage:
+      size: 50Gi
+      storageClass: standard
+  grafana:
+    enabled: true
+    # Sealed in infra/sealed-secrets as vardiya-monitoring-secrets (namespace
+    # vardiya); the template reads key "admin_password".
+    adminPasswordSecret: vardiya-monitoring-secrets
+    storage:
+      size: 10Gi
+      storageClass: standard
+  loki:
+    enabled: true
+    retention: 720h
+    storage:
+      size: 50Gi
+      storageClass: standard
+  tempo:
+    enabled: true
+    retention: 48h
+    storage:
+      size: 20Gi
+      storageClass: standard
+  alertmanager:
+    enabled: true
+    existingSecret: vardiya-monitoring-secrets
+
+ingress:
+  enabled: true
+  className: nginx
+  service:
+    # Mirrors backend.service.port / frontend.service.port so the Ingress
+    # subchart can route without cross-subchart value access.
+    backendPort: 3000
+    frontendPort: 80
+  tls:
+    enabled: true
+    clusterIssuer: letsencrypt-prod
+    secretName: vardiya-tls
+  rateLimiting:
+    enabled: true
+    rps: 100
+  cors:
+    enabled: true
+    origins:
+      - https://vardiya.example.com

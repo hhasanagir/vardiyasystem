@@ -1,0 +1,30 @@
+{
+  "ignore": [
+    "GHSA-36xv-jgw5-4q75",
+    "GHSA-2g4f-4pwh-qvx6",
+    "GHSA-5v7r-6r5c-r473",
+    "GHSA-j47w-4g3g-c36v",
+    "GHSA-5j98-mcp5-4vw2",
+    "GHSA-mh29-5h37-fv8m",
+    "GHSA-xxjr-mmjv-4gpg",
+    "GHSA-r5fr-rjxr-66jc",
+    "GHSA-f23m-r3pf-42rh",
+    "GHSA-xf7r-hgr6-v32p",
+    "GHSA-v52c-386h-88mc",
+    "GHSA-5528-5vmv-3xc2",
+    "GHSA-3v7f-55p6-f55p",
+    "GHSA-c2c7-rcm5-vvqj",
+    "GHSA-q8mj-m7cp-5q26",
+    "GHSA-34x7-hfp2-rc4v",
+    "GHSA-8qq5-rm4j-mr97",
+    "GHSA-83g3-92jg-28cx",
+    "GHSA-qffp-2rhf-9h96",
+    "GHSA-9ppj-qmqm-q256",
+    "GHSA-r6q2-hw4h-h46w",
+    "GHSA-52f5-9888-hmc6",
+    "GHSA-ph9p-34f9-6g65",
+    "GHSA-w5hq-g745-h8pq",
+    "GHSA-8fgc-7cc6-rx7x",
+    "GHSA-38r7-794h-5758"
+  ]
+}

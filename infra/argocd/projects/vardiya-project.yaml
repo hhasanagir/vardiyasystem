@@ -1,0 +1,54 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: vardiya
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/managed-by: argocd
+spec:
+  description: VardiyaOS Enterprise Hospital Shift Management
+  sourceRepos:
+    - https://github.com/anomalyco/vardiyasystem.git
+    - https://charts.bitnami.com/bitnami
+    - https://prometheus-community.github.io/helm-charts
+    - https://grafana.github.io/helm-charts
+    - https://istio-release.storage.googleapis.com/charts
+  destinations:
+    - namespace: vardiya
+      server: https://kubernetes.default.svc
+    - namespace: vardiya-*
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: istio-system
+      server: https://kubernetes.default.svc
+    - namespace: cert-manager
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  orphanedResources:
+    warn: true
+  syncWindows:
+    - kind: allow
+      schedule: "0 0 * * *"
+      duration: "24h"
+      applications:
+        - vardiya-*
+  roles:
+    - name: devops
+      description: DevOps engineer access
+      policies:
+        - p, proj:vardiya:devops, applications, sync, vardiya-*, allow
+        - p, proj:vardiya:devops, applications, override, vardiya-*, allow
+      groups:
+        - vardiya-devops
+    - name: viewer
+      description: Read-only access
+      policies:
+        - p, proj:vardiya:viewer, applications, get, vardiya-*, allow
+      groups:
+        - vardiya-viewer

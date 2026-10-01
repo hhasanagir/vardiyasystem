@@ -1,0 +1,602 @@
+<div
+  class="schedule-shell"
+  [class.compact]="compactLayout()"
+  [class.density-compact]="density() === 'compact'"
+  [class.density-comfortable]="density() === 'comfortable'"
+>
+  <div class="schedule-scroll" (scroll)="scroll.emit($event)" (wheel)="onWheel($event)">
+    <table class="schedule-table">
+      <thead>
+        <tr>
+          <th class="left-header">Cihaz / Vardiya</th>
+          @for (day of days(); track day.dateStr) {
+            <th
+              class="date-col"
+              [class.today]="day.isToday"
+              [class.holiday]="day.isHoliday"
+              [class.national-holiday]="day.isHoliday && day.holidayType === 'national'"
+              [class.religious-holiday]="day.isHoliday && day.holidayType === 'religious'"
+              [class.weekend]="day.isWeekend"
+            >
+              <div class="date-display">
+                <span class="day-label">{{ day.dayName }}</span>
+                <span class="num-label">{{ day.dayNumber }}</span>
+              </div>
+              @if (day.isHoliday) {
+                <span
+                  class="holiday-label"
+                  [class.national]="day.holidayType === 'national'"
+                  [class.religious]="day.holidayType === 'religious'"
+                  >{{ day.holidayName }}</span
+                >
+              }
+            </th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (device of visibleDevices(); track device.id) {
+          @if (device.shifts && device.shifts.length > 0) {
+            @for (
+              shift of device.shifts;
+              track shift.type + '|' + (shift.personnelType || 'default');
+              let idx = $index
+            ) {
+              @if (isShiftVisible(shift)) {
+                @let shiftType = shift.type;
+                @let cssClass = getShiftTypeClass(shiftType);
+                @let pt = shift.personnelType;
+                @let st = shift.startTime;
+                @let et = shift.endTime;
+                <tr class="shift-row" [class]="getRowClass(shiftType)">
+                  <td class="shift-label" [class]="getLabelCellClass(shiftType)">
+                    @if (isFirstShift(device, idx)) {
+                      <div class="device-group-header">
+                        <div class="device-info">
+                          <span class="device-code">{{ device.code }}</span>
+                          <span class="device-name" title="{{ device.name }}">{{
+                            device.name
+                          }}</span>
+                        </div>
+                        <div class="shift-line">
+                          <span class="shift-badge" [class]="cssClass + '-badge'">{{
+                            getShiftBadge(shift)
+                          }}</span>
+                          @if (getPersonnelTypeLabel(shift)) {
+                            <span class="personnel-type-tag">{{
+                              getPersonnelTypeLabel(shift)
+                            }}</span>
+                          }
+                        </div>
+                      </div>
+                    } @else {
+                      <div
+                        class="device-group-child"
+                        [class.device-group-end]="isLastShift(device, idx)"
+                      >
+                        <span class="branch-line"></span>
+                        <div class="shift-line">
+                          <span class="shift-badge" [class]="cssClass + '-badge'">{{
+                            getShiftBadge(shift)
+                          }}</span>
+                          @if (getPersonnelTypeLabel(shift)) {
+                            <span class="personnel-type-tag">{{
+                              getPersonnelTypeLabel(shift)
+                            }}</span>
+                          }
+                        </div>
+                      </div>
+                    }
+                    @if (shift.name && shift.name !== getPersonnelTypeLabel(shift)) {
+                      <span class="shift-name-sub">{{ shift.name }}</span>
+                    }
+                  </td>
+                  @for (day of days(); track day.dateStr) {
+                    <td
+                      class="person-cell"
+                      [class]="getCellClass(shiftType)"
+                      [class.today]="day.isToday"
+                      [class.drag-over]="isDragTarget(device.id, day.dateStr, shiftType)"
+                      (dragover)="
+                        dragOver.emit({
+                          event: $event,
+                          deviceId: device.id,
+                          date: day.dateStr,
+                          shiftType,
+                          personnelType: pt,
+                          startTime: st,
+                          endTime: et,
+                        })
+                      "
+                      (dragleave)="dragLeave.emit()"
+                      (drop)="
+                        drop.emit({
+                          event: $event,
+                          deviceId: device.id,
+                          date: day.dateStr,
+                          shiftType,
+                          personnelType: pt,
+                          startTime: st,
+                          endTime: et,
+                        })
+                      "
+                    >
+                      @if (!isShiftUnavailable(device, day, shiftType)) {
+                        @if (getAssignment(device, day, shiftType, pt, idx); as assignment) {
+                          <div
+                            class="person-card"
+                            [class]="cssClass + '-card'"
+                            [class.dimmed]="isCellDimmed(device, day, shiftType, pt, idx)"
+                            draggable="true"
+                            (dragstart)="
+                              dragStart.emit({
+                                event: $event,
+                                deviceId: device.id,
+                                date: day.dateStr,
+                                shiftType,
+                                personnelType: pt,
+                                startTime: st,
+                                endTime: et,
+                              })
+                            "
+                            (dragend)="dragEnd.emit()"
+                            (dblclick)="
+                              editAssignment.emit({
+                                deviceId: device.id,
+                                date: day.dateStr,
+                                shiftType,
+                                personnelType: pt,
+                                startTime: st,
+                                endTime: et,
+                              })
+                            "
+                            (contextmenu)="
+                              contextMenu.emit({
+                                event: $event,
+                                deviceId: device.id,
+                                date: day.dateStr,
+                                shiftType,
+                                personnelType: pt,
+                                startTime: st,
+                                endTime: et,
+                                personnelName: assignment.personnelName,
+                                personnelId: assignment.personnelId,
+                              });
+                              $event.preventDefault()
+                            "
+                            (mouseenter)="
+                              hoverAssignment.emit({
+                                event: $event,
+                                deviceId: device.id,
+                                date: day.dateStr,
+                                shiftType,
+                                personnelType: pt,
+                                startTime: st,
+                                endTime: et,
+                              })
+                            "
+                            (mousemove)="moveTooltip.emit($event)"
+                            (mouseleave)="leaveTooltip.emit()"
+                          >
+                            <span class="person-initial" [class]="cssClass + '-init'">{{
+                              getInitial(assignment.personnelName)
+                            }}</span>
+                            <span class="person-text" title="{{ assignment.personnelName }}">{{
+                              assignment.personnelName
+                            }}</span>
+                            <span class="card-actions">
+                              <button
+                                class="card-action-btn"
+                                title="Düzenle"
+                                (click)="
+                                  editAssignment.emit({
+                                    deviceId: device.id,
+                                    date: day.dateStr,
+                                    shiftType,
+                                    personnelType: pt,
+                                    startTime: st,
+                                    endTime: et,
+                                  });
+                                  $event.stopPropagation()
+                                "
+                              >
+                                ✎
+                              </button>
+                              <button
+                                class="card-action-btn"
+                                title="Sil"
+                                (click)="
+                                  deleteAssignment.emit({
+                                    deviceId: device.id,
+                                    date: day.dateStr,
+                                    shiftType,
+                                    personnelType: pt,
+                                    startTime: st,
+                                    endTime: et,
+                                    personnelId: assignment.personnelId,
+                                  });
+                                  $event.stopPropagation()
+                                "
+                              >
+                                ✕
+                              </button>
+                              <button
+                                class="card-action-btn"
+                                title="Kopyala"
+                                (click)="
+                                  copyAssignment.emit({
+                                    deviceId: device.id,
+                                    date: day.dateStr,
+                                    shiftType,
+                                    personnelType: pt,
+                                    startTime: st,
+                                    endTime: et,
+                                    personnelId: assignment.personnelId,
+                                    personnelName: assignment.personnelName,
+                                  });
+                                  $event.stopPropagation()
+                                "
+                              >
+                                📋
+                              </button>
+                            </span>
+                          </div>
+                        } @else {
+                          <button
+                            class="add-person-btn"
+                            (click)="
+                              addAssignment.emit({
+                                deviceId: device.id,
+                                date: day.dateStr,
+                                shiftType,
+                                personnelType: pt,
+                                startTime: st,
+                                endTime: et,
+                              })
+                            "
+                          >
+                            <span class="plus">+</span><span class="add-label">Vardiya Ata</span>
+                          </button>
+                        }
+                      }
+                    </td>
+                  }
+                </tr>
+              }
+            }
+          } @else {
+            @if (isShiftVisibleFallback(device)) {
+              <tr class="shift-row day-shift-row">
+                <td class="shift-label day-label-cell">
+                  <div class="device-group-header">
+                    <div class="device-info">
+                      <span class="device-code">{{ device.code }}</span
+                      ><span class="device-name" title="{{ device.name }}">{{ device.name }}</span>
+                    </div>
+                    <div class="shift-line">
+                      <span class="shift-badge day-badge">{{
+                        device.mode === 'polyclinic' ? 'POLİKLİNİK' : 'GÜNDÜZ 08-20'
+                      }}</span>
+                    </div>
+                  </div>
+                </td>
+                @for (day of days(); track day.dateStr) {
+                  <td
+                    class="person-cell"
+                    [class.today]="day.isToday"
+                    [class.drag-over]="isDragTarget(device.id, day.dateStr, 'gunduz')"
+                    [class.empty-cell]="isPolyclinicClosed(device, day)"
+                    (dragover)="
+                      dragOver.emit({
+                        event: $event,
+                        deviceId: device.id,
+                        date: day.dateStr,
+                        shiftType: 'gunduz',
+                      })
+                    "
+                    (dragleave)="dragLeave.emit()"
+                    (drop)="
+                      drop.emit({
+                        event: $event,
+                        deviceId: device.id,
+                        date: day.dateStr,
+                        shiftType: 'gunduz',
+                      })
+                    "
+                  >
+                    @if (!isPolyclinicClosed(device, day)) {
+                      @if (getAssignment(device, day, 'gunduz'); as assignment) {
+                        <div
+                          class="person-card day-card"
+                          [class.dimmed]="isCellDimmed(device, day, 'gunduz')"
+                          draggable="true"
+                          (dragstart)="
+                            dragStart.emit({
+                              event: $event,
+                              deviceId: device.id,
+                              date: day.dateStr,
+                              shiftType: 'gunduz',
+                            })
+                          "
+                          (dragend)="dragEnd.emit()"
+                          (dblclick)="
+                            editAssignment.emit({
+                              deviceId: device.id,
+                              date: day.dateStr,
+                              shiftType: 'gunduz',
+                            })
+                          "
+                          (contextmenu)="
+                            contextMenu.emit({
+                              event: $event,
+                              deviceId: device.id,
+                              date: day.dateStr,
+                              shiftType: 'gunduz',
+                              personnelName: assignment.personnelName,
+                              personnelId: assignment.personnelId,
+                            });
+                            $event.preventDefault()
+                          "
+                          (mouseenter)="
+                            hoverAssignment.emit({
+                              event: $event,
+                              deviceId: device.id,
+                              date: day.dateStr,
+                              shiftType: 'gunduz',
+                            })
+                          "
+                          (mousemove)="moveTooltip.emit($event)"
+                          (mouseleave)="leaveTooltip.emit()"
+                        >
+                          <span class="person-initial day-init">{{
+                            getInitial(assignment.personnelName)
+                          }}</span>
+                          <span class="person-text" title="{{ assignment.personnelName }}">{{
+                            assignment.personnelName
+                          }}</span>
+                          <span class="card-actions">
+                            <button
+                              class="card-action-btn"
+                              title="Düzenle"
+                              (click)="
+                                editAssignment.emit({
+                                  deviceId: device.id,
+                                  date: day.dateStr,
+                                  shiftType: 'gunduz',
+                                });
+                                $event.stopPropagation()
+                              "
+                            >
+                              ✎
+                            </button>
+                            <button
+                              class="card-action-btn"
+                              title="Sil"
+                              (click)="
+                                deleteAssignment.emit({
+                                  deviceId: device.id,
+                                  date: day.dateStr,
+                                  shiftType: 'gunduz',
+                                  personnelId: assignment.personnelId,
+                                });
+                                $event.stopPropagation()
+                              "
+                            >
+                              ✕
+                            </button>
+                            <button
+                              class="card-action-btn"
+                              title="Kopyala"
+                              (click)="
+                                copyAssignment.emit({
+                                  deviceId: device.id,
+                                  date: day.dateStr,
+                                  shiftType: 'gunduz',
+                                  personnelId: assignment.personnelId,
+                                  personnelName: assignment.personnelName,
+                                });
+                                $event.stopPropagation()
+                              "
+                            >
+                              📋
+                            </button>
+                          </span>
+                        </div>
+                      } @else {
+                        <button
+                          class="add-person-btn"
+                          (click)="
+                            addAssignment.emit({
+                              deviceId: device.id,
+                              date: day.dateStr,
+                              shiftType: 'gunduz',
+                            })
+                          "
+                        >
+                          <span class="plus">+</span><span class="add-label">Vardiya Ata</span>
+                        </button>
+                      }
+                    }
+                  </td>
+                }
+              </tr>
+              @if (device.mode === 'vardiya') {
+                <tr class="shift-row night-shift-row">
+                  <td class="shift-label night-label-cell">
+                    <div class="device-group-child device-group-end">
+                      <span class="branch-line"></span>
+                      <div class="shift-line">
+                        <span class="shift-badge night-badge">GECE 20-08</span>
+                      </div>
+                    </div>
+                  </td>
+                  @for (day of days(); track day.dateStr) {
+                    <td
+                      class="person-cell night-cell"
+                      [class.today]="day.isToday"
+                      [class.drag-over]="isDragTarget(device.id, day.dateStr, 'gece')"
+                      (dragover)="
+                        dragOver.emit({
+                          event: $event,
+                          deviceId: device.id,
+                          date: day.dateStr,
+                          shiftType: 'gece',
+                        })
+                      "
+                      (dragleave)="dragLeave.emit()"
+                      (drop)="
+                        drop.emit({
+                          event: $event,
+                          deviceId: device.id,
+                          date: day.dateStr,
+                          shiftType: 'gece',
+                        })
+                      "
+                    >
+                      @if (!isShiftUnavailable(device, day, 'gece')) {
+                        @if (getAssignment(device, day, 'gece'); as assignment) {
+                          <div
+                            class="person-card night-card"
+                            [class.dimmed]="isCellDimmed(device, day, 'gece')"
+                            draggable="true"
+                            (dragstart)="
+                              dragStart.emit({
+                                event: $event,
+                                deviceId: device.id,
+                                date: day.dateStr,
+                                shiftType: 'gece',
+                              })
+                            "
+                            (dragend)="dragEnd.emit()"
+                            (dblclick)="
+                              editAssignment.emit({
+                                deviceId: device.id,
+                                date: day.dateStr,
+                                shiftType: 'gece',
+                              })
+                            "
+                            (contextmenu)="
+                              contextMenu.emit({
+                                event: $event,
+                                deviceId: device.id,
+                                date: day.dateStr,
+                                shiftType: 'gece',
+                                personnelName: assignment.personnelName,
+                                personnelId: assignment.personnelId,
+                              });
+                              $event.preventDefault()
+                            "
+                            (mouseenter)="
+                              hoverAssignment.emit({
+                                event: $event,
+                                deviceId: device.id,
+                                date: day.dateStr,
+                                shiftType: 'gece',
+                              })
+                            "
+                            (mousemove)="moveTooltip.emit($event)"
+                            (mouseleave)="leaveTooltip.emit()"
+                          >
+                            <span class="person-initial night-init">{{
+                              getInitial(assignment.personnelName)
+                            }}</span>
+                            <span class="person-text" title="{{ assignment.personnelName }}">{{
+                              assignment.personnelName
+                            }}</span>
+                            <span class="card-actions">
+                              <button
+                                class="card-action-btn"
+                                title="Düzenle"
+                                (click)="
+                                  editAssignment.emit({
+                                    deviceId: device.id,
+                                    date: day.dateStr,
+                                    shiftType: 'gece',
+                                  });
+                                  $event.stopPropagation()
+                                "
+                              >
+                                ✎
+                              </button>
+                              <button
+                                class="card-action-btn"
+                                title="Sil"
+                                (click)="
+                                  deleteAssignment.emit({
+                                    deviceId: device.id,
+                                    date: day.dateStr,
+                                    shiftType: 'gece',
+                                    personnelId: assignment.personnelId,
+                                  });
+                                  $event.stopPropagation()
+                                "
+                              >
+                                ✕
+                              </button>
+                              <button
+                                class="card-action-btn"
+                                title="Kopyala"
+                                (click)="
+                                  copyAssignment.emit({
+                                    deviceId: device.id,
+                                    date: day.dateStr,
+                                    shiftType: 'gece',
+                                    personnelId: assignment.personnelId,
+                                    personnelName: assignment.personnelName,
+                                  });
+                                  $event.stopPropagation()
+                                "
+                              >
+                                📋
+                              </button>
+                            </span>
+                          </div>
+                        } @else {
+                          <button
+                            class="add-person-btn"
+                            (click)="
+                              addAssignment.emit({
+                                deviceId: device.id,
+                                date: day.dateStr,
+                                shiftType: 'gece',
+                              })
+                            "
+                          >
+                            <span class="plus">+</span><span class="add-label">Vardiya Ata</span>
+                          </button>
+                        }
+                      }
+                    </td>
+                  }
+                </tr>
+              }
+            }
+          }
+        }
+      </tbody>
+    </table>
+    @if (showOnboarding()) {
+      <div class="onboarding-hint">
+        <div class="hint-content">
+          <svg
+            class="hint-svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+          <span class="hint-text">{{ onboardingHint() }}</span>
+          <button class="hint-dismiss" (click)="dismissOnboarding.emit()">✕</button>
+        </div>
+      </div>
+    }
+  </div>
+  <div class="schedule-fade schedule-fade-left" [class.visible]="showLeftFade()"></div>
+  <div class="schedule-fade schedule-fade-right" [class.visible]="showRightFade()"></div>
+</div>

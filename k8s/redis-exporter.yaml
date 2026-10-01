@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vardiya-redis-exporter
+  namespace: vardiya
+  labels:
+    app: vardiya
+    component: redis-exporter
+spec:
+  selector:
+    app: vardiya
+    component: redis-exporter
+  ports:
+    - port: 9121
+      targetPort: 9121
+      name: metrics
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vardiya-redis-exporter
+  namespace: vardiya
+  labels:
+    app: vardiya
+    component: redis-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vardiya
+      component: redis-exporter
+  template:
+    metadata:
+      labels:
+        app: vardiya
+        component: redis-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+    spec:
+      serviceAccountName: vardiya-backend
+      containers:
+        - name: redis-exporter
+          image: oliver006/redis_exporter:v1.61.0
+          ports:
+            - containerPort: 9121
+              name: metrics
+          env:
+            - name: REDIS_ADDR
+              value: redis://vardiya-redis:6379
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 50m
+            limits:
+              memory: 64Mi
+              cpu: 200m
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9121
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 9121
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true

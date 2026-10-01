@@ -1,0 +1,154 @@
+{
+  "$schema": "./node_modules/@angular/service-worker/config/schema.json",
+  "index": "/index.html",
+  "assetGroups": [
+    {
+      "name": "app-shell",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": [
+          "/favicon.ico",
+          "/index.html",
+          "/manifest.webmanifest",
+          "/*.css",
+          "/*.js",
+          "/icons/*.svg"
+        ]
+      }
+    },
+    {
+      "name": "assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": ["/**/*.svg", "/**/*.css"]
+      }
+    }
+  ],
+  "dataGroups": [
+    {
+      "name": "api-schedules",
+      "urls": ["/api/schedules", "/api/schedules/**"],
+      "cacheConfig": {
+        "maxSize": 100,
+        "maxAge": "5m",
+        "timeout": "10s",
+        "strategy": "freshness"
+      }
+    },
+    {
+      "name": "api-my-shifts",
+      "urls": ["/api/schedules/my-shifts", "/api/schedules/my-day"],
+      "cacheConfig": {
+        "maxSize": 50,
+        "maxAge": "30m",
+        "timeout": "5s",
+        "strategy": "performance"
+      }
+    },
+    {
+      "name": "api-personnel",
+      "urls": ["/api/personnel", "/api/personnel/**"],
+      "cacheConfig": {
+        "maxSize": 50,
+        "maxAge": "1h",
+        "timeout": "5s",
+        "strategy": "performance"
+      }
+    },
+    {
+      "name": "api-devices",
+      "urls": ["/api/devices", "/api/devices/**", "/api/device-groups/**"],
+      "cacheConfig": {
+        "maxSize": 50,
+        "maxAge": "1h",
+        "timeout": "5s",
+        "strategy": "performance"
+      }
+    },
+    {
+      "name": "api-units",
+      "urls": ["/api/units/**", "/api/schedule-configs/**"],
+      "cacheConfig": {
+        "maxSize": 50,
+        "maxAge": "1h",
+        "timeout": "5s",
+        "strategy": "performance"
+      }
+    },
+    {
+      "name": "api-notifications",
+      "urls": ["/api/notifications", "/api/notifications/**"],
+      "cacheConfig": {
+        "maxSize": 50,
+        "maxAge": "2m",
+        "timeout": "5s",
+        "strategy": "freshness"
+      }
+    },
+    {
+      "name": "api-analytics",
+      "urls": ["/api/analytics/**", "/api/insights/**"],
+      "cacheConfig": {
+        "maxSize": 50,
+        "maxAge": "10m",
+        "timeout": "10s",
+        "strategy": "freshness"
+      }
+    },
+    {
+      "name": "api-attendance",
+      "urls": [
+        "/api/v1/attendance/today",
+        "/api/v1/attendance/history",
+        "/api/v1/attendance/stats"
+      ],
+      "cacheConfig": {
+        "maxSize": 20,
+        "maxAge": "5m",
+        "timeout": "5s",
+        "strategy": "freshness"
+      }
+    },
+    {
+      "name": "api-shift-tasks",
+      "urls": ["/api/v1/shift-tasks", "/api/v1/shift-tasks/**"],
+      "cacheConfig": {
+        "maxSize": 20,
+        "maxAge": "5m",
+        "timeout": "5s",
+        "strategy": "freshness"
+      }
+    },
+    {
+      "name": "api-handover-notes",
+      "urls": ["/api/v1/handover-notes/**"],
+      "cacheConfig": {
+        "maxSize": 20,
+        "maxAge": "5m",
+        "timeout": "5s",
+        "strategy": "freshness"
+      }
+    },
+    {
+      "name": "api-device-incidents",
+      "urls": ["/api/v1/device-incidents/**"],
+      "cacheConfig": {
+        "maxSize": 20,
+        "maxAge": "5m",
+        "timeout": "5s",
+        "strategy": "freshness"
+      }
+    }
+  ],
+  "navigationUrls": [
+    "/**",
+    "!/**/*.css",
+    "!/**/*.js",
+    "!/**/*.svg",
+    "!/**/*.ico",
+    "!/**/*.json",
+    "!/api/**"
+  ]
+}

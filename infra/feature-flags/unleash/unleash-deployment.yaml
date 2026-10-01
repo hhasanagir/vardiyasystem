@@ -1,0 +1,219 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vardiya-feature-flags
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/managed-by: argocd
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: unleash-postgres
+  namespace: vardiya-feature-flags
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/component: unleash
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unleash-postgres
+  namespace: vardiya-feature-flags
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/component: unleash
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: unleash-postgres
+  template:
+    metadata:
+      labels:
+        app: unleash-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: unleash
+            - name: POSTGRES_USER
+              value: unleash
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: unleash-secrets
+                  key: postgres-password
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            exec:
+              command: [pg_isready, -U, unleash]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: unleash-postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: unleash-postgres
+  namespace: vardiya-feature-flags
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/component: unleash
+spec:
+  selector:
+    app: unleash-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unleash-server
+  namespace: vardiya-feature-flags
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/component: unleash
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: unleash-server
+  template:
+    metadata:
+      labels:
+        app: unleash-server
+    spec:
+      containers:
+        - name: unleash
+          image: unleashorg/unleash-server:latest
+          ports:
+            - containerPort: 4242
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: unleash-secrets
+                  key: database-url
+            - name: DATABASE_SSL
+              value: "false"
+            - name: INIT_ADMIN_API_TOKENS
+              valueFrom:
+                secretKeyRef:
+                  name: unleash-secrets
+                  key: admin-api-token
+            - name: LOG_LEVEL
+              value: warn
+            - name: UNLEASH_URL
+              value: https://unleash.vardiya.example.com
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4242
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4242
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: unleash-server
+  namespace: vardiya-feature-flags
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/component: unleash
+spec:
+  selector:
+    app: unleash-server
+  ports:
+    - port: 4242
+      targetPort: 4242
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: unleash-secrets
+  namespace: vardiya-feature-flags
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/component: unleash
+stringData:
+  postgres-password: changeme-in-production
+  database-url: postgres://unleash:changeme-in-production@unleash-postgres:5432/unleash
+  admin-api-token: "*:development.changeme"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: unleash-server
+  namespace: vardiya-feature-flags
+  labels:
+    app.kubernetes.io/part-of: vardiya
+    app.kubernetes.io/component: unleash
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: unleash-server
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: unleash-feature-flags
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+data:
+  FEATURE_FLAGS_CLIENT_URL: http://unleash-server:4242/api
+  FEATURE_FLAGS_ADMIN_URL: http://unleash-server:4242
+  FEATURE_FLAGS_ENVIRONMENT: production

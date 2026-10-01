@@ -1,0 +1,100 @@
+<p-toast></p-toast>
+
+<div class="page-header">
+  <h1>
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
+      <path
+        d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"
+      />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+      <line x1="12" y1="22.08" x2="12" y2="12" />
+    </svg>
+    Sarf Malzemeleri
+  </h1>
+  <div class="header-actions">
+    <p-button
+      icon="pi pi-refresh"
+      label="Yenile"
+      severity="secondary"
+      (onClick)="loadStock()"
+    ></p-button>
+    <p-button icon="pi pi-plus" label="Yeni Malzeme" (onClick)="onCreate()"></p-button>
+  </div>
+</div>
+
+<div class="kpi-grid">
+  <p-card class="kpi-card">
+    <div class="kpi-value" style="color: #ef4444">{{ lowStockCount() }}</div>
+    <div class="kpi-label">Düşük Stok</div>
+  </p-card>
+  <p-card class="kpi-card">
+    <div class="kpi-value" style="color: #22c55e">{{ normalStockCount() }}</div>
+    <div class="kpi-label">Normal Stok</div>
+  </p-card>
+  <p-card class="kpi-card">
+    <div class="kpi-value" style="color: #f97316">{{ highStockCount() }}</div>
+    <div class="kpi-label">Fazla Stok</div>
+  </p-card>
+</div>
+
+@if (isLoading()) {
+  <div class="loading">
+    <p-progressSpinner></p-progressSpinner>
+  </div>
+}
+
+<p-table [value]="stock()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '50rem' }">
+  <ng-template pTemplate="header">
+    <tr>
+      <th style="width: 120px">Kod</th>
+      <th>Ad</th>
+      <th>Kategori</th>
+      <th>Miktar</th>
+      <th>Min Stok</th>
+      <th>Max Stok</th>
+      <th>Durum</th>
+      <th>Konum</th>
+      <th>Güncelleme</th>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-item>
+    <tr [class.low-stock]="getStockStatus(item) === 'low'">
+      <td>
+        <strong>{{ item.catalogCode }}</strong>
+      </td>
+      <td>{{ item.catalogName }}</td>
+      <td>{{ item.unit }}</td>
+      <td>
+        <strong>{{ item.quantity }}</strong>
+      </td>
+      <td>{{ item.minStock }}</td>
+      <td>{{ item.maxStock }}</td>
+      <td>
+        <p-tag
+          [value]="
+            getStockStatus(item) === 'low'
+              ? 'Düşük'
+              : getStockStatus(item) === 'high'
+                ? 'Fazla'
+                : 'Normal'
+          "
+          [severity]="getStockSeverity(item)"
+        ></p-tag>
+      </td>
+      <td>{{ item.location || '-' }}</td>
+      <td>{{ item.lastUpdated | date: 'dd.MM.yyyy HH:mm' }}</td>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td colspan="9" style="text-align: center; padding: 2rem; opacity: 0.5">Kayıt bulunamadı</td>
+    </tr>
+  </ng-template>
+</p-table>

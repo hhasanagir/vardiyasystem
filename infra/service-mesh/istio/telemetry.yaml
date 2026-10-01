@@ -1,0 +1,65 @@
+---
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: vardiya-otel-tracing
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: vardiya
+  tracing:
+    - providers:
+        - name: otel-collector
+      randomSamplingPercentage: 100
+---
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: vardiya-metrics
+  namespace: vardiya
+  labels:
+    app.kubernetes.io/part-of: vardiya
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: vardiya
+  metrics:
+    - providers:
+        - name: prometheus
+      overrides:
+        - match:
+            metric: ALL_METRICS
+          mode: CLIENT_AND_SERVER
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istio-otel-collector-config
+  namespace: istio-system
+  labels:
+    app.kubernetes.io/part-of: vardiya
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 1024
+    exporters:
+      otlp:
+        endpoint: vardiya-tempo:4317
+        tls:
+          insecure: true
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp]

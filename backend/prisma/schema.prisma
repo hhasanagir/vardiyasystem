@@ -1,0 +1,2953 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DATABASE_DIRECT_URL")
+  extensions = [pgcrypto, citext, btree_gin, pg_stat_statements, ltree]
+}
+
+enum UnitType {
+  mr
+  bt
+  rontgen
+  nukleer
+  onkoloji
+  ultrason
+  anjiyo
+  mamografi
+  kemik_dansitometri
+  floroskopi
+  pet_ct
+  spect_ct
+  linak
+  simutasyon_ct
+  mobil
+  supervizor
+}
+
+enum AreaType {
+  scanning
+  control
+  preparation
+  storage
+  waiting
+  recovery
+  office
+  utility
+}
+
+enum RoomType {
+  patient_exam
+  equipment
+  control
+  preparation
+  storage
+  consultation
+  recovery
+  utility
+}
+
+enum AssignmentSlotStatus {
+  available
+  occupied
+  reserved
+  maintenance
+  closed
+}
+
+enum ShiftType {
+  day
+  evening
+  night
+  morning
+  off
+  leave
+  sick
+  training
+  backup
+}
+
+enum AssignmentKind {
+  device
+  person
+}
+
+enum AssignmentSource {
+  manual
+  auto_generated
+  override
+  swap
+  template
+  import
+}
+
+enum DutyRosterRole {
+  sorumlu_tekniker
+  tekniker
+  yardimci_tekniker
+  supervisor
+  radyolog
+}
+
+enum DeviceMode {
+  vardiya
+  polyclinic
+}
+
+enum TaskStatus {
+  pending
+  completed
+  skipped
+}
+
+enum DeviceOperationalStatus {
+  active
+  maintenance
+  fault
+  out_of_service
+}
+
+enum ScheduleStatus {
+  draft
+  under_review
+  approved
+  published
+  archived
+  rejected
+}
+
+enum UserRole {
+  system_admin
+  hospital_admin
+  imaging_director
+  supervisor
+  medical_engineer
+  senior_technician
+  technician
+  assistant_technician
+  secretary
+  guest
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+enum NotificationType {
+  SCHEDULE_CHANGED
+  SCHEDULE_APPROVED
+  SCHEDULE_REJECTED
+  SHIFT_SWAP_REQUESTED
+  SHIFT_SWAP_APPROVED
+  SHIFT_SWAP_REJECTED
+  TRAINING_ASSIGNED
+  TRAINING_EXPIRING
+  TRAINING_EXPIRED
+  CERTIFICATION_EXPIRING
+  CERTIFICATION_EXPIRED
+  DEVICE_INCIDENT
+  DEVICE_INCIDENT_CRITICAL
+  SYSTEM_ANNOUNCEMENT
+  ROLE_ASSIGNED
+  PERMISSION_CHANGED
+  ATTENDANCE_ALERT
+  EMERGENCY_ALERT
+  CLOCK_IN_REMINDER
+  SCHEDULE_REMINDER
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  PARTIALLY_DELIVERED
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum DeliveryChannel {
+  IN_APP
+  WEB_PUSH
+  FCM
+  EMAIL
+  SMS
+}
+
+enum DeliveryStatus {
+  PENDING
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  CLICKED
+  FAILED
+}
+
+enum RbacRoleName {
+  SYSTEM_ADMIN
+  HOSPITAL_ADMIN
+  IMAGING_DIRECTOR
+  SUPERVISOR
+  MEDICAL_ENGINEER
+  SENIOR_TECHNICIAN
+  TECHNICIAN
+  ASSISTANT_TECHNICIAN
+  SECRETARY
+  GUEST
+}
+
+model Role {
+  id          String                @id @default(uuid())
+  name        RbacRoleName          @unique
+  label       String
+  description String?
+  level       Int
+  isSystem    Boolean               @default(false)
+  parentId    String?
+  path        Unsupported("ltree")?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  parent      Role?                @relation("RoleHierarchy", fields: [parentId], references: [id])
+  children    Role[]               @relation("RoleHierarchy")
+  permissions RolePermission[]
+  userRoles   UserRoleAssignment[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  label       String
+  description String?
+  module      String
+  action      String
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+
+  @@index([module])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String   @id @default(uuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRoleAssignment {
+  id              String    @id @default(uuid())
+  userId          String
+  roleId          String
+  organizationId  String?
+  hospitalGroupId String?
+  hospitalId      String?
+  departmentId    String?
+  unitId          String?
+  assignedBy      String?
+  expiresAt       DateTime?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role          Role           @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  hospitalGroup HospitalGroup? @relation(fields: [hospitalGroupId], references: [id])
+  hospital      Hospital?      @relation(fields: [hospitalId], references: [id])
+  department    Department?    @relation(fields: [departmentId], references: [id])
+
+  @@unique([userId, roleId, organizationId, unitId])
+  @@index([userId, isActive])
+  @@index([roleId])
+  @@index([hospitalGroupId])
+  @@index([hospitalId])
+  @@index([departmentId])
+  @@map("user_role_assignments")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  password       String
+  name           String
+  role           UserRole @default(guest)
+  organizationId String?
+  unitId         String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization           Organization?           @relation(fields: [organizationId], references: [id])
+  unit                   Unit?                   @relation(fields: [unitId], references: [id])
+  roleAssignments        UserRoleAssignment[]
+  auditLogs              AuditLog[]
+  schedules              Schedule[]              @relation("ScheduleCreator")
+  snapshots              ScheduleSnapshot[]
+  recommendations        Recommendation[]
+  resolvedConflicts      Conflict[]              @relation("ConflictResolver")
+  notificationRecipients NotificationRecipient[]
+  sentNotifications      Notification[]          @relation("NotificationSender")
+  authSessions           AuthSession[]
+  inviteCodes            InviteCode[]
+  handoverNotes          HandoverNote[]
+  deviceIncidents        DeviceIncident[]
+  attendanceRecords      AttendanceRecord[]
+  shiftTasks             ShiftTask[]
+  deviceStatusLogs       DeviceStatusLog[]
+  preShiftChecklists     PreShiftChecklist[]
+  pushTokens             PushToken[]
+  consentRecords         ConsentRecord[]
+  dataSubjectRequests    DataSubjectRequest[]
+  emergencyAccessGrants  EmergencyAccessGrant[]  @relation("EmergencyAccessUser")
+  emergencyAccessGranted EmergencyAccessGrant[]  @relation("EmergencyAccessGranter")
+  webPushSubscriptions    WebPushSubscription[]
+  notificationPreferences NotificationPreference?
+
+  @@map("users")
+}
+
+model PushToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  platform  String   @default("android")
+  deviceId  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([userId, isActive])
+  @@map("push_tokens")
+}
+
+model WebPushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  auth      String
+  p256dh    String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("web_push_subscriptions")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users       User[]
+  units       Unit[]
+  devices     Device[]
+  shifts      Shifts[]
+  inviteCodes InviteCode[]
+  dutyRoster  DutyRoster[]
+  hospitalId  String?
+
+  hospital         Hospital?         @relation(fields: [hospitalId], references: [id])
+  enterpriseAssets EnterpriseAsset[]
+  personnelGroups  PersonnelGroup[]
+  personShiftTemplates PersonShiftTemplate[]
+  schedules            Schedule[]
+
+  @@map("organizations")
+}
+
+model HospitalGroup {
+  id        String                @id @default(uuid())
+  name      String
+  code      String                @unique
+  path      Unsupported("ltree")?
+  isActive  Boolean               @default(true)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  hospitals       Hospital[]
+  roleAssignments UserRoleAssignment[]
+
+  @@index([code])
+  @@map("hospital_groups")
+}
+
+model Hospital {
+  id        String                @id @default(uuid())
+  groupId   String?
+  name      String
+  code      String                @unique
+  path      Unsupported("ltree")?
+  isActive  Boolean               @default(true)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  group            HospitalGroup?       @relation(fields: [groupId], references: [id])
+  directorates     Directorate[]
+  departments      Department[]
+  units            Unit[]
+  organizations    Organization[]
+  roleAssignments  UserRoleAssignment[]
+  enterpriseAssets EnterpriseAsset[]
+  warehouses       Warehouse[]
+
+  @@index([code])
+  @@map("hospitals")
+}
+
+model Directorate {
+  id         String                @id @default(uuid())
+  hospitalId String
+  name       String
+  code       String
+  path       Unsupported("ltree")?
+  isActive   Boolean               @default(true)
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  hospital    Hospital     @relation(fields: [hospitalId], references: [id])
+  departments Department[]
+
+  @@unique([hospitalId, code])
+  @@map("directorates")
+}
+
+model Department {
+  id            String                @id @default(uuid())
+  hospitalId    String?
+  directorateId String?
+  name          String
+  code          String
+  path          Unsupported("ltree")?
+  isActive      Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  hospital              Hospital?            @relation(fields: [hospitalId], references: [id])
+  directorate           Directorate?         @relation(fields: [directorateId], references: [id])
+  units                 Unit[]
+  roleAssignments       UserRoleAssignment[]
+  enterpriseAssets      EnterpriseAsset[]    @relation("AssetDepartment")
+  ownedEnterpriseAssets EnterpriseAsset[]    @relation("AssetOwnerDepartment")
+
+  @@unique([hospitalId, code])
+  @@map("departments")
+}
+
+model Unit {
+  id             String                @id @default(uuid())
+  name           String
+  code           String
+  type           UnitType
+  organizationId String?
+  departmentId   String?
+  hospitalId     String?
+  path           Unsupported("ltree")?
+  isActive       Boolean               @default(true)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  organization     Organization?     @relation(fields: [organizationId], references: [id])
+  department       Department?       @relation(fields: [departmentId], references: [id])
+  hospital         Hospital?         @relation(fields: [hospitalId], references: [id])
+  users            User[]
+  devices          Device[]
+  personnel        Personnel[]
+  schedules        Schedule[]
+  shifts           Shifts[]
+  assignments      Assignment[]
+  areas            Area[]
+  handoverNotes    HandoverNote[]
+  deviceIncidents  DeviceIncident[]
+  dutyRoster       DutyRoster[]
+  enterpriseAssets EnterpriseAsset[]
+  personnelGroups  PersonnelGroup[]
+  personShiftTemplates PersonShiftTemplate[]
+
+  @@unique([organizationId, code])
+  @@map("units")
+}
+
+model Area {
+  id        String                @id @default(uuid())
+  unitId    String
+  name      String
+  code      String
+  type      AreaType              @default(scanning)
+  path      Unsupported("ltree")?
+  isActive  Boolean               @default(true)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  unit  Unit   @relation(fields: [unitId], references: [id])
+  rooms Room[]
+
+  @@unique([unitId, code])
+  @@map("areas")
+}
+
+model Room {
+  id        String                @id @default(uuid())
+  areaId    String
+  name      String
+  code      String
+  type      RoomType              @default(patient_exam)
+  path      Unsupported("ltree")?
+  capacity  Int                   @default(1)
+  isActive  Boolean               @default(true)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  area             Area              @relation(fields: [areaId], references: [id])
+  devices          Device[]
+  assignmentSlots  AssignmentSlot[]
+  enterpriseAssets EnterpriseAsset[]
+
+  @@unique([areaId, code])
+  @@map("rooms")
+}
+
+model AssignmentSlot {
+  id         String               @id @default(uuid())
+  roomId     String?
+  deviceId   String?
+  date       String
+  startTime  String
+  endTime    String
+  shiftType  ShiftType
+  status     AssignmentSlotStatus @default(available)
+  assignedTo String?
+  scheduleId String?
+  isActive   Boolean              @default(true)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  room   Room?   @relation(fields: [roomId], references: [id])
+  device Device? @relation(fields: [deviceId], references: [id])
+
+  @@unique([roomId, deviceId, date, startTime])
+  @@index([date])
+  @@index([roomId, date])
+  @@index([deviceId, date])
+  @@index([status])
+  @@index([assignedTo])
+  @@map("assignment_slots")
+}
+
+model DutyRoster {
+  id             String         @id @default(uuid())
+  organizationId String
+  unitId         String?
+  deviceId       String?
+  personnelId    String
+  date           String
+  shiftType      ShiftType
+  role           DutyRosterRole
+  startTime      String
+  endTime        String
+  notes          String?
+  isActive       Boolean        @default(true)
+  version        Int            @default(1)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  unit         Unit?        @relation(fields: [unitId], references: [id])
+  device       Device?      @relation(fields: [deviceId], references: [id])
+  personnel    Personnel    @relation(fields: [personnelId], references: [id])
+
+  @@unique([personnelId, date, shiftType])
+  @@index([organizationId, date])
+  @@index([unitId, date])
+  @@index([deviceId, date])
+  @@index([date, shiftType])
+  @@map("duty_roster")
+}
+
+model Personnel {
+  id                 String    @id @default(uuid())
+  name               String
+  role               String    @default("technician")
+  employeeNo         String?
+  email              String?
+  phone              String?
+  unitId             String
+  groupId            String?
+  skills             String[]
+  seniority          Int       @default(0)
+  specialization     String?
+  experienceYears    Int       @default(0)
+  certifications     String[]
+  deviceSkills       String[]
+  nightShiftEligible Boolean   @default(true)
+  employmentStatus   String    @default("active")
+  startDate          DateTime?
+  notes              String?
+  offDays            Int[]     @default([])
+  maxWeeklyHours     Int       @default(40)
+  isActive           Boolean   @default(true)
+  version            Int       @default(1)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  unit                    Unit                 @relation(fields: [unitId], references: [id])
+  group                   PersonnelGroup?      @relation(fields: [groupId], references: [id])
+  assignments             Assignment[]
+  swapRequestsAsRequester SwapRequest[]        @relation("SwapRequester")
+  swapRequestsAsTarget    SwapRequest[]        @relation("SwapTarget")
+  personnelSkills         PersonnelSkill[]
+  personnelTrainings      PersonnelTraining[]
+  dutyRoster              DutyRoster[]
+  dosimeters              RadiationDosimeter[]
+  calibrationsPerformed   CalibrationRecord[]  @relation("CalibrationPerformer")
+
+  @@unique([email])
+  @@unique([employeeNo])
+  @@index([unitId])
+  @@index([unitId, isActive])
+  @@index([groupId])
+  @@map("personnel")
+}
+
+model Skill {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  category    String   @default("imaging")
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  personnelSkills PersonnelSkill[]
+
+  @@index([category])
+  @@map("skills")
+}
+
+model PersonnelSkill {
+  id                 String    @id @default(uuid())
+  personnelId        String
+  skillId            String
+  certificationLevel String    @default("certified")
+  certifiedAt        DateTime?
+  expiresAt          DateTime?
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  personnel Personnel @relation(fields: [personnelId], references: [id], onDelete: Cascade)
+  skill     Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([personnelId, skillId])
+  @@index([personnelId])
+  @@index([skillId])
+  @@index([expiresAt])
+  @@map("personnel_skills")
+}
+
+model Device {
+  id             String                @id @default(uuid())
+  code           String
+  name           String
+  unitId         String
+  roomId         String?
+  organizationId String?
+  mode           DeviceMode            @default(vardiya)
+  path           Unsupported("ltree")?
+  requiredSkills String[]
+  workDays       Int[]
+  startHour      Int                   @default(8)
+  endHour        Int                   @default(20)
+  blockCode      String?
+  isMaster       Boolean               @default(false)
+  isActive       Boolean               @default(true)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  unit             Unit              @relation(fields: [unitId], references: [id])
+  room             Room?             @relation(fields: [roomId], references: [id])
+  organization     Organization?     @relation(fields: [organizationId], references: [id])
+  assignments      Assignment[]
+  assignmentSlots  AssignmentSlot[]
+  handoverNotes    HandoverNote[]
+  deviceIncidents  DeviceIncident[]
+  deviceStatusLogs DeviceStatusLog[]
+  shiftDefinitions Shifts[]
+  dutyRoster       DutyRoster[]
+  enterpriseAsset  EnterpriseAsset?
+
+  @@unique([organizationId, code])
+  @@index([unitId])
+  @@index([roomId])
+  @@index([organizationId])
+  @@map("devices")
+}
+
+model Shifts {
+  id                   String    @id @default(uuid())
+  name                 String
+  type                 ShiftType
+  startTime            String?
+  endTime              String?
+  durationHours        Float?
+  organizationId       String
+  unitId               String?
+  deviceId             String?
+  personnelType        String?   @default("technician")
+  isMaster             Boolean   @default(false)
+  blockId              String?
+  optionalOnWeekends   Boolean   @default(false)
+  optionalOnHolidays   Boolean   @default(false)
+  isActive             Boolean   @default(true)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id])
+  unit         Unit?                @relation(fields: [unitId], references: [id])
+  device       Device?              @relation(fields: [deviceId], references: [id])
+  dateOverrides ShiftDateOverride[]
+
+  @@index([unitId])
+  @@index([organizationId])
+  @@index([deviceId])
+  @@index([blockId])
+  @@map("shifts")
+}
+
+model ShiftDateOverride {
+  id          String   @id @default(uuid())
+  shiftId     String
+  date        String
+  isEnabled   Boolean  @default(true)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shift Shifts @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@unique([shiftId, date])
+  @@index([date])
+  @@map("shift_date_overrides")
+}
+
+model PersonnelGroup {
+  id             String    @id @default(uuid())
+  organizationId String?
+  unitId         String?
+  name           String
+  code           String
+  description    String?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization   Organization?         @relation(fields: [organizationId], references: [id])
+  unit           Unit?                 @relation(fields: [unitId], references: [id])
+  personnel      Personnel[]
+  shiftTemplates PersonShiftTemplate[]
+  assignments    Assignment[]
+
+  @@unique([unitId, code])
+  @@index([unitId])
+  @@index([isActive])
+  @@map("personnel_groups")
+}
+
+model PersonShiftTemplate {
+  id               String         @id @default(uuid())
+  organizationId   String?
+  unitId           String
+  personnelGroupId String
+  name             String
+  shiftType        ShiftType
+  startTime        String
+  endTime          String
+  isActive         Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  organization   Organization?   @relation(fields: [organizationId], references: [id])
+  unit           Unit            @relation(fields: [unitId], references: [id])
+  personnelGroup PersonnelGroup  @relation(fields: [personnelGroupId], references: [id], onDelete: Cascade)
+  assignments    Assignment[]
+
+  @@index([unitId])
+  @@index([personnelGroupId])
+  @@index([isActive])
+  @@map("person_shift_templates")
+}
+
+model Schedule {
+  id             String         @id @default(uuid())
+  unitId         String
+  organizationId String?
+  month          Int
+  year           Int
+  version        Int            @default(1)
+  status         ScheduleStatus @default(draft)
+  publishedAt    DateTime?
+  createdById    String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  unit         Unit               @relation(fields: [unitId], references: [id])
+  organization Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  createdBy    User?              @relation("ScheduleCreator", fields: [createdById], references: [id])
+  assignments  Assignment[]
+  snapshots    ScheduleSnapshot[]
+  approval     ScheduleApproval?
+
+  @@unique([unitId, month, year])
+  @@index([status])
+  @@index([createdById])
+  @@index([unitId, createdAt])
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@map("schedules")
+}
+
+model ScheduleApproval {
+  id               String    @id @default(uuid())
+  scheduleId       String    @unique
+  submittedBy      String?
+  submittedAt      DateTime?
+  submittedComment String?
+  approvedBy       String?
+  approvedAt       DateTime?
+  approvalComment  String?
+  rejectedBy       String?
+  rejectedAt       DateTime?
+  rejectionReason  String?
+  publishedBy      String?
+  publishedAt      DateTime?
+  archivedBy       String?
+  archivedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@map("schedule_approvals")
+}
+
+model ScheduleSnapshot {
+  id          String   @id @default(uuid())
+  scheduleId  String
+  version     Int
+  data        Json
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  schedule  Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation(fields: [createdById], references: [id])
+
+  @@unique([scheduleId, version])
+  @@map("schedule_snapshots")
+}
+
+model Assignment {
+  id               String         @id @default(uuid())
+  scheduleId       String
+  personnelId      String
+  deviceId         String?
+  unitId           String?
+  personnelGroupId String?
+  shiftTemplateId  String?
+  kind             AssignmentKind @default(device)
+  source           AssignmentSource @default(manual)
+  date             String
+  shiftType        ShiftType
+  startTime        String
+  endTime          String
+  personnelType    String         @default("technician")
+  isConfirmed      Boolean        @default(false)
+  overrideReason   String?
+  overriddenBy     String?
+  overriddenAt     DateTime?
+  version          Int            @default(1)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  schedule        Schedule             @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  personnel       Personnel            @relation(fields: [personnelId], references: [id])
+  device          Device?              @relation(fields: [deviceId], references: [id])
+  unit            Unit?                @relation(fields: [unitId], references: [id])
+  personnelGroup  PersonnelGroup?      @relation(fields: [personnelGroupId], references: [id])
+  shiftTemplate   PersonShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
+  swapRequestsFrom   SwapRequest[]     @relation("SwapFromAssignment")
+  swapRequestsTo     SwapRequest[]     @relation("SwapToAssignment")
+  attendanceRecords  AttendanceRecord[]
+  shiftTasks         ShiftTask[]
+  preShiftChecklists PreShiftChecklist[]
+
+  @@unique([scheduleId, deviceId, date, shiftType, personnelType])
+  @@unique([personnelId, date, shiftType])
+  @@index([personnelId, date])
+  @@index([deviceId])
+  @@index([date])
+  @@index([scheduleId])
+  @@index([scheduleId, personnelId])
+  @@index([scheduleId, date])
+  @@index([unitId])
+  @@index([personnelGroupId])
+  @@index([kind])
+  @@map("assignments")
+}
+
+model Holiday {
+  id        String   @id @default(uuid())
+  date      String   @unique
+  name      String
+  type      String
+  year      Int
+  createdAt DateTime @default(now())
+
+  @@map("holidays")
+}
+
+enum AuditDataClassification {
+  UNCLASSIFIED
+  PERSONAL
+  SENSITIVE_PERSONAL
+  HEALTH
+  FINANCIAL
+  SYSTEM
+}
+
+model AuditLog {
+  id                 String                  @id @default(uuid())
+  requestId          String?
+  userId             String
+  userName           String?
+  userRole           String?
+  organizationId     String?
+  hospitalId         String?
+  unitId             String?
+  actionType         String
+  entityType         String
+  entityId           String?
+  oldValue           Json?
+  newValue           Json?
+  description        String?
+  ipAddress          String?
+  userAgent          String?
+  status             String                  @default("SUCCESS")
+  metadata           Json?
+  dataClassification AuditDataClassification @default(UNCLASSIFIED)
+  retentionHash      String?
+  consentId          String?
+  flagged            Boolean                 @default(false)
+  flagReason         String?
+  flaggedAt          DateTime?
+  flaggedBy          String?
+  createdAt          DateTime                @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([actionType])
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([organizationId])
+  @@index([organizationId, createdAt])
+  @@index([hospitalId])
+  @@index([unitId])
+  @@index([status])
+  @@index([flagged])
+  @@index([dataClassification])
+  @@index([retentionHash])
+  @@map("audit_logs")
+}
+
+model SwapRequest {
+  id                String    @id @default(uuid())
+  requesterId       String
+  targetPersonnelId String
+  fromAssignmentId  String
+  toAssignmentId    String?
+  reason            String?
+  status            String    @default("PENDING")
+  approvedById      String?
+  approvedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  requester       Personnel   @relation("SwapRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  targetPersonnel Personnel   @relation("SwapTarget", fields: [targetPersonnelId], references: [id], onDelete: Cascade)
+  fromAssignment  Assignment  @relation("SwapFromAssignment", fields: [fromAssignmentId], references: [id], onDelete: Cascade)
+  toAssignment    Assignment? @relation("SwapToAssignment", fields: [toAssignmentId], references: [id], onDelete: SetNull)
+
+  @@index([requesterId])
+  @@index([targetPersonnelId])
+  @@index([status])
+  @@map("swap_requests")
+}
+
+enum RecommendationType {
+  SWAP
+  COVERAGE
+  FAIRNESS
+  FATIGUE
+}
+
+enum RecommendationPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum RecommendationStatus {
+  ACTIVE
+  APPLIED
+  DISMISSED
+  EXPIRED
+}
+
+model Recommendation {
+  id                  String                 @id @default(uuid())
+  organizationId      String
+  createdById         String?
+  type                RecommendationType
+  priority            RecommendationPriority
+  score               Float
+  title               String
+  description         String
+  impactFatigue       Float?
+  impactFairness      Float?
+  impactCoverage      Float?
+  impactOverall       Float?
+  shiftIds            String[]
+  userIds             String[]
+  suggestedActionType String?
+  suggestedActionData Json?
+  status              RecommendationStatus   @default(ACTIVE)
+  appliedAt           DateTime?
+  dismissedAt         DateTime?
+  expiredAt           DateTime?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@index([type, priority])
+  @@map("recommendations")
+}
+
+enum ConflictSeverity {
+  CRITICAL
+  WARNING
+  INFO
+}
+
+model Conflict {
+  id             String           @id @default(uuid())
+  organizationId String
+  type           String
+  severity       ConflictSeverity
+  title          String
+  description    String
+  suggestedFix   String?
+  shiftIds       String[]
+  userIds        String[]
+  affectedDate   String?
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolution     String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  resolvedBy User? @relation("ConflictResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, resolvedAt])
+  @@index([severity])
+  @@map("conflicts")
+}
+
+model InviteCode {
+  id             String    @id @default(uuid())
+  code           String    @unique
+  organizationId String
+  createdById    String?
+  maxUses        Int       @default(1)
+  useCount       Int       @default(0)
+  expiresAt      DateTime?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  createdBy    User?        @relation(fields: [createdById], references: [id])
+
+  @@index([code])
+  @@index([organizationId])
+  @@map("invite_codes")
+}
+
+model TokenBlacklist {
+  id        String   @id @default(uuid())
+  jti       String   @unique
+  userId    String?
+  reason    String?
+  revokedAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([jti])
+  @@index([expiresAt])
+  @@map("token_blacklist")
+}
+
+model AuthAttempt {
+  id           String    @id @default(uuid())
+  email        String?
+  userId       String?
+  ipAddress    String?
+  userAgent    String?
+  attemptType  String    @default("LOGIN")
+  success      Boolean   @default(false)
+  lockoutUntil DateTime?
+  jti          String?
+  metadata     Json?
+  createdAt    DateTime  @default(now())
+
+  @@index([email, createdAt])
+  @@index([ipAddress, createdAt])
+  @@index([createdAt])
+  @@index([jti])
+  @@map("auth_attempts")
+}
+
+model AuthSession {
+  id          String    @id @default(uuid())
+  userId      String
+  hashedToken String
+  jti         String    @unique
+  ipAddress   String?
+  userAgent   String?
+  deviceInfo  String?
+  lastUsedAt  DateTime  @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([hashedToken])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model Notification {
+  id             String               @id @default(uuid())
+  organizationId String
+  type           NotificationType
+  priority       NotificationPriority @default(NORMAL)
+  title          String
+  message        String
+  data           Json?
+  senderId       String?
+  status         NotificationStatus   @default(PENDING)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  sender     User?                   @relation("NotificationSender", fields: [senderId], references: [id], onDelete: SetNull)
+  recipients NotificationRecipient[]
+  deliveries NotificationDelivery[]
+
+  @@index([organizationId, createdAt])
+  @@index([type])
+  @@index([priority])
+  @@index([status])
+  @@map("notifications")
+}
+
+model NotificationRecipient {
+  id             String    @id @default(uuid())
+  notificationId String
+  userId         String
+  isRead         Boolean   @default(false)
+  readAt         DateTime?
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([userId, isRead])
+  @@index([userId, isDeleted])
+  @@index([userId, notificationId])
+  @@map("notification_recipients")
+}
+
+model NotificationDelivery {
+  id             String          @id @default(uuid())
+  notificationId String
+  recipientId    String
+  channel        DeliveryChannel
+  status         DeliveryStatus  @default(PENDING)
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  clickedAt      DateTime?
+  failedAt       DateTime?
+  errorMessage   String?
+  attemptCount   Int             @default(0)
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId])
+  @@index([recipientId])
+  @@index([channel, status])
+  @@index([status, attemptCount])
+  @@index([status, attemptCount, createdAt])
+  @@map("notification_deliveries")
+}
+
+model NotificationPreference {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  pushEnabled         Boolean  @default(true)
+  emailEnabled        Boolean  @default(true)
+  smsEnabled          Boolean  @default(false)
+  announcementEnabled Boolean  @default(true)
+  trainingReminders   Boolean  @default(true)
+  scheduleReminders   Boolean  @default(true)
+  emergencyAlerts     Boolean  @default(true)
+  quietHoursStart     String?
+  quietHoursEnd       String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+model NotificationTemplate {
+  id              String           @id @default(uuid())
+  name            String           @unique
+  type            NotificationType
+  titleTemplate   String
+  messageTemplate String
+  channel         DeliveryChannel  @default(IN_APP)
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([type])
+  @@map("notification_templates")
+}
+
+model HandoverNote {
+  id        String   @id @default(uuid())
+  userId    String
+  unitId    String
+  deviceId  String?
+  shiftType String?
+  title     String
+  content   String
+  priority  String   @default("info")
+  status    String   @default("active")
+  readBy    String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id])
+  unit   Unit    @relation(fields: [unitId], references: [id])
+  device Device? @relation(fields: [deviceId], references: [id])
+
+  @@index([userId])
+  @@index([unitId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([unitId, status, createdAt])
+  @@map("handover_notes")
+}
+
+model AttendanceRecord {
+  id           String    @id @default(uuid())
+  userId       String
+  assignmentId String?
+  date         String
+  clockIn      DateTime?
+  clockOut     DateTime?
+  status       String    @default("pending")
+  notes        String?
+  ipAddress    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id])
+  assignment Assignment? @relation(fields: [assignmentId], references: [id])
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+  @@index([status])
+  @@map("attendance_records")
+}
+
+model DeviceIncident {
+  id          String   @id @default(uuid())
+  userId      String
+  unitId      String
+  deviceId    String?
+  issueType   String
+  severity    String   @default("medium")
+  description String
+  imageUrl    String?
+  status      String   @default("open")
+  reportedAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id])
+  unit   Unit    @relation(fields: [unitId], references: [id])
+  device Device? @relation(fields: [deviceId], references: [id])
+
+  @@index([userId])
+  @@index([unitId])
+  @@index([deviceId])
+  @@index([status])
+  @@index([severity])
+  @@index([reportedAt])
+  @@map("device_incidents")
+}
+
+model ShiftTask {
+  id           String     @id @default(uuid())
+  userId       String
+  assignmentId String?
+  date         String
+  taskType     String
+  label        String
+  status       TaskStatus @default(pending)
+  completedAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id])
+  assignment Assignment? @relation(fields: [assignmentId], references: [id])
+
+  @@unique([userId, date, taskType])
+  @@index([userId, date])
+  @@index([date])
+  @@index([assignmentId])
+  @@map("shift_tasks")
+}
+
+model Training {
+  id          String   @id @default(uuid())
+  name        String
+  provider    String?
+  category    String   @default("general")
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  personnelTrainings PersonnelTraining[]
+
+  @@index([category])
+  @@index([name])
+  @@map("trainings")
+}
+
+model PersonnelTraining {
+  id          String    @id @default(uuid())
+  personnelId String
+  trainingId  String
+  issueDate   DateTime?
+  expiryDate  DateTime?
+  documentUrl String?
+  status      String    @default("valid")
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  personnel Personnel @relation(fields: [personnelId], references: [id], onDelete: Cascade)
+  training  Training  @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+
+  @@index([personnelId])
+  @@index([trainingId])
+  @@index([expiryDate])
+  @@index([status])
+  @@map("personnel_trainings")
+}
+
+model DeviceStatusLog {
+  id        String   @id @default(uuid())
+  deviceId  String
+  userId    String
+  status    String
+  notes     String?
+  createdAt DateTime @default(now())
+
+  device Device @relation(fields: [deviceId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([deviceId, createdAt])
+  @@index([createdAt])
+  @@map("device_status_logs")
+}
+
+model PreShiftChecklist {
+  id                  String    @id @default(uuid())
+  userId              String
+  assignmentId        String?
+  date                String
+  deviceOpened        Boolean   @default(false)
+  calibrationChecked  Boolean   @default(false)
+  protectiveEquipment Boolean   @default(false)
+  roomPrepared        Boolean   @default(false)
+  suppliesReady       Boolean   @default(false)
+  completedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id])
+  assignment Assignment? @relation(fields: [assignmentId], references: [id])
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@index([assignmentId])
+  @@map("pre_shift_checklists")
+}
+
+enum ConsentStatus {
+  GIVEN
+  WITHDRAWN
+  EXPIRED
+}
+
+enum ConsentPurpose {
+  DATA_PROCESSING
+  COMMUNICATION
+  BIOMETRIC_AUTH
+  PUSH_NOTIFICATIONS
+  EMAIL_NOTIFICATIONS
+  SMS_NOTIFICATIONS
+  DATA_SHARING
+  THIRD_PARTY_PROCESSING
+  EMERGENCY_ACCESS
+  RESEARCH_ANALYTICS
+}
+
+enum DataSubjectRequestType {
+  ACCESS
+  RECTIFICATION
+  ERASURE
+  RESTRICTION
+  PORTABILITY
+  OBJECTION
+  WITHDRAW_CONSENT
+}
+
+enum DataSubjectRequestStatus {
+  PENDING
+  VERIFYING_IDENTITY
+  IN_PROGRESS
+  COMPLETED
+  PARTIALLY_COMPLETED
+  REJECTED
+  EXPIRED
+}
+
+enum EmergencyAccessReason {
+  SYSTEM_OUTAGE
+  USER_INCAPACITATED
+  URGENT_SCHEDULE_CHANGE
+  CRITICAL_PATIENT_NEED
+  DISASTER_RECOVERY
+  LEGAL_REQUIREMENT
+  AUDIT_REQUIREMENT
+}
+
+enum DataClassification {
+  PUBLIC
+  INTERNAL
+  CONFIDENTIAL
+  RESTRICTED
+  HIGHLY_RESTRICTED
+}
+
+model ConsentTemplate {
+  id           String         @id @default(uuid())
+  purpose      ConsentPurpose
+  version      Int
+  title        String
+  description  String
+  requiredText String
+  isActive     Boolean        @default(true)
+  validFrom    DateTime       @default(now())
+  validUntil   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  records ConsentRecord[]
+
+  @@unique([purpose, version])
+  @@index([purpose, isActive])
+  @@map("consent_templates")
+}
+
+model ConsentRecord {
+  id             String        @id @default(uuid())
+  userId         String
+  templateId     String
+  status         ConsentStatus @default(GIVEN)
+  ipAddress      String?
+  userAgent      String?
+  consentVersion String
+  givenAt        DateTime      @default(now())
+  withdrawnAt    DateTime?
+  expiresAt      DateTime?
+  metadata       Json?
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template ConsentTemplate @relation(fields: [templateId], references: [id])
+
+  @@unique([userId, templateId])
+  @@index([userId, status])
+  @@index([templateId])
+  @@index([expiresAt])
+  @@map("consent_records")
+}
+
+model DataSubjectRequest {
+  id                 String                   @id @default(uuid())
+  userId             String
+  requestType        DataSubjectRequestType
+  status             DataSubjectRequestStatus @default(PENDING)
+  description        String?
+  identityVerified   Boolean                  @default(false)
+  identityVerifiedAt DateTime?
+  identityVerifiedBy String?
+  completedAt        DateTime?
+  rejectionReason    String?
+  requestedAt        DateTime                 @default(now())
+  processedAt        DateTime?
+  expiresAt          DateTime?
+  dataSnapshot       Json?
+  notes              String?
+  metadata           Json?
+
+  user      User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  auditLogs DataSubjectRequestAuditLog[]
+
+  @@index([userId, status])
+  @@index([requestType, status])
+  @@index([requestedAt])
+  @@map("data_subject_requests")
+}
+
+model DataSubjectRequestAuditLog {
+  id          String   @id @default(uuid())
+  requestId   String
+  action      String
+  performedBy String
+  description String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  request DataSubjectRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([createdAt])
+  @@map("data_subject_request_audit_logs")
+}
+
+model DataRetentionPolicy {
+  id               String   @id @default(uuid())
+  entityType       String   @unique
+  retentionDays    Int
+  archiveAfterDays Int?
+  purgeAfterDays   Int?
+  description      String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  jobs DataRetentionJob[]
+
+  @@map("data_retention_policies")
+}
+
+model DataRetentionJob {
+  id              String    @id @default(uuid())
+  policyId        String
+  entityType      String
+  action          String    @default("ARCHIVE_OR_PURGE")
+  recordsAffected Int       @default(0)
+  status          String    @default("RUNNING")
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  errorMessage    String?
+  metadata        Json?
+
+  policy DataRetentionPolicy @relation(fields: [policyId], references: [id])
+
+  @@index([policyId, startedAt])
+  @@index([status])
+  @@map("data_retention_jobs")
+}
+
+model EmergencyAccessGrant {
+  id            String                @id @default(uuid())
+  userId        String
+  grantedById   String
+  reason        EmergencyAccessReason
+  justification String
+  accessLevel   String                @default("read")
+  expiresAt     DateTime
+  grantedAt     DateTime              @default(now())
+  revokedAt     DateTime?
+  revokedById   String?
+  accessLog     Json?
+  isActive      Boolean               @default(true)
+
+  user      User @relation("EmergencyAccessUser", fields: [userId], references: [id])
+  grantedBy User @relation("EmergencyAccessGranter", fields: [grantedById], references: [id])
+
+  @@index([userId, isActive])
+  @@index([expiresAt])
+  @@index([grantedAt])
+  @@map("emergency_access_grants")
+}
+
+model DataBreachRecord {
+  id                  String    @id @default(uuid())
+  detectedAt          DateTime  @default(now())
+  detectedBy          String
+  breachType          String
+  severity            String    @default("medium")
+  description         String
+  affectedEntities    String[]
+  affectedRecords     Int       @default(0)
+  containmentAt       DateTime?
+  notifiedAuthorityAt DateTime?
+  notifiedSubjectsAt  DateTime?
+  rootCause           String?
+  remediation         String?
+  status              String    @default("OPEN")
+  closedAt            DateTime?
+  metadata            Json?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  notifications BreachNotification[]
+
+  @@index([detectedAt])
+  @@index([status, severity])
+  @@map("data_breach_records")
+}
+
+model ProcessingActivity {
+  id                  String   @id @default(uuid())
+  activityId          String   @unique
+  controller          String
+  processor           String?
+  purpose             String
+  dataCategories      String[]
+  dataSubjects        String[]
+  legalBasis          String
+  retentionPeriod     String
+  securityMeasures    String[]
+  crossBorderTransfer String?
+  dpiaRequired        Boolean  @default(false)
+  dpiaCompleted       Boolean  @default(false)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  dpias DataProtectionImpactAssessment[]
+
+  @@index([activityId])
+  @@index([purpose])
+  @@map("processing_activities")
+}
+
+model DataProtectionImpactAssessment {
+  id             String    @id @default(uuid())
+  activityId     String    @unique
+  assessor       String
+  assessmentDate DateTime  @default(now())
+  riskLevel      String    @default("medium")
+  risks          Json
+  mitigations    Json
+  residualRisk   String
+  approvedBy     String?
+  approvedAt     DateTime?
+  reviewDate     DateTime?
+  status         String    @default("DRAFT")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  activity ProcessingActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("data_protection_impact_assessments")
+}
+
+model BreachNotification {
+  id               String   @id @default(uuid())
+  breachId         String
+  notifiedTo       String
+  notificationType String   @default("AUTHORITY")
+  sentAt           DateTime @default(now())
+  method           String
+  content          String
+  status           String   @default("SENT")
+  response         String?
+  createdAt        DateTime @default(now())
+
+  breach DataBreachRecord @relation(fields: [breachId], references: [id], onDelete: Cascade)
+
+  @@index([breachId])
+  @@index([notificationType, status])
+  @@map("breach_notifications")
+}
+
+// ============================================================
+// ENTERPRISE ASSET MANAGEMENT
+// ============================================================
+
+enum AssetCategory {
+  mri
+  ct
+  xray
+  portable_xray
+  ultrasound
+  mammography
+  fluoroscopy
+  pet_ct
+  spect_ct
+  gamma_camera
+  linac
+  mobile_carm
+  anesthesia
+  ventilator
+  patient_monitor
+  defibrillator
+  ecg
+  infusion_pump
+  syringe_pump
+  dialysis
+  sterilizer
+  surgical
+  endoscopic
+  contrast_injector
+  injector
+  ups
+  air_conditioner
+  generator
+  server
+  workstation
+  printer
+  monitor
+  lead_door
+  lead_glass
+  dosimeter
+  protective_equipment
+  furniture
+  other
+}
+
+enum AssetStatus {
+  active
+  inactive
+  under_maintenance
+  fault
+  out_of_service
+  retired
+  disposed
+  stored
+  calibration_due
+  warranty_expired
+}
+
+enum MaintenanceType {
+  preventive
+  corrective
+  predictive
+  breakdown
+  calibration
+  software_update
+  hardware_upgrade
+  safety_inspection
+  quality_control
+  acceptance_test
+  commissioning
+  periodic_inspection
+}
+
+enum MaintenancePriority {
+  emergency
+  high
+  medium
+  low
+}
+
+enum MaintenanceStatus {
+  open
+  assigned
+  in_progress
+  waiting_parts
+  waiting_vendor
+  completed
+  verified
+  cancelled
+}
+
+enum ContractType {
+  service
+  maintenance
+  warranty
+  rental
+  lease
+  software_license
+  support
+  sla
+}
+
+enum ContractStatus {
+  draft
+  active
+  expired
+  terminated
+  renewed
+}
+
+enum ConsumableCategory {
+  contrast_media
+  injector_set
+  syringe
+  filter
+  cannula
+  needle
+  probe_cover
+  detector_cover
+  ultrasound_gel
+  printer_paper
+  cleaning_kit
+  disinfectant
+  glove
+  mask
+  spare_part
+  battery
+  cable
+  lamp
+  tube
+  other
+}
+
+enum InventoryTransactionType {
+  stock_in
+  stock_out
+  transfer_in
+  transfer_out
+  adjustment_add
+  adjustment_remove
+  consumption
+  wastage
+  expired
+  return
+  recall
+}
+
+enum ProcurementStatus {
+  draft
+  pending_approval
+  approved
+  ordered
+  partial_received
+  received
+  cancelled
+  rejected
+}
+
+enum QualityRecordType {
+  capa
+  incident_report
+  near_miss
+  quality_audit
+  corrective_action
+  preventive_action
+  non_conformance
+  risk_assessment
+  customer_complaint
+  document_review
+  management_review
+}
+
+enum QualityRecordStatus {
+  open
+  investigation
+  action_planned
+  implemented
+  verified
+  closed
+  rejected
+}
+
+enum RadiationMeasurementType {
+  dosimeter
+  area_survey
+  leak_test
+  contamination
+  exposure_rate
+  dose_rate
+}
+
+// === ENTERPRISE EXTENSION ENUMS ===
+
+enum LifecycleEventType {
+  planning
+  purchase
+  installation
+  acceptance
+  commissioning
+  operation
+  maintenance
+  upgrade
+  relocation
+  retirement
+  disposal
+}
+
+enum TransferStatus {
+  draft
+  pending
+  approved
+  completed
+  cancelled
+  rejected
+}
+
+enum ConsumptionType {
+  device_usage
+  examination
+  department
+  waste
+  expired
+  adjustment
+  transfer_out
+}
+
+enum AlertType {
+  low_stock
+  expiring_soon
+  expired
+  maintenance_due
+  calibration_due
+  warranty_expiring
+  contract_expiring
+  critical_fault
+}
+
+enum WasteType {
+  expired
+  damaged
+  recalled
+  contaminated
+  surplus
+  opened_unused
+  other
+}
+
+// ---- SUPPLIER ----
+
+model Supplier {
+  id            String   @id @default(uuid())
+  code          String
+  name          String
+  category      String?
+  contactPerson String?
+  email         String?
+  phone         String?
+  mobile        String?
+  address       String?
+  city          String?
+  country       String?
+  taxOffice     String?
+  taxNumber     String?
+  website       String?
+  notes         String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contracts          SupplierContract[]
+  procurementOrders  ProcurementOrder[]
+  consumables        ConsumableCatalog[] @relation("ConsumableSupplier")
+  assets             EnterpriseAsset[]   @relation("AssetSupplier")
+  serviceContracts   ServiceContract[]
+  calibrationVendors CalibrationRecord[] @relation("CalibrationVendor")
+
+  @@unique([code])
+  @@index([name])
+  @@index([category])
+  @@map("suppliers")
+}
+
+model EnterpriseAsset {
+  id                    String        @id @default(uuid())
+  assetNumber           String        @unique
+  barcode               String?       @unique
+  qrCode                String?
+  rfidTag               String?
+  name                  String
+  category              AssetCategory
+  status                AssetStatus   @default(active)
+  manufacturer          String?
+  model                 String?
+  serialNumber          String?
+  brand                 String?
+  yearOfManufacture     Int?
+  installationDate      DateTime?
+  acceptanceDate        DateTime?
+  commissioningDate     DateTime?
+  warrantyStart         DateTime?
+  warrantyEnd           DateTime?
+  expectedLifetimeYears Int?
+  retirementDate        DateTime?
+  disposalReason        String?
+  purchaseCost          Decimal?      @db.Decimal(12, 2)
+  currentValue          Decimal?      @db.Decimal(12, 2)
+  supplierId            String?
+  contractNumber        String?
+  invoiceNumber         String?
+  purchaseOrderNumber   String?
+  notes                 String?
+
+  // Location
+  departmentId String?
+  block        String?
+  floor        String?
+  roomId       String?
+  unitId       String?
+  hospitalId   String?
+
+  // Ownership
+  ownerDepartmentId     String?
+  responsibleEngineerId String?
+  organizationId        String?
+
+  // Linked Device (backward compatible)
+  deviceId String? @unique
+
+  // Metadata
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  supplier        Supplier?     @relation("AssetSupplier", fields: [supplierId], references: [id])
+  device          Device?       @relation(fields: [deviceId], references: [id])
+  department      Department?   @relation("AssetDepartment", fields: [departmentId], references: [id])
+  ownerDepartment Department?   @relation("AssetOwnerDepartment", fields: [ownerDepartmentId], references: [id])
+  room            Room?         @relation(fields: [roomId], references: [id])
+  unit            Unit?         @relation(fields: [unitId], references: [id])
+  hospital        Hospital?     @relation(fields: [hospitalId], references: [id])
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+
+  documents             AssetDocument[]
+  movements             AssetMovement[]
+  maintenanceRecords    MaintenanceRecord[]
+  serviceContracts      ServiceContract[]
+  consumables           ConsumableCatalog[]    @relation("AssetConsumable")
+  qualityRecords        QualityRecord[]
+  radiationMeasurements RadiationMeasurement[]
+  lifecycleEvents       DeviceLifecycleEvent[]
+  consumptionRecords    ConsumptionRecord[]
+  calibrationRecords    CalibrationRecord[]
+
+  @@index([assetNumber])
+  @@index([barcode])
+  @@index([serialNumber])
+  @@index([category])
+  @@index([status])
+  @@index([departmentId])
+  @@index([unitId])
+  @@index([hospitalId])
+  @@index([supplierId])
+  @@index([responsibleEngineerId])
+  @@map("enterprise_assets")
+}
+
+model AssetDocument {
+  id           String   @id @default(uuid())
+  assetId      String
+  type         String // manual, certificate, report, image, contract, other
+  title        String
+  description  String?
+  fileUrl      String
+  fileSize     Int?
+  mimeType     String?
+  uploadedById String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  asset EnterpriseAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
+  @@index([type])
+  @@map("asset_documents")
+}
+
+model AssetMovement {
+  id               String   @id @default(uuid())
+  assetId          String
+  fromLocation     String?
+  toLocation       String
+  fromBlock        String?
+  toBlock          String?
+  fromFloor        String?
+  toFloor          String?
+  fromRoomId       String?
+  toRoomId         String?
+  fromDepartmentId String?
+  toDepartmentId   String?
+  reason           String
+  authorizedBy     String?
+  performedBy      String?
+  notes            String?
+  movedAt          DateTime @default(now())
+  createdAt        DateTime @default(now())
+
+  asset EnterpriseAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
+  @@index([movedAt])
+  @@index([toDepartmentId])
+  @@map("asset_movements")
+}
+
+// ---- BIOMEDICAL ENGINEERING / MAINTENANCE ----
+
+model MaintenanceRecord {
+  id            String              @id @default(uuid())
+  assetId       String
+  type          MaintenanceType
+  priority      MaintenancePriority @default(medium)
+  status        MaintenanceStatus   @default(open)
+  title         String
+  description   String?
+  reportedById  String?
+  assignedToId  String?
+  vendorId      String?
+  startDate     DateTime?
+  endDate       DateTime?
+  downtimeHours Float?
+  cost          Decimal?            @db.Decimal(12, 2)
+  mtbf          Float? // hours since last failure
+  mttr          Float? // hours to repair
+  rootCause     String?
+  resolution    String?
+  closingNotes  String?
+  verifiedById  String?
+  verifiedAt    DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  asset     EnterpriseAsset       @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  parts     MaintenancePart[]
+  documents MaintenanceDocument[]
+
+  @@index([assetId])
+  @@index([type])
+  @@index([status])
+  @@index([priority])
+  @@index([startDate])
+  @@index([assignedToId])
+  @@index([vendorId])
+  @@index([assetId, status])
+  @@index([assetId, startDate])
+  @@map("maintenance_records")
+}
+
+model MaintenancePart {
+  id            String   @id @default(uuid())
+  maintenanceId String
+  partName      String
+  partNumber    String?
+  quantity      Int      @default(1)
+  unitCost      Decimal? @db.Decimal(12, 2)
+  totalCost     Decimal? @db.Decimal(12, 2)
+  supplierId    String?
+  stockItemId   String?
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  maintenance MaintenanceRecord @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+
+  @@index([maintenanceId])
+  @@map("maintenance_parts")
+}
+
+model MaintenanceDocument {
+  id            String   @id @default(uuid())
+  maintenanceId String
+  type          String // report, invoice, photo, approval, certificate
+  title         String
+  fileUrl       String
+  fileSize      Int?
+  mimeType      String?
+  uploadedById  String?
+  createdAt     DateTime @default(now())
+
+  maintenance MaintenanceRecord @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+
+  @@index([maintenanceId])
+  @@map("maintenance_documents")
+}
+
+// ---- SERVICE CONTRACTS ----
+
+model ServiceContract {
+  id                String         @id @default(uuid())
+  contractNumber    String         @unique
+  assetId           String?
+  supplierId        String?
+  type              ContractType
+  status            ContractStatus @default(draft)
+  title             String
+  description       String?
+  startDate         DateTime
+  endDate           DateTime
+  renewalDate       DateTime?
+  value             Decimal?       @db.Decimal(12, 2)
+  currency          String         @default("TRY")
+  slaResponseTime   String? // e.g. "4 hours"
+  slaResolutionTime String? // e.g. "24 hours"
+  slaPenalty        String?
+  paymentTerms      String?
+  scope             String?
+  exclusions        String?
+  notes             String?
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  asset     EnterpriseAsset?          @relation(fields: [assetId], references: [id])
+  supplier  Supplier?                 @relation(fields: [supplierId], references: [id])
+  documents ServiceContractDocument[]
+
+  @@index([contractNumber])
+  @@index([assetId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([endDate])
+  @@index([renewalDate])
+  @@map("service_contracts")
+}
+
+model ServiceContractDocument {
+  id           String   @id @default(uuid())
+  contractId   String
+  type         String // contract_pdf, amendment, addendum, invoice, other
+  title        String
+  fileUrl      String
+  fileSize     Int?
+  mimeType     String?
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  contract ServiceContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@map("service_contract_documents")
+}
+
+// ---- CALIBRATION MANAGEMENT ----
+// NOTE: calibration is also a MaintenanceType enum value; this model provides detailed tracking
+
+model CalibrationRecord {
+  id                  String    @id @default(uuid())
+  assetId             String
+  calibrationNumber   String    @unique
+  type                String // internal, external, factory, vendor
+  status              String    @default("scheduled") // scheduled, in_progress, completed, failed, overdue
+  scheduledDate       DateTime
+  completedDate       DateTime?
+  performedById       String?
+  vendorId            String?
+  standard            String? // ISO 13485, IEC 60601, etc.
+  results             String? // pass, conditional_pass, fail
+  measurementValues   Json?
+  certificateRef      String?
+  nextCalibrationDate DateTime?
+  intervalDays        Int?
+  cost                Decimal?  @db.Decimal(12, 2)
+  notes               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  asset       EnterpriseAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  performedBy Personnel?      @relation("CalibrationPerformer", fields: [performedById], references: [id])
+  vendor      Supplier?       @relation("CalibrationVendor", fields: [vendorId], references: [id])
+
+  @@index([assetId])
+  @@index([calibrationNumber])
+  @@index([status])
+  @@index([scheduledDate])
+  @@index([nextCalibrationDate])
+  @@map("calibration_records")
+}
+
+// ---- CONSUMABLE MANAGEMENT ----
+
+model Warehouse {
+  id         String   @id @default(uuid())
+  code       String   @unique
+  name       String
+  location   String?
+  type       String? // main, sub, unit, consumable
+  hospitalId String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  hospital        Hospital?               @relation(fields: [hospitalId], references: [id])
+  stockItems      ConsumableStock[]
+  transactions    ConsumableTransaction[]
+  transfersFrom   InventoryTransfer[]     @relation("TransferFromWarehouse")
+  transfersTo     InventoryTransfer[]     @relation("TransferToWarehouse")
+  inventoryCounts InventoryCount[]
+
+  @@index([code])
+  @@index([hospitalId])
+  @@map("warehouses")
+}
+
+model ConsumableCatalog {
+  id            String             @id @default(uuid())
+  code          String             @unique
+  barcode       String?
+  qrCode        String?
+  name          String
+  category      ConsumableCategory
+  manufacturer  String?
+  brand         String?
+  supplierId    String?
+  unitOfMeasure String             @default("piece") // piece, box, liter, ml, set
+  packageSize   Int?
+  description   String?
+  isActive      Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  supplier            Supplier?        @relation("ConsumableSupplier", fields: [supplierId], references: [id])
+  asset               EnterpriseAsset? @relation("AssetConsumable", fields: [assetId], references: [id])
+  assetId             String?
+  compatibleDeviceIds String[]
+  compatibleExamTypes String[]
+
+  batches            ConsumableBatch[]
+  stockItems         ConsumableStock[]
+  transactions       ConsumableTransaction[]
+  inventoryTransfers InventoryTransfer[]
+  consumptionRecords ConsumptionRecord[]
+  inventoryCounts    InventoryCount[]
+  wasteRecords       WasteRecord[]
+  stockAlerts        StockAlert[]
+
+  @@index([code])
+  @@index([barcode])
+  @@index([category])
+  @@index([supplierId])
+  @@index([assetId])
+  @@map("consumable_catalog")
+}
+
+model ConsumableBatch {
+  id               String    @id @default(uuid())
+  catalogId        String
+  lotNumber        String    @unique
+  serialNumber     String?
+  manufacturerDate DateTime?
+  expirationDate   DateTime?
+  quantity         Int       @default(0)
+  unitCost         Decimal?  @db.Decimal(12, 2)
+  purchaseOrderId  String?
+  receivedAt       DateTime  @default(now())
+  notes            String?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  catalog      ConsumableCatalog       @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  transactions ConsumableTransaction[]
+
+  @@index([catalogId])
+  @@index([lotNumber])
+  @@index([expirationDate])
+  @@map("consumable_batches")
+}
+
+model ConsumableStock {
+  id              String   @id @default(uuid())
+  catalogId       String
+  warehouseId     String
+  currentStock    Int      @default(0)
+  minimumStock    Int      @default(0)
+  maximumStock    Int      @default(100)
+  reorderPoint    Int      @default(0)
+  reorderQuantity Int?
+  shelf           String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  catalog   ConsumableCatalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  warehouse Warehouse         @relation(fields: [warehouseId], references: [id])
+
+  @@unique([catalogId, warehouseId])
+  @@index([warehouseId])
+  @@index([catalogId])
+  @@index([currentStock])
+  @@map("consumable_stock")
+}
+
+model ConsumableTransaction {
+  id              String                   @id @default(uuid())
+  batchId         String?
+  catalogId       String
+  warehouseId     String?
+  type            InventoryTransactionType
+  quantity        Int
+  unitCost        Decimal?                 @db.Decimal(12, 2)
+  totalCost       Decimal?                 @db.Decimal(12, 2)
+  referenceType   String? // device, examination, department, procurement
+  referenceId     String?
+  performedById   String?
+  notes           String?
+  transactionDate DateTime                 @default(now())
+  createdAt       DateTime                 @default(now())
+
+  batch     ConsumableBatch?  @relation(fields: [batchId], references: [id])
+  catalog   ConsumableCatalog @relation(fields: [catalogId], references: [id])
+  warehouse Warehouse?        @relation(fields: [warehouseId], references: [id])
+
+  @@index([batchId])
+  @@index([catalogId])
+  @@index([warehouseId])
+  @@index([type])
+  @@index([transactionDate])
+  @@index([referenceType, referenceId])
+  @@map("consumable_transactions")
+}
+
+// ---- PROCUREMENT ----
+
+model ProcurementRequest {
+  id             String            @id @default(uuid())
+  requestNumber  String            @unique
+  title          String
+  description    String?
+  requestedById  String?
+  departmentId   String?
+  priority       String            @default("normal") // low, normal, high, urgent
+  status         ProcurementStatus @default(draft)
+  estimatedCost  Decimal?          @db.Decimal(12, 2)
+  currency       String            @default("TRY")
+  justification  String?
+  notes          String?
+  approvedById   String?
+  approvedAt     DateTime?
+  rejectedReason String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  items  ProcurementRequestItem[]
+  orders ProcurementOrder[]
+
+  @@index([requestNumber])
+  @@index([status])
+  @@index([departmentId])
+  @@index([requestedById])
+  @@map("procurement_requests")
+}
+
+model ProcurementRequestItem {
+  id                 String    @id @default(uuid())
+  requestId          String
+  lineNumber         Int
+  description        String
+  category           String? // asset, consumable, service, spare_part
+  catalogId          String?
+  quantity           Int       @default(1)
+  unitOfMeasure      String    @default("piece")
+  estimatedUnitCost  Decimal?  @db.Decimal(12, 2)
+  estimatedTotalCost Decimal?  @db.Decimal(12, 2)
+  requiredDate       DateTime?
+  notes              String?
+  createdAt          DateTime  @default(now())
+
+  request ProcurementRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("procurement_request_items")
+}
+
+model ProcurementOrder {
+  id            String            @id @default(uuid())
+  orderNumber   String            @unique
+  requestId     String?
+  supplierId    String?
+  title         String
+  status        ProcurementStatus @default(draft)
+  orderDate     DateTime          @default(now())
+  expectedDate  DateTime?
+  receivedDate  DateTime?
+  totalCost     Decimal?          @db.Decimal(12, 2)
+  currency      String            @default("TRY")
+  deliveryTerms String?
+  paymentTerms  String?
+  notes         String?
+  approvedById  String?
+  approvedAt    DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  request  ProcurementRequest?    @relation(fields: [requestId], references: [id])
+  supplier Supplier?              @relation(fields: [supplierId], references: [id])
+  items    ProcurementOrderItem[]
+  invoices ProcurementInvoice[]
+
+  @@index([orderNumber])
+  @@index([supplierId])
+  @@index([status])
+  @@index([orderDate])
+  @@map("procurement_orders")
+}
+
+model ProcurementOrderItem {
+  id               String    @id @default(uuid())
+  orderId          String
+  lineNumber       Int
+  description      String
+  catalogId        String?
+  quantity         Int       @default(1)
+  unitOfMeasure    String    @default("piece")
+  unitCost         Decimal?  @db.Decimal(12, 2)
+  totalCost        Decimal?  @db.Decimal(12, 2)
+  receivedQuantity Int       @default(0)
+  expectedDate     DateTime?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  order ProcurementOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("procurement_order_items")
+}
+
+model ProcurementInvoice {
+  id            String    @id @default(uuid())
+  orderId       String
+  invoiceNumber String
+  invoiceDate   DateTime  @default(now())
+  amount        Decimal   @db.Decimal(12, 2)
+  taxAmount     Decimal?  @db.Decimal(12, 2)
+  totalAmount   Decimal?  @db.Decimal(12, 2)
+  currency      String    @default("TRY")
+  fileUrl       String?
+  status        String    @default("pending") // pending, paid, overdue, cancelled
+  paidAt        DateTime?
+  paymentMethod String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  order ProcurementOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([invoiceNumber])
+  @@index([status])
+  @@map("procurement_invoices")
+}
+
+// ---- SUPPLIER CONTRACTS ----
+
+model SupplierContract {
+  id             String         @id @default(uuid())
+  supplierId     String
+  contractNumber String         @unique
+  type           ContractType
+  status         ContractStatus @default(draft)
+  title          String
+  description    String?
+  startDate      DateTime
+  endDate        DateTime
+  renewalDate    DateTime?
+  value          Decimal?       @db.Decimal(12, 2)
+  currency       String         @default("TRY")
+  autoRenew      Boolean        @default(false)
+  terms          String?
+  notes          String?
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  supplier  Supplier                   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  documents SupplierContractDocument[]
+
+  @@index([supplierId])
+  @@index([contractNumber])
+  @@index([status])
+  @@index([endDate])
+  @@index([renewalDate])
+  @@map("supplier_contracts")
+}
+
+model SupplierContractDocument {
+  id           String   @id @default(uuid())
+  contractId   String
+  type         String // contract, amendment, addendum, invoice, other
+  title        String
+  fileUrl      String
+  fileSize     Int?
+  mimeType     String?
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  contract SupplierContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@map("supplier_contract_documents")
+}
+
+// ---- QUALITY MANAGEMENT ----
+
+model QualityRecord {
+  id           String              @id @default(uuid())
+  recordNumber String              @unique
+  type         QualityRecordType
+  status       QualityRecordStatus @default(open)
+  title        String
+  description  String?
+  severity     String? // critical, major, minor, observation
+  source       String? // audit, inspection, complaint, incident
+  departmentId String?
+  unitId       String?
+  assetId      String?
+  reportedById String?
+  assignedToId String?
+  targetDate   DateTime?
+  closedAt     DateTime?
+  notes        String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  asset   EnterpriseAsset? @relation(fields: [assetId], references: [id])
+  actions QualityAction[]
+
+  @@index([recordNumber])
+  @@index([type])
+  @@index([status])
+  @@index([severity])
+  @@index([departmentId])
+  @@index([unitId])
+  @@index([assetId])
+  @@index([assignedToId])
+  @@map("quality_records")
+}
+
+model QualityAction {
+  id                String    @id @default(uuid())
+  recordId          String
+  actionNumber      String    @unique
+  actionType        String // corrective, preventive
+  description       String
+  responsibleId     String?
+  targetDate        DateTime?
+  completedAt       DateTime?
+  status            String    @default("open") // open, in_progress, completed, verified, cancelled
+  effectiveness     String? // effective, partially_effective, not_effective
+  verificationNotes String?
+  verifiedById      String?
+  verifiedAt        DateTime?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  record QualityRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@index([recordId])
+  @@index([actionNumber])
+  @@index([status])
+  @@index([responsibleId])
+  @@map("quality_actions")
+}
+
+// ---- RADIATION SAFETY ----
+
+model RadiationDosimeter {
+  id                    String    @id @default(uuid())
+  dosimeterNumber       String    @unique
+  type                  String // tld, osl, film_badge, electronic
+  assignedToId          String?
+  issueDate             DateTime  @default(now())
+  returnDate            DateTime?
+  status                String    @default("active") // active, returned, lost, damaged
+  initialReading        Float?
+  currentReading        Float?
+  annualLimit           Float     @default(20) // mSv
+  monthlyAlertThreshold Float     @default(16) // mSv
+  notes                 String?
+  isActive              Boolean   @default(true)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  measurements RadiationMeasurement[]
+  personnel    Personnel?             @relation(fields: [assignedToId], references: [id])
+
+  @@index([dosimeterNumber])
+  @@index([assignedToId])
+  @@index([status])
+  @@map("radiation_dosimeters")
+}
+
+model RadiationMeasurement {
+  id              String                   @id @default(uuid())
+  dosimeterId     String?
+  assetId         String?
+  type            RadiationMeasurementType
+  measurementDate DateTime                 @default(now())
+  value           Float
+  unit            String                   @default("mSv") // mSv, µSv, mGy, µGy
+  location        String?
+  performedById   String?
+  laboratoryRef   String?
+  result          String? // normal, elevated, critical
+  notes           String?
+  createdAt       DateTime                 @default(now())
+
+  dosimeter RadiationDosimeter? @relation(fields: [dosimeterId], references: [id])
+  asset     EnterpriseAsset?    @relation(fields: [assetId], references: [id])
+
+  @@index([dosimeterId])
+  @@index([assetId])
+  @@index([type])
+  @@index([measurementDate])
+  @@index([result])
+  @@map("radiation_measurements")
+}
+
+model RadiationArea {
+  id             String    @id @default(uuid())
+  code           String    @unique
+  name           String
+  type           String // controlled, supervised, public
+  departmentId   String?
+  unitId         String?
+  roomId         String?
+  classification String? // I, II, III, IV
+  doseRateLimit  Float? // µSv/h
+  lastSurveyDate DateTime?
+  nextSurveyDate DateTime?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([code])
+  @@index([type])
+  @@index([departmentId])
+  @@index([unitId])
+  @@map("radiation_areas")
+}
+
+// === EXTENDED ENTERPRISE MODELS ===
+
+model DeviceLifecycleEvent {
+  id              String             @id @default(uuid())
+  assetId         String
+  eventType       LifecycleEventType
+  eventDate       DateTime
+  completedDate   DateTime?
+  title           String
+  description     String?
+  performedById   String?
+  referenceNumber String?
+  referenceType   String?
+  locationFrom    String?
+  locationTo      String?
+  documents       String?
+  notes           String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  asset EnterpriseAsset @relation(fields: [assetId], references: [id])
+
+  @@index([assetId])
+  @@index([eventType])
+  @@index([eventDate])
+  @@map("device_lifecycle_events")
+}
+
+model InventoryTransfer {
+  id              String         @id @default(uuid())
+  transferNumber  String         @unique
+  fromWarehouseId String?
+  toWarehouseId   String?
+  fromUnitId      String?
+  toUnitId        String?
+  catalogId       String
+  quantity        Int
+  batchNumber     String?
+  status          TransferStatus @default(draft)
+  requestedById   String?
+  approvedById    String?
+  approvedAt      DateTime?
+  completedById   String?
+  completedAt     DateTime?
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  fromWarehouse Warehouse?        @relation("TransferFromWarehouse", fields: [fromWarehouseId], references: [id])
+  toWarehouse   Warehouse?        @relation("TransferToWarehouse", fields: [toWarehouseId], references: [id])
+  catalog       ConsumableCatalog @relation(fields: [catalogId], references: [id])
+
+  @@index([transferNumber])
+  @@index([status])
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
+  @@index([catalogId])
+  @@map("inventory_transfers")
+}
+
+model ConsumptionRecord {
+  id              String          @id @default(uuid())
+  catalogId       String
+  quantity        Int
+  consumptionType ConsumptionType
+  assetId         String?
+  examinationType String?
+  departmentId    String?
+  unitId          String?
+  batchNumber     String?
+  recordedById    String?
+  recordedAt      DateTime        @default(now())
+  cost            Decimal?        @db.Decimal(12, 2)
+  notes           String?
+  createdAt       DateTime        @default(now())
+
+  catalog ConsumableCatalog @relation(fields: [catalogId], references: [id])
+  asset   EnterpriseAsset?  @relation(fields: [assetId], references: [id])
+
+  @@index([catalogId])
+  @@index([assetId])
+  @@index([consumptionType])
+  @@index([recordedAt])
+  @@map("consumption_records")
+}
+
+model InventoryCount {
+  id              String    @id @default(uuid())
+  countNumber     String    @unique
+  warehouseId     String?
+  catalogId       String
+  expectedQty     Int
+  actualQty       Int
+  difference      Int
+  unitCost        Decimal?  @db.Decimal(12, 2)
+  totalDifference Decimal?  @db.Decimal(12, 2)
+  countedById     String?
+  countedAt       DateTime  @default(now())
+  approvedById    String?
+  approvedAt      DateTime?
+  status          String    @default("pending")
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  warehouse Warehouse?        @relation(fields: [warehouseId], references: [id])
+  catalog   ConsumableCatalog @relation(fields: [catalogId], references: [id])
+
+  @@index([countNumber])
+  @@index([warehouseId])
+  @@index([catalogId])
+  @@index([status])
+  @@map("inventory_counts")
+}
+
+model WasteRecord {
+  id             String    @id @default(uuid())
+  wasteNumber    String    @unique
+  catalogId      String
+  quantity       Int
+  wasteType      WasteType
+  batchNumber    String?
+  reason         String
+  disposalMethod String?
+  disposedById   String?
+  disposedAt     DateTime  @default(now())
+  cost           Decimal?  @db.Decimal(12, 2)
+  notes          String?
+  createdAt      DateTime  @default(now())
+
+  catalog ConsumableCatalog @relation(fields: [catalogId], references: [id])
+
+  @@index([wasteNumber])
+  @@index([catalogId])
+  @@index([wasteType])
+  @@index([disposedAt])
+  @@map("waste_records")
+}
+
+model StockAlert {
+  id           String    @id @default(uuid())
+  catalogId    String
+  alertType    AlertType
+  threshold    Int?
+  currentValue Int
+  message      String
+  severity     String    @default("warning")
+  isResolved   Boolean   @default(false)
+  resolvedAt   DateTime?
+  resolvedById String?
+  notifiedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  catalog ConsumableCatalog @relation(fields: [catalogId], references: [id])
+
+  @@index([catalogId])
+  @@index([alertType])
+  @@index([isResolved])
+  @@index([severity])
+  @@map("stock_alerts")
+}

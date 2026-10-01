@@ -1,0 +1,1089 @@
+<div class="plan-page">
+  <header class="plan-header glass">
+    <div class="header-left">
+      <div class="unit-badge" [style.--unit-color]="unitColor()">
+        <span class="unit-dot" [style.background]="unitColor()"></span>
+        <span class="unit-label">{{ unitLabel() }}</span>
+      </div>
+      <div class="month-nav">
+        <button class="nav-btn" (click)="previousMonth()" title="Önceki Ay">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <button class="nav-btn" (click)="openMonthPicker()" title="Ay Seç">
+          <span class="current-month">{{ monthLabel() }}</span>
+        </button>
+        <button class="nav-btn" (click)="nextMonth()" title="Sonraki Ay">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+        <button class="action-btn" (click)="goToToday()" title="Bugüne Git">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" /></svg
+          >Bugün
+        </button>
+      </div>
+    </div>
+    <div class="header-right">
+      @if (viewState().status === 'loading') {
+        <div class="loading-indicator">
+          <div class="spinner"></div>
+          <span>Yükleniyor...</span>
+        </div>
+      }
+      <button class="action-btn" (click)="refresh()">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="23 4 23 10 17 10" />
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg
+        >Yenile
+      </button>
+      @if (hasClipboard()) {
+        <button class="action-btn" (click)="onPasteAssignment()" title="Yapıştır">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+            <rect x="8" y="2" width="8" height="4" rx="1" /></svg
+          >Yapıştır
+        </button>
+      }
+      @if (viewState().status === 'success') {
+        <button class="action-btn export-btn" (click)="downloadExcel()">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" /></svg
+          >Excel İndir
+        </button>
+        <button class="action-btn export-btn" (click)="downloadPdf()">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" /></svg
+          >PDF İndir
+        </button>
+        <button class="action-btn" (click)="printRoster()">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="6 9 6 2 18 2 18 9" />
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+            <rect x="6" y="14" width="12" height="8" /></svg
+          >Yazdır
+        </button>
+        <button class="action-btn" (click)="openMonthlyAssign()">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+            <line x1="8" y1="14" x2="8" y2="18" />
+            <line x1="12" y1="14" x2="12" y2="18" />
+            <line x1="16" y1="14" x2="16" y2="18" /></svg
+          >Aylık Atama
+        </button>
+        <button class="action-btn action-btn-accent" (click)="openAutoGenerate()">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="23 4 23 10 17 10" />
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg
+          >Otomatik Vardiya Oluştur
+        </button>
+      }
+    </div>
+  </header>
+
+  <div class="plan-tabs">
+    <button
+      class="plan-tab"
+      [class.active]="activeTab() === 'device'"
+      (click)="setActiveTab('device')"
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <rect x="2" y="3" width="20" height="14" rx="2" />
+        <line x1="8" y1="21" x2="16" y2="21" />
+        <line x1="12" y1="17" x2="12" y2="21" />
+      </svg>
+      Cihaz Vardiyaları
+    </button>
+    <button
+      class="plan-tab"
+      [class.active]="activeTab() === 'person'"
+      (click)="setActiveTab('person')"
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+      Cihaz Dışı Personel Nöbetleri
+    </button>
+  </div>
+
+  @if (activeTab() === 'device') {
+    @if (viewState().status === 'success') {
+      <app-schedule-alerts
+        [alerts]="activeAlerts()"
+        [warnings]="allWarnings()"
+        (resolve)="onResolveAlert($event)"
+      />
+    }
+
+    @if (viewState().status === 'loading') {
+      <div class="skeleton-container">
+        <div class="skeleton-header-row skeleton-shimmer"></div>
+        @for (i of [1, 2, 3, 4, 5]; track i) {
+          <div class="skeleton-row">
+            <div class="skeleton-label skeleton-shimmer"></div>
+            @for (j of [1, 2, 3, 4, 5, 6, 7]; track j) {
+              <div class="skeleton-cell skeleton-shimmer"></div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    @if (viewState().status === 'error') {
+      <div class="error-hero">
+        <div class="error-glass">
+          <div class="error-icon">
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <h2 class="error-title">Veri Yüklenemedi</h2>
+          <p class="error-desc">{{ errorMessage() }}</p>
+          <div class="error-meta">
+            <span class="error-code">HTTP {{ errorCode() }}</span>
+            @if (errorEndpoint()) {
+              <span class="error-sep">|</span>
+              <span class="error-endpoint">{{ errorEndpoint() }}</span>
+            }
+            <span class="error-sep">|</span>
+            <span class="error-ts">Son: {{ lastSyncLabel() }}</span>
+          </div>
+          <button class="error-retry" (click)="refresh()">Tekrar Dene</button>
+        </div>
+      </div>
+    }
+
+    @if (viewState().status === 'empty') {
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <rect x="8" y="6" width="32" height="36" rx="4" stroke="#64748b" stroke-width="2" />
+            <line
+              x1="16"
+              y1="18"
+              x2="32"
+              y2="18"
+              stroke="#64748b"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+            <line
+              x1="16"
+              y1="26"
+              x2="28"
+              y2="26"
+              stroke="#64748b"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+            <line
+              x1="16"
+              y1="34"
+              x2="24"
+              y2="34"
+              stroke="#64748b"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+          </svg>
+        </div>
+        <h3>Cihaz bulunamadı</h3>
+        <p>Bu birim için henüz cihaz tanımlanmamış. Lütfen sistem yöneticinize başvurun.</p>
+        <button class="action-btn" (click)="refresh()">Sayfayı Yenile</button>
+      </div>
+    }
+
+    @if (viewState().status === 'success') {
+      @if (dragState().isDragging) {
+        <div class="drag-indicator">
+          <span>Sürükleniyor: {{ dragState().sourceAssignment?.deviceId }}</span>
+        </div>
+      }
+
+      @if (selectedUnit()) {
+        <div class="unit-kpi-strip" [style.--unit-accent]="unitPlanConfig().accentColor">
+          @for (entry of unitPlanConfig().metricDefs; track entry.key) {
+            @let kpi = unitKpis()[entry.key];
+            @let val = kpi.value;
+            @let detail = kpiBreakdown().get(entry.key);
+            <div
+              class="kpi-card"
+              [class.accent]="
+                entry.key === 'assigned' ||
+                entry.key === 'emergencyDensity' ||
+                entry.key === 'dailyThroughput' ||
+                entry.key === 'radioSlotUsage'
+              "
+              [class.warn]="
+                entry.key === 'unassigned' ||
+                entry.key === 'emptyAlarm' ||
+                entry.key === 'waitTime' ||
+                entry.key === 'delayedTracking'
+              "
+              [class.danger]="
+                entry.key === 'criticalGaps' ||
+                entry.key === 'criticalGap' ||
+                entry.key === 'emptySlots'
+              "
+              [class.good]="
+                (entry.key === 'occupancyPct' && val >= 70) ||
+                (entry.key === 'fairness' && val >= 85)
+              "
+              [class.caution]="
+                (entry.key === 'occupancyPct' && val < 70 && val >= 50) ||
+                (entry.key === 'fairness' && val >= 70 && val < 85)
+              "
+              [class.bad]="
+                (entry.key === 'occupancyPct' && val < 50) || (entry.key === 'fairness' && val < 70)
+              "
+              [title]="detail ? detail.join(' | ') : ''"
+            >
+              <span class="kpi-value">{{ kpi.formatted }}</span>
+              <span class="kpi-label">{{ kpi.label }}</span>
+            </div>
+          }
+          <div class="kpi-legend">
+            @for (item of unitPlanConfig().legendItems; track item.label) {
+              <span class="legend-chip"
+                ><span class="legend-swatch" [class]="item.cssClass"></span>{{ item.label }}</span
+              >
+            }
+          </div>
+        </div>
+      }
+
+      <div class="filter-bar glass">
+        <div class="view-toggle-group">
+          <button
+            class="toggle-btn"
+            [class.active]="viewMode() === 'grid'"
+            (click)="viewMode.set('grid')"
+            title="Grid Görünümü"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+            </svg>
+          </button>
+          <button
+            class="toggle-btn"
+            [class.active]="viewMode() === 'list'"
+            (click)="viewMode.set('list')"
+            title="Liste Görünümü"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="filter-search">
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            class="filter-input"
+            name="planDeviceSearch"
+            [ngModel]="deviceSearch()"
+            (ngModelChange)="deviceSearch.set($event)"
+            placeholder="Cihaz ara..."
+          />
+        </div>
+
+        <select
+          name="planFilterShiftType"
+          class="filter-select"
+          [ngModel]="filterShiftType()"
+          (ngModelChange)="filterShiftType.set($event)"
+          title="Vardiya Türü"
+        >
+          <option value="">Tüm Vardiyalar</option>
+          <option value="morning">Sabah</option>
+          <option value="day">Gündüz</option>
+          <option value="evening">İkindi</option>
+          <option value="night">Gece</option>
+        </select>
+
+        <select
+          name="planFilterRole"
+          class="filter-select"
+          [ngModel]="filterRole()"
+          (ngModelChange)="filterRole.set($event)"
+          title="Personel Rolü"
+        >
+          <option value="">Tüm Roller</option>
+          @for (r of roleOptions(); track r) {
+            <option [value]="r">{{ r }}</option>
+          }
+        </select>
+
+        <select
+          name="planFilterStatus"
+          class="filter-select"
+          [ngModel]="filterStatus()"
+          (ngModelChange)="filterStatus.set($event)"
+          title="Atama Durumu"
+        >
+          <option value="">Tüm Durumlar</option>
+          @for (s of statusOptions; track s.key) {
+            <option [value]="s.key">{{ s.label }}</option>
+          }
+        </select>
+
+        <label class="empty-only-toggle" title="Yalnızca boş slotları vurgula">
+          <input
+            type="checkbox"
+            name="planShowEmptyOnly"
+            [checked]="showEmptyOnly()"
+            (change)="showEmptyOnly.set($any($event.target).checked)"
+          />
+          <span>Boş Slot</span>
+        </label>
+
+        <div class="density-group" title="Hücre Yoğunluğu">
+          <button
+            class="density-btn"
+            [class.active]="density() === 'compact'"
+            (click)="density.set('compact')"
+            title="Kompakt"
+          >
+            K
+          </button>
+          <button
+            class="density-btn"
+            [class.active]="density() === 'normal'"
+            (click)="density.set('normal')"
+            title="Normal"
+          >
+            N
+          </button>
+          <button
+            class="density-btn"
+            [class.active]="density() === 'comfortable'"
+            (click)="density.set('comfortable')"
+            title="Rahat"
+          >
+            R
+          </button>
+        </div>
+
+        <button
+          class="conflict-btn"
+          [class.has-conflict]="conflictCount() > 0"
+          (click)="openConflicts()"
+          title="Aynı gün çoklu vardiya çakışmaları"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          Çakışma
+          @if (conflictCount() > 0) {
+            <span class="conflict-badge">{{ conflictCount() }}</span>
+          }
+        </button>
+
+        @if (totalFilterCount() > 0) {
+          <button class="filter-clear" (click)="resetAllFilters()">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            Temizle ({{ totalFilterCount() }})
+          </button>
+        }
+      </div>
+
+      @if (viewMode() === 'grid') {
+        <app-schedule-grid
+          [assignments]="assignments()"
+          [days]="days()"
+          [devices]="devices()"
+          [dragState]="dragState()"
+          [showOnboarding]="showOnboarding()"
+          [showLeftFade]="showLeftFade()"
+          [showRightFade]="showRightFade()"
+          [compactLayout]="unitPlanConfig().compactLayout"
+          [onboardingHint]="unitPlanConfig().onboardingHint"
+          [deviceFilter]="deviceSearch()"
+          [shiftTypeFilter]="filterShiftType()"
+          [roleFilter]="filterRole()"
+          [statusFilter]="filterStatus()"
+          [showEmptyOnly]="showEmptyOnly()"
+          [density]="density()"
+          [allowPolyclinicSaturday]="selectedUnit() === 'nukleer'"
+          (scroll)="onScheduleScroll($event)"
+          (dismissOnboarding)="dismissOnboarding()"
+          (addAssignment)="onAddAssignment($event)"
+          (editAssignment)="onEditAssignment($event)"
+          (deleteAssignment)="onDeleteAssignment($event)"
+          (copyAssignment)="onCopyAssignment($event)"
+          (contextMenu)="onContextMenu($event)"
+          (dragStart)="
+            onDragStart(
+              $event.event,
+              $event.deviceId,
+              $event.date,
+              $event.shiftType,
+              $event.personnelType
+            )
+          "
+          (dragOver)="
+            onDragOver(
+              $event.event,
+              $event.deviceId,
+              $event.date,
+              $event.shiftType,
+              $event.personnelType
+            )
+          "
+          (dragLeave)="onDragLeave()"
+          (drop)="
+            onDrop(
+              $event.event,
+              $event.deviceId,
+              $event.date,
+              $event.shiftType,
+              $event.personnelType,
+              $event.startTime,
+              $event.endTime
+            )
+          "
+          (dragEnd)="onDragEnd()"
+          (hoverAssignment)="
+            onHoverAssignment(
+              $event.event,
+              $event.deviceId,
+              $event.date,
+              $event.shiftType,
+              $event.personnelType
+            )
+          "
+          (moveTooltip)="onMoveTooltip($event)"
+          (leaveTooltip)="onLeaveTooltip()"
+        >
+        </app-schedule-grid>
+
+        <div class="grid-status-bar">
+          <span class="status-item"
+            ><strong>{{ gridStatusSummary().devices }}</strong> cihaz</span
+          >
+          <span class="status-sep"></span>
+          <span class="status-item"
+            ><strong>{{ gridStatusSummary().shifts }}</strong> vardiya</span
+          >
+          <span class="status-sep"></span>
+          <span class="status-item status-good"
+            ><strong>{{ gridStatusSummary().assigned }}</strong> atama</span
+          >
+          <span class="status-sep"></span>
+          <span class="status-item status-warn"
+            ><strong>{{ gridStatusSummary().empty }}</strong> boş slot</span
+          >
+          <span class="status-sep"></span>
+          <span class="status-item">Tatil: {{ gridStatusSummary().holidays }} gün</span>
+          <span class="status-spacer"></span>
+          <span class="status-item status-muted">Son senkron: {{ lastSyncLabel() }}</span>
+        </div>
+      }
+
+      @if (viewMode() === 'list') {
+        <div class="list-view glass">
+          <div class="list-search">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              class="filter-input"
+              name="planSearchQuery"
+              [ngModel]="searchQuery()"
+              (ngModelChange)="searchQuery.set($event)"
+              placeholder="Personel veya tarih ara..."
+            />
+          </div>
+          <div class="list-scroll scroll-container">
+            <table class="list-table">
+              <thead>
+                <tr>
+                  <th>Tarih</th>
+                  <th>Cihaz</th>
+                  <th>Vardiya</th>
+                  <th>Saat</th>
+                  <th>Rol</th>
+                  <th>Personel</th>
+                  <th>Durum</th>
+                  <th>Oluşturma</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (filteredAssignments().length === 0) {
+                  <tr>
+                    <td colspan="8" class="list-empty-row">
+                      <div class="list-empty">
+                        <svg
+                          width="32"
+                          height="32"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.5"
+                        >
+                          <circle cx="11" cy="11" r="8" />
+                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        <span>Eşleşen kayıt bulunamadı</span>
+                      </div>
+                    </td>
+                  </tr>
+                } @else {
+                  @for (a of filteredAssignments(); track a.id) {
+                    @let deviceCode = deviceCodeFromId().get(a.deviceId) || a.deviceId;
+                    @let deviceName = deviceFullNameMap().get(a.deviceId) || '';
+                    @let roleLabel =
+                      personnelTypeLabels()[a.personnelType || ''] || a.personnelType || '-';
+                    @let statusLabel = a.status || (a.isConfirmed ? 'confirmed' : 'planned');
+                    <tr
+                      class="list-row"
+                      (mouseenter)="
+                        onHoverAssignment($event, a.deviceId, a.date, a.shiftType, a.personnelType)
+                      "
+                      (mousemove)="onMoveTooltip($event)"
+                      (mouseleave)="onLeaveTooltip()"
+                    >
+                      <td>{{ a.date }}</td>
+                      <td class="list-device">
+                        <span class="list-device-code">{{ deviceCode }}</span>
+                        <span class="list-device-name">{{ deviceName }}</span>
+                      </td>
+                      <td>
+                        <span
+                          class="shift-chip"
+                          [class]="getShiftTypeClass(a.shiftType) + '-chip'"
+                          >{{ getShiftLabel(a.shiftType) }}</span
+                        >
+                      </td>
+                      <td class="list-time">{{ a.startTime }} - {{ a.endTime }}</td>
+                      <td>
+                        <span class="role-tag">{{ roleLabel }}</span>
+                      </td>
+                      <td>{{ a.personnelName || '-' }}</td>
+                      <td>
+                        <span class="status-chip" [class]="'status-' + statusLabel">{{
+                          statusOptionLabel(statusLabel)
+                        }}</span>
+                      </td>
+                      <td class="list-created">
+                        {{ a.createdAt ? (a.createdAt | date: 'dd MMM yyyy') : '-' }}
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="list-footer">
+            <span class="list-count"
+              >{{ filteredAssignments().length }} / {{ assignmentsList().length }} kayıt</span
+            >
+          </div>
+        </div>
+      }
+
+      @if (
+        viewMode() === 'list' &&
+        filteredAssignments().length === 0 &&
+        assignmentsList().length === 0
+      ) {
+        <div class="empty-assignments">
+          <div class="empty-assignments-icon">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+              <rect x="8" y="6" width="32" height="36" rx="4" stroke="#64748b" stroke-width="2" />
+              <line
+                x1="16"
+                y1="18"
+                x2="32"
+                y2="18"
+                stroke="#64748b"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+              <line
+                x1="16"
+                y1="26"
+                x2="28"
+                y2="26"
+                stroke="#64748b"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+              <line
+                x1="16"
+                y1="34"
+                x2="24"
+                y2="34"
+                stroke="#64748b"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+          </div>
+          <h3 class="empty-assignments-title">Henüz vardiya atanmamış</h3>
+          <p class="empty-assignments-desc">
+            {{ unitLabel() }} birimi için bu ayda hiç vardiya bulunmuyor. Grid görünümüne geçerek
+            <strong>+</strong> butonları ile vardiya oluşturabilirsiniz.
+          </p>
+          <button class="action-btn primary-btn" (click)="viewMode.set('grid')">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" /></svg
+            >Grid Görünümüne Geç
+          </button>
+        </div>
+      }
+
+      @if (tooltipVisible()) {
+        @let tip = tooltipAssignment();
+        @if (tip) {
+          <div class="assign-tooltip" [style.left.px]="tooltipX()" [style.top.px]="tooltipY()">
+            <div class="tip-name">{{ tip.personnelName }}</div>
+            <div class="tip-row">
+              <span class="tip-key">Vardiya</span
+              ><span class="tip-val">{{ getShiftLabel(tip.shiftType) }}</span>
+            </div>
+            <div class="tip-row">
+              <span class="tip-key">Saat</span
+              ><span class="tip-val">{{ tip.startTime }} - {{ tip.endTime }}</span>
+            </div>
+            <div class="tip-row">
+              <span class="tip-key">Cihaz</span
+              ><span class="tip-val">{{
+                deviceCodeFromId().get(tip.deviceId) || tip.deviceId
+              }}</span>
+            </div>
+            @for (xf of getTooltipExtraFields(tip); track xf.label) {
+              <div class="tip-row">
+                <span class="tip-key">{{ xf.label }}</span
+                ><span class="tip-val">{{ xf.value }}</span>
+              </div>
+            }
+            @if (tip.createdAt) {
+              <div class="tip-row">
+                <span class="tip-key">Oluşturma</span
+                ><span class="tip-val">{{ tip.createdAt | date: 'dd MMM HH:mm' }}</span>
+              </div>
+            }
+          </div>
+        }
+      }
+
+      @if (contextMenu(); as cm) {
+        <div class="ctx-backdrop" (click)="closeContextMenu()"></div>
+        <div class="context-menu" [style.left.px]="cm.x" [style.top.px]="cm.y">
+          <div class="ctx-head">
+            <span class="ctx-title">{{ cm.personnelName || 'Boş Slot' }}</span>
+            <span class="ctx-sub"
+              >{{ deviceCodeFromId().get(cm.deviceId) || cm.deviceId }} · {{ cm.date }} ·
+              {{ getShiftLabel(cm.shiftType) }}</span
+            >
+          </div>
+          @if (cm.personnelName) {
+            <button class="ctx-item" (click)="ctxEdit()"><span>✎</span> Düzenle</button>
+            <button class="ctx-item" (click)="ctxCopy()"><span>📋</span> Kopyala</button>
+            <button class="ctx-item ctx-danger" (click)="ctxDelete()"><span>✕</span> Sil</button>
+          } @else {
+            <button class="ctx-item" (click)="ctxAdd()"><span>+</span> Vardiya Ata</button>
+          }
+        </div>
+      }
+    }
+  }
+
+  @if (activeTab() === 'person') {
+    <app-person-shift-view [unit]="selectedUnit()" [month]="planMonth" [year]="planYear" />
+  }
+</div>
+
+@if (showAutoGenerate()) {
+  @let vs = viewState();
+  @if (vs.status === 'success') {
+    <app-auto-generate-dialog
+      [unitType]="vs.schedule.unit"
+      [month]="vs.schedule.month"
+      [year]="vs.schedule.year"
+      [scheduleId]="vs.schedule.id || ''"
+      (closeDialog)="showAutoGenerate.set(false)"
+      (applied)="showAutoGenerate.set(false); refresh()"
+    />
+  }
+}
+
+@if (assignmentDialog(); as ad) {
+  <app-assignment-dialog
+    [scheduleId]="ad.scheduleId"
+    [assignmentId]="ad.assignmentId || ''"
+    [existingPersonnelId]="ad.personnelId || ''"
+    [existingPersonnelName]="ad.personnelName || ''"
+    [deviceId]="ad.deviceId"
+    [deviceCode]="ad.deviceCode"
+    [deviceName]="deviceFullNameMap().get(ad.deviceId) || ''"
+    [unitLabel]="unitLabel()"
+    [existingAssignments]="assignments()"
+    [date]="ad.date"
+    [shiftType]="ad.shiftType"
+    [personnelType]="ad.personnelType"
+    [startTime]="ad.startTime"
+    [endTime]="ad.endTime"
+    [unitType]="ad.unitType"
+    [month]="ad.month"
+    [year]="ad.year"
+    (closeDialog)="closeAssignmentDialog()"
+    (assignmentSaved)="onAssignmentSaved()"
+  />
+}
+
+@if (showMonthPicker()) {
+  <div class="dialog-overlay" (click)="closeMonthPicker()">
+    <div class="month-picker-panel" (click)="$event.stopPropagation()">
+      <div class="month-picker-header">
+        <h3>Ay Seç</h3>
+        <button class="close-btn" (click)="closeMonthPicker()">✕</button>
+      </div>
+      <div class="month-picker-body">
+        <div class="picker-row">
+          <label>Yıl</label>
+          <select
+            name="planPickerYear"
+            [ngModel]="pickerYear()"
+            (ngModelChange)="pickerYear.set($event)"
+            class="picker-select"
+          >
+            @for (y of [2024, 2025, 2026, 2027, 2028]; track y) {
+              <option [value]="y">{{ y }}</option>
+            }
+          </select>
+        </div>
+        <div class="picker-row">
+          <label>Ay</label>
+          <select
+            name="planPickerMonth"
+            [ngModel]="pickerMonth()"
+            (ngModelChange)="pickerMonth.set($event)"
+            class="picker-select"
+          >
+            @for (m of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; track m) {
+              <option [value]="m">
+                {{
+                  [
+                    'Ocak',
+                    'Şubat',
+                    'Mart',
+                    'Nisan',
+                    'Mayıs',
+                    'Haziran',
+                    'Temmuz',
+                    'Ağustos',
+                    'Eylül',
+                    'Ekim',
+                    'Kasım',
+                    'Aralık',
+                  ][m - 1]
+                }}
+              </option>
+            }
+          </select>
+        </div>
+      </div>
+      <div class="month-picker-footer">
+        <button class="btn btn-secondary" (click)="closeMonthPicker()">İptal</button>
+        <button class="btn btn-primary" (click)="jumpToMonth()">Git</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showMonthlyAssign()) {
+  <div class="dialog-overlay" (click)="closeMonthlyAssign()">
+    <div class="monthly-assign-panel" (click)="$event.stopPropagation()">
+      <div class="monthly-assign-header">
+        <h3>Aylık Atama — {{ monthLabel() }}</h3>
+        <button class="close-btn" (click)="closeMonthlyAssign()">✕</button>
+      </div>
+      <div class="monthly-assign-body">
+        <div class="monthly-row">
+          <label>Cihaz</label>
+          <select
+            name="planMonthlyDevice"
+            class="picker-select"
+            [ngModel]="monthlyDeviceId()"
+            (ngModelChange)="monthlyDeviceId.set($event); onMonthlyDeviceChange()"
+          >
+            @for (d of devices(); track d.id) {
+              <option [value]="d.id">{{ d.code }} — {{ d.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="monthly-row">
+          <label>Vardiya</label>
+          <select
+            name="planMonthlyShiftType"
+            class="picker-select"
+            [ngModel]="monthlyShiftType()"
+            (ngModelChange)="monthlyShiftType.set($event)"
+          >
+            @for (s of monthlyShiftOptions(); track s.type + '|' + (s.personnelType || '')) {
+              <option [value]="s.type">
+                {{ getShiftLabel(s.type) }} ({{ s.startTime }} - {{ s.endTime }})
+              </option>
+            }
+          </select>
+        </div>
+        <div class="monthly-row">
+          <label>Personel</label>
+          <div class="monthly-personnel">
+            <input
+              name="planMonthlySearch"
+              class="picker-input"
+              [ngModel]="monthlySearch()"
+              (ngModelChange)="monthlySearch.set($event)"
+              placeholder="Personel ara..."
+            />
+            <select
+              name="planMonthlyPersonnel"
+              class="picker-select"
+              [ngModel]="monthlyPersonnelId()"
+              (ngModelChange)="monthlyPersonnelId.set($event)"
+            >
+              <option value="">Personel seçin...</option>
+              @for (p of monthlyPersonnelFiltered(); track p.id) {
+                <option [value]="p.id">{{ p.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        @if (monthlyResult()) {
+          <div class="monthly-result">{{ monthlyResult() }}</div>
+        }
+      </div>
+      <div class="monthly-assign-footer">
+        <button class="btn btn-secondary" (click)="closeMonthlyAssign()">İptal</button>
+        <button
+          class="btn btn-primary"
+          [disabled]="
+            monthlyBusy() || !monthlyDeviceId() || !monthlyShiftType() || !monthlyPersonnelId()
+          "
+          (click)="applyMonthlyAssignment()"
+        >
+          {{ monthlyBusy() ? 'Uygulanıyor...' : 'Aya Uygula' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (conflictsOpen()) {
+  <div class="dialog-overlay" (click)="closeConflicts()">
+    <div class="conflicts-panel" (click)="$event.stopPropagation()">
+      <div class="conflicts-header">
+        <h3>Aynı Gün Çakışmalar ({{ conflictsList().length }})</h3>
+        <button class="close-btn" (click)="closeConflicts()">✕</button>
+      </div>
+      <div class="conflicts-body">
+        @for (c of conflictsList(); track c.personName) {
+          <div class="conflict-group">
+            <div class="conflict-person">
+              <span class="conflict-person-dot"></span>
+              {{ c.personName }}
+            </div>
+            <div class="conflict-entries">
+              @for (en of c.entries; track en.date + '|' + en.deviceId + '|' + en.shiftType) {
+                <div class="conflict-entry">
+                  <span class="conflict-date">{{ en.date }}</span>
+                  <span class="conflict-device"
+                    >{{ en.deviceCode
+                    }}<span class="conflict-device-name">{{ en.deviceName }}</span></span
+                  >
+                  <span class="shift-chip" [class]="getShiftTypeClass(en.shiftType) + '-chip'">{{
+                    getShiftLabel(en.shiftType)
+                  }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+      <div class="conflicts-footer">
+        <button class="btn btn-secondary" (click)="closeConflicts()">Kapat</button>
+      </div>
+    </div>
+  </div>
+}
