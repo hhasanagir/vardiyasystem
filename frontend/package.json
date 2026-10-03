@@ -11,7 +11,7 @@
     "test:watch": "ng test --watch --browsers ChromeHeadless",
     "test:ci": "ng test --no-watch --browsers ChromeHeadless",
     "test:coverage": "ng test --coverage --browsers ChromeHeadless",
-    "lint": "npx ng lint",
+    "lint": "eslint .",
     "typecheck": "npx tsc --noEmit",
     "e2e": "npx playwright test",
     "e2e:ui": "npx playwright test --ui",
@@ -62,9 +62,9 @@
     "zone.js": "^0.16.2"
   },
   "devDependencies": {
-    "@angular-eslint/eslint-plugin": "^21.2.0",
-    "@angular-eslint/eslint-plugin-template": "^21.2.0",
-    "@angular-eslint/template-parser": "^21.2.0",
+    "@angular-eslint/eslint-plugin": "^21.4.0",
+    "@angular-eslint/eslint-plugin-template": "^21.4.0",
+    "@angular-eslint/template-parser": "^21.4.0",
     "@angular/build": "^21.2.7",
     "@angular/cli": "^21.2.7",
     "@angular/compiler-cli": "^21.2.0",
