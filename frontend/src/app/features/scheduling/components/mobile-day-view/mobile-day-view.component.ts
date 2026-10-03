@@ -149,7 +149,7 @@ export class MobileDayViewComponent {
     return getDaysInMonth(s.year, s.month);
   });
 
-  readonly currentDay = computed(() => this.days()[this.currentIdx()] ?? null);
+  readonly currentDay = computed((): GridDay | null => this.days()[this.currentIdx()] ?? null);
 
   readonly currentDayAssignments = computed((): AssignmentDTO[] => {
     const day = this.currentDay();
