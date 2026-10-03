@@ -100,9 +100,10 @@ describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
 
     it('JwtStrategy.validate reads payload.sub (not payload.id)', () => {
       const source = readSource('../../auth/jwt.strategy.ts');
-      expect(source).toContain('validate(payload: { sub:');
-      expect(source).toContain('payload.sub');
-      expect(source).not.toContain('payload.id');
+      const normalized = source.replace(/\s+/g, ' ');
+      expect(normalized).toContain('validate(payload: { sub:');
+      expect(normalized).toContain('payload.sub');
+      expect(normalized).not.toContain('payload.id');
     });
   });
 

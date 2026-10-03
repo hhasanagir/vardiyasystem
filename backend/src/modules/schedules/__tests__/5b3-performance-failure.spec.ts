@@ -112,7 +112,7 @@ describe('STEP 16 — Failure Modes', () => {
       shiftDefinitions: [],
       existingAssignments: new AssignmentCollection(),
       holidays: new Set(),
-      deviceOffDates: new Set(),
+      
       configuration: {
         fairnessMode: 'balanced',
         maxOvertime: 20,
@@ -141,7 +141,7 @@ describe('STEP 16 — Failure Modes', () => {
       shiftDefinitions: [],
       existingAssignments: new AssignmentCollection(),
       holidays: new Set(),
-      deviceOffDates: new Set(),
+      
       configuration: {
         fairnessMode: 'balanced',
         maxOvertime: 20,
@@ -189,7 +189,7 @@ describe('STEP 16 — Failure Modes', () => {
       ],
       existingAssignments: new AssignmentCollection(),
       holidays: new Set(),
-      deviceOffDates: new Set(),
+      
       configuration: {
         fairnessMode: 'balanced',
         maxOvertime: 20,
@@ -251,7 +251,7 @@ describe('STEP 16 — Failure Modes', () => {
       ],
       existingAssignments: new AssignmentCollection(),
       holidays: new Set(),
-      deviceOffDates: new Set(),
+      
       configuration: {
         fairnessMode: 'balanced',
         maxOvertime: 20,

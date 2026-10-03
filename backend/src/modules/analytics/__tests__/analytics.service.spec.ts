@@ -13,6 +13,7 @@ describe('AnalyticsService', () => {
     schedule: { findFirst: vi.fn(), findMany: vi.fn() },
     unit: { findMany: vi.fn(), findFirst: vi.fn() },
     device: { findMany: vi.fn(), count: vi.fn() },
+    holiday: { findMany: vi.fn() },
   };
 
   beforeEach(async () => {
@@ -22,6 +23,7 @@ describe('AnalyticsService', () => {
     mockPrisma.personnel.findMany.mockResolvedValue([]);
     mockPrisma.assignment.findMany.mockResolvedValue([]);
     mockPrisma.device.findMany.mockResolvedValue([]);
+    mockPrisma.holiday.findMany.mockResolvedValue([]);
     mockPrisma.personnel.count.mockResolvedValue(0);
     mockPrisma.assignment.count.mockResolvedValue(0);
     mockPrisma.user.count.mockResolvedValue(0);

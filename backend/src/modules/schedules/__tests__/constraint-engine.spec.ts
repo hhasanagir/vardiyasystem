@@ -56,7 +56,6 @@ describe('ConstraintEngine', () => {
       },
       EMPTY_DEVICE,
       new Set(),
-      new Set(),
       EMPTY_TEMPLATE,
       EMPTY_GROUP,
     );
@@ -71,7 +70,6 @@ describe('ConstraintEngine', () => {
       new AssignmentCollection([]),
       EMPTY_PERSONNEL,
       EMPTY_DEVICE,
-      new Set(),
       new Set(),
       EMPTY_TEMPLATE,
       EMPTY_GROUP,
@@ -114,7 +112,6 @@ describe('ConstraintEngine', () => {
       },
       EMPTY_DEVICE,
       new Set(),
-      new Set(),
       EMPTY_TEMPLATE,
       EMPTY_GROUP,
     );
@@ -143,7 +140,6 @@ describe('ConstraintEngine', () => {
         }),
       },
       EMPTY_DEVICE,
-      new Set(),
       new Set(),
       EMPTY_TEMPLATE,
       EMPTY_GROUP,

@@ -99,7 +99,7 @@ describe('GATE 1 — Hard Constraint Quality', () => {
       ],
       existingAssignments: new AssignmentCollection(),
       holidays: new Set(),
-      deviceOffDates: new Set(),
+      
       configuration: {
         fairnessMode: 'balanced',
         maxOvertime: 20,
@@ -331,7 +331,7 @@ describe('Golden Test Cases', () => {
       ],
       existingAssignments: new AssignmentCollection(),
       holidays: new Set(),
-      deviceOffDates: new Set(),
+      
       configuration: {
         fairnessMode: 'balanced',
         maxOvertime: 20,
@@ -383,7 +383,7 @@ describe('Golden Test Cases', () => {
       ],
       existingAssignments: new AssignmentCollection(),
       holidays: new Set(),
-      deviceOffDates: new Set(),
+      
       configuration: {
         fairnessMode: 'balanced',
         maxOvertime: 20,

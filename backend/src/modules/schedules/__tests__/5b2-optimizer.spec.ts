@@ -76,7 +76,7 @@ function createTestProblem(
     ],
     existingAssignments: new AssignmentCollection(),
     holidays: new Set(['2026-01-01']),
-    deviceOffDates: new Set(),
+    
     configuration: {
       fairnessMode: 'balanced',
       maxOvertime: 20,

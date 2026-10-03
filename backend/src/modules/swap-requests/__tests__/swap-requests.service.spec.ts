@@ -139,7 +139,9 @@ describe('SwapRequestsService', () => {
         fromAssignmentId: 'assign-1',
       };
 
-      mockPrisma.swapRequest.findUnique.mockResolvedValue(mockRequest);
+      mockPrisma.swapRequest.findUnique
+        .mockResolvedValueOnce(mockRequest)
+        .mockResolvedValueOnce(updatedRequest);
       mockPrisma.swapRequest.update.mockResolvedValue(updatedRequest);
       mockPrisma.assignment.findUnique.mockResolvedValue({
         date: '2024-01-15',

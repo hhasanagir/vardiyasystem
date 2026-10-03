@@ -110,7 +110,6 @@ function makeProblem(
     existingAssignments:
       overrides.existingAssignments || new AssignmentCollection(),
     holidays: overrides.holidays || new Set(['2026-01-01']),
-    deviceOffDates: new Set(),
     configuration: { ...DEFAULT_CONFIG, ...overrides.config },
   };
 }

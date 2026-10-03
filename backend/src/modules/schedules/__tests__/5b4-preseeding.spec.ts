@@ -90,7 +90,7 @@ function makeProblem(
     existingAssignments:
       overrides.existingAssignments || new AssignmentCollection(),
     holidays: overrides.holidays || new Set(),
-    deviceOffDates: new Set(),
+    
     configuration: {
       fairnessMode: 'balanced',
       maxOvertime: 20,
