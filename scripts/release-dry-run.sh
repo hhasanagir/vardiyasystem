@@ -79,6 +79,10 @@ ENVEOF
     printf 'placeholder-not-a-real-secret\n' > "$SECRETS_DIR/${f}.txt"
   done
   printf 'https://hooks.slack.invalid/services/placeholder\n' > "$SECRETS_DIR/slack_webhook.txt"
+  if [ ! -f "$ROOT/backend/.env" ]; then
+    cp -a "$ENV_FILE" "$ROOT/backend/.env"
+    CLEANUP_TARGETS+=("$ROOT/backend/.env")
+  fi
   echo "CI mode: throwaway env/secrets staged"
 else
   [ -f "$ENV_FILE" ] || {
