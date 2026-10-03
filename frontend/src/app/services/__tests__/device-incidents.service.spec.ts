@@ -1,5 +1,7 @@
+// @vitest-environment jsdom
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { firstValueFrom } from 'rxjs';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { DeviceIncidentsService } from '../device-incidents.service';
 
@@ -9,17 +11,19 @@ describe('DeviceIncidentsService', () => {
 
   const mockIncident = {
     id: 'incident-1',
+    userId: 'user-1',
     unitId: 'unit-1',
     deviceId: 'device-1',
     issueType: 'arıza',
-    severity: 'high',
+    severity: 'high' as const,
     description: 'Cihaz çalışmıyor',
     imageUrl: null,
-    status: 'open',
-    user: { id: 'user-1', name: 'Tekniker' },
-    unit: { id: 'unit-1', name: 'MR' },
-    device: { id: 'device-1', name: 'MR Cihazı', code: 'MR-01' },
+    status: 'open' as const,
     reportedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    user: { id: 'user-1', name: 'Tekniker', role: 'technician' },
+    unit: { id: 'unit-1', name: 'MR', organizationId: 'org-1' },
+    device: { id: 'device-1', name: 'MR Cihazı', code: 'MR-01' },
   };
 
   beforeEach(() => {
@@ -39,139 +43,102 @@ describe('DeviceIncidentsService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('create', () => {
-    it('should create a device incident', (done) => {
-      const payload = {
-        unitId: 'unit-1',
-        issueType: 'arıza' as const,
-        severity: 'high' as const,
-        description: 'Cihaz çalışmıyor',
-      };
+  it('should create an incident with a POST to /api/v1/device-incidents', async () => {
+    const payload = {
+      unitId: 'unit-1',
+      issueType: 'arıza' as const,
+      severity: 'high' as const,
+      description: 'Cihaz çalışmıyor',
+    };
 
-      service.create(payload).subscribe((incident) => {
-        expect(incident).toBeDefined();
-        expect(incident.id).toBe('incident-1');
-        expect(incident.issueType).toBe('arıza');
-        done();
-      });
+    const promise = firstValueFrom(service.createIncident(payload));
 
-      const req = httpMock.expectOne('/api/v1/device-incidents');
-      expect(req.request.method).toBe('POST');
-      expect(req.request.body).toEqual(payload);
-      req.flush(mockIncident);
-    });
+    const req = httpMock.expectOne('/api/v1/device-incidents');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(payload);
+    req.flush(mockIncident);
 
-    it('should send optional deviceId and imageUrl', (done) => {
-      const payload = {
-        unitId: 'unit-1',
-        deviceId: 'device-1',
-        issueType: 'bakım' as const,
-        severity: 'low' as const,
-        description: 'Periyodik bakım',
-        imageUrl: 'https://example.com/photo.jpg',
-      };
-
-      service.create(payload).subscribe(() => done());
-
-      const req = httpMock.expectOne('/api/v1/device-incidents');
-      expect(req.request.body.imageUrl).toBe('https://example.com/photo.jpg');
-      expect(req.request.body.deviceId).toBe('device-1');
-      req.flush({ ...mockIncident, ...payload });
-    });
+    const incident = await promise;
+    expect(incident.id).toBe('incident-1');
   });
 
-  describe('getAll', () => {
-    it('should fetch incidents with default params', (done) => {
-      service.getAll({}).subscribe((res) => {
-        expect(res.data).toBeDefined();
-        expect(res.data.length).toBe(1);
-        done();
-      });
+  it('should send optional deviceId and imageUrl on create', async () => {
+    const payload = {
+      unitId: 'unit-1',
+      deviceId: 'device-1',
+      issueType: 'bakım ihtiyacı' as const,
+      severity: 'low' as const,
+      description: 'Periyodik bakım',
+      imageUrl: 'https://example.com/photo.jpg',
+    };
 
-      const req = httpMock.expectOne((r) => r.url.includes('/api/v1/device-incidents'));
-      expect(req.request.method).toBe('GET');
-      req.flush({ data: [mockIncident], total: 1 });
-    });
+    const promise = firstValueFrom(service.createIncident(payload));
 
-    it('should pass filter params', (done) => {
-      service.getAll({ status: 'open', severity: 'critical' }).subscribe(() => done());
+    const req = httpMock.expectOne('/api/v1/device-incidents');
+    expect(req.request.body.deviceId).toBe('device-1');
+    expect(req.request.body.imageUrl).toBe('https://example.com/photo.jpg');
+    req.flush({ ...mockIncident, ...payload });
 
-      const req = httpMock.expectOne((r) =>
-        r.url.includes('/api/v1/device-incidents') &&
-        r.params.get('status') === 'open'
-      );
-      expect(req.request.params.get('status')).toBe('open');
-      expect(req.request.params.get('severity')).toBe('critical');
-      req.flush({ data: [], total: 0 });
-    });
+    await promise;
   });
 
-  describe('getById', () => {
-    it('should fetch single incident by id', (done) => {
-      service.getById('incident-1').subscribe((incident) => {
-        expect(incident.id).toBe('incident-1');
-        done();
-      });
+  it('should fetch incidents from /api/v1/device-incidents', async () => {
+    const promise = firstValueFrom(service.getIncidents({}));
 
-      const req = httpMock.expectOne('/api/v1/device-incidents/incident-1');
-      expect(req.request.method).toBe('GET');
-      req.flush(mockIncident);
-    });
+    const req = httpMock.expectOne((r) => r.url.startsWith('/api/v1/device-incidents'));
+    expect(req.request.method).toBe('GET');
+    req.flush({ data: [mockIncident], total: 1 });
+
+    const res = await promise;
+    expect(res.data.length).toBe(1);
+    expect(res.total).toBe(1);
   });
 
-  describe('update', () => {
-    it('should update incident fields', (done) => {
-      const updates = { description: 'Güncellendi' };
+  it('should serialize filter params into the query string', async () => {
+    const promise = firstValueFrom(service.getIncidents({ status: 'open', severity: 'critical' }));
 
-      service.update('incident-1', updates).subscribe((incident) => {
-        expect(incident).toBeDefined();
-        done();
-      });
+    const req = httpMock.expectOne((r) => r.url.startsWith('/api/v1/device-incidents'));
+    expect(req.request.url).toContain('status=open');
+    expect(req.request.url).toContain('severity=critical');
+    req.flush({ data: [], total: 0 });
 
-      const req = httpMock.expectOne('/api/v1/device-incidents/incident-1');
-      expect(req.request.method).toBe('PATCH');
-      expect(req.request.body).toEqual(updates);
-      req.flush({ ...mockIncident, ...updates });
-    });
+    await promise;
   });
 
-  describe('updateStatus', () => {
-    it('should update incident status', (done) => {
-      service.updateStatus('incident-1', 'resolved').subscribe((incident) => {
-        expect(incident.status).toBe('resolved');
-        done();
-      });
+  it('should fetch a single incident by id', async () => {
+    const promise = firstValueFrom(service.getIncident('incident-1'));
 
-      const req = httpMock.expectOne('/api/v1/device-incidents/incident-1/status');
-      expect(req.request.method).toBe('PATCH');
-      expect(req.request.body).toEqual({ status: 'resolved' });
-      req.flush({ ...mockIncident, status: 'resolved' });
-    });
+    const req = httpMock.expectOne('/api/v1/device-incidents/incident-1');
+    expect(req.request.method).toBe('GET');
+    req.flush(mockIncident);
+
+    const incident = await promise;
+    expect(incident.id).toBe('incident-1');
   });
 
-  describe('getIssueTypes', () => {
-    it('should return predefined issue types', () => {
-      const types = service.getIssueTypes();
-      expect(types).toContain('arıza');
-      expect(types).toContain('bakım ihtiyacı');
-      expect(types).toContain('cihaz offline');
-      expect(types.length).toBe(6);
-    });
+  it('should update incident fields with a PATCH', async () => {
+    const updates = { description: 'Güncellendi' };
+
+    const promise = firstValueFrom(service.updateIncident('incident-1', updates));
+
+    const req = httpMock.expectOne('/api/v1/device-incidents/incident-1');
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual(updates);
+    req.flush({ ...mockIncident, ...updates });
+
+    const incident = await promise;
+    expect(incident.description).toBe('Güncellendi');
   });
 
-  describe('getSeverityLevels', () => {
-    it('should return severity levels', () => {
-      const levels = service.getSeverityLevels();
-      expect(levels).toContain('low');
-      expect(levels).toContain('critical');
-    });
-  });
+  it('should update incident status via the status endpoint', async () => {
+    const promise = firstValueFrom(service.updateStatus('incident-1', 'resolved'));
 
-  describe('getStatusLevels', () => {
-    it('should return status levels', () => {
-      const statuses = service.getStatusLevels();
-      expect(statuses).toContain('open');
-      expect(statuses).toContain('resolved');
-    });
+    const req = httpMock.expectOne('/api/v1/device-incidents/incident-1/status');
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ status: 'resolved' });
+    req.flush({ ...mockIncident, status: 'resolved' });
+
+    const incident = await promise;
+    expect(incident.status).toBe('resolved');
   });
 });

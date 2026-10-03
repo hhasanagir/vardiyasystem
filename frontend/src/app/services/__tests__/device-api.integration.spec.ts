@@ -1,5 +1,8 @@
+// @vitest-environment jsdom
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { firstValueFrom } from 'rxjs';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { DeviceApiService } from '../../core/api/device-api.service';
 import { NotificationService } from '../../services/notification.service';
 import { ApiService } from '../../core/api/api.service';
@@ -9,10 +12,16 @@ describe('DeviceApiService Integration Tests', () => {
   let httpMock: HttpTestingController;
   let notificationService: NotificationService;
 
-  const mockApiResponse = <T>(data: T) => ({
-    success: true,
-    data,
-    timestamp: new Date().toISOString()
+  const mockDevicesResponse = (devices: unknown[]) => ({ devices, total: devices.length });
+
+  const device = (id: string, name: string) => ({
+    id,
+    code: id,
+    name,
+    mode: 'vardiya' as const,
+    tripleShift: false,
+    isActive: true,
+    unit: 'mr' as const,
   });
 
   beforeEach(() => {
@@ -35,130 +44,95 @@ describe('DeviceApiService Integration Tests', () => {
   });
 
   describe('loadDevices', () => {
-    it('should load devices from API and update state', (done) => {
-      const mockDevices = [
-        { id: 'mr-1', code: 'A-FUJ-MR', name: 'A BLOK MR', mode: 'vardiya' as const, tripleShift: false, isActive: true, unit: 'mr' as const },
-        { id: 'mr-2', code: 'B-PHI-MR', name: 'B BLOK MR', mode: 'vardiya' as const, tripleShift: false, isActive: true, unit: 'mr' as const }
-      ];
+    it('should load devices from API and update state', async () => {
+      const promise = firstValueFrom(service.loadDevices({ unit: 'mr' }));
 
-      service.loadDevices({ unit: 'mr' }).subscribe(response => {
-        expect(response.devices.length).toBe(2);
-        expect(service.devices().length).toBe(2);
-        done();
-      });
-
-      const req = httpMock.expectOne(req => req.url.includes('/api/devices'));
+      const req = httpMock.expectOne((r) => r.url.startsWith('/api/v1/devices'));
       expect(req.request.method).toBe('GET');
-      req.flush(mockApiResponse({ devices: mockDevices, total: 2 }));
+      expect(req.request.url).toContain('unit=mr');
+      req.flush(mockDevicesResponse([device('mr-1', 'A BLOK MR'), device('mr-2', 'B BLOK MR')]));
+
+      const response = await promise;
+      expect(response.devices.length).toBe(2);
+      expect(service.devices().length).toBe(2);
     });
 
-    it('should return empty on API failure', (done) => {
-      spyOn(notificationService, 'error');
+    it('should return an empty result object on API failure', async () => {
+      const errorSpy = vi.spyOn(notificationService, 'error');
 
-      service.loadDevices().subscribe(response => {
-        expect(response.devices).toEqual([]);
-        expect(response.total).toBe(0);
-        expect(notificationService.error).toHaveBeenCalled();
-        done();
-      });
+      const promise = firstValueFrom(service.loadDevices()).catch((e) => e);
 
-      const req = httpMock.expectOne('/api/devices');
+      const req = httpMock.expectOne((r) => r.url.startsWith('/api/v1/devices'));
       req.flush({ message: 'Server error' }, { status: 500, statusText: 'Internal Server Error' });
+
+      const errorPayload = await promise;
+      expect(errorPayload).toEqual({ devices: [], total: 0 });
+      expect(errorSpy).toHaveBeenCalled();
     });
 
-    it('should set loading state during request', (done) => {
-      expect(service.isLoading()).toBe(false);
-
-      service.loadDevices().subscribe();
+    it('should set loading state during request', async () => {
+      const promise = firstValueFrom(service.loadDevices());
 
       expect(service.isLoading()).toBe(true);
 
-      const req = httpMock.expectOne('/api/devices');
-      req.flush(mockApiResponse({ devices: [], total: 0 }));
+      const req = httpMock.expectOne((r) => r.url.startsWith('/api/v1/devices'));
+      req.flush(mockDevicesResponse([]));
 
-      setTimeout(() => {
-        expect(service.isLoading()).toBe(false);
-        done();
-      });
+      await promise;
+      expect(service.isLoading()).toBe(false);
     });
   });
 
   describe('getDevicesForUnit', () => {
-    it('should fetch and cache devices for a unit', (done) => {
-      const mockDevices = [
-        { id: 'mr-1', code: 'A-FUJ-MR', name: 'A BLOK MR', mode: 'vardiya' as const, tripleShift: false, isActive: true, unit: 'mr' as const },
-        { id: 'mr-2', code: 'B-PHI-MR', name: 'B BLOK MR', mode: 'vardiya' as const, tripleShift: false, isActive: true, unit: 'mr' as const }
-      ];
+    it('should fetch and cache devices for a unit', async () => {
+      const promise = firstValueFrom(service.getDevicesForUnit('mr'));
 
-      service.getDevicesForUnit('mr').subscribe(devices => {
-        expect(devices.length).toBe(2);
-        expect(devices[0].unit).toBe('mr');
-        done();
-      });
-
-      const req = httpMock.expectOne('/api/devices/unit/mr');
+      const req = httpMock.expectOne('/api/v1/devices/unit/mr');
       expect(req.request.method).toBe('GET');
-      req.flush(mockApiResponse({ devices: mockDevices, total: 2 }));
+      req.flush(mockDevicesResponse([device('mr-1', 'A BLOK MR'), device('mr-2', 'B BLOK MR')]));
+
+      const devices = await promise;
+      expect(devices.length).toBe(2);
+      expect(devices[0].unit).toBe('mr');
     });
 
-    it('should return cached result on second call without re-fetching', (done) => {
-      const mockDevices = [
-        { id: 'mr-1', code: 'A-FUJ-MR', name: 'A BLOK MR', mode: 'vardiya' as const, tripleShift: false, isActive: true, unit: 'mr' as const }
-      ];
+    it('should return cached result on second call without re-fetching', async () => {
+      const first = firstValueFrom(service.getDevicesForUnit('mr'));
 
-      // First call — triggers fetch
-      service.getDevicesForUnit('mr').subscribe(() => {
-        // Second call — should use cache, not trigger a new HTTP request
-        service.getDevicesForUnit('mr').subscribe(devices => {
-          expect(devices.length).toBe(1);
-          done();
-        });
-      });
+      const req = httpMock.expectOne('/api/v1/devices/unit/mr');
+      req.flush(mockDevicesResponse([device('mr-1', 'A BLOK MR')]));
 
-      const req = httpMock.expectOne('/api/devices/unit/mr');
-      req.flush(mockApiResponse({ devices: mockDevices, total: 1 }));
+      await first;
+      const second = await firstValueFrom(service.getDevicesForUnit('mr'));
+      expect(second.length).toBe(1);
     });
 
-    it('should return empty array on API failure and cache the fallback', (done) => {
-      spyOn(notificationService, 'error');
+    it('should surface an error on API failure', async () => {
+      const errorSpy = vi.spyOn(notificationService, 'error');
 
-      service.getDevicesForUnit('mr').subscribe(devices => {
-        expect(devices).toEqual([]);
-        expect(notificationService.error).toHaveBeenCalled();
-        done();
-      });
+      const promise = firstValueFrom(service.getDevicesForUnit('mr')).catch((e) => e);
 
-      const req = httpMock.expectOne('/api/devices/unit/mr');
+      const req = httpMock.expectOne('/api/v1/devices/unit/mr');
       req.flush({ message: 'Server error' }, { status: 500, statusText: 'Internal Server Error' });
-    });
 
-    it('should set loading state during request', () => {
-      expect(service.isLoading()).toBe(false);
-
-      service.getDevicesForUnit('mr').subscribe();
-
-      expect(service.isLoading()).toBe(true);
+      const err = await promise;
+      expect(err.code).toBe('DEVICE_LOAD_ERROR');
+      expect(errorSpy).toHaveBeenCalled();
     });
   });
 
   describe('clearCache', () => {
-    it('should clear all cached devices', (done) => {
-      service.loadDevices().subscribe(() => {
-        expect(service.devices().length).toBe(2);
-        
-        service.clearCache();
-        expect(service.devices().length).toBe(0);
-        done();
-      });
+    it('should clear all cached devices', async () => {
+      const promise = firstValueFrom(service.loadDevices());
 
-      const req = httpMock.expectOne('/api/devices');
-      req.flush(mockApiResponse({
-        devices: [
-          { id: 'mr-1', code: 'A', name: 'A', mode: 'vardiya' as const, tripleShift: false, isActive: true, unit: 'mr' as const },
-          { id: 'mr-2', code: 'B', name: 'B', mode: 'vardiya' as const, tripleShift: false, isActive: true, unit: 'mr' as const }
-        ],
-        total: 2
-      }));
+      const req = httpMock.expectOne((r) => r.url.startsWith('/api/v1/devices'));
+      req.flush(mockDevicesResponse([device('mr-1', 'A BLOK MR'), device('mr-2', 'B BLOK MR')]));
+
+      await promise;
+      expect(service.devices().length).toBe(2);
+
+      service.clearCache();
+      expect(service.devices().length).toBe(0);
     });
   });
 });

@@ -1,92 +1,86 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+// @vitest-environment jsdom
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { Injector, runInInjectionContext } from '@angular/core';
+import { of } from 'rxjs';
+import { MessageService } from 'primeng/api';
 import { ReportsComponent } from '../reports.component';
-import { ScheduleStore, MetricsStore } from '../../../../core/state';
+import { ScheduleService } from '../../../services/schedule.service';
 
 describe('ReportsComponent', () => {
   let component: ReportsComponent;
-  let fixture: ComponentFixture<ReportsComponent>;
-  let scheduleStore: ScheduleStore;
 
-  beforeEach(async () => {
-    scheduleStore = new ScheduleStore();
-
-    await TestBed.configureTestingModule({
-      imports: [ReportsComponent],
+  beforeEach(() => {
+    const injector = Injector.create({
       providers: [
-        { provide: ScheduleStore, useValue: scheduleStore },
-        { provide: MetricsStore, useValue: new MetricsStore() },
+        MessageService,
+        {
+          provide: ScheduleService,
+          useValue: {
+            getAnalytics: vi.fn(() =>
+              of({
+                totalShifts: 10,
+                nightShifts: 2,
+                weekendShifts: 0,
+                emptyShifts: 2,
+                averageHoursPerEmployee: 8,
+                fairnessScore: 90,
+                coveragePercent: 80,
+              }),
+            ),
+            getEmployeeWorkload: vi.fn(() => of([])),
+            loadSchedules: vi.fn(() => of({ schedules: [], total: 0, page: 1, pageSize: 20 })),
+          },
+        },
       ],
-    }).compileComponents();
+    });
 
-    fixture = TestBed.createComponent(ReportsComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
+    component = runInInjectionContext(injector, () => new ReportsComponent());
+    component.ngOnInit();
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should have summary tab active by default', () => {
-    expect(component.activeTab()).toBe('summary');
+  it('should have overview report active by default', () => {
+    expect(component.activeReport()).toBe('overview');
   });
 
-  it('should switch tabs correctly', () => {
-    component.setActiveTab('daily');
-    expect(component.activeTab()).toBe('daily');
+  it('should switch report tabs correctly', () => {
+    component.setActiveReport('daily');
+    expect(component.activeReport()).toBe('daily');
 
-    component.setActiveTab('personnel');
-    expect(component.activeTab()).toBe('personnel');
+    component.setActiveReport('employee');
+    expect(component.activeReport()).toBe('employee');
 
-    component.setActiveTab('departments');
-    expect(component.activeTab()).toBe('departments');
+    component.setActiveReport('unit');
+    expect(component.activeReport()).toBe('unit');
   });
 
-  it('should have all 4 tabs defined', () => {
-    expect(component.tabs.length).toBe(4);
-    expect(component.tabs).toContain('summary');
-    expect(component.tabs).toContain('daily');
-    expect(component.tabs).toContain('personnel');
-    expect(component.tabs).toContain('departments');
+  it('should default to May 2026', () => {
+    expect(component.selectedMonth().getFullYear()).toBe(2026);
+    expect(component.selectedMonth().getMonth()).toBe(4);
   });
 
-  describe('Summary Data', () => {
-    it('should provide summary metrics', () => {
-      const summary = component.getSummaryData();
-      expect(summary).toBeDefined();
-    });
+  it('should compute the month label', () => {
+    expect(component.monthLabel()).toContain('Mayıs');
   });
 
-  describe('CSV Export', () => {
-    it('should generate valid CSV format', () => {
-      const testData = [
-        { name: 'Test 1', value: 100 },
-        { name: 'Test 2', value: 200 },
-      ];
-      const csv = component.exportToCSV(testData);
-
-      expect(csv).toContain('name,value');
-      expect(csv).toContain('Test 1,100');
-      expect(csv).toContain('Test 2,200');
-    });
-
-    it('should handle empty data', () => {
-      const csv = component.exportToCSV([]);
-      expect(csv).toBe('name,value\n');
-    });
+  it('should return initials from a full name', () => {
+    expect(component.getInitials('Tekniker Test')).toBe('TT');
   });
 
-  describe('Date Range Selection', () => {
-    it('should set start date', () => {
-      const testDate = new Date('2026-05-01');
-      component.setStartDate(testDate);
-      expect(component.startDate()).toEqual(testDate);
-    });
+  it('should populate analytics from the schedule service', () => {
+    expect(component.analytics()).toBeDefined();
+    expect(component.analytics()?.totalShifts).toBe(10);
+  });
 
-    it('should set end date', () => {
-      const testDate = new Date('2026-05-31');
-      component.setEndDate(testDate);
-      expect(component.endDate()).toEqual(testDate);
-    });
+  it('should derive total summary from analytics', () => {
+    expect(component.loading()).toBe(false);
+    const summary = component.totalSummary();
+    expect(summary.totalShifts).toBe(10);
+    expect(summary.filledShifts).toBe(8);
+    expect(summary.emptyShifts).toBe(2);
+    expect(summary.coverage).toBe(80);
   });
 });
