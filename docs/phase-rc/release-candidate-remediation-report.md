@@ -40,10 +40,11 @@
 | Frontend `ng test` (CI unit gate) | `npm run test` | **8/8 dosya, 72/72** |
 | Frontend `npx vitest run` | configured set | **8/8 dosya, 72/72** |
 | Frontend typecheck (CI gate) | `npm run typecheck` | PASS (0) |
+| Frontend `ng build` (üretim) | `npm run build` | **PASS** — `Application bundle generation complete` (bkz. §4-2) |
 
 > NOT — `npm run lint` (CI `lint-typecheck` işinde frontend için çalışır): **FAIL — önceden var olan tanımlı ONCE**. Angular.json'da `lint` arch. target yok (`Cannot find "lint" target`). Bu RED-gate listesinde değildi; kullanıcı kararıyla **belgelendi, düzeltilmedi** (bkz. §4-1).
 >
-> NOT — `ng build` (üretim): **FAIL — önceden var olan ONCE**. Bazda takipli 3 component dosyası **0 byte** commit edilmiş (`frontend/src/app/layouts/main-layout/main-layout.component.ts`, `components/settings/settings.component.ts`, `features/radiation-safety/radiation-safety.component.ts`); `app.routes.ts` bunları lazy-import eder → `TS2306 ... is not a module`. Ek NG8107 uyarıları (`mobile-day-view.component.ts`). RED-gate listesinde `build` yoktu; kullanıcı kararıyla **belgelendi, düzeltilmedi** (bkz. §4-2).
+> NOT — `ng build` (üretim): **PASS**. Bu görevde P0 olarak kapatıldı: bazda takipli 3 component dosyası **0 byte** commit edilmişti (`frontend/src/app/layouts/main-layout/main-layout.component.ts`, `components/settings/settings.component.ts`, `features/radiation-safety/radiation-safety.component.ts`); `app.routes.ts` bunları lazy-import ediyordu → `TS2306 ... is not a module`. Geri yükleme + uyarlama §4-2'de. Kalan uyarılar yalnızca **non-fatal**: `NG8107` (`mobile-day-view.component.ts:26`) ve bundle/component-size bütçe aşımları.
 
 ---
 
@@ -66,7 +67,16 @@
 ## 4. Önceden var olan / belgelenen eksikler (bu görevin RED kapsamı dışında)
 
 1. **Frontend lint gate yok.** `angular.json` `lint` target'sız; CI `lint-typecheck` matrisi frontend için `npm run lint` çağırıyor → gerçek PR/CI koşusunda kırılır. Çözüm (yapılmadı): `@angular-eslint` devDependency + `lint` target + baseline. Kullanıcı kararı: belgele – geç.
-2. **Üç boş component (`main-layout`, `settings`, `radiation-safety`).** Baz commit'te 0 byte, takipli; `ng build`/frontend image build'inin önünü keser. İmplementasyon yeniden yazma = yeni özellik kapsamı; bu görevde yapılmadı. Kullanıcı kararı: belgele – geç.
+2. **Üç boş component (`main-layout`, `settings`, `radiation-safety`) — P0' DA ÇÖZÜLDÜ.** Baz commit `7c9eb76` bu dosyaları 0 byte olarak kaydetmişti; `git log --follow`, `git fsck --dangling` (51 blob) ve stash/reflog taramasında önceki dolu içerik **bulunamadı**. Aynı makinedeki ayrı çalışma kopyası `C:\Users\Hasan\OneDrive\Desktop\vardiyasystem` dolu implementasyonları içeriyordu ve bu dosyalar için tek mevcut kaynak olarak kullanıldı.
+   - `settings.component.ts` ve `radiation-safety.component.ts` **birebir** kopyalandı (inline template/stiller; `radiation-safety` için mevcut `.html`/`.scss` ile uyumlu — template'deki tüm binding'ler sınıf üyelerinde mevcut).
+   - `main-layout.component.ts` kopyalandı ancak bu kopya **ayrışmış** bir feature dalına ait: DEV'in `RbacService`'i `isFieldSupervisor()` / `getFieldSupervisorUnitType()` içermiyor ve DEV `UserRoleEnum`'ında `field_supervisor` yok. Kopya **bloke eden** 4 tip hatası üretti (`TS2367`, `TS2339` ×2, `TS7006`). Template `isFieldSupervisor`/`fieldSupervisorUnitType`'a referans vermediği için sapma izoleydi; placeholder yazılmadan, kanonik yapıdan çıkarılan 5 hedefli uyarlama yapıldı:
+     1. `hasSupervisorSurfaces` eşiği `'field_supervisor'` → `'supervisor'` (kanıt: `app.routes.ts` içindeki `minRole: 'supervisor'` route guard'ları).
+     2. `isFieldSupervisor` computed **kaldırıldı** (`RbacService` bağımlıydı).
+     3. `fieldSupervisorUnitType` signal **kaldırıldı**.
+     4. `units` computed → `this.allUnits` (field-supervisor daraltma kuralı yok).
+     5. Constructor'daki field-supervisor `.then()` bloğu → `void this.rbac.ensureLoaded()`.
+   - Sapma sırasında bulunan ilgili düzeltme: nav'daki "Operasyon Merkezi" öğesi `/app/supervisor-center`'a gidiyordu; DEV'de bu yol **yok** (`supervisor-center.component.ts` orphan — hiçbir route dosyasında kayıtlı değil). DEV'in gerçek "Operasyon Merkezi" rotası `command-center` (`app.routes.ts:298`, `minRole: 'supervisor'`, `page-context.config.ts:245`) → nav rotası `/app/command-center` yapıldı. 24 nav rotasının kalan 23'ü DEV `app.routes.ts` ile doğrulandı.
+   - Sonuç: `npm run typecheck` 0 hata, `npm run build` **PASS**, `npx vitest run` 8/8–72/72, `npx ng test` 8/8–72/72.
 3. **commitlint BOM artefaktı.** Baz commit `7c9eb76` mesajı U+FEFF ile başlıyor; git geçmişi yeniden yazılmaz → bu commit için commitlint kalıcı FAIL. Yeni commit'ler conventional style'da, BOM'suz (doğrulama §5).
 4. **Backend E2E local sınırlı (CI-authoritative).** 8 e2e dosyası; 30s hook timeout + WSL2–Docker postgres gecikmesi local koşuyu kesiyor (önceden ölçülen `slow_query_detected` ~100–220 ms/sorgu; `metrics_registered` boot kanıtı). CI tarihsel referansı: 85/85 (`p4-04`). Gerçek yeşil sayı yalnızca CI koşusunda doğrulanabilir. Konteynerler: `vardiya-rc-postgres` / `vardiya-rc-redis` ayakta.
 5. **İkincil checkout kopyası** güncellenmedi (OneDrive ağacı `7c9eb76`'da temiz duruyor). Bu remediyasyon + commit'ler yalnızca kanonik `C:\dev\vardiyasystem`.
@@ -83,11 +93,12 @@ Sıralı, konu-bazlı commit'ler (yeni commit'lerin her biri `npx commitlint --e
 4. `test(frontend): rewrite specs against real API contracts (8 files, 72/72)`
 5. `build(release): stage backend/.env in CI mode for dev compose config`
 6. `docs(phase-rc): add release candidate remediation report`
+7. `fix(frontend): restore zero-byte layout, settings and radiation-safety components`
 
 **Nelere dokunulmadı:** push / PR / GHCR push / Helm kurulumu / kubectl apply / üretim DB migration / geçmiş yeniden yazma / `reset --hard` / test zayıflatma (`.skip`, `.only`, timeout artışı, fake assert, `any`-maskeleme).
 
 ## 6. Son durum
 
-- **COMPLETE** — RED gate kapsamı bitti: backend unit 553/553, typecheck 0, frontend vitest+ng-test 72/72, audit critical 0, plain `npm ci`, tüm release gate'leri (preflight 32/32 + 18/18, dry-run COMPLETE, actionlint 4/4, kustomize 35, helm+kubeconform 44/0/0, commitlint yalnızca baz-BOM artefaktıyla).
-- **PARTIAL/BLOCKED (belgeli):** frontend `lint` ve `ng build` — referansı §4-1/§4-2 (kullanıcı kararıyla geçildi); backend E2E — local environment-limited, CI-authoritative (§4-4).
+- **COMPLETE** — RED gate kapsamı bitti: backend unit 553/553, typecheck 0, frontend vitest+ng-test 72/72, **frontend `ng build` PASS**, audit critical 0, plain `npm ci`, tüm release gate'leri (preflight 32/32 + 18/18, dry-run COMPLETE, actionlint 4/4, kustomize 35, helm+kubeconform 44/0/0, commitlint yalnızca baz-BOM artefaktıyla).
+- **PARTIAL/BLOCKED (belgeli):** frontend `lint` — referansı §4-1 (kullanıcı kararıyla geçildi); backend E2E — local environment-limited, CI-authoritative (§4-4).
 - Commit'lerle birlikte çalışma ağacı temiz olarak bırakılır (untracked sıfır).
