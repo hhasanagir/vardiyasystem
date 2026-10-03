@@ -27,8 +27,7 @@
   },
   "lint-staged": {
     "*.{ts,js}": [
-      "prettier --write",
-      "cd frontend && npx tsc --noEmit --pretty 2>&1 || true"
+      "prettier --write"
     ],
     "*.{json,scss,html,md}": [
       "prettier --write"
