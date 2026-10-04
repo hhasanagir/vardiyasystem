@@ -44,7 +44,7 @@
 | Frontend typecheck (CI gate)      | `npm run typecheck`                                  | PASS (0) — **gerçek gate**, §4-6 not                |
 | Frontend lint (CI gate)           | `npm run lint` (`eslint .`)                          | **PASS (exit 0)** — 0 hata, 379 uyarı (bkz. §4-1)   |
 | Root lint                         | `npm run lint` (frontend → backend)                  | PASS (exit 0)                                       |
-| Hook birim testleri               | `node --test scripts/lint-staged-typecheck.test.mjs` | **12/12**                                           |
+| Hook birim testleri               | `node --test scripts/lint-staged-typecheck.test.mjs` | **14/14** — CI'da 3 workflow'da zorunlu             |
 | Pre-commit hook                   | `husky` → `npx lint-staged`                          | **ÇALIŞIYOR** — tip hatasıyla commit'i bloke ediyor |
 | Frontend `ng build` (üretim)      | `npm run build`                                      | **PASS** — 0 hata, **0 uyarı** (bkz. §4-2, §4-6)    |
 
@@ -119,13 +119,19 @@
    - Workspace'ler diskten keşfediliyor (`package.json` + `tsconfig.json` + kendi TypeScript'i) ve staged dosyalara göre **yalnızca ilgili workspace'ler** seçiliyor → (d) çözüldü.
    - `tsc` doğrudan `process.exit` koduyla çalıştırılıyor, `|| true` yok, `stdio: 'inherit'` ile gerçek hata çıktısı (dosya/satır/caret) görünür, derleyici yoksa **sessizce geçmek yerine hata verir** → (e) çözüldü.
    - **Boş-gate koruması:** `tsc -p`, `files: []` + `references` içeren solution-style bir kök tsconfig üzerinde **hiçbir dosyayı kontrol etmeden exit 0** verir. Script bunu bir çözüm dosyası sayar ve `references` içindeki gerçek projeleri kontrol eder → (f) benzeri sessiz geçişler kapatıldı.
-   - 12 adet `node --test` birim testi (`scripts/lint-staged-typecheck.test.mjs`, repo konvansiyonuna uygun) workspace yönlendirmesini ve tsconfig çözümlemesini kilitler; "checks nothing" sınıfı regresyonlar için ayrı testler vardır.
+   - 14 adet `node --test` birim testi (`scripts/lint-staged-typecheck.test.mjs`, repo konvansiyonuna uygun) workspace yönlendirmesini, opt-in kuralını ve tsconfig çözümlemesini kilitler; "checks nothing" sınıfı regresyonlar için ayrı testler vardır. Suite CI'da üç workflow'da da zorunlu.
 
    **Ek gerçek bulgu — frontend `typecheck` script'i de boştu.** `frontend/package.json` içindeki `"typecheck": "npx tsc --noEmit"` varsayılan `tsconfig.json`'ı kullanıyordu; o dosya `"files": []` + `references` içerdiği için **hiçbir kaynak dosyayı kontrol etmeden exit 0** veriyordu. Doğrulandı: `frontend/src/` altına gerçek bir tip hatası bırakıldığında `npm run typecheck` **exit 0** verirken, `tsc -p tsconfig.app.json` aynı hatayı `TS2322` olarak yakalıyor. Bu script CI'da `pr-validation.yml:47` üzerinden koştuğu için frontend typecheck gate'i **bugüne kadar boştu**. `npx tsc --noEmit` yerine `tsc --noEmit -p tsconfig.app.json` yapıldı; artık gerçek bir gate.
 
-   **Maliyet:** frontend `tsconfig.app.json` ≈ 15 s, backend `tsconfig.json` ≈ 18 s. Yani hook artık **gerçekten zaman alıyor** (eski hâli saniyeler içinde "başarılı" oluyordu). Hook yalnızca staged dosyaların ait olduğu workspace'i çalıştırır; kök script dosyaları için atlanır.
+   **İkinci gerçek boşluk — spec dosyaları hiçbir yerde tip kontrol edilmiyordu.** `frontend/tsconfig.json` bir solution dosyası (`files: []` + `references`) ve yalnızca `tsconfig.app.json`'ı referanslıyordu; `tsconfig.spec.json` **grafiğin dışında** kalmıştı. Sonuç: `tsc` spec'leri atladı, vitest ise esbuild kullandığı için tip kontrolü yapmadan transpile etti — yani bir `.spec.ts` içindeki tip hatası **reponun hiçbir yerinde** yakalanmıyordu. Referans eklendi (`7fae115`); hook grafiği izlediği için frontend artık app + spec'i tek geçişte kontrol ediyor. Doğrulandı: spec dosyasına bırakılan tip hatası `TS2322` ile yakalanıyor ve commit bloklanıyor (Senaryo C).
 
-   **Kapsam dışı bırakılanlar (bilinçli):** `*.{ts,js}` glob'u `mjs`/`cjs` içermiyor; genişletilmedi, çünkü repodaki 10 `.mjs`/`.cjs` dosyasının 9'u prettier-clean değil ve glob'u genişletmek ilgisiz toplu yeniden biçimlendirme üretirdi. `frontend/tsconfig.spec.json` solution grafiğine referans vermiyor; hook workspace'in **beyan ettiği** projelere saygı gösteriyor ve spec dosyalarını sessizce kontrol etmiyor — bu, ayrı bir değerlendirme gerektirir (esbuild tabanlı vitest tip kontrolü yapmadığı için spec tip hataları şu an hiçbir yerde yakalanmıyor).
+   **Workspace opt-in kuralı.** Keşif `package.json` + `tsconfig.json` arıyordu ve bu, `e2e` Playwright projesini de içeri alıyordu. `e2e` tsconfig taşıyor ama tip kontrolü yapmadan transpile ediyor ve derleyici kurulu değil — yani `e2e` dosyasına dokunan bir commit, derleyicisi olmayan bir workspace'e yönlendirilip **"no TypeScript installed"** ile **yanlışlıkla bloklanırdı**. Opt-in ölçütü artık "TypeScript declare ediyor" (`6b2c828`): derleyicisi eksik olan ama TypeScript declare eden workspace yine keşfedilir, çünkü asıl risk sessiz geçiştir. Testler bunu kilitliyor.
+
+   **Maliyet:** frontend `tsconfig.app.json` ≈ 15 s, `tsconfig.spec.json` ≈ 7 s, backend `tsconfig.json` ≈ 18 s. Yani hook artık **gerçekten zaman alıyor** (eski hâli saniyeler içinde "başarılı" oluyordu; ölçülen pozitif senaryo ≈ 35 s). Hook yalnızca staged dosyaların ait olduğu workspace'i çalıştırır; kök script dosyaları ve `e2e` atlanır. Kullanıcı kararıyla **daraltılmadı**: bu, bir gate'in gerçek maliyetidir ve CI gate'i zaten aynı kontrolü yapıyor.
+
+   **Kapsam genişletmesi (tamamlandı).** `*.{ts,js,mjs,cjs}` glob'larına genişletildi (`c7e6eef`) ve kök `format`/`format:check` script'leri de eşitlendi. Önce repodaki 10 `.mjs`/`.cjs` dosyası **ayrı bir committe** formatlandı (`daaf848`) — 9'u prettier-clean değildi; amaç, glob genişletmesinin kimsenin commit'ine ilgisiz toplu reformat sokmasını önlemekti. Doğrulama: `format:check` genişletmeden önce ve sonra **aynı 70 uyumsuz dosyayı** raporluyor, yani `mjs`/`cjs` **sıfır** yeni ihlal ekliyor.
+
+   **CI bağlantısı.** Hook testleri artık `ci.yml`, `deploy.yml` ve `pr-validation.yml` içinde preflight testinin yanına bağlı (`d79c9fd`) — aynı gerekçe: _kırmızıya gidemeyen gate gate değildir_. Üç dosya da YAML olarak parse edilip yeni adımın her birinde tam bir kez eklendiği doğrulandı.
 
 7. **`NG8107` optional-chain uyarıları — ÇÖZÜLDÜ.** `mobile-day-view.component.ts:26`'daki `currentDay()?.label` / `currentDay()?.dayOfMonth` için Angular "sol taraf null içermiyor" diyordu. Sebep: `computed(() => this.days()[this.currentIdx()] ?? null)` — `days()` elemanı tipi null içermediği için TypeScript `?? null` ifadesini daraltıp sonucu non-nullable yapıyor, oysa **runtime'da indeks taşması `undefined` verebilir**. `?.` kaldırmak runtime'da güvensiz olurdu; bunun yerine computed'a dürüst dönüş tipi verildi: `computed((): GridDay | null => ...)` (`GridDay` zaten dosyada import edilmişti). Sıfır runtime değişikliği, uyarılar kalıcı olarak gitti.
 8. **Bundle bütçeleri yeniden kalibre edildi (kullanıcı onayı).** `maximumError` eşikleri ölçülen değerlerin çok az üstündeydi — initial 619.23 kB / 650 kB sınır (**%5 pay**), en büyük component stili 24.17 kB / 25 kB (**%3 pay**), en büyük script 320.86 kB / 350 kB (**%8 pay**). Yani birkaç yüzde lik meşru bir değişiklik build'i kıracaktı; gate'ler tripwire olmuştu. Ölçülen değerlere göre yeniden ayarlandı: `initial` 700 kB / 850 kB, `anyComponentStyle` 28 kB / 40 kB, `anyScript` 400 kB / 500 kB. `bundle` (500 kB / 1 MB) zaten iki eşiğin de altında olduğu için **dokunulmadı**. Böylece kalıcı gürültü bitti ve bütçeler yeniden regresyon avcısı işlevi görür. Build artık **0 hata, 0 uyarı**.
@@ -149,13 +155,22 @@ Sıralı, konu-bazlı commit'ler (yeni commit'lerin her biri `npx commitlint --e
 7. `fix(frontend): restore zero-byte layout, settings and radiation-safety components`
 8. `build(frontend): make the lint gate runnable and align eslint template parser`
 9. `fix(build): clear NG8107 warnings and recalibrate bundle budgets`
-10. `build(repo): drop non-portable typecheck from the pre-commit hook`
+10. `fix(hooks): repair the pre-commit typecheck gate at its root cause`
+11. `style(scripts): format the existing .mjs and .cjs files with prettier`
+12. `fix(hooks): only gate workspaces that declare typescript`
+13. `fix(frontend): typecheck the spec project in the declared graph`
+14. `build(repo): cover mjs and cjs in the pre-commit hook`
+15. `ci: run the pre-commit gate test suite in every workflow`
 
-**Nelere dokunulmadı:** push / PR / GHCR push / Helm kurulumu / kubectl apply / üretim DB migration / geçmiş yeniden yazma / `reset --hard` / test zayıflatma (`.skip`, `.only`, timeout artışı, fake assert, `any`-maskeleme).
+> Not — 10 numaralı commit, bir önceki turda yapılan "workaround"ı (hook görevini silmek) kök neden analiziyle tersine çevirdi. O workaround geri alındı; satır silinerek değil, kabuk bağımlılığı kaldırılarak düzeltildi.
+
+**Nelere dokunulmadı:** PR / GHCR push / Helm kurulumu / kubectl apply / üretim DB migration / geçmiş yeniden yazma / `reset --hard` / `--no-verify` / hook devre dışı bırakma / lint devre dışı bırakma / hata bastırma / test zayıflatma (`.skip`, `.only`, timeout artışı, fake assert, `any`-maskeleme).
 
 ## 6. Son durum
 
-- **COMPLETE** — RED gate kapsamı bitti: backend unit 553/553 + lint 0/0 + typecheck 0, frontend vitest+ng-test 72/72 + typecheck 0 + **lint 0 hata (exit 0)** + **`ng build` PASS (0 hata, 0 uyarı)**, audit critical 0, plain `npm ci`, root `npm run lint` PASS, tüm release gate'leri (preflight 32/32 + 18/18, dry-run COMPLETE, actionlint 4/4, kustomize 35, helm+kubeconform 44/0/0, commitlint yalnızca baz-BOM artefaktıyla). Pre-commit hook da çalışır durumda.
+- **COMPLETE** — RED gate kapsamı bitti: backend unit 553/553 + lint 0/0 + typecheck 0, frontend test 72/72 + typecheck 0 (app **ve** spec) + **lint 0 hata (exit 0)** + **`ng build` PASS (0 hata, 0 uyarı)**, hook testleri 14/14, preflight 32/32 + 18/18, audit critical 0, plain `npm ci`, root `npm run lint` ve root `npm run typecheck` PASS, commitlint yalnızca baz-BOM artefaktıyla.
+- **Pre-commit hook — ÇALIŞIR VE GERÇEK GATE.** Dört yönlü uçtan uca doğrulama, `--no-verify` **kullanılmadan**: (A) app tip hatası → **bloke**; (B) temiz kod → **geçti** (≈ 35 s); (C) spec tip hatası → **bloke** (`tsconfig.spec.json`); (D) temiz kod → **geçti**. Hiçbir senaryoda HEAD değişmedi ya da hook atlanmadı.
 - **PARTIAL/BLOCKED (belgeli):** backend E2E — local environment-limited, CI-authoritative (§4-4).
 - **BACKLOG (bilinçli karar, §4-9):** 379 frontend lint uyarısı, bundle küçültme, orphan `supervisor-center` feature'ı.
+- **PRE-EXISTING BORÇ (bu turun kapsamı dışında, CI'da değil):** kök `npm run format:check` 70 `.ts`/`.json` dosyasında uyumsuzluk raporluyor. Bu, glob genişletmesinden **önce de** vardı (önce/sonra aynı 70 dosya ölçüldü) ve hiçbir workflow `format:check` çalıştırmıyor. lint-staged yalnızca **staged** dosyaları formatladığı için bu borç geliştiriciyi rahatsız etmiyor; toplu 70 dosyalık reformat ayrı bir çalışma olarak değerlendirilmeli.
 - Commit'lerle birlikte çalışma ağacı temiz olarak bırakılır (untracked sıfır).
