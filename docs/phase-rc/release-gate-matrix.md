@@ -91,6 +91,19 @@ no gate ever runs the image it just built.
 | D4  | `docker-compose-validation` placeholder `.env` incomplete | Both `config -q` steps fail; `manifest-render` never runs       |
 | D5  | Frontend image serves the nginx base-image page           | The shipped SPA is never served; image still reports healthy    |
 
+Helm and Kubernetes validation added eight further defects, D6-D13, all recorded with root cause
+and remediation in the Helm section below. The two that would corrupt production data if shipped:
+
+| ID  | Defect                                                       | Impact                                                                      |
+| --- | ------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| D6  | Helm path renders no NetworkPolicy, RBAC, quota or SA        | Helm installs lose the isolation `k8s/` enforces                            |
+| D7  | `postgres.replicaCount: 2` with no replication in production | Two writable primaries behind one headless Service; dataset splits silently |
+
+D8-D13 are missing probes, missing resource bounds, absent container hardening, the missing
+`values/dev.yaml`, a deprecated Ingress class annotation, and subcharts that cannot be linted
+standalone. None of these are style complaints: D7 alone makes the production database unsafe to
+point at real traffic.
+
 ## Container validation
 
 Measured by building and then **running** both images locally. No dependency or application code
@@ -300,6 +313,259 @@ raw commit object. That single commit is the whole difference. It stays: correct
 rewrite its SHA and all 21 commits above it, no automated path lints a range containing it, and
 `.husky/commit-msg` already rejects a BOM so it cannot recur.
 
+## Helm and Kubernetes validation
+
+Container validation is **not** green — defect D5 still stands — so this pass is read-only. Nothing
+was deployed, no migration was executed, nothing was pushed to GHCR. Every command below is
+`lint`/`template`/`kustomize`/schema validation against a local render.
+
+Tools: `helm` v4.3.0 (WinGet), `kubeconform` v0.8.0 (downloaded to a temp dir, not added to the
+repo), `kubectl` with built-in kustomize. No cluster was reachable, so `kubectl --dry-run=client
+--validate=true` fails on `localhost:8080` OpenAPI discovery. That is a missing cluster, not a
+manifest defect; `kubeconform` covers the same ground offline.
+
+### Render and schema validation
+
+<!-- prettier-ignore -->
+| Environment | Command | Result |
+| --- | --- | --- |
+| default | `helm lint infra/helm/vardiya-platform` | exit 0 |
+| staging | `helm lint ... -f values/staging.yaml` | exit 0 |
+| production | `helm lint ... -f values/production.yaml` | exit 0 |
+| default | `helm template` | 44 manifests |
+| staging | `helm template -f values/staging.yaml` | 44 manifests |
+| production | `helm template -f values/production.yaml` | 44 manifests |
+| all three | `kubeconform -strict -kubernetes-version 1.31.0` | 44 valid, 0 invalid, 0 errors |
+| `k8s/` | `kubectl kustomize k8s` → `kubeconform` | 35 valid, 0 invalid |
+| sealed | `kubectl kustomize infra/sealed-secrets` → `kubeconform` | 4 valid, 0 invalid |
+
+Without a CRD catalog `kubeconform` reports 3 schema-not-found errors (`Certificate`, 2×
+`ServiceMonitor`). Those are first-party CRDs the offline binary cannot know; with
+`https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json`
+all 44 validate. Not a chart defect.
+
+### Reference integrity - clean
+
+Every cross-reference in the production render resolves:
+
+<!-- prettier-ignore -->
+| Reference | Count | Result |
+| --- | --- | --- |
+| `configMapKeyRef` / volume `configMap` | 6 | all resolve to the 6 rendered ConfigMaps, 0 orphans |
+| `secretKeyRef` / volume `secret` | 4 | resolve to the 4 `infra/sealed-secrets` SealedSecrets |
+| `claimName` → PVC | 5 | all resolve |
+| HPA `scaleTargetRef` | 2 | backend, frontend |
+| PDB `selector` | 2 | backend, frontend |
+| ServiceMonitor `selector` | 2 | backend, `redis` |
+| Ingress backend → Service:port | 4 | all exist and ports match |
+
+No plaintext secret is rendered. An automated scan flagged 17 lines, and all 17 are false
+positives: they are the `key:` field **inside** `secretKeyRef`, not values.
+
+`helm template` also emits the pgbouncer image as `"bitnamilegacy/pgbouncer:..."` with literal
+quotes from the template. Valid YAML, no effect.
+
+### Defect D6 - the Helm path has no network policy, RBAC, quota or ServiceAccount
+
+The repo ships two deployment paths and they are not equivalent:
+
+<!-- prettier-ignore -->
+| Resource | `helm/` render | `k8s/` kustomize |
+| --- | --- | --- |
+| NetworkPolicy | **0** | 8 |
+| ClusterRole / ClusterRoleBinding | **0** | 1 / 1 |
+| Role / RoleBinding | **0** | 1 / 1 |
+| ServiceAccount | **0** | 2 |
+| ResourceQuota | **0** | 1 |
+| LimitRange | **0** | 1 |
+| Namespace | **0** | 1 |
+
+Every workload in the Helm render runs as `serviceAccountName: (default)` and no ServiceAccount
+object is created. The Helm path therefore deploys with none of the isolation the kustomize path
+enforces.
+
+**Root cause:** the chart covers application workloads only; the namespace, RBAC and
+NetworkPolicy layers exist solely under `k8s/` and were never ported into
+`infra/helm/vardiya-platform`.
+
+**Remediation:** add ServiceAccount objects and `serviceAccountName` to every chart workload;
+either port the 8 NetworkPolicies and the quota/LimitRange into the chart or make the chart
+consume a pre-created namespace and record which path is authoritative. Until then exactly one
+path must be declared the source of truth, because a production install through Helm silently
+loses all network isolation.
+
+### Defect D7 - production Postgres scales to 2 replicas with no replication
+
+`values/production.yaml` sets `postgres.replicaCount: 2`. The rendered StatefulSet has **one**
+`volumeClaimTemplate` (`postgres`, 50Gi, `gp3`), no replication configuration of any kind, and its
+service is headless (`clusterIP: None`) selecting `app.kubernetes.io/component: postgres`. Staging
+and default are `replicas: 1`.
+
+`charts/postgres/templates/statefulset.yaml` contains no `replication`, `primary`, `standby`,
+`wal_level`, `master`, `repmgr`, `patroni` or `pg_basebackup` directive. So the second replica is
+not a hot standby — it is a second independent, writable PostgreSQL instance that receives its own
+50Gi volume, and the headless service resolves both pod IPs. A client connecting to
+`vardiya-postgres` lands on whichever pod DNS returns first and can write to either, splitting the
+dataset with no replication and no conflict detection.
+
+**Root cause:** `replicaCount` was raised for capacity, but the subchart is a single-instance
+Postgres; the replica count is being used as a capacity knob where the chart only supports
+scale-out via real replication.
+
+**Remediation:** set `postgres.replicaCount: 1` in `values/production.yaml` and scale vertically
+(bigger `resources`, `storage.size`, `pgbouncer`) until a streaming or Patroni-based subchart is in
+place. If replication is genuinely wanted, replace the subchart with one that implements it and
+verify failover before re-enabling a replica count above 1.
+
+### Defect D8 - probes missing on the whole monitoring stack
+
+Identical in all three environments, so this is chart-level, not environment drift:
+
+<!-- prettier-ignore -->
+| Workload | Missing |
+| --- | --- |
+| `vardiya-alertmanager` | liveness, readiness |
+| `vardiya-grafana` | liveness, readiness |
+| `vardiya-loki` | liveness, readiness |
+| `vardiya-prometheus` | liveness, readiness |
+| `vardiya-tempo` | liveness, readiness |
+| `vardiya-redis-sentinel` | liveness |
+
+`vardiya-backend`, `vardiya-frontend`, `vardiya-pgbouncer`, `vardiya-pgbouncer-exporter`,
+`vardiya-postgres` and `vardiya-redis` all have complete probes.
+
+**Root cause:** the monitoring subcharts were contributed without probe definitions, and nothing in
+lint or `kubeconform` requires them.
+
+**Remediation:** add liveness and readiness probes per component (`/-/ready` and `/-/healthy` for
+Prometheus, `/api/v1/status/config` for Alertmanager, `/ready` for Loki, `/api/health` for Tempo,
+`/ready` for Grafana) and a liveness probe for sentinel. Note these subcharts are not hardened at
+all — see D10.
+
+### Defect D9 - resource requests and limits missing
+
+<!-- prettier-ignore -->
+| Workload | Missing |
+| --- | --- |
+| `Deployment/vardiya-redis-sentinel` | requests, limits |
+| `CronJob/vardiya-postgres-backup` | requests, limits |
+
+The other 11 workloads all declare both. This matters more than usual here because the backup
+CronJob is the data-durability path: an unbounded backup competes with production workloads and
+can be evicted or OOM-killed mid-`pg_dump`.
+
+**Root cause:** values were not defined for these two workloads; no chart-level required-field
+check exists.
+
+**Remediation:** give sentinel and the backup CronJob explicit `resources.requests`/`limits`, and
+add a Helm-unittest or `kubeconform`-adjacent policy check so a future subchart cannot ship
+without them.
+
+### Defect D10 - container hardening is absent outside backend and frontend
+
+Across all 12 workloads and all three environments:
+
+<!-- prettier-ignore -->
+| Control | Result |
+| --- | --- |
+| `allowPrivilegeEscalation: false` | **0 of 12** |
+| `readOnlyRootFilesystem` | **0 of 12** |
+| `capabilities.drop: [ALL]` | **0 of 12** |
+| `runAsNonRoot` | 3 of 12 — only backend, frontend, migrate |
+
+Only `vardiya-backend`, `vardiya-frontend` and the migrate Job set
+`runAsNonRoot` + `runAsUser: 100`. The monitoring stack, Postgres, PgBouncer, Redis and the backup
+CronJob set no pod-level security context at all — Prometheus alone sets `runAsUser: 65534`.
+The containers verified earlier in the image stage do run as non-root, but the manifests do not
+require it, so a tag change can silently reintroduce root.
+
+**Root cause:** the app charts were hardened from the container side; the platform subcharts
+vendored from upstream were adopted with their defaults.
+
+**Remediation:** set a pod-level `securityContext` (`runAsNonRoot: true`, `runAsUser`, `fsGroup`,
+`seccompProfile: RuntimeDefault`) and a container-level context
+(`allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`, `readOnlyRootFilesystem: true` where
+the component tolerates it) across every subchart. Mirror the pattern already used in
+`charts/backend` and `charts/frontend`.
+
+### Defect D11 - no dev values, and dev is neither represented nor tested
+
+The chart ships `values.yaml` plus `values/staging.yaml` and `values/production.yaml`. There is no
+`values/dev.yaml`, and `k8s/` has no dev overlay either. So "dev" is only the un-overridden
+default, which carries `vardiya.example.com` and `replicas: 2` — production-shaped defaults that
+are still placeholders.
+
+Staging and production do diverge meaningfully, so the override mechanism works: `0 */2 * * *`
+backup schedule, `replicas` 2→3 backend / 3→2 PgBouncer / 1→2 Postgres / 3→5 Redis, HPA max
+10→4, storage 50Gi, retention 60.
+
+**Root cause:** dev was treated as "the default" and never given its own reviewed overlay.
+
+**Remediation:** add `values/dev.yaml` with `replicas: 1`, single-instance Postgres, a local
+ingress host and disabled TLS, and include dev in the lint/template/kubeconform matrix so all four
+environments are validated on every change.
+
+### Defect D12 - Ingress uses the deprecated class annotation
+
+`charts/ingress/templates/ingress.yaml` sets
+`kubernetes.io/ingress.class: {{ .Values.className }}` at line 9. Every environment renders
+`ingressClassName: undefined`. On a cluster hosting more than one ingress controller the legacy
+annotation can route to the wrong controller, and `nginx` ignores `ingressClassName` when the
+annotation is present.
+
+**Root cause:** the template predates `spec.ingressClassName`.
+
+**Remediation:** emit `spec.ingressClassName: {{ .Values.ingressClassName }}` and keep the
+annotation only if a specific controller still needs it. Rename the values key to match so the
+field is discoverable.
+
+### Defect D13 - every subchart fails `helm lint` on its own
+
+`helm lint` on the umbrella passes 3/3, but each of `charts/backend`, `charts/frontend`,
+`charts/postgres`, `charts/pgbouncer`, `charts/redis-cluster`, `charts/monitoring` and
+`charts/ingress` exits 1. Example: `charts/backend/values.yaml` does not exist, so
+`.Values.serviceMonitor.enabled` dereferences nil.
+
+**Root cause:** subcharts have no `values.yaml`, so all values arrive from the umbrella. That is a
+legitimate layout, but it means subcharts cannot be linted, documented or consumed independently.
+
+**Remediation:** give each subchart a minimal `values.yaml` with safe defaults (the same values
+the umbrella passes down), which makes standalone `helm lint` meaningful and lets a single
+subchart be reused. Until then lint the umbrella only and say so in CI, so the failures are not
+silently ignored.
+
+### Minor findings, not release blockers
+
+- ServiceMonitor `vardiya-redis` selects **both** `vardiya-redis` and `vardiya-redis-cluster`,
+  so Redis metrics are scraped twice. Tighten the selector.
+- `helm template` and `k8s/` share 3 images and drift on 9: `frontend`, `postgres`,
+  `pgbouncer-exporter`, `grafana`, `loki`, `tempo`, `alertmanager`, `prometheus` exist only in
+  Helm. Expected given D6, but it means the two paths cannot be compared image-for-image until one
+  is retired.
+- All images are tag-pinned and none use `:latest`. Good.
+
+### Retracted during this pass
+
+Recorded so they are not re-raised. Each was a defect hypothesis that verification killed:
+
+- **Plaintext secrets in the render** — false. All 17 hits are `secretKeyRef` `key:` names.
+- **ConfigMaps rendered but unreferenced** — false. They are mounted as volumes; the first scan
+  only inspected env references.
+- **Two Services select the same Redis pods** — false. `vardiya-redis-cluster` is headless
+  (`clusterIP: None`) and `vardiya-redis` is a normal ClusterIP. No collision.
+- **Backup CronJob writes to an ephemeral path, and `retention` is dead config** — false. It
+  mounts PVC `vardiya-postgres-backups` at `/backups`, and `retention` is consumed by
+  `find /backups -name "vardiya_backup_*.dump" -mtime +{{ .Values.backup.retention }} -delete`.
+
+### Not evaluated
+
+No cluster existed and none was requested, so these stay unmeasured rather than passing:
+
+- Actual admission, webhook and CRD-version compatibility in a live cluster.
+- Storage class `gp3` availability, PVC binding and backup restore.
+- SealedSecret decryption, which needs the cluster's cert.
+- Whether `helm install` upgrades cleanly, and migration Job ordering against a live database.
+
 ## Local environment
 
 | Service       | Endpoint                                  | State                                             |
@@ -307,6 +573,8 @@ rewrite its SHA and all 21 commits above it, no automated path lints a range con
 | PostgreSQL 15 | `localhost:55432` (`vardiya-rc-postgres`) | up, `vardiyasystem_e2e`, 23/23 migrations, seeded |
 | Redis 7       | `localhost:56379` (`vardiya-rc-redis`)    | up, `PING` → `PONG`                               |
 
-Absent locally, therefore not evaluable here: `helm`, `kustomize`, `actionlint`, `kubeconform`,
-`gitleaks`, `trufflehog`. `kubectl` is present. `bash` resolves to the WSL launcher stub with no
-distribution installed, so `scripts/release-dry-run.sh` cannot run on this host at all.
+`helm` v4.3.0 and `kubeconform` v0.8.0 were installed for the pass above; `kubectl` provides
+kustomize. Still absent locally, therefore not evaluable here: `actionlint`, `gitleaks`,
+`trufflehog`. `bash` resolves to the WSL launcher stub with no distribution installed, so
+`scripts/release-dry-run.sh` still cannot run on this host — the Helm and kustomize steps it wraps
+were executed directly instead.
