@@ -33,19 +33,23 @@
 
 ## 2. Regresyon gate'leri (re-run)
 
-| Gate                              | Komut                                    | Sonuç                                             |
-| --------------------------------- | ---------------------------------------- | ------------------------------------------------- |
-| Backend typecheck                 | `tsc --noEmit`                           | PASS (0)                                          |
-| Backend unit                      | `npm run test` (vitest run)              | **43/43 dosya, 553/553**                          |
-| Backend lint                      | `npm run lint` (`scripts/lint-gate.mjs`) | PASS — 0 hata, 0 uyarı (baseline `maxErrors: 0`)  |
-| Frontend `npm ci`                 | düz `npm ci`                             | PASS                                              |
-| Frontend `ng test` (CI unit gate) | `npm run test`                           | **8/8 dosya, 72/72**                              |
-| Frontend `npx vitest run`         | configured set                           | **8/8 dosya, 72/72**                              |
-| Frontend typecheck (CI gate)      | `npm run typecheck`                      | PASS (0)                                          |
-| Frontend lint (CI gate)           | `npm run lint` (`eslint .`)              | **PASS (exit 0)** — 0 hata, 379 uyarı (bkz. §4-1) |
-| Root lint                         | `npm run lint` (frontend → backend)      | PASS (exit 0)                                     |
-| Frontend `ng build` (üretim)      | `npm run build`                          | **PASS** — 0 hata, **0 uyarı** (bkz. §4-2, §4-6)  |
+| Gate                              | Komut                                                | Sonuç                                               |
+| --------------------------------- | ---------------------------------------------------- | --------------------------------------------------- |
+| Backend typecheck                 | `tsc --noEmit`                                       | PASS (0)                                            |
+| Backend unit                      | `npm run test` (vitest run)                          | **43/43 dosya, 553/553**                            |
+| Backend lint                      | `npm run lint` (`scripts/lint-gate.mjs`)             | PASS — 0 hata, 0 uyarı (baseline `maxErrors: 0`)    |
+| Frontend `npm ci`                 | düz `npm ci`                                         | PASS                                                |
+| Frontend `ng test` (CI unit gate) | `npm run test`                                       | **8/8 dosya, 72/72**                                |
+| Frontend `npx vitest run`         | configured set                                       | **8/8 dosya, 72/72**                                |
+| Frontend typecheck (CI gate)      | `npm run typecheck`                                  | PASS (0) — **gerçek gate**, §4-6 not                |
+| Frontend lint (CI gate)           | `npm run lint` (`eslint .`)                          | **PASS (exit 0)** — 0 hata, 379 uyarı (bkz. §4-1)   |
+| Root lint                         | `npm run lint` (frontend → backend)                  | PASS (exit 0)                                       |
+| Hook birim testleri               | `node --test scripts/lint-staged-typecheck.test.mjs` | **12/12**                                           |
+| Pre-commit hook                   | `husky` → `npx lint-staged`                          | **ÇALIŞIYOR** — tip hatasıyla commit'i bloke ediyor |
+| Frontend `ng build` (üretim)      | `npm run build`                                      | **PASS** — 0 hata, **0 uyarı** (bkz. §4-2, §4-6)    |
 
+> NOT — Frontend typecheck: script `npx tsc --noEmit` varsayılan `tsconfig.json`'ı kullanıyordu; o dosya `"files": []` + `references` içerdiği için **hiçbir kaynak dosyayı kontrol etmeden exit 0** veriyordu. Yani tablodaki "PASS (0)" bir **yanlış geçiş**ti ve CI gate'i (`pr-validation.yml:47`) bugüne kadar boştu. `-p tsconfig.app.json` ile gerçek gate'e çevrildi ve gerçek bir tip hatasıyla doğrulandı. Kanıt ve tüm kusur zinciri §4-6.
+>
 > NOT — `npm run lint` (frontend): **PASS**. Bu görevde kapatıldı: script `npx ng lint` çağırıyordu ama `angular.json`'da `lint` architect target'ı yoktu → `Cannot find "lint" target`. Çözüm ve kanıt §4-1'de.
 >
 > NOT — `ng build` (üretim): **PASS**. Bu görevde P0 olarak kapatıldı: bazda takipli 3 component dosyası **0 byte** commit edilmişti (`frontend/src/app/layouts/main-layout/main-layout.component.ts`, `components/settings/settings.component.ts`, `features/radiation-safety/radiation-safety.component.ts`); `app.routes.ts` bunları lazy-import ediyordu → `TS2306 ... is not a module`. Geri yükleme + uyarlama §4-2'de. `NG8107` uyarıları ve bütçe aşımları da giderildi (§4-5, §4-6); build artık tamamen uyarısız.
@@ -88,7 +92,41 @@
 3. **commitlint BOM artefaktı.** Baz commit `7c9eb76` mesajı U+FEFF ile başlıyor; git geçmişi yeniden yazılmaz → bu commit için commitlint kalıcı FAIL. Yeni commit'ler conventional style'da, BOM'suz (doğrulama §5).
 4. **Backend E2E local sınırlı (CI-authoritative).** 8 e2e dosyası; 30s hook timeout + WSL2–Docker postgres gecikmesi local koşuyu kesiyor (önceden ölçülen `slow_query_detected` ~100–220 ms/sorgu; `metrics_registered` boot kanıtı). CI tarihsel referansı: 85/85 (`p4-04`). Gerçek yeşil sayı yalnızca CI koşusunda doğrulanabilir. Konteynerler: `vardiya-rc-postgres` / `vardiya-rc-redis` ayakta.
 5. **İkincil checkout kopyası** güncellenmedi (OneDrive ağacı `7c9eb76`'da temiz duruyor). Bu remediyasyon + commit'ler yalnızca kanonik `C:\dev\vardiyasystem`.
-6. **Kırık pre-commit hook — ÇÖZÜLDÜ.** Root `package.json` lint-staged'da `*.{ts,js}` için `cd frontend && npx tsc --noEmit --pretty 2>&1 || true` çalıştırılıyordu. İki ayrı kusuru vardı: (a) komut Windows'ta parse edilemiyor (`Sistem belirtilen yolu bulamıyor` → lint-staged FAILED → **her commit** bu hook yüzünden başarısızdı); (b) glob hem backend hem frontend `.ts` dosyalarını eşleştiriyor ama komut frontend'e sabit `cd` ile gidiyor, yani bir backend dosyası commit'lerken bile frontend typecheck çalışıyordu. Ayrıca `|| true` zaten komutu bloklamayan (non-blocking) niyetini gösteriyordu, yani gerçek bir gate değildi. **Full-project typecheck'in commit-time staged-file hook'una ait olmadığı** için kaldırıldı: lint-staged artık yalnızca `prettier --write` yapıyor (taşınabilir, hızlı, yanlış gate yok). Typecheck ve lint hâlâ CI `lint-typecheck` işinde **gerçek ve bloklayıcı** gate olarak çalışıyor.
+6. **Kırık pre-commit hook — KÖK NEDEN BULUNDU ve ÇÖZÜLDÜ.** Root `package.json` lint-staged'da `*.{ts,js}` için `cd frontend && npx tsc --noEmit --pretty 2>&1 || true` çalıştırılıyordu. Bu satır silinerek "geçici workaround" uygulanmıştı; sonradan yapılan kök neden analiziyle **asıl hata zinciri** çıkarıldı ve kalıcı çözüm kuruldu.
+
+   **Kanıt (lint-staged `DEBUG=lint-staged:resolveTaskFn` ile yeniden üretildi):**
+
+   ```
+   resolveTaskFn cmd:  cd
+   resolveTaskFn args: [ 'frontend', '&&', 'npx', 'tsc',
+                         '--noEmit', '--pretty', '2>&1', '||', 'true' ]
+   resolveTaskFn execaOptions: { cwd: 'C:\\dev\\vardiyasystem',
+                                 preferLocal: true, shell: false }
+   [FAILED] cd frontend && npx tsc --noEmit --pretty 2>&1 || true
+   Dosya adı, dizin adı veya birim etiketi sözdizimi hatalı.
+   ```
+
+   **Tespit edilen kusurlar (birbirinden bağımsız, hepsi ölçüldü):**
+   - **(a) Shell yok — asıl ölüm sebebi.** lint-staged 15.5.2 görevleri `shell: false` ile çalıştırır (`lib/index.js:80`, `lib/resolveTaskFn.js`): komut dizesi `string-argv` ile boşluktan bölünür ve **ilk token doğrudan program olarak spawn edilir**. `cd` bir cmd.exe builtin'dir, diskte `cd.exe` yoktur; `&&`, `||`, `2>&1` literal argv'ye düşer, hiç yorumlanmaz. Sonuç: `CreateProcess` → `ERROR_INVALID_NAME` ("Dosya adı, dizin adı veya birim etiketi sözdizimi hatalı"). Derleyici hiç çalışmadan komut çöker.
+   - **(b) Yanlış derleyici sürümü.** `cd` hiç çalışmadığı için `cwd` repo kökü (`C:\dev\vardiyasystem`) olarak kalıyor. `preferLocal: true` yüzünden `<root>/node_modules/.bin` PATH'e öncelikli giriyor ve orada **peer olarak hoist'lanmış `typescript@6.0.3`** bulunuyor (root `package.json`'da typescript **declare edilmemiş**). Ölçüldü: `npx tsc --version` → kökte **6.0.3**, frontend'de **5.9.3** (`~5.9.2`). Yani hook, projeye ait olmayan bir derleyici sürümüyle çalışıyordu.
+   - **(c) Kökte kontrol edilecek proje yok.** Repo kökünde `tsconfig.json` **yok**; kökten `npx tsc --noEmit` doğrudan `tsc` yardım metnini basıp exit 1 veriyor.
+   - **(d) Yanlış workspace kapsamı.** Glob `*.{ts,js}` kök-göreli ve backend `.ts` dosyalarını da eşleştiriyor, ama komut frontend'e sabit `cd` ile gidiyor: bir backend dosyası commit'lerken frontend typecheck çalışıyor, backend hiç kontrol edilmiyordu. Kanonik doğru kapsam root `typecheck` script'idir (`frontend` **ve** `backend`).
+   - **(e) Hiçbir zaman gate değildi.** `|| true` yapılandırma gereği exit 0'ı zorlar. Yani "başarılı" görünse bile hiçbir şeyi engellemiyordu.
+   - **(f) Yanlış yönlendirme.** `2>&1` anlamsız: execa `reject: false` ile stdout/stderr'ı ayrı yakalayıp kendisi basıyor; stderr'ı stdout'a katmak yalnızca çıktı ayrımını bozuyor.
+
+   **Çözüm (workaround değil, kalıcı):** Shell tamamen devre dışı bırakıldı. Yeni `scripts/lint-staged-typecheck.mjs`:
+   - `process.execPath` + workspace'in **kendi** `node_modules/typescript/bin/tsc` → doğru derleyici sürümü, PATH'e veya `.cmd` shim'e bağımlılık yok, shell yok → (a) ve (b) çözüldü.
+   - Workspace'ler diskten keşfediliyor (`package.json` + `tsconfig.json` + kendi TypeScript'i) ve staged dosyalara göre **yalnızca ilgili workspace'ler** seçiliyor → (d) çözüldü.
+   - `tsc` doğrudan `process.exit` koduyla çalıştırılıyor, `|| true` yok, `stdio: 'inherit'` ile gerçek hata çıktısı (dosya/satır/caret) görünür, derleyici yoksa **sessizce geçmek yerine hata verir** → (e) çözüldü.
+   - **Boş-gate koruması:** `tsc -p`, `files: []` + `references` içeren solution-style bir kök tsconfig üzerinde **hiçbir dosyayı kontrol etmeden exit 0** verir. Script bunu bir çözüm dosyası sayar ve `references` içindeki gerçek projeleri kontrol eder → (f) benzeri sessiz geçişler kapatıldı.
+   - 12 adet `node --test` birim testi (`scripts/lint-staged-typecheck.test.mjs`, repo konvansiyonuna uygun) workspace yönlendirmesini ve tsconfig çözümlemesini kilitler; "checks nothing" sınıfı regresyonlar için ayrı testler vardır.
+
+   **Ek gerçek bulgu — frontend `typecheck` script'i de boştu.** `frontend/package.json` içindeki `"typecheck": "npx tsc --noEmit"` varsayılan `tsconfig.json`'ı kullanıyordu; o dosya `"files": []` + `references` içerdiği için **hiçbir kaynak dosyayı kontrol etmeden exit 0** veriyordu. Doğrulandı: `frontend/src/` altına gerçek bir tip hatası bırakıldığında `npm run typecheck` **exit 0** verirken, `tsc -p tsconfig.app.json` aynı hatayı `TS2322` olarak yakalıyor. Bu script CI'da `pr-validation.yml:47` üzerinden koştuğu için frontend typecheck gate'i **bugüne kadar boştu**. `npx tsc --noEmit` yerine `tsc --noEmit -p tsconfig.app.json` yapıldı; artık gerçek bir gate.
+
+   **Maliyet:** frontend `tsconfig.app.json` ≈ 15 s, backend `tsconfig.json` ≈ 18 s. Yani hook artık **gerçekten zaman alıyor** (eski hâli saniyeler içinde "başarılı" oluyordu). Hook yalnızca staged dosyaların ait olduğu workspace'i çalıştırır; kök script dosyaları için atlanır.
+
+   **Kapsam dışı bırakılanlar (bilinçli):** `*.{ts,js}` glob'u `mjs`/`cjs` içermiyor; genişletilmedi, çünkü repodaki 10 `.mjs`/`.cjs` dosyasının 9'u prettier-clean değil ve glob'u genişletmek ilgisiz toplu yeniden biçimlendirme üretirdi. `frontend/tsconfig.spec.json` solution grafiğine referans vermiyor; hook workspace'in **beyan ettiği** projelere saygı gösteriyor ve spec dosyalarını sessizce kontrol etmiyor — bu, ayrı bir değerlendirme gerektirir (esbuild tabanlı vitest tip kontrolü yapmadığı için spec tip hataları şu an hiçbir yerde yakalanmıyor).
+
 7. **`NG8107` optional-chain uyarıları — ÇÖZÜLDÜ.** `mobile-day-view.component.ts:26`'daki `currentDay()?.label` / `currentDay()?.dayOfMonth` için Angular "sol taraf null içermiyor" diyordu. Sebep: `computed(() => this.days()[this.currentIdx()] ?? null)` — `days()` elemanı tipi null içermediği için TypeScript `?? null` ifadesini daraltıp sonucu non-nullable yapıyor, oysa **runtime'da indeks taşması `undefined` verebilir**. `?.` kaldırmak runtime'da güvensiz olurdu; bunun yerine computed'a dürüst dönüş tipi verildi: `computed((): GridDay | null => ...)` (`GridDay` zaten dosyada import edilmişti). Sıfır runtime değişikliği, uyarılar kalıcı olarak gitti.
 8. **Bundle bütçeleri yeniden kalibre edildi (kullanıcı onayı).** `maximumError` eşikleri ölçülen değerlerin çok az üstündeydi — initial 619.23 kB / 650 kB sınır (**%5 pay**), en büyük component stili 24.17 kB / 25 kB (**%3 pay**), en büyük script 320.86 kB / 350 kB (**%8 pay**). Yani birkaç yüzde lik meşru bir değişiklik build'i kıracaktı; gate'ler tripwire olmuştu. Ölçülen değerlere göre yeniden ayarlandı: `initial` 700 kB / 850 kB, `anyComponentStyle` 28 kB / 40 kB, `anyScript` 400 kB / 500 kB. `bundle` (500 kB / 1 MB) zaten iki eşiğin de altında olduğu için **dokunulmadı**. Böylece kalıcı gürültü bitti ve bütçeler yeniden regresyon avcısı işlevi görür. Build artık **0 hata, 0 uyarı**.
 9. **Backlog (bilinçli olarak bu turda yapılmadı — kullanıcı kararı).**

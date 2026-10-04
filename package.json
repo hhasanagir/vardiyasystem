@@ -27,7 +27,8 @@
   },
   "lint-staged": {
     "*.{ts,js}": [
-      "prettier --write"
+      "prettier --write",
+      "node scripts/lint-staged-typecheck.mjs"
     ],
     "*.{json,scss,html,md}": [
       "prettier --write"
