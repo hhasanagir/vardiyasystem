@@ -1,4 +1,4 @@
-﻿import { Routes } from '@angular/router';
+import { Routes } from '@angular/router';
 import { authGuard, roleGuard, rbacGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
 

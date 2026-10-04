@@ -1,4 +1,4 @@
-﻿import { Injectable, inject, effect } from '@angular/core';
+import { Injectable, inject, effect } from '@angular/core';
 import { ScheduleStore } from './schedule.store';
 import { MetricsStore } from './metrics.store';
 import { UnitStore } from './unit.store';

@@ -1,4 +1,4 @@
-﻿import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed } from '@angular/core';
 import { UnitType, UNIT_CONFIG } from './state.models';
 
 export interface NavItem {

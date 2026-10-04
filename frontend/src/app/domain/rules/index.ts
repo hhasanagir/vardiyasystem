@@ -1,4 +1,4 @@
-﻿import type { UnitType } from '../enums';
+import type { UnitType } from '../enums';
 import type { HolidayInfo } from '../models';
 import { ShiftTypeEnum, type ShiftType } from '../enums';
 

@@ -1,4 +1,4 @@
-﻿export type UnitType = 'mr' | 'bt' | 'rontgen' | 'nukleer' | 'onkoloji' | 'supervizor';
+export type UnitType = 'mr' | 'bt' | 'rontgen' | 'nukleer' | 'onkoloji' | 'supervizor';
 export type ShiftType =
   | 'day'
   | 'evening'

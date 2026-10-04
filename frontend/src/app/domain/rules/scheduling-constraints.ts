@@ -1,4 +1,4 @@
-﻿import type { UnitType } from '../enums';
+import type { UnitType } from '../enums';
 
 export const CONSTRAINT_RULES = {
   WORK_LAW: {

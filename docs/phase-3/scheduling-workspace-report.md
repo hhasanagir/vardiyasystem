@@ -1,4 +1,4 @@
-﻿# Phase 3: Scheduling Workspace - Implementation Report
+# Phase 3: Scheduling Workspace - Implementation Report
 
 **Date:** 21 August 2026
 **Status:** COMPLETE
@@ -15,6 +15,7 @@ Before Phase 3, the scheduling UI was fragmented:
 - `core/state/schedule.store.ts` (399 lines) - mixed concerns
 
 ### Problems
+
 1. No CQRS separation (query vs command)
 2. State management mixed with API calls
 3. No optimistic locking
@@ -29,11 +30,13 @@ Before Phase 3, the scheduling UI was fragmented:
 ## 2. New Frontend Architecture
 
 ### Stack
+
 - Angular 21.2, standalone components, signals, OnPush
 - No NgModules, lazy loading, flat routes
 - RxJS 7.8, Socket.IO, SCSS
 
 ### Principles
+
 1. Backend = Authoritative Source of Truth
 2. CQRS Pattern (queries vs commands)
 3. Signal-based State (ScheduleStore)
@@ -60,6 +63,7 @@ features/scheduling/
 ## 4. State Management
 
 ScheduleStore: 25+ computed signals
+
 - dirty, generating, publishing, connectionState, versionConflict
 - scheduleScore, filteredAssignments, uniquePersonnel, uniqueDevices
 - isEditable, hasVersionConflict, isBusy
@@ -70,17 +74,21 @@ ScheduleStore: 25+ computed signals
 ## 5. API Integration
 
 ### Query Service (16 typed methods)
+
 list, getById, create, addAssignment, overrideAssignment, updateAssignment,
 removeAssignment, submitForReview, approve, reject, publish, archive,
 revertToDraft, rollback, getVersion, validate
 
 ### Command Service
+
 Each command: read version -> set executing -> call API -> update store -> handle errors
 
 ### Realtime Service
+
 WebSocket presence, schedule updates, version conflict detection
 
 ### Offline Guard
+
 Blocks: publish, approve, rollback, reject, archive when disconnected
 
 ---
@@ -117,6 +125,7 @@ Blocks: publish, approve, rollback, reject, archive when disconnected
 ## 15. Tests
 
 ### Backend: 76/76 passing
+
 - value-objects: 21, aggregate: 19, constraints: 4, validation: 17, service: 15
 
 ### Frontend: Pending (Feature 41-42)
@@ -125,24 +134,24 @@ Blocks: publish, approve, rollback, reject, archive when disconnected
 
 ## 16. Security Fixes Applied
 
-| File | Fix |
-|------|-----|
-| auth.service.ts:221 | Removed token leak in console.error |
-| auth.interceptor.ts:60 | Removed response body echo |
-| auth.interceptor.ts:83 | Removed refreshError object logging |
-| conflict-validation.spec.ts | Fixed 1-arg signature match |
+| File                        | Fix                                 |
+| --------------------------- | ----------------------------------- |
+| auth.service.ts:221         | Removed token leak in console.error |
+| auth.interceptor.ts:60      | Removed response body echo          |
+| auth.interceptor.ts:83      | Removed refreshError object logging |
+| conflict-validation.spec.ts | Fixed 1-arg signature match         |
 
 ---
 
 ## 17. Legacy Candidates (NOT deleted)
 
-| Path | Status |
-|------|--------|
-| core/scheduling/ (13 files) | Dead code - safe to delete Phase 4 |
-| features/onkoloji/ (3 files) | Dead code - safe to delete Phase 4 |
-| core/state/stores.ts | Unused barrel - safe to delete Phase 4 |
-| services/schedule.service.ts | Still active - 15+ consumers |
-| features/plans/plan-page.component.ts | Still active - 6 routes |
+| Path                                  | Status                                 |
+| ------------------------------------- | -------------------------------------- |
+| core/scheduling/ (13 files)           | Dead code - safe to delete Phase 4     |
+| features/onkoloji/ (3 files)          | Dead code - safe to delete Phase 4     |
+| core/state/stores.ts                  | Unused barrel - safe to delete Phase 4 |
+| services/schedule.service.ts          | Still active - 15+ consumers           |
+| features/plans/plan-page.component.ts | Still active - 6 routes                |
 
 ---
 
@@ -170,37 +179,37 @@ Blocks: publish, approve, rollback, reject, archive when disconnected
 
 ## Acceptance Criteria
 
-| Criterion | Status |
-|-----------|--------|
-| Single authoritative Schedule Workspace | PASS |
-| Phase 2 API compatible frontend | PASS |
-| Typed schedule models | PASS |
-| Signal/store architecture | PASS |
-| Schedule grid | PASS |
-| Sticky headers | PASS |
-| Assignment editing | PASS |
-| Conflict visualization | PASS |
-| Validation panel | PASS |
-| Coverage panel | PASS |
-| Fairness panel | PASS |
-| Schedule score | PASS |
-| Generation workflow | PASS |
-| Version list | PASS |
-| Version comparison | PASS |
-| Approval workflow | PASS |
-| Publish workflow | PASS |
-| Rollback UX | PASS |
-| Optimistic lock UX | PASS |
-| WebSocket synchronization | PASS |
-| Permission-aware UI | PASS |
-| Loading states | PASS |
-| Error states | PASS |
-| Accessibility baseline | PASS |
-| Performance baseline | PASS |
-| Unit tests | PENDING (Feature 41) |
-| E2E tests | PENDING (Feature 42) |
-| No duplicate scheduling workspace | PASS |
-| Frontend tsc PASS | PASS |
-| Backend tsc PASS | PASS |
-| Typecheck PASS | PASS |
-| Backend tests PASS (76/76) | PASS |
+| Criterion                               | Status               |
+| --------------------------------------- | -------------------- |
+| Single authoritative Schedule Workspace | PASS                 |
+| Phase 2 API compatible frontend         | PASS                 |
+| Typed schedule models                   | PASS                 |
+| Signal/store architecture               | PASS                 |
+| Schedule grid                           | PASS                 |
+| Sticky headers                          | PASS                 |
+| Assignment editing                      | PASS                 |
+| Conflict visualization                  | PASS                 |
+| Validation panel                        | PASS                 |
+| Coverage panel                          | PASS                 |
+| Fairness panel                          | PASS                 |
+| Schedule score                          | PASS                 |
+| Generation workflow                     | PASS                 |
+| Version list                            | PASS                 |
+| Version comparison                      | PASS                 |
+| Approval workflow                       | PASS                 |
+| Publish workflow                        | PASS                 |
+| Rollback UX                             | PASS                 |
+| Optimistic lock UX                      | PASS                 |
+| WebSocket synchronization               | PASS                 |
+| Permission-aware UI                     | PASS                 |
+| Loading states                          | PASS                 |
+| Error states                            | PASS                 |
+| Accessibility baseline                  | PASS                 |
+| Performance baseline                    | PASS                 |
+| Unit tests                              | PENDING (Feature 41) |
+| E2E tests                               | PENDING (Feature 42) |
+| No duplicate scheduling workspace       | PASS                 |
+| Frontend tsc PASS                       | PASS                 |
+| Backend tsc PASS                        | PASS                 |
+| Typecheck PASS                          | PASS                 |
+| Backend tests PASS (76/76)              | PASS                 |

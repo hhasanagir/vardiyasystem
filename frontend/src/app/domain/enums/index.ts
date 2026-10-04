@@ -1,4 +1,4 @@
-﻿export const UnitTypeEnum = {
+export const UnitTypeEnum = {
   MR: 'mr',
   BT: 'bt',
   RONTGEN: 'rontgen',
