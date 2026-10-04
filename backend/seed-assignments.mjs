@@ -17,11 +17,15 @@ const SHIFT_TIMES = {
 
 async function main() {
   console.log('Seeding schedules and assignments for July 2026...');
-  const units = await prisma.unit.findMany({ where: { organizationId: ORG_ID } });
+  const units = await prisma.unit.findMany({
+    where: { organizationId: ORG_ID },
+  });
 
   for (const unit of units) {
     const existing = await prisma.schedule.findUnique({
-      where: { unitId_month_year: { unitId: unit.id, month: MONTH, year: YEAR } },
+      where: {
+        unitId_month_year: { unitId: unit.id, month: MONTH, year: YEAR },
+      },
     });
 
     let schedule = existing;
@@ -38,16 +42,24 @@ async function main() {
       console.log(`  Created schedule for ${unit.code}`);
     }
 
-    const devices = await prisma.device.findMany({ where: { unitId: unit.id, isActive: true } });
-    const personnel = await prisma.personnel.findMany({ where: { unitId: unit.id, isActive: true } });
+    const devices = await prisma.device.findMany({
+      where: { unitId: unit.id, isActive: true },
+    });
+    const personnel = await prisma.personnel.findMany({
+      where: { unitId: unit.id, isActive: true },
+    });
 
     if (devices.length === 0 || personnel.length === 0) continue;
 
     const shiftTypes = await prisma.shifts.findMany({
-      where: { organizationId: ORG_ID, deviceId: { in: devices.map(d => d.id) }, isActive: true },
+      where: {
+        organizationId: ORG_ID,
+        deviceId: { in: devices.map((d) => d.id) },
+        isActive: true,
+      },
       distinct: ['type'],
     });
-    const availableShifts = shiftTypes.map(s => s.type);
+    const availableShifts = shiftTypes.map((s) => s.type);
 
     let created = 0;
     for (let day = 1; day <= 14; day++) {
@@ -59,12 +71,21 @@ async function main() {
         for (const shiftType of availableShifts) {
           if (shiftType === 'night' && (day === 14 || day === 7)) continue;
 
-          const personnelPool = personnel.filter(p => p.nightShiftEligible || shiftType !== 'night');
+          const personnelPool = personnel.filter(
+            (p) => p.nightShiftEligible || shiftType !== 'night',
+          );
           if (personnelPool.length === 0) continue;
           const person = personnelPool[created % personnelPool.length];
 
           const exists = await prisma.assignment.findUnique({
-            where: { scheduleId_deviceId_date_shiftType: { scheduleId: schedule.id, deviceId: device.id, date: dateStr, shiftType } },
+            where: {
+              scheduleId_deviceId_date_shiftType: {
+                scheduleId: schedule.id,
+                deviceId: device.id,
+                date: dateStr,
+                shiftType,
+              },
+            },
           });
           if (exists) continue;
 
@@ -74,7 +95,10 @@ async function main() {
           });
           if (personBusy) continue;
 
-          const times = SHIFT_TIMES[shiftType] || { start: '08:00', end: '20:00' };
+          const times = SHIFT_TIMES[shiftType] || {
+            start: '08:00',
+            end: '20:00',
+          };
           await prisma.assignment.create({
             data: {
               scheduleId: schedule.id,
@@ -91,7 +115,9 @@ async function main() {
         }
       }
     }
-    console.log(`  +${created} assignments for ${unit.code} (${devices.length} cihaz, ${personnel.length} personel)`);
+    console.log(
+      `  +${created} assignments for ${unit.code} (${devices.length} cihaz, ${personnel.length} personel)`,
+    );
   }
 
   console.log('Assignment seeding complete.');

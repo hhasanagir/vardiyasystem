@@ -27,7 +27,10 @@ async function main() {
   if (!devices.length) throw new Error('Cihaz bulunamadı');
 
   const existing = await prisma.shifts.findMany({
-    where: { organizationId: org.id, deviceId: { in: devices.map((d) => d.id) } },
+    where: {
+      organizationId: org.id,
+      deviceId: { in: devices.map((d) => d.id) },
+    },
   });
 
   let created = 0;
@@ -47,7 +50,10 @@ async function main() {
     }
     for (const type of types) {
       const dup = existing.find(
-        (s) => s.deviceId === device.id && s.type === type && s.personnelType === 'technician',
+        (s) =>
+          s.deviceId === device.id &&
+          s.type === type &&
+          s.personnelType === 'technician',
       );
       if (dup) {
         skipped++;

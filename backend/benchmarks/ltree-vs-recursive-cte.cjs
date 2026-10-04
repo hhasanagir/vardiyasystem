@@ -18,7 +18,9 @@ async function measure(label, fn) {
   const avg = timings.reduce((a, b) => a + b, 0) / timings.length;
   const min = Math.min(...timings);
   const max = Math.max(...timings);
-  console.log(`  ${label}: avg=${avg.toFixed(2)}ms min=${min.toFixed(2)}ms max=${max.toFixed(2)}ms (${ITERATIONS} runs)`);
+  console.log(
+    `  ${label}: avg=${avg.toFixed(2)}ms min=${min.toFixed(2)}ms max=${max.toFixed(2)}ms (${ITERATIONS} runs)`,
+  );
   return { avg, min, max, timings };
 }
 
@@ -138,7 +140,9 @@ async function main() {
     const speedup = c.cte > 0 ? (c.cte / c.ltree).toFixed(2) : 'N/A';
     const ltreeStr = c.ltree.toFixed(2).padStart(8);
     const cteStr = c.cte.toFixed(2).padStart(8);
-    console.log(`${c.name.padEnd(26)} | ${ltreeStr}   | ${cteStr}  | ${speedup}x`);
+    console.log(
+      `${c.name.padEnd(26)} | ${ltreeStr}   | ${cteStr}  | ${speedup}x`,
+    );
   }
 
   await prisma.$disconnect();

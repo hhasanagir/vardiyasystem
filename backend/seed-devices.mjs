@@ -53,32 +53,53 @@ const SHIFT_TYPES = {
 
 const DEVICE_NAMES = {
   mr: [
-    'Siemens Magnetom Aera 1.5T', 'GE Signa Pioneer 3T', 'Philips Ingenia 1.5T',
-    'Canon Vantage Titan 3T', 'Siemens Magnetom Skyra 3T', 'GE Signa Voyager 1.5T',
-    'Philips Achieva 3T', 'Siemens Magnetom Avanto 1.5T',
+    'Siemens Magnetom Aera 1.5T',
+    'GE Signa Pioneer 3T',
+    'Philips Ingenia 1.5T',
+    'Canon Vantage Titan 3T',
+    'Siemens Magnetom Skyra 3T',
+    'GE Signa Voyager 1.5T',
+    'Philips Achieva 3T',
+    'Siemens Magnetom Avanto 1.5T',
   ],
   bt: [
-    'Siemens Somatom Force', 'GE Revolution EVO', 'Philips iCT 256',
-    'Canon Aquilion ONE', 'Siemens Somatom Go.Top', 'GE Optima CT660',
+    'Siemens Somatom Force',
+    'GE Revolution EVO',
+    'Philips iCT 256',
+    'Canon Aquilion ONE',
+    'Siemens Somatom Go.Top',
+    'GE Optima CT660',
     'Siemens Somatom Definition AS',
   ],
   rontgen: [
-    'Philips DigitalDiagnost C50', 'GE Definium 8000', 'Siemens Ysio Max',
-    'Canon AeroDR', 'Siemens Luminos Agile', 'GE OEC 9900 Elite',
-    'Siemens Cios Spin', 'Philips Veradius Unity', 'Carestream DRX-Evolution',
-    'Siemens Multix Fusion', 'GE Proteus XR/a', 'Siemens Luminos dRF',
+    'Philips DigitalDiagnost C50',
+    'GE Definium 8000',
+    'Siemens Ysio Max',
+    'Canon AeroDR',
+    'Siemens Luminos Agile',
+    'GE OEC 9900 Elite',
+    'Siemens Cios Spin',
+    'Philips Veradius Unity',
+    'Carestream DRX-Evolution',
+    'Siemens Multix Fusion',
+    'GE Proteus XR/a',
+    'Siemens Luminos dRF',
   ],
   nukleer: [
-    'GE Discovery NM/CT 670', 'Siemens Symbia T6', 'Philips BrightView XCT',
-    'Siemens Symbia Intevo', 'GE NM 830', 'Canon Lucida Gamma',
+    'GE Discovery NM/CT 670',
+    'Siemens Symbia T6',
+    'Philips BrightView XCT',
+    'Siemens Symbia Intevo',
+    'GE NM 830',
+    'Canon Lucida Gamma',
   ],
   onkoloji: [
-    'Varian TrueBeam', 'Elekta Versa HD', 'Siemens Artiste',
+    'Varian TrueBeam',
+    'Elekta Versa HD',
+    'Siemens Artiste',
     'GE Discovery RT',
   ],
-  supervizor: [
-    'Süpervizör Terminalli', 'Kontrol Noktası',
-  ],
+  supervizor: ['Süpervizör Terminalli', 'Kontrol Noktası'],
 };
 
 const PERSONNEL_NAMES = {
@@ -172,7 +193,11 @@ async function main() {
       // Create shift definitions for this device
       for (const shift of shiftTypes) {
         const exists = await prisma.shifts.findFirst({
-          where: { organizationId: ORG_ID, deviceId: device.id, type: shift.type },
+          where: {
+            organizationId: ORG_ID,
+            deviceId: device.id,
+            type: shift.type,
+          },
         });
         if (!exists) {
           await prisma.shifts.create({
@@ -193,11 +218,12 @@ async function main() {
         }
       }
     }
-    if (deviceCount > 0) console.log(`  +${deviceCount} devices created for ${unitType}`);
+    if (deviceCount > 0)
+      console.log(`  +${deviceCount} devices created for ${unitType}`);
 
     // Create personnel
     for (const p of personnelNames) {
-      const email = `${p.name.toLowerCase().replace(/\s+/g, '.').replace(/[çÇ]/g,'c').replace(/[ğĞ]/g,'g').replace(/[ıİ]/g,'i').replace(/[öÖ]/g,'o').replace(/[şŞ]/g,'s').replace(/[üÜ]/g,'u')}@vardiyaos.com`;
+      const email = `${p.name.toLowerCase().replace(/\s+/g, '.').replace(/[çÇ]/g, 'c').replace(/[ğĞ]/g, 'g').replace(/[ıİ]/g, 'i').replace(/[öÖ]/g, 'o').replace(/[şŞ]/g, 's').replace(/[üÜ]/g, 'u')}@vardiyaos.com`;
       const existing = await prisma.personnel.findFirst({ where: { email } });
       if (!existing) {
         await prisma.personnel.create({

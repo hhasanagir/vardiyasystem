@@ -27,7 +27,12 @@ const update = args.has('--update');
 
 const eslint = spawnSync(
   process.execPath,
-  [join(backendDir, 'node_modules', 'eslint', 'bin', 'eslint.js'), 'src/', '--format', 'json'],
+  [
+    join(backendDir, 'node_modules', 'eslint', 'bin', 'eslint.js'),
+    'src/',
+    '--format',
+    'json',
+  ],
   { cwd: backendDir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
 );
 
@@ -37,7 +42,8 @@ if (eslint.error) {
 }
 
 // Windows editors and PowerShell add a UTF-8 BOM, which JSON.parse rejects.
-const readJson = (path) => JSON.parse(readFileSync(path, 'utf8').replace(/^\uFEFF/, ''));
+const readJson = (path) =>
+  JSON.parse(readFileSync(path, 'utf8').replace(/^\uFEFF/, ''));
 
 let results;
 try {
@@ -93,18 +99,26 @@ try {
   console.error('Delete the file to re-baseline, or repair it by hand.');
   process.exit(2);
 }
-console.log(`\nbaseline maxErrors: ${baseline.maxErrors} (recorded ${baseline.updatedAt})`);
+console.log(
+  `\nbaseline maxErrors: ${baseline.maxErrors} (recorded ${baseline.updatedAt})`,
+);
 
 if (errorCount > baseline.maxErrors) {
   const delta = errorCount - baseline.maxErrors;
-  console.error(`\nFAIL: ${delta} new lint error(s) above the recorded baseline.`);
-  console.error('Fix them, or re-baseline deliberately with --update after paying debt down.');
+  console.error(
+    `\nFAIL: ${delta} new lint error(s) above the recorded baseline.`,
+  );
+  console.error(
+    'Fix them, or re-baseline deliberately with --update after paying debt down.',
+  );
   process.exit(1);
 }
 
 if (errorCount < baseline.maxErrors) {
   const delta = baseline.maxErrors - errorCount;
-  console.log(`\nPASS: ${delta} fewer error(s) than the baseline. Re-baseline with --update.`);
+  console.log(
+    `\nPASS: ${delta} fewer error(s) than the baseline. Re-baseline with --update.`,
+  );
   process.exit(0);
 }
 
