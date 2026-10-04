@@ -35,6 +35,12 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - name: Release preflight test suite
         run: node --test scripts/release-preflight.test.mjs
+      - name: Pre-commit gate test suite
+        # The pre-commit typecheck gate decides which workspace a staged file
+        # belongs to and which tsconfig projects to check. Either can silently
+        # check nothing, which is how the frontend gate passed while type
+        # errors sat in src. Pinned here instead of trusted.
+        run: node --test scripts/lint-staged-typecheck.test.mjs
       - name: Release preflight
         run: node scripts/release-preflight.mjs
         env:

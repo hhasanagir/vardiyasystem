@@ -274,6 +274,10 @@ jobs:
         # The same authoritative gate that guards a PR release; a deploy must
         # prove the release invariants hold, not just the tests.
         run: node --test scripts/release-preflight.test.mjs
+      - name: Pre-commit gate test suite
+        # Workspace routing and tsconfig resolution are the two decisions that
+        # can make the pre-commit typecheck gate pass while checking nothing.
+        run: node --test scripts/lint-staged-typecheck.test.mjs
       - name: Release preflight
         run: node scripts/release-preflight.mjs
         env:

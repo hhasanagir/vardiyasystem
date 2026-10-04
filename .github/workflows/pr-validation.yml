@@ -555,6 +555,12 @@ jobs:
         # The preflight has to prove its own gates work (a gate that cannot go
         # red is not a gate); same command the deploy path runs.
         run: node --test scripts/release-preflight.test.mjs
+      - name: Pre-commit gate test suite
+        # The pre-commit typecheck gate routes staged files to workspaces and
+        # resolves tsconfig projects. Either can silently check nothing, which
+        # is how the frontend typecheck gate passed while real type errors sat
+        # in src. Same reasoning as the preflight suite above.
+        run: node --test scripts/lint-staged-typecheck.test.mjs
 
   manifest-render:
     name: Manifest Render (Kustomize + Helm)
