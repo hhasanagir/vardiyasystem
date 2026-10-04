@@ -20,5 +20,5 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*", "prisma/**/*"],
-  "exclude": ["node_modules", "dist", "src/modules/schedules/schedules/**/*"]
+  "exclude": ["node_modules", "dist"]
 }
