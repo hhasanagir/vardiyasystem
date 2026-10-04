@@ -136,9 +136,15 @@ export const resolveProjects = (tsconfigPath) => {
 };
 
 /**
- * A workspace is a top-level directory with a package.json, a tsconfig.json
- * and its own TypeScript installation. Discovery runs against the filesystem
- * so a new workspace cannot silently escape the gate.
+ * A workspace takes part in the gate when it has a package.json, a
+ * tsconfig.json, and declares TypeScript as a dependency. Discovery runs
+ * against the filesystem so a new workspace cannot silently escape the gate.
+ *
+ * Declaring TypeScript is the opt-in. Playwright workspaces ship a tsconfig
+ * but transpile without typechecking and install no compiler; typechecking
+ * them is neither possible nor wanted. A workspace that does declare
+ * TypeScript but has it missing is still discovered, so the missing compiler
+ * is reported instead of being skipped.
  */
 export const discoverWorkspaces = (root = ROOT) => {
   const workspaces = [];
@@ -153,15 +159,16 @@ export const discoverWorkspaces = (root = ROOT) => {
     if (!existsSync(manifestPath) || !existsSync(tsconfigPath)) continue;
 
     const manifest = readJson(manifestPath);
+    const declared =
+      manifest.devDependencies?.typescript ?? manifest.dependencies?.typescript;
+    if (!declared) continue;
+
     workspaces.push({
       name: entry.name,
       dir,
       projects: resolveProjects(tsconfigPath),
       compiler: join(dir, "node_modules", "typescript", "bin", "tsc"),
-      declared:
-        manifest.devDependencies?.typescript ??
-        manifest.dependencies?.typescript ??
-        null,
+      declared,
     });
   }
 

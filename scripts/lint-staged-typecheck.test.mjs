@@ -35,6 +35,23 @@ test("discoverWorkspaces finds the npm workspaces that own a tsconfig", () => {
   assert.ok(!names.includes("node_modules"), "node_modules is skipped");
 });
 
+test("a workspace that does not declare typescript is left out", () => {
+  // e2e ships a tsconfig.json but is a Playwright project: it transpiles
+  // without typechecking and installs no compiler. Routing it into the gate
+  // would block commits over a workspace that never opted in.
+  const names = discoverWorkspaces(ROOT).map((w) => w.name);
+  assert.ok(
+    !names.includes("e2e"),
+    "e2e declares no typescript, so it is not gated",
+  );
+});
+
+test("every discovered workspace declares typescript", () => {
+  for (const workspace of discoverWorkspaces(ROOT)) {
+    assert.ok(workspace.declared, `${workspace.name} declares typescript`);
+  }
+});
+
 test("every discovered workspace has at least one checkable project", () => {
   for (const workspace of discoverWorkspaces(ROOT)) {
     assert.ok(
@@ -60,14 +77,18 @@ test("a solution-style tsconfig resolves to its referenced projects", () => {
   );
 });
 
-test("configs outside the declared project graph are not silently added", () => {
-  // frontend/tsconfig.spec.json exists but is not referenced by the solution
-  // file. The gate follows what the workspace declares rather than guessing,
-  // so an unreferenced config is never checked behind the owner's back.
+test("the spec project is gated because the solution file declares it", () => {
+  // Spec files used to sit outside the project graph, so a type error in a
+  // .spec.ts was caught nowhere: tsc skipped it and vitest uses esbuild,
+  // which strips types without checking them. frontend/tsconfig.json now
+  // references tsconfig.spec.json, and this pins that decision.
   const names = resolveProjects(join(ROOT, "frontend", "tsconfig.json")).map(
     (p) => p.split(/[\\/]/).pop(),
   );
-  assert.ok(!names.includes("tsconfig.spec.json"));
+  assert.ok(
+    names.includes("tsconfig.spec.json"),
+    "the referenced spec project is checked",
+  );
 });
 
 test("a plain tsconfig resolves to itself", () => {
