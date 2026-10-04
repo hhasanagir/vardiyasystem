@@ -57,25 +57,31 @@ edit or diff. Every other part of this file is prettier-formatted.
 | 25 | Backend integration tier | — | **NOT IMPLEMENTED** | — | n/a | The tier does not exist. `backend/vitest.config.ts` includes only `src/**/*.spec.ts`; every backend spec is mock-based unit scope. | **OPEN** — declare the absence intentional, or add the tier |
 | 26 | Migration drift validation | — | **NOT IMPLEMENTED** | — | n/a | Nothing proves `schema.prisma` and `prisma/migrations/` agree. No `prisma migrate diff` exists in the repo; `migrate status` appears only in `backend/scripts/migrate-baseline.{sh,ps1}`, which are operator utilities. Migrations are *executed* in CI (`migrate deploy`) and by the Helm `pre-install,pre-upgrade` job, never *validated*. | **OPEN** |
 | 27 | Weekly security scan | `npx audit-ci --high ... \|\| true`, `npm-check-updates \|\| true`, trufflehog, SBOM | **ADVISORY** | `security-scan.yml` (cron + manual) | **neither** | Both audit steps end in `\|\| true`, and the outdated-package step is additionally `continue-on-error`. Scheduled weekly, so it never blocks a PR. | **OPEN** — separate from the blocking `--critical` PR gate |
+| 28 | Backend container runtime | `docker run` + Docker healthcheck + `GET /api/v1/health/live` | **PASS** — healthy, HTTP 200 `{"status":"ok"}`, `uid=100(vardiya)` | none | **neither** | — | **NONE REQUIRED**. No CI gate runs the image; see gate 32 |
+| 29 | Frontend container runtime | `docker run` + HTTP content assertion | **FAIL** — serves `Welcome to nginx!` (615 B) | none | **neither** | **Proven defect D5.** The Angular build emits `dist/frontend/browser/`, so `COPY /app/dist/frontend` lands the app in `html/browser/` and the base image's own `index.html` survives. nginx `root` points at `html/`, so the app is never served. | **OPEN** — copy `dist/frontend/browser`, and assert on content, not just status |
+| 30 | Non-root execution | `docker exec <c> id` | **PASS** — `uid=100(vardiya)` in both | none | local | — | **NONE REQUIRED** |
+| 31 | Secret hygiene in images | filesystem scan, `Config.Env`, `docker history` | **PASS** — no `.env`, no secret files, no secret-like env, nothing baked into history | none | local | — | **NONE REQUIRED** |
+| 32 | Image content verification | — | **NOT IMPLEMENTED** | — | n/a | `docker-build-validation` builds with `push: false` and never runs the image, so D5 is structurally invisible to CI. A build-only gate cannot detect a wrong-content image. | **OPEN** — add a run-and-assert step |
 
 ### Summary
 
 <!-- prettier-ignore -->
 | Result | Gates |
 |---|---|
-| PASS | 1, 2, 3, 5, 6, 7, 9, 10, 13, 14, 16, 20, 21, 22, 23 |
+| PASS | 1, 2, 3, 5, 6, 7, 9, 10, 13, 14, 16, 20, 21, 22, 23, 28, 30, 31 |
 | PASS with caveat | 4 (379 warnings), 15 (half unverified), 24 (full history fails) |
-| FAIL | 8, 11, 12, 17 |
+| FAIL | 8, 11, 12, 17, 29 |
 | ADVISORY | 19, 27 |
 | BLOCKED | 18 |
-| NOT IMPLEMENTED | 25, 26 |
+| NOT IMPLEMENTED | 25, 26, 32 |
 
 **Release recommendation: BLOCKED.**
 
-Four gates are red, and all four are CI configuration defects (D1-D4) rather than application
+Five gates are red. Four of them (D1-D4) are CI configuration defects rather than application
 defects. Gates 1-7, 9-10 and 13-14 are genuinely green in both environments, which is why a
 green-looking pipeline was possible: the failures live entirely in the environment the workflow
-supplies to its own jobs.
+supplies to its own jobs. D5 is different in kind — a real product defect that survived because
+no gate ever runs the image it just built.
 
 | ID  | Defect                                                    | Impact                                                          |
 | --- | --------------------------------------------------------- | --------------------------------------------------------------- |
@@ -83,6 +89,109 @@ supplies to its own jobs.
 | D2  | `DATABASE_DIRECT_URL` absent from the workflow `env:`     | `Validate Prisma schema` exits 1 (`P1012`)                      |
 | D3  | `e2e/playwright.config.ts` does not exist                 | `browser-acceptance` fails all 57 tests                         |
 | D4  | `docker-compose-validation` placeholder `.env` incomplete | Both `config -q` steps fail; `manifest-render` never runs       |
+| D5  | Frontend image serves the nginx base-image page           | The shipped SPA is never served; image still reports healthy    |
+
+## Container validation
+
+Measured by building and then **running** both images locally. No dependency or application code
+was changed, nothing was pushed to GHCR, and nothing was deployed to Kubernetes. The backend image
+was pointed at the already-running local PostgreSQL (`host.docker.internal:55432`) and Redis
+(`:56379`); no migration or seed was executed.
+
+### Image inventory
+
+<!-- prettier-ignore -->
+| | Backend | Frontend |
+|---|---|---|
+| Compressed size | **157 MB** | **22.9 MB** |
+| Reported by `docker images` | 785 MB | 83.2 MB |
+| RootFS layers | 10 | 12 |
+| Largest layer | **`node_modules` 460 MB** uncompressed (73%) | nginx base 38.7 MB |
+| Exposed port | `3000/tcp` | `80/tcp` |
+| Entrypoint / Cmd | `/sbin/tini --` / `node dist/src/main` | `/docker-entrypoint.sh` / `nginx -g daemon off;` |
+| Healthcheck | `curl -sf .../api/v1/health/live`, 30s/10s, 3 retries, 30s start | `wget --spider http://localhost:80/`, 30s/3s, 3 retries, 5s start |
+| Runtime user | `vardiya` (`uid=100`) confirmed by `exec id` | `vardiya` (`uid=100`) confirmed by `exec id` |
+
+The backend's 460 MB uncompressed `node_modules` dominates the image and is the single biggest
+lever on pull time and registry storage.
+
+`NODE_ENV=production` is baked into the backend image, so the Joi `when('NODE_ENV', { is:
+'production' })` branches activate on container start. The container refuses to boot unless
+`COOKIE_SECRET` (>=32 chars, not `dev-`-prefixed), `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` are
+all supplied, in addition to the 32-character JWT secrets. That is correct behaviour, but it
+means the required variable set is larger than the workflow provides.
+
+### Secret handling — clean
+
+| Check                                   | Backend | Frontend |
+| --------------------------------------- | ------- | -------- |
+| `.env` or `*secret*` files in the image | none    | none     |
+| Secret-like values in `Config.Env`      | none    | none     |
+| Credentials baked into `docker history` | none    | none     |
+
+All secrets were supplied at `docker run` time via `-e`; nothing sensitive is baked into either
+layer set.
+
+### Defect D5 — the frontend image serves the wrong content
+
+The build succeeds, the container starts, and the healthcheck reports **healthy**. The image still
+serves the nginx welcome page instead of the application.
+
+Angular's application builder emits its output to `dist/frontend/browser/`. The Dockerfile copies
+the parent:
+
+```
+COPY --from=builder /app/dist/frontend /usr/share/nginx/html
+```
+
+`COPY` merges directories rather than replacing them, so the result is:
+
+```
+/usr/share/nginx/html/index.html          615 B   Apr 16 2025   <- base image, "Welcome to nginx!"
+/usr/share/nginx/html/50x.html             497 B   Apr 16 2025   <- base image
+/usr/share/nginx/html/browser/index.html  34250 B  Oct  4 2026   <- the real app
+```
+
+nginx `root /usr/share/nginx/html` therefore resolves `/` to the stale base-image `index.html`.
+The real document — `<title>VardiyaOS — Radyoloji Vardiya Yönetim Sistemi</title>`, `lang="tr"` —
+sits one directory too deep and is never served.
+
+The healthcheck is `wget --spider http://localhost:80/`, which returns 200 for the welcome page,
+so it passes. **No gate in the repository can catch this**: `docker-build-validation` builds with
+`push: false` and never starts the image. A build-only gate cannot detect an image that builds
+cleanly and serves the wrong bytes.
+
+The fix is one line — copy `dist/frontend/browser` — but a content assertion belongs with it, or
+the same class of bug returns the next time the output layout changes.
+
+### Smoke test commands
+
+```powershell
+# backend: healthy, non-root, health endpoint 200
+docker run -d --name vardiya-smoke-backend --network vardiya-smoke-net --network-alias backend `
+  -p 13000:3000 `
+  -e ENCRYPTION_MASTER_KEY="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" `
+  -e DATABASE_URL="postgresql://postgres:postgres@host.docker.internal:55432/vardiyasystem_e2e?schema=public" `
+  -e DATABASE_DIRECT_URL="postgresql://postgres:postgres@host.docker.internal:55432/vardiyasystem_e2e?schema=public" `
+  -e REDIS_URL="redis://host.docker.internal:56379" `
+  -e JWT_ACCESS_TOKEN_SECRET="smoke-access-secret-32-characters-min" `
+  -e JWT_REFRESH_TOKEN_SECRET="smoke-refresh-secret-32-characters-min" `
+  -e COOKIE_SECRET="smoke-cookie-secret-strong-32chars-value" `
+  -e VAPID_PUBLIC_KEY="<dev default from env.config.ts>" `
+  -e VAPID_PRIVATE_KEY="<dev default from env.config.ts>" `
+  -e FRONTEND_URL="https://vardiya.example.invalid" `
+  vardiya-gate/backend:local
+
+# frontend needs a resolvable "backend" upstream, so join it to the same network
+docker run -d --name vardiya-smoke-frontend --network vardiya-smoke-net -p 13080:80 `
+  vardiya-gate/frontend:local
+
+Invoke-WebRequest http://localhost:13080/ -UseBasicParsing   # returns the nginx page, not the app
+```
+
+The VAPID values used are the development defaults already present in
+`backend/src/config/env.config.ts`. They are not credentials, but they are not what production
+should use either.
 
 ## Backend E2E
 
