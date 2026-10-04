@@ -7,8 +7,8 @@
     "prepare": "husky",
     "lint": "npm --prefix frontend run lint && npm --prefix backend run lint",
     "lint:strict": "npm --prefix backend run lint:strict",
-    "format": "prettier --write \"**/*.{ts,js,json,scss,html}\"",
-    "format:check": "prettier --check \"**/*.{ts,js,json,scss,html}\"",
+    "format": "prettier --write \"**/*.{ts,js,mjs,cjs,json,scss,html}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,mjs,cjs,json,scss,html}\"",
     "typecheck": "npm --prefix frontend run typecheck && npm --prefix backend run typecheck",
     "test": "npm --prefix backend test && npm --prefix frontend test",
     "test:e2e": "npm --prefix backend run test:e2e",
@@ -26,7 +26,7 @@
     "prettier": "^3.8.3"
   },
   "lint-staged": {
-    "*.{ts,js}": [
+    "*.{ts,js,mjs,cjs}": [
       "prettier --write",
       "node scripts/lint-staged-typecheck.mjs"
     ],
