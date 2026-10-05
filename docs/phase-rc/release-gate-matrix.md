@@ -77,6 +77,10 @@ edit or diff. Every other part of this file is prettier-formatted.
 
 **Release recommendation: BLOCKED.**
 
+**Do not run any database migration.** D1-D13 are open, so the container and Helm gates are not
+green, and migration execution is gated behind them. Migration analysis has since added nine more
+defects, D14-D22, two of which would corrupt or block a real database.
+
 Five gates are red. Four of them (D1-D4) are CI configuration defects rather than application
 defects. Gates 1-7, 9-10 and 13-14 are genuinely green in both environments, which is why a
 green-looking pipeline was possible: the failures live entirely in the environment the workflow
@@ -103,6 +107,18 @@ D8-D13 are missing probes, missing resource bounds, absent container hardening, 
 `values/dev.yaml`, a deprecated Ingress class annotation, and subcharts that cannot be linted
 standalone. None of these are style complaints: D7 alone makes the production database unsafe to
 point at real traffic.
+
+Migration analysis added D14-D22. The two that block or damage a real database outright:
+
+| ID  | Defect                                                      | Impact                                                                                                         |
+| --- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| D14 | Helm `migrate` Job omits `DATABASE_DIRECT_URL`              | Job dies with `P1012` before any migration; `OnFailure` + no `backoffLimit` hangs forever                      |
+| D15 | Migration 6 renames columns via `DROP` + `ADD` with no copy | `SQLSTATE 23502` on any populated `auth_sessions`/`notifications`; silent lockout and read-state loss if empty |
+| D16 | Migration 17 casts enums with no value mapping              | `invalid input value for enum` on 7 of 9 old `RbacRoleName` values and 6 of 8 old `UserRole` values            |
+
+D17-D22 cover audit-column deletion, a `search_path` dependency that breaks the drift gate, the
+absent rollback path, two stale enum-driven tests, and `pg_stat_statements` being installed with an
+empty `shared_preload_libraries`.
 
 ## Container validation
 
@@ -565,6 +581,388 @@ No cluster existed and none was requested, so these stay unmeasured rather than 
 - Storage class `gp3` availability, PVC binding and backup restore.
 - SealedSecret decryption, which needs the cluster's cert.
 - Whether `helm install` upgrades cleanly, and migration Job ordering against a live database.
+
+## Migration analysis
+
+**No migration was executed against any production database, and none should be.** The release
+gate is still blocked on D1-D13, so migration execution stays behind that door. What follows is
+static analysis plus empirical proof on four disposable databases created for the purpose, inside
+the existing local `vardiya-rc-postgres` container. The E2E database `vardiyasystem_e2e` was not
+touched.
+
+| Lab database                    | Purpose                                                          |
+| ------------------------------- | ---------------------------------------------------------------- |
+| `mig_lab_base`                  | migration 1 only — pre-migration schema                          |
+| `mig_lab_pre`                   | migrations 1-5, populated, then v6 attempted                     |
+| `mig_lab_17`                    | migrations 1-16, populated with legacy roles, then v17 attempted |
+| `mig_lab_drift`, `mig_lab_post` | all 23 migrations — post-migration schema                        |
+
+### Staging-safe verdict: NO
+
+**The migration chain is only proven to work on an empty database.** Two separate migrations fail
+on data, and both were confirmed by execution, not by reading:
+
+- `20260619000001_v6_enterprise_notification_system` fails with `SQLSTATE 23502` on any populated
+  `auth_sessions` or `notifications`.
+- `20260714000001_enterprise_asset_management` fails with `invalid input value for enum` on any
+  `roles` row outside `SYSTEM_ADMIN`/`TECHNICIAN`, and on any `users.role` outside the new 10-value
+  set.
+
+Both pass on a fresh empty database, which is exactly the path CI and every local run exercise.
+That is why this has never been caught: `prisma migrate deploy` on a fresh database is the only
+scenario ever tested.
+
+### Pre-migration schema
+
+Migration 1 (`20260519000000_v1_initial_baseline`), 338 lines:
+
+<!-- prettier-ignore -->
+| Object | Count |
+|---|---|
+| Tables | 16 |
+| Columns | 194 |
+| Foreign keys | 17 |
+| Unique constraints | 0 |
+| Check constraints | 0 |
+| Indexes | 36 |
+| Enums | 9 |
+
+Uniqueness is expressed as unique **indexes**, not table constraints — the Prisma convention, so
+the `0` above is expected, not a gap.
+
+The three tables that later migrations gut are in their original shape. `auth_attempts` uses
+`snake_case` (`attempt_type`, `ip_address`, `lockout_until`, `user_id`, `created_at`);
+`auth_sessions` likewise (`hashed_token`, `expires_at`, `revoked_at`, `user_id`);
+`notifications` is already `camelCase` (`userId`, `isRead`, `readAt`, `createdAt`) with
+`type TEXT NOT NULL`.
+
+### The migrations
+
+23 migrations, 2,838 lines of SQL. Verified count:
+
+<!-- prettier-ignore -->
+| Severity | Pattern | Migrations affected |
+|---|---|---|
+| CRITICAL | `DROP COLUMN` | v5, v6 |
+| CRITICAL | `DROP CONSTRAINT` (FK) | v6, v12, v16 |
+| CRITICAL | `DROP TYPE` (enum) | `remove_gmre_enum`, asset management |
+| CRITICAL | `DROP INDEX` | v5, v6, v10, asset mgmt, v15, v17 |
+| HIGH | `ALTER COLUMN ... TYPE` (enum cast) | `remove_gmre_enum`, asset management |
+| HIGH | `DROP DEFAULT` | asset management (`users.role`) |
+| HIGH | `RENAME` | v5, `remove_gmre_enum`, asset management |
+| DATA | `UPDATE` backfill | `v11_add_ltree_path_columns` (2), `assignment_source_and_tenant_isolation` (1) |
+
+**No `DROP TABLE`, no `TRUNCATE`, no `DELETE FROM` anywhere.** Destructive change is confined to
+columns, constraints, indexes and enum types. Only 3 statements are genuine data migrations, all
+`UPDATE` backfills.
+
+`add_schedule_audit_indexes`, `add_check_constraints`, `v13_rbac_hierarchy_scopes` and
+`add_supervizor_unit_type` are additive and safe.
+
+### Post-migration schema
+
+All 23 applied cleanly to a fresh database, exit 0:
+
+<!-- prettier-ignore -->
+| Object | Pre | Post | Delta |
+|---|---|---|---|
+| Tables | 16 | 96 | +80 |
+| Columns | 194 | 1272 | +1078 |
+| Foreign keys | 17 | 144 | +127 |
+| Unique constraints | 0 | 0 | — |
+| Check constraints | 0 | 9 | +9 |
+| Indexes | 36 | 435 | +399 |
+| Enums | 9 | 48 | +39 |
+
+`UserRole` ends at 10 values and `RbacRoleName` at 10, both listed in `schema.prisma`. Five
+extensions are installed into `public`: `btree_gin`, `citext`, `ltree`, `pg_stat_statements`,
+`pgcrypto`.
+
+### Defect D14 - the Helm migrate Job cannot start at all
+
+The rendered `vardiya-migrate` Job is correct in the ways that matter: `command: ["npx", "prisma",
+"migrate", "deploy"]`, `DATABASE_URL` sourced from `key: database_direct_url` so it bypasses
+PgBouncer, `runAsNonRoot: true`, `runAsUser: 100`. It has one fatal omission.
+
+`schema.prisma` declares `directUrl = env("DATABASE_DIRECT_URL")`, so Prisma resolves that variable
+**even during `migrate deploy`**. The Job supplies only `DATABASE_URL`. Reproduced with the Job's
+exact environment:
+
+```
+Error: Prisma schema validation - (get-config wasm)
+Error code: P1012
+error: Environment variable not found: DATABASE_DIRECT_URL.
+```
+
+This is the same root cause as D2, now proven to break the Kubernetes migration path as well. It
+compounds: `restartPolicy: OnFailure` with **no `backoffLimit`**, `ttlSecondsAfterFinished` or
+`activeDeadlineSeconds`, so the Job will restart indefinitely and never terminate. The deployment
+pipeline hangs instead of failing.
+
+**Root cause:** the Job template was written against `DATABASE_URL` only, while the schema has
+required `DATABASE_DIRECT_URL` for every Prisma invocation since `DATABASE_DIRECT_URL` was
+introduced.
+
+**Remediation:** add `DATABASE_DIRECT_URL` from `key: database_direct_url` to the Job, and set
+`backoffLimit: 3` so a genuinely failing migration surfaces as a failed Job.
+
+### Defect D15 - migration 6 cannot run against a populated database
+
+`20260619000001_v6_enterprise_notification_system` converts three tables from `snake_case` to
+`camelCase` by dropping and re-adding every column **with no data copy**. Proven on `mig_lab_pre`
+with 2 sessions, 5 auth attempts and 2 notifications:
+
+```
+Applying migration `20260619000001_v6_enterprise_notification_system`
+Error: P3018
+Database error code: 23502
+ERROR: column "expiresAt" of relation "auth_sessions" contains null values
+```
+
+`ADD COLUMN "hashedToken" TEXT NOT NULL` and `ADD COLUMN "expiresAt" TIMESTAMP(3) NOT NULL` on
+`auth_sessions`, and `ADD COLUMN "type" "NotificationType" NOT NULL` on `notifications`, have no
+`DEFAULT`, so on a non-empty table Postgres fills `NULL` and the `NOT NULL` check fails. Only an
+empty table satisfies them.
+
+Had the tables been empty, the migration would have succeeded and silently destroyed data:
+`auth_attempts` loses `ip_address`, `user_id`, `lockout_until` and `user_agent` — every rate-limit
+and lockout signal — while `auth_attempts` happens to survive only because the replacement columns
+carry `DEFAULT 'LOGIN'` and `DEFAULT CURRENT_TIMESTAMP`.
+
+Worse, `notifications` drops `isRead`, `readAt` and `userId` **without ever re-adding them**, so
+per-user read state and notification ownership are gone for good. `type` is dropped and re-added,
+so any stored value that is not a valid `NotificationType` is lost.
+
+**Root cause:** a case-only rename was written as destructive DDL instead of
+`ALTER TABLE ... RENAME COLUMN`, which is metadata-only and would have worked on a populated table.
+
+**Remediation:** replace the drop/add pairs with `RENAME COLUMN`, which preserves data and is
+near-instant. Because these migrations are already applied on some environments, decide explicitly
+per environment whether a data backfill is needed before rewriting history — do not edit applied
+migrations. Add a CI gate that runs `migrate deploy` onto a database seeded with representative
+rows, because a fresh-database run cannot catch this class of bug.
+
+### Defect D16 - migration 17 fails on any pre-existing role
+
+`20260714000001_enterprise_asset_management` rebuilds the `RbacRoleName` enum with a blind cast:
+
+```sql
+ALTER TABLE "roles" ALTER COLUMN "name" TYPE "RbacRoleName_new"
+  USING ("name"::text::"RbacRoleName_new");
+```
+
+The two value sets barely overlap.
+
+<!-- prettier-ignore -->
+| Old `RbacRoleName` | New `RbacRoleName` |
+|---|---|
+| `SYSTEM_ADMIN` | `SYSTEM_ADMIN` |
+| `ORGANIZATION_ADMIN` | — |
+| `HOSPITAL_DIRECTOR` | `HOSPITAL_ADMIN` |
+| `IMAGING_MANAGER` | `IMAGING_DIRECTOR` |
+| `UNIT_SUPERVISOR` | `SUPERVISOR` |
+| `SHIFT_COORDINATOR` | — |
+| `HR_MANAGER` | — |
+| `TECHNICIAN` | `TECHNICIAN` |
+| `READ_ONLY_AUDITOR` | — |
+| — | `MEDICAL_ENGINEER`, `SENIOR_TECHNICIAN`, `ASSISTANT_TECHNICIAN`, `SECRETARY`, `GUEST` |
+
+Seven of the nine old values have no counterpart. Reproduced on `mig_lab_17` with those 7 roles
+inserted:
+
+```
+Applying migration `20260714000001_enterprise_asset_management`
+ERROR: current transaction is aborted, commands ignored until end of transaction block
+```
+
+That message is misleading. Prisma wraps each migration file in a transaction, and this file
+contains its own `BEGIN;`/`COMMIT;` pairs at lines 77-83 and 101-109, so the first real error is
+swallowed and replaced by a cascade. Executing the cast directly exposes it:
+
+```
+ERROR:  invalid input value for enum "RbacRoleName_new": "ORGANIZATION_ADMIN"
+```
+
+The same applies to `users.role`. Old `UserRole` was `super_admin, admin, project_manager,
+head_technician, supervisor, field_supervisor, technician, staff`; the new set shares only
+`supervisor` and `technician`:
+
+```
+ERROR:  invalid input value for enum "UserRole_new": "super_admin"
+```
+
+The cast survives only because `prisma/seed.ts` happens to use just `system_admin` and `technician`
+— the two values that map cleanly. Any real deployment has `users` rows with the other old roles.
+
+**Root cause:** enum values were renamed and reorganised without a value mapping. `USING` with a
+bare `::text::enum` cast cannot rename, only reject.
+
+**Remediation:** add an explicit mapping in the `USING` clause, for example
+`USING (CASE "name" WHEN 'HOSPITAL_DIRECTOR' THEN 'HOSPITAL_ADMIN' WHEN 'UNIT_SUPERVISOR' THEN
+'SUPERVISOR' ... ELSE "name"::text END)::"RbacRoleName_new"`, plus a pre-flight `SELECT` that
+lists any value with no target so nothing fails mid-migration. Remove the inner `BEGIN;`/`COMMIT;`
+so real errors surface.
+
+### Defect D17 - migration 5 destroys audit data silently
+
+`20260618000001_v5_enterprise_audit_system` drops three columns from `audit_logs` with no
+replacement and no warning:
+
+```sql
+ALTER TABLE "audit_logs" DROP COLUMN "sessionId";
+ALTER TABLE "audit_logs" DROP COLUMN "reason";
+ALTER TABLE "audit_logs" DROP COLUMN "comment";
+```
+
+`reason` and `comment` are audit context. On an audit table this is a compliance concern, not just
+data loss, and it happens without any error to alert on.
+
+Code impact is nil — `sessionId`, `reason` and `comment` have 0 references across `backend/src` —
+so nothing breaks at runtime. The data is simply gone.
+
+**Root cause:** the columns were treated as unused because no code referenced them, ignoring that
+an audit log's value is the record itself.
+
+**Remediation:** recover the values from a backup into new columns if the audit trail must stay
+complete, or document the deletion as an accepted compliance decision. Do not re-add the columns
+empty — that would imply the data is retrievable when it is not.
+
+### Defect D18 - migrations only work when `public` is in `search_path`
+
+Five extensions are created without a schema, so they install into whatever `search_path` resolves
+to, and `v11_add_ltree_path_columns` then uses the `ltree` type by unqualified name. This was
+observed directly when `prisma migrate diff --shadow-database-url` was pointed at a non-`public`
+schema:
+
+```
+Migration `20260703000002_v11_add_ltree_path_columns` failed to apply cleanly to the shadow database.
+ERROR: type "ltree" does not exist
+```
+
+The mechanism is `CREATE EXTENSION IF NOT EXISTS ltree` combined with a `search_path` that excludes
+`public`: the extension already exists in `public`, so `IF NOT EXISTS` skips it, and the new
+schema never gets its own copy.
+
+This blocks the offline drift gate that D-gate 32 already notes as unimplemented, and it will fail
+any deployment that does not use `?schema=public`.
+
+**Root cause:** unqualified extension and type references, with no `WITH SCHEMA`.
+
+**Remediation:** write `CREATE EXTENSION IF NOT EXISTS ltree WITH SCHEMA public;` and keep the
+datasource pinned to `?schema=public`. This is also what unblocks `prisma migrate diff` as a CI
+drift gate.
+
+### Defect D19 - there is no rollback path
+
+No `down.sql`, no `down` directory, no rollback script anywhere in `prisma/migrations`. The only
+files besides `migration.sql` are four inert `migration.json` files and `migration_lock.toml`.
+
+Prisma has no built-in `migrate down`; recovery is `migrate resolve --rolled-back` plus a
+hand-written compensating script. For D15 and D16 that script would have to reconstruct dropped
+columns and re-add deleted enum values from a backup. Rehearsing this is the only way to know the
+recovery time, and it has never been done.
+
+The saving grace, confirmed empirically: Prisma wraps each migration file in a transaction, so a
+failed `migrate deploy` leaves **no partial state**. After the D15 failure, `auth_attempts` still
+had its original columns, both FK constraints were intact, all 15 indexes survived and all 9 rows
+were present. Failure is atomic — which also means the `BEGIN;`/`COMMIT;` blocks inside
+`enterprise_asset_management` serve no purpose and only corrupt error reporting (D16).
+
+**Root cause:** migrations were authored as one-way scripts with no inverse recorded.
+
+**Remediation:** before any production run, take and verify a snapshot, and write a tested
+compensating script per destructive migration. For D15 and D16 specifically, the correct action is
+to fix the migration before it ever reaches a populated database, not to plan a rollback.
+
+### Application compatibility
+
+One confirmed break, one silent test-validity defect, and one thing that looks like a break but is
+not.
+
+**`backend/e2e/auth.e2e-spec.ts:39` asserts `super_admin`, which no longer exists** — see D20 below.
+
+**`hierarchy.service.spec.ts` tests a schema that cannot exist** — see D21 below.
+
+**Not a defect: `Personnel.role` is `String`** (`schema.prisma:596`), not an enum. So
+`head_technician` and `field_supervisor` in `seed-personnel.ts:87-88` and in the two frontend
+components remain valid values, and `userRoleFromTitle` only ever returns `supervisor`,
+`senior_technician` or `technician`, all of which are in the new enum. Seeded personnel and users
+will insert cleanly.
+
+**Drift gate is unbuildable as written.** `prisma migrate diff --from-migrations
+--to-schema-datamodel` fails with D18, so migrations and `schema.prisma` cannot currently be
+compared automatically. Everything above was therefore established by applying migrations to real
+databases and querying `information_schema`, which is the stronger method but is manual.
+
+### Defect D20 - `auth.e2e-spec.ts` asserts a role the schema cannot store
+
+`backend/e2e/auth.e2e-spec.ts:39` asserts `User.role === 'super_admin'`. `User.role` is the
+`UserRole` enum (`schema.prisma:290`); `super_admin` was valid before migration 17 and migration 17
+removed it. Confirmed by direct cast, not inferred:
+
+```
+ERROR:  invalid input value for enum "UserRole_new": "super_admin"
+```
+
+`prisma/seed.ts:27,39` writes `system_admin`, so the spec and the seed disagree about the same
+field.
+
+This is what the Backend E2E section previously recorded as an unverified hypothesis. The role
+mismatch is now documented fact. It is still **not** counted as the cause of the 10 authorization
+403s, because the suite fails at hook level first and the assertion never executes.
+
+**Root cause:** migration 17 renamed the enum values without updating the tests that name them, and
+the E2E suite never reached this line because of D1.
+
+**Remediation:** update the assertion to `system_admin` to match the seed, but only after D1 and D3
+are fixed so the suite can actually run and prove it. Changing it before then would be unverified.
+
+### Defect D21 - `hierarchy.service.spec.ts` validates a schema that cannot exist
+
+23 references to removed `RbacRoleName` values across lines 35-192: `ORGANIZATION_ADMIN` ×15,
+`HOSPITAL_DIRECTOR` ×6, `IMAGING_MANAGER` ×1, `READ_ONLY_AUDITOR` ×1. They appear only as plain
+string literals inside `mockQueryRaw` fixtures and are never typed as the enum, so typecheck and the
+553/553 unit suite both stay green.
+
+The assertions exercise ltree paths such as
+`SYSTEM_ADMIN.ORGANIZATION_ADMIN.HOSPITAL_DIRECTOR`, values migration 17 made impossible.
+
+**Root cause:** the fixtures are untyped string literals, so removing enum values does not fail
+compilation or tests — it silently converts a real assertion into a fiction.
+
+**Remediation:** type the fixtures as `RbacRoleName` (or import the enum) so any future enum change
+breaks the build instead of passing. Then rewrite the paths to the current role hierarchy and add
+one integration test that runs the hierarchy query against a real database.
+
+### Defect D22 - `pg_stat_statements` is installed but collecting nothing
+
+Migration 17 creates five extensions. `shared_preload_libraries` on the local server is **empty**,
+yet `CREATE EXTENSION pg_stat_statements` succeeded. The extension object exists in `public` and
+reports version 1.10, but without the preload it never records a query.
+
+This passes every migration gate and is invisible until someone tries to read slow-query data.
+
+**Root cause:** `CREATE EXTENSION` does not enforce the preload requirement, and nothing validates
+server configuration before migrating.
+
+**Remediation:** either set `shared_preload_libraries = 'pg_stat_statements'` on every Postgres
+instance before migration 17 runs, or drop the extension from the migration and manage it as
+infrastructure. Add a pre-migration assertion so the setting is verified, not assumed.
+
+### Not claimed
+
+- No lock-duration or production table-size measurement. Every migration runs `ALTER TABLE` and
+  non-concurrent `CREATE INDEX` under a single transaction, which takes `ACCESS EXCLUSIVE` locks.
+  On real row counts these will block writes for an unmeasured duration. `CREATE INDEX CONCURRENTLY`
+  appears in zero migrations, and it cannot run inside the transaction Prisma uses anyway.
+- No restore rehearsal. The backup CronJob is correct in the render (D9 context) but no restore has
+  been performed, so RPO and RTO are unknown.
+- No `pg_stat_statements` effectiveness claim. `shared_preload_libraries` is **empty** on the local
+  server yet `CREATE EXTENSION` succeeded, so the extension is installed and collecting nothing.
+  This is a silent observability gap, not a migration failure.
+- `pgcrypto`, `btree_gin`, `citext`, `ltree` and `pg_stat_statements` are all present locally
+  because `postgres:15-alpine` bundles contrib. A Postgres build without contrib would fail
+  migration 17 outright. Not tested against such a build.
 
 ## Local environment
 
