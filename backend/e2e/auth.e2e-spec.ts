@@ -36,7 +36,7 @@ describe('Auth (e2e)', () => {
         .expect((res) => {
           expect(res.body).toHaveProperty('accessToken');
           expect(res.body).toHaveProperty('user');
-          expect(res.body.user.role).toBe('super_admin');
+          expect(res.body.user.role).toBe('system_admin');
         });
     });
 

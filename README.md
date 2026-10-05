@@ -96,10 +96,10 @@ docker compose up -d
 
 ## Test Accounts
 
-| Email                   | Password      | Role        |
-| ----------------------- | ------------- | ----------- |
-| admin@hospital.com      | admin123      | super_admin |
-| technician@hospital.com | technician123 | technician  |
+| Email                   | Password      | Role         |
+| ----------------------- | ------------- | ------------ |
+| admin@hospital.com      | admin123      | system_admin |
+| technician@hospital.com | technician123 | technician   |
 
 > **Note**: Passwords above are defaults when running with `SEED_ADMIN_PASSWORD` and `SEED_TECHNICIAN_PASSWORD` environment variables. Change these in production.
 
