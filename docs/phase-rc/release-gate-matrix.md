@@ -120,6 +120,163 @@ D17-D22 cover audit-column deletion, a `search_path` dependency that breaks the 
 absent rollback path, two stale enum-driven tests, and `pg_stat_statements` being installed with an
 empty `shared_preload_libraries`.
 
+Pipeline gate coverage added D23-D27. The intended chain has 11 stages; 3 do not exist, and the
+ordering holds at 2 transitions:
+
+<!-- prettier-ignore -->
+| ID | Defect | Impact |
+|---|---|---|
+| D23 | `unit-tests`, `backend-e2e`, `build-check` have no `needs:` | Typecheck and E2E failures do not stop the build; only Docker is truly gated |
+| D24 | `deploy.yml` has no link to `pr-validation.yml` | Both fire on the same push; "PR is green" is not a precondition for deploying |
+| D25 | No staging deploy stage | Zero `kubectl`/`helm`/`kubeconfig` operations in any workflow |
+| D26 | No smoke or staging E2E stage | Zero `smoke`/`rollout status`; D6-D10 are unobservable until this exists |
+| D27 | Pipeline ends at a public GitHub Release | Every push to `main` publishes a non-draft, non-prerelease release while D1-D22 are open |
+
+## Pipeline gate coverage
+
+The intended release chain is a single ordered sequence:
+
+```
+Source Code -> Typecheck/Lint -> Unit/Integration -> E2E -> Build -> Docker
+            -> Helm validation -> CI -> Staging -> Smoke/E2E -> Production
+```
+
+Measured against `.github/workflows/`, that chain does not exist. Three stages are absent
+outright, and the ordering is enforced at two transitions only.
+
+| #   | Stage           | Implemented                                                                   | Gate holds?                                               |
+| --- | --------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------- |
+| 1   | Source Code     | `pr-validation.yml` on PR to `main`/`develop`; `deploy.yml` on push to `main` | n/a                                                       |
+| 2   | Typecheck/Lint  | `lint-typecheck`                                                              | **No** — no job declares `needs:` on it                   |
+| 3   | Unit            | `unit-tests` in `pr-validation.yml`                                           | **No** — no `needs:`                                      |
+| 3   | Integration     | `integration-test`, but in **`deploy.yml`**, after `docker-build-push`        | Yes, within `deploy.yml` only                             |
+| 4   | E2E             | `backend-e2e`, `browser-acceptance`                                           | **No** — no `needs:`; both fail anyway (D1, D3)           |
+| 5   | Build           | `build-check`                                                                 | **No** — no `needs:`, runs even when E2E fails            |
+| 6   | Docker          | `docker-build-validation`                                                     | **Yes** — `needs: [build-check, lint-typecheck]`          |
+| 7   | Helm validation | `manifest-render` → `bash scripts/release-dry-run.sh --ci`                    | Linked, but **dead** — D4 fails upstream so it never runs |
+| 8   | CI              | Split across two files with no link                                           | **No** — see D24                                          |
+| 9   | Staging         | —                                                                             | **Absent**                                                |
+| 10  | Smoke/E2E       | —                                                                             | **Absent**                                                |
+| 11  | Production      | — `create-release` only creates a GitHub Release                              | **Absent**                                                |
+
+`pr-validation.yml` contains 11 jobs, and the only edges in its graph are
+`docker-build-validation → docker-compose-validation → manifest-render` plus
+`docker-build-validation → lint-typecheck`. Every other job is an independent root.
+
+### Defect D23 - gate ordering is not enforced
+
+`unit-tests`, `backend-e2e` and `build-check` have no `needs:`, so all three run concurrently
+with `lint-typecheck`. A compile error in the typecheck does not prevent a build from being
+produced, a failing E2E suite does not prevent `docker-build-validation` from pushing, and a
+failing unit suite does not prevent anything downstream.
+
+`coverage` sets `continue-on-error: true` and `browser-acceptance` sets `if: always()`, so those
+two are advisory by construction.
+
+The single real link, `docker-build-validation needs: [build-check, lint-typecheck]`, is exactly
+the one that let D5 through: the image was built from a green typecheck and build and nothing ever
+ran it.
+
+**Root cause:** the workflow was assembled job-by-job rather than as a gate graph, and no job
+declares its upstream dependency.
+
+**Remediation:** add `needs:` so each stage waits for its predecessor — `unit-tests` and
+`coverage` on `lint-typecheck`, `backend-e2e` on `unit-tests`, `build-check` on `backend-e2e`,
+`browser-acceptance` on `build-check`. Drop `if: always()` on `browser-acceptance` so a failure
+upstream stops it instead of burning 10+ minutes to fail on its own.
+
+### Defect D24 - the deploy pipeline is not gated by PR validation
+
+`pr-validation.yml` runs on `pull_request`. `deploy.yml` runs on `push` to `main`. There is no
+`workflow_run` trigger, and no job in `deploy.yml` references `pr-validation.yml`. Both fire on the
+same push and neither waits for the other.
+
+`deploy.yml` does gate its own internals correctly: `validate` → `release-dry-run`, `unit-tests`,
+`security-scan` → `docker-build-push` → `integration-test` → `create-release`. What is missing is
+the link from the PR gate to the deploy gate.
+
+**Root cause:** the two workflows were authored for different purposes and never connected, so
+"PR is green" is not a precondition for "main deploys".
+
+**Remediation:** trigger `deploy.yml` from `workflow_run` on `pr-validation.yml`
+`conclusion: success`, or add a `needs:`-equivalent check. Whichever route, the deploy must not
+start while any PR gate is red — currently D1-D22 would all still reach production.
+
+### Defect D25 - there is no staging stage
+
+No workflow contains `kubectl apply`, `helm install`, `helm upgrade`, `kubeconfig` or
+`actions/create-kubernetes`. No job declares `environment:`, so there is no environment approval
+either.
+
+The Helm chart is validated only as a render (`release-dry-run.sh --ci`), which is the correct and
+only available form of validation while D4 is open — but nothing has ever deployed it.
+
+**Root cause:** the Helm chart was built and dry-run validated, and the deployment half was never
+written.
+
+**Remediation:** add a staging deploy job that runs `helm upgrade --install --dry-run` first, then a
+real install into a `staging` GitHub environment with required reviewers. Do not wire it to
+production namespaces.
+
+### Defect D26 - there is no smoke or staging E2E stage
+
+Zero occurrences of `smoke`, `rollout status` or `kubectl wait` across all four workflow files.
+
+The closest thing is `integration-test`, and it is genuinely strong — it brings up the full
+`docker-compose.prod.yml` stack (`postgres`, `redis`, `pgbouncer`, `backend`, `frontend`), runs
+`scripts/release-preflight.test.mjs` and `scripts/lint-staged-typecheck.test.mjs`, restores a
+database into a scratch container, and tears down with `down -v --remove-orphans`. But it tests
+containers, not a cluster, so it cannot catch a missing `NetworkPolicy`, a probe that never becomes
+ready, or a Service selector that matches nothing — precisely the D6-D10 class.
+
+**Root cause:** container-level integration testing was treated as sufficient coverage for
+deployment verification.
+
+**Remediation:** after D25, add a post-deploy gate: `kubectl rollout status` on every Deployment
+and StatefulSet, then `/health/ready` and `/health/live` against the ingress host, then the E2E
+suite against the deployed URL. That is the only place D6-D10 become observable.
+
+### Defect D27 - the pipeline ends at a GitHub Release and publishes it publicly
+
+`create-release` is the terminal job. It runs `mikepenz/release-changelog-builder-action@v5`, then
+`softprops/action-gh-release@v2` with `draft: false` and `prerelease: false`. It contains no
+cluster operation of any kind.
+
+So the chain terminates at "Create GitHub Release", and it does so by default on every push to
+`main`. `docker-build-push` has already written to `ghcr.io` by that point.
+
+With D1-D22 open, every push to `main` currently publishes a non-draft, non-prerelease public
+GitHub Release tagged `v{version}-{sha}`.
+
+**Root cause:** `create-release` was written as a release-publishing step and treated as the end
+of the pipeline, with the deployment steps never added after it.
+
+**Remediation:** make publishing conditional on the deploy stages once they exist. Until then, at
+minimum set `draft: true` so nothing is published from a pipeline whose own gates are red, and keep
+the existing `workflow_dispatch` `dry_run` input as the safe path.
+
+### Corrected during this pass
+
+Two earlier statements in this document were wrong and are corrected here:
+
+- The integration tier was recorded as absent. It exists as `integration-test` in `deploy.yml`,
+  and it is substantial. It was missed because only `pr-validation.yml` had been examined.
+- Staging and production stages were assumed missing before `deploy.yml` was read. The stages are
+  still missing, but `deploy.yml` is where that conclusion has to be drawn, not
+  `pr-validation.yml`.
+
+`pr-validation.yml` has 11 jobs, not the 13 previously stated.
+
+### Not claimed
+
+- No staging or production cluster was contacted, so cluster-side behaviour is unmeasured rather
+  than passing.
+- `release-dry-run.sh --ci` was never executed on a Linux runner. It cannot run on this host
+  (`bash` is the WSL launcher stub), so its behaviour in CI is inferred from the local Helm and
+  kustomize invocations that were run directly, not observed.
+- No claim that the missing stages are _wanted_ removed rather than never written. The absence is
+  established; the intent is not.
+
 ## Container validation
 
 Measured by building and then **running** both images locally. No dependency or application code
