@@ -40,7 +40,7 @@ edit or diff. Every other part of this file is prettier-formatted.
 | 8 | Prisma schema validation | `npx prisma validate` | **PASS local / FAIL in CI** | `unit-tests` | **CI** | **Proven defect D2.** `schema.prisma` reads `env("DATABASE_DIRECT_URL")`, defined **nowhere** in the workflow `env:` block or any step. The step supplies only `DATABASE_URL` (L95-100), so `prisma validate` exits 1 with `P1012 Environment variable not found: DATABASE_DIRECT_URL`. The comment at L22-23 generalises a true fact about `generate` to `validate`. | **OPEN** — add `DATABASE_DIRECT_URL` to the workflow `env:` |
 | 9 | Backend build | `npm run build --prefix backend` | **PASS** | `build-check` | local = CI | — | **NONE REQUIRED** |
 | 10 | Frontend build | `npm run build --prefix frontend` (`ng build`) | **PASS** — 0 errors, 0 warnings, initial 619.23 kB / 150.78 kB lazy | `build-check` | local = CI | — | **DONE** (`81c5bae`: NG8107 cleared, budgets recalibrated) |
-| 11 | Backend E2E | `npm run test:e2e --prefix backend` | **FAIL** — 12 failed, 1 passed, 23 skipped (36); 8/8 files; 381.5s | `backend-e2e` | **CI** | Three causes, see [Backend E2E](#backend-e2e). Includes **proven defect D1**. | **PARTIAL** — key documented (`7e720af`); CI env, seed/guard contract, boot time **OPEN**. No test was modified or bypassed |
+| 11 | Backend E2E | `npm run test:e2e --prefix backend` | **PASS local** — 8/8 files, 36/36 tests, 0 skipped, green twice consecutively; backend typecheck PASS; lint 0/0 | `backend-e2e` | **local** (the job has not been re-run in CI — no GitHub push) | The 403/429 flood was a **test-harness defect, not product behaviour**. `backend/e2e/test-app.ts` now boots the way `main.ts` does — `cookie-parser`, `trust proxy`, a CSRF token pair per app, and a per-app `X-Forwarded-For` — so the shared Redis throttle bucket no longer cross-couples the 8 files. CSRF coverage was added to 7 specs; `auth.e2e-spec.ts` is untouched by design because login is `@SkipCsrf()`. Removing the harness mask exposed 5 real product bugs, all fixed. No test was weakened or bypassed. | **PARTIAL** — suite is green locally, but the `backend-e2e` job still needs CI env/secrets, seed data and boot-time work. Fixes `9352dea`, `c51acb9`; verdict + this row `87a7801`, `e8fb0cb` |
 | 12 | Browser acceptance | `npm test --prefix e2e` (`playwright test`) | **FAIL** — 0/57, all files | `browser-acceptance` | **CI** | **Proven defects D1 + D3.** `e2e/playwright.config.ts` **does not exist anywhere in the repo**, so Playwright runs with defaults: no `baseURL`, no `webServer`. Every spec uses relative URLs (`page.goto("/login")`), so all 57 fail on `Cannot navigate to invalid URL`. Nothing starts port 3000 or 4200, though the job comment claims `playwright.config.ts` starts both. The `E2E_BASE_URL`/`E2E_API_URL` env passed at L368-369 is read by nothing. | **OPEN** — write the config, or delete the job |
 | 13 | Security invariant tests | `npx vitest run src/modules/schedules/__tests__/security-invariants.spec.ts` | **PASS** | `security-tests` | local = CI | — | **NONE REQUIRED** |
 | 14 | Dependency audit (PR gate) | `npx --yes audit-ci@6 --critical --report-type summary`, per workspace | **PASS** — 0 critical | `security-scan` | **CI** | — | **NONE REQUIRED** at this threshold. See [Dependency audit](#dependency-audit) for what it does not cover |
@@ -389,10 +389,38 @@ set $backend_upstream backend:3000;
 proxy_pass http://$backend_upstream$request_uri;
 ```
 
-This is **not applied** here: with a variable in `proxy_pass` the URI-replacement semantics change,
-and three of the nine directives rely on them (`proxy_pass http://backend:3000/api/;` strips the
-`/api/` prefix). Converting all nine by hand is a materially larger and riskier change than D5, so
-it is recorded as a finding for an explicit decision rather than folded into this fix.
+This is **not applied**: with a variable in `proxy_pass` the URI-replacement semantics change, and
+three of the nine directives rely on them (`proxy_pass http://backend:3000/api/;` strips the `/api/`
+prefix). Converting all nine by hand is a materially larger and riskier change than D5.
+
+**Applied instead — the startup race.** `docker-compose.prod.yml` already gated the frontend on
+`condition: service_healthy` and set `restart: unless-stopped`; the development compose did not, so
+the two stacks disagreed. `docker-compose.yml` now matches production:
+
+```diff
+   frontend:
+     container_name: vardiya-frontend
++    restart: unless-stopped
+     ports:
+       - "4200:80"
+     depends_on:
+-      - backend
++      backend:
++        condition: service_healthy
+```
+
+Compose now holds the frontend container unstarted until the backend's image healthcheck
+(`curl -sf http://localhost:3000/api/v1/health/live`) passes, by which point the `backend` service
+name resolves on the compose network, so nginx completes its startup resolution. Verified by
+`docker compose config -q` against the file with `env_file` repointed at `.env.example` (the only
+remaining failure is the pre-existing missing `backend/.env`, defect D4); the normalized output
+confirms `condition: service_healthy` / `required: true`. The full stack was not started — that
+requires `backend/.env` and runs `prisma migrate deploy`, both out of scope here.
+
+**Still open.** Bullet three above is unaffected: if the backend container is recreated with a new
+IP, nginx keeps the address it resolved at boot and proxies to a dead address until it restarts.
+Closing that needs the `resolver` approach and its URI-semantics work, so it remains an open
+decision rather than an applied fix.
 
 ### Smoke test commands
 
