@@ -624,7 +624,15 @@ export class SchedulesService {
     });
 
     if (!personnel) {
-      return { shifts: [], personnel: null };
+      // Same key set as the other two exits: consumers cannot branch on
+      // `summary === null` / missing `month` depending on the caller.
+      return {
+        shifts: [],
+        personnel: null,
+        month,
+        year,
+        status: 'no_personnel',
+      };
     }
 
     const schedule = await this.prisma.schedule.findFirst({
@@ -688,7 +696,20 @@ export class SchedulesService {
     });
 
     if (!personnel) {
-      return { today: null, week: [], upcoming: [], summary: null };
+      // Same key set as the other two exits, zero-filled instead of null so the
+      // response shape does not change with the caller's Personnel record.
+      return {
+        today: null,
+        week: [],
+        upcoming: [],
+        summary: {
+          totalShifts: 0,
+          totalHours: 0,
+          nightShifts: 0,
+          weekendShifts: 0,
+          overtimeHours: 0,
+        },
+      };
     }
 
     const now = new Date();

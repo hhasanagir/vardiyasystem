@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../../prisma.service';
 import { UnitsService } from '../units/units.service';
 import * as ExcelJS from 'exceljs';
+import { UnitType } from '@prisma/client';
 const PDFDocument = require('pdfkit');
 
 @Injectable()
@@ -19,7 +20,9 @@ export class SchedulesExportService {
     const data = await this.getExportData(unitType, month, year);
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'VardiyaOS';
-    const ws = workbook.addWorksheet(`${data.unitName} ${month}/${year}`);
+    const ws = workbook.addWorksheet(
+      toSheetName(`${data.unitName} ${month}/${year}`),
+    );
 
     ws.columns = [
       { header: 'Tarih', key: 'date', width: 14 },
@@ -211,9 +214,10 @@ export class SchedulesExportService {
   }
 
   private async getExportData(unitType: string, month: number, year: number) {
-    const unit = await this.prisma.unit.findFirst({
-      where: { type: unitType.toUpperCase() as any },
-    });
+    const type = Object.values(UnitType).find((t) => t === unitType);
+    const unit = type
+      ? await this.prisma.unit.findFirst({ where: { type } })
+      : null;
     if (!unit) throw new NotFoundException(`Birim bulunamadı: ${unitType}`);
 
     const schedule = await this.prisma.schedule.findFirst({
@@ -270,4 +274,13 @@ export class SchedulesExportService {
   private getDaysInMonth(month: number, year: number): number {
     return new Date(year, month, 0).getDate();
   }
+}
+
+/**
+ * Excel sheet names reject `* ? : \ / [ ]` and cap at 31 characters. The
+ * default `${unitName} ${month}/${year}` breaks the former, which made every
+ * xlsx export throw a 500.
+ */
+function toSheetName(raw: string): string {
+  return raw.replace(/[*/?:[\]\\]/g, '-').slice(0, 31);
 }
