@@ -1,27 +1,12 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import request from 'supertest';
-import { AppModule } from '../src/app.module';
+import { INestApplication } from '@nestjs/common';
+import { api, createTestApp } from './test-app';
 
 describe('Authorization (e2e)', () => {
   let app: INestApplication;
   let scheduleId: string;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    app.setGlobalPrefix('api/v1');
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
-    await app.init();
+    app = await createTestApp();
   });
 
   afterAll(async () => {
@@ -33,7 +18,7 @@ describe('Authorization (e2e)', () => {
     let draftScheduleId: string;
 
     beforeAll(async () => {
-      const loginAdmin = await request(app.getHttpServer())
+      const loginAdmin = await api(app)
         .post('/api/v1/auth/login')
         .send({ email: 'admin@hospital.com', password: 'admin123' })
         .expect(200);
@@ -43,12 +28,12 @@ describe('Authorization (e2e)', () => {
       const year = now.getFullYear() + 10;
       const month = (now.getMonth() + 1) % 12 || 12;
 
-      const unitRes = await request(app.getHttpServer())
+      const unitRes = await api(app)
         .get('/api/v1/units')
         .set('Authorization', `Bearer ${adminToken}`);
       const unitId = unitRes.body[0]?.id;
 
-      const createRes = await request(app.getHttpServer())
+      const createRes = await api(app)
         .post('/api/v1/schedules')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({ unitId, month, year })
@@ -59,7 +44,7 @@ describe('Authorization (e2e)', () => {
 
     it('should allow admin to delete draft schedule', async () => {
       if (!draftScheduleId) return;
-      await request(app.getHttpServer())
+      await api(app)
         .delete(`/api/v1/schedules/${draftScheduleId}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
@@ -71,12 +56,10 @@ describe('Authorization (e2e)', () => {
 
     beforeAll(async () => {
       try {
-        const res = await request(app.getHttpServer())
-          .post('/api/v1/auth/login')
-          .send({
-            email: 'technician@hospital.com',
-            password: 'technician123',
-          });
+        const res = await api(app).post('/api/v1/auth/login').send({
+          email: 'technician@hospital.com',
+          password: 'technician123',
+        });
         technicianToken = res.body.accessToken;
       } catch {
         technicianToken = '';
@@ -90,24 +73,24 @@ describe('Authorization (e2e)', () => {
       const year2 = now2.getFullYear() + 11;
       const month2 = (now2.getMonth() + 1) % 12 || 12;
 
-      const adminRes = await request(app.getHttpServer())
+      const adminRes = await api(app)
         .post('/api/v1/auth/login')
         .send({ email: 'admin@hospital.com', password: 'admin123' })
         .expect(200);
       const adminToken = adminRes.body.accessToken;
 
-      const unitRes = await request(app.getHttpServer())
+      const unitRes = await api(app)
         .get('/api/v1/units')
         .set('Authorization', `Bearer ${adminToken}`);
       const unitId = unitRes.body[0]?.id;
 
-      const createRes = await request(app.getHttpServer())
+      const createRes = await api(app)
         .post('/api/v1/schedules')
         .set('Authorization', `Bearer ${technicianToken}`)
         .send({ unitId, month: month2, year: year2 });
 
       if (createRes.status === 201 && createRes.body.id) {
-        await request(app.getHttpServer())
+        await api(app)
           .post(`/api/v1/schedules/${createRes.body.id}/submit`)
           .set('Authorization', `Bearer ${technicianToken}`)
           .expect(403);

@@ -1,7 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import request from 'supertest';
-import { AppModule } from '../src/app.module';
+import { INestApplication } from '@nestjs/common';
+import { api, createTestApp } from './test-app';
 
 describe('Personnel Smoke (e2e)', () => {
   let app: INestApplication;
@@ -17,23 +15,10 @@ describe('Personnel Smoke (e2e)', () => {
   ];
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    app.setGlobalPrefix('api/v1');
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
-    await app.init();
+    app = await createTestApp();
 
     // Login
-    const loginRes = await request(app.getHttpServer())
+    const loginRes = await api(app)
       .post('/api/v1/auth/login')
       .send({ email: 'admin@hospital.com', password: 'admin123' })
       .expect(200);
@@ -45,7 +30,7 @@ describe('Personnel Smoke (e2e)', () => {
     // Cleanup created personnel
     for (const id of createdIds) {
       try {
-        await request(app.getHttpServer())
+        await api(app)
           .delete(`/api/v1/personnel/${id}`)
           .set('Authorization', `Bearer ${token}`);
       } catch {
@@ -80,7 +65,7 @@ describe('Personnel Smoke (e2e)', () => {
       console.log(`\n[SMOKE] Creating ${unit.label}...`);
       console.log(`[SMOKE] Payload unitId: ${payload.unitId}`);
 
-      const res = await request(app.getHttpServer())
+      const res = await api(app)
         .post('/api/v1/personnel')
         .set('Authorization', `Bearer ${token}`)
         .send(payload)
@@ -112,7 +97,7 @@ describe('Personnel Smoke (e2e)', () => {
       if (res.body.id) createdIds.push(res.body.id);
 
       // Verify it appears in list
-      const listRes = await request(app.getHttpServer())
+      const listRes = await api(app)
         .get('/api/v1/personnel')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);

@@ -1,7 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import request from 'supertest';
-import { AppModule } from '../src/app.module';
+import { INestApplication } from '@nestjs/common';
+import { api, createTestApp } from './test-app';
 
 describe('Schedule Workflow (e2e)', () => {
   let app: INestApplication;
@@ -9,22 +7,9 @@ describe('Schedule Workflow (e2e)', () => {
   let scheduleId: string;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+    app = await createTestApp();
 
-    app = moduleFixture.createNestApplication();
-    app.setGlobalPrefix('api/v1');
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
-    await app.init();
-
-    const loginRes = await request(app.getHttpServer())
+    const loginRes = await api(app)
       .post('/api/v1/auth/login')
       .send({ email: 'admin@hospital.com', password: 'admin123' })
       .expect(200);
@@ -33,7 +18,7 @@ describe('Schedule Workflow (e2e)', () => {
   });
 
   function getUnitId(): Promise<string> {
-    return request(app.getHttpServer())
+    return api(app)
       .get('/api/v1/units')
       .set('Authorization', `Bearer ${adminToken}`)
       .then((res) => res.body[0]?.id);
@@ -41,7 +26,7 @@ describe('Schedule Workflow (e2e)', () => {
 
   afterAll(async () => {
     if (scheduleId) {
-      await request(app.getHttpServer())
+      await api(app)
         .delete(`/api/v1/schedules/${scheduleId}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .ok((res) => res.status < 500);
@@ -55,7 +40,7 @@ describe('Schedule Workflow (e2e)', () => {
     const month = (now.getMonth() + 1) % 12 || 12;
     const unitId = await getUnitId();
 
-    const res = await request(app.getHttpServer())
+    const res = await api(app)
       .post('/api/v1/schedules')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ unitId, month, year })
@@ -67,7 +52,7 @@ describe('Schedule Workflow (e2e)', () => {
   });
 
   it('2: should submit draft schedule for review', async () => {
-    await request(app.getHttpServer())
+    await api(app)
       .post(`/api/v1/schedules/${scheduleId}/submit`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ comment: 'Onkoloji Mayıs programı' })
@@ -75,7 +60,7 @@ describe('Schedule Workflow (e2e)', () => {
   });
 
   it('3: should approve schedule', async () => {
-    await request(app.getHttpServer())
+    await api(app)
       .post(`/api/v1/schedules/${scheduleId}/approve`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ comment: 'Onaylandı' })
@@ -83,21 +68,21 @@ describe('Schedule Workflow (e2e)', () => {
   });
 
   it('4: should publish approved schedule', async () => {
-    await request(app.getHttpServer())
+    await api(app)
       .post(`/api/v1/schedules/${scheduleId}/publish`)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(201);
   });
 
   it('5: should create revision from published schedule', async () => {
-    await request(app.getHttpServer())
+    await api(app)
       .post(`/api/v1/schedules/${scheduleId}/revision`)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(201);
   });
 
   it('6: should rollback draft revision to version 1', async () => {
-    await request(app.getHttpServer())
+    await api(app)
       .post(`/api/v1/schedules/${scheduleId}/rollback/1`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ reason: 'rollback attempt' })

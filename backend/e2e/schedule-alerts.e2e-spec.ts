@@ -1,7 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import request from 'supertest';
-import { AppModule } from '../src/app.module';
+import { INestApplication } from '@nestjs/common';
+import { api, createTestApp } from './test-app';
 
 describe('Schedule Alerts (e2e)', () => {
   let app: INestApplication;
@@ -9,28 +7,15 @@ describe('Schedule Alerts (e2e)', () => {
   let scheduleId: string;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+    app = await createTestApp();
 
-    app = moduleFixture.createNestApplication();
-    app.setGlobalPrefix('api/v1');
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
-    await app.init();
-
-    const res = await request(app.getHttpServer())
+    const res = await api(app)
       .post('/api/v1/auth/login')
       .send({ email: 'admin@hospital.com', password: 'admin123' })
       .expect(200);
     token = res.body.accessToken;
 
-    const scheduleRes = await request(app.getHttpServer())
+    const scheduleRes = await api(app)
       .post('/api/v1/schedules/unit/mr/publish')
       .set('Authorization', `Bearer ${token}`)
       .send({ month: 5, year: 2026 })
@@ -43,7 +28,7 @@ describe('Schedule Alerts (e2e)', () => {
   });
 
   it('GET /api/v1/schedules/:id/alerts should return alert array', () => {
-    return request(app.getHttpServer())
+    return api(app)
       .get(`/api/v1/schedules/${scheduleId}/alerts`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200)
@@ -61,13 +46,11 @@ describe('Schedule Alerts (e2e)', () => {
   });
 
   it('GET /api/v1/schedules/:id/alerts should fail without auth', () => {
-    return request(app.getHttpServer())
-      .get(`/api/v1/schedules/${scheduleId}/alerts`)
-      .expect(401);
+    return api(app).get(`/api/v1/schedules/${scheduleId}/alerts`).expect(401);
   });
 
   it('GET /api/v1/schedules/:id/alerts should return empty for nonexistent schedule', () => {
-    return request(app.getHttpServer())
+    return api(app)
       .get('/api/v1/schedules/nonexistent-id/alerts')
       .set('Authorization', `Bearer ${token}`)
       .expect(200)
@@ -78,7 +61,7 @@ describe('Schedule Alerts (e2e)', () => {
   });
 
   it('GET /api/v1/schedules/:id/alerts should have valid severity values', () => {
-    return request(app.getHttpServer())
+    return api(app)
       .get(`/api/v1/schedules/${scheduleId}/alerts`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200)

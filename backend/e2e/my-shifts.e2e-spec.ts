@@ -1,7 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import request from 'supertest';
-import { AppModule } from '../src/app.module';
+import { INestApplication } from '@nestjs/common';
+import { api, createTestApp } from './test-app';
 
 describe('My Shifts Dashboard (e2e)', () => {
   let app: INestApplication;
@@ -9,34 +7,21 @@ describe('My Shifts Dashboard (e2e)', () => {
   let techToken: string;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+    app = await createTestApp();
 
-    app = moduleFixture.createNestApplication();
-    app.setGlobalPrefix('api/v1');
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
-    await app.init();
-
-    const adminRes = await request(app.getHttpServer())
+    const adminRes = await api(app)
       .post('/api/v1/auth/login')
       .send({ email: 'admin@hospital.com', password: 'admin123' })
       .expect(200);
     adminToken = adminRes.body.accessToken;
 
-    const techRes = await request(app.getHttpServer())
+    const techRes = await api(app)
       .post('/api/v1/auth/login')
       .send({ email: 'technician@hospital.com', password: 'technician123' })
       .expect(200);
     techToken = techRes.body.accessToken;
 
-    await request(app.getHttpServer())
+    await api(app)
       .post('/api/v1/schedules/unit/mr/publish')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ month: 5, year: 2026 })
@@ -48,7 +33,7 @@ describe('My Shifts Dashboard (e2e)', () => {
   });
 
   it('GET /api/v1/me/shifts should return shifts array', () => {
-    return request(app.getHttpServer())
+    return api(app)
       .get('/api/v1/me/shifts')
       .query({ month: 5, year: 2026 })
       .set('Authorization', `Bearer ${adminToken}`)
@@ -63,7 +48,7 @@ describe('My Shifts Dashboard (e2e)', () => {
   });
 
   it('GET /api/v1/me/summary should return summary object', () => {
-    return request(app.getHttpServer())
+    return api(app)
       .get('/api/v1/me/summary')
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200)
@@ -81,7 +66,7 @@ describe('My Shifts Dashboard (e2e)', () => {
   });
 
   it('GET /api/v1/me/summary for technician returns valid data', () => {
-    return request(app.getHttpServer())
+    return api(app)
       .get('/api/v1/me/summary')
       .set('Authorization', `Bearer ${techToken}`)
       .expect(200)
@@ -93,13 +78,13 @@ describe('My Shifts Dashboard (e2e)', () => {
   });
 
   it('GET /api/v1/me/shifts should fail without auth', () => {
-    return request(app.getHttpServer())
+    return api(app)
       .get('/api/v1/me/shifts')
       .query({ month: 5, year: 2026 })
       .expect(401);
   });
 
   it('GET /api/v1/me/summary should fail without auth', () => {
-    return request(app.getHttpServer()).get('/api/v1/me/summary').expect(401);
+    return api(app).get('/api/v1/me/summary').expect(401);
   });
 });
