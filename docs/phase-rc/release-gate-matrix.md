@@ -1224,6 +1224,26 @@ The check was written before the deletions and went red on the live tree —
 Three cases cover it: a 0-byte file, a whitespace-only file, and a fixture proving placeholders, logs
 and documents are not flagged. `tsc`, `eslint`, `ng build` and the unit suites (backend 553, frontend 72) were re-run afterwards and stay green.
 
+**Retro-check against the defect that actually happened.** The probe was not the only instance.
+Baseline `7c9eb76` — the tree the earlier P0 pass worked from — committed three component files at
+0 bytes (`settings.component.ts`, `radiation-safety.component.ts`, `main-layout.component.ts`)
+alongside the `core/services/index.ts` barrel above. The P0 pass restored those components, but no
+gate was added, so the same commit shape could recur silently. Running the new check against that
+commit's real tree (`git worktree add --detach` at `7c9eb76`) reports exactly four files and nothing
+else:
+
+```
+FAIL  Source files are not empty
+        - frontend/src/app/components/settings/settings.component.ts is empty
+        - frontend/src/app/core/services/index.ts is empty
+        - frontend/src/app/features/radiation-safety/radiation-safety.component.ts is empty
+        - frontend/src/app/layouts/main-layout/main-layout.component.ts is empty
+```
+
+The same run leaves `docs/mobile/security.md`, `docs/phase-5/phase-5b1-service-line-strategy.md`
+and `secrets/.gitkeep` unreported. The gate would have blocked the historical commit, and its scope
+stops exactly where it should.
+
 Scope note: this catches emptiness only. A file with content that does nothing — an empty
 `templateUrl`, a spec with no cases, a component that is never declared in a module — is a different
 class and is not covered here.
