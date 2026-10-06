@@ -13,7 +13,7 @@
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join, relative } from "node:path";
+import { dirname, extname, join, relative } from "node:path";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const EXPECTED_IMAGE_PREFIX =
@@ -727,6 +727,21 @@ const CHECKS = [
       return failures;
     },
   ),
+
+  check("source-files-nonempty", "Source files are not empty", (root) => {
+    const failures = [];
+    const sourceDirs = ["frontend/src", "backend/src", "e2e", "scripts"];
+    const sourceExts = new Set([".ts", ".js", ".mjs", ".html", ".scss"]);
+    for (const dir of sourceDirs) {
+      for (const rel of listFiles(root, dir)) {
+        if (!sourceExts.has(extname(rel))) continue;
+        if (readFileSync(join(root, rel), "utf8").trim() === "") {
+          failures.push(`${rel} is empty`);
+        }
+      }
+    }
+    return failures;
+  }),
 ];
 
 // Gitignore-aware so a developer's local, correctly ignored .env does not read

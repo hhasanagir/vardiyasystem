@@ -229,6 +229,42 @@ const failsOn = (root, id) => {
   return r.status === "fail" ? r.failures : [];
 };
 
+test("source-files-nonempty: an empty source file is caught", () => {
+  const root = makeFixture({ "frontend/src/app/core/services/index.ts": "" });
+  try {
+    assert.deepEqual(failsOn(root, "source-files-nonempty"), [
+      "frontend/src/app/core/services/index.ts is empty",
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("source-files-nonempty: a whitespace-only source file is caught", () => {
+  const root = makeFixture({ "backend/src/main.ts": "\n  \n\t\n" });
+  try {
+    assert.deepEqual(failsOn(root, "source-files-nonempty"), [
+      "backend/src/main.ts is empty",
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("source-files-nonempty: placeholders, logs and docs are not flagged", () => {
+  const root = makeFixture({
+    "secrets/.gitkeep": "",
+    "backend/logs/app.log": "",
+    "docs/notes.md": "",
+    "frontend/src/app/app.ts": "export const x = 1;\n",
+  });
+  try {
+    assert.deepEqual(failsOn(root, "source-files-nonempty"), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("a consistent repository passes every check", () => {
   const root = makeFixture();
   try {
@@ -238,7 +274,7 @@ test("a consistent repository passes every check", () => {
       failed.map((f) => `${f.id}: ${f.failures.join("; ")}`),
       [],
     );
-    assert.equal(results.length, 18);
+    assert.equal(results.length, 19);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
