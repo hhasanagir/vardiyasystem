@@ -49,8 +49,8 @@ edit or diff. Every other part of this file is prettier-formatted.
 | 17 | Docker Compose validation | `docker compose config -q` on both files, `:latest` assert, preflight, preflight suite, hook suite | **FAIL** | `docker-compose-validation` | **CI** | **Proven defect D4.** The job's own placeholder `.env` (L522-529) omits three variables `docker-compose.prod.yml` requires: `FRONTEND_URL`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`. It also never creates `backend/.env`, which `docker-compose.yml` requires via `env_file` (L46-47). Both `config -q` steps exit 1. The `:latest` assert and preflight steps pass. | **OPEN** — add the 3 variables, create `backend/.env` from `.env.example` |
 | 18 | Manifest render (Kustomize + Helm) | `bash scripts/release-dry-run.sh --ci` | **BLOCKED locally / never reached in CI** | `manifest-render` | **CI** | Upstream: `needs: [docker-compose-validation]`, which fails (D4), so this job never executes. Also not runnable on this host: `bash` resolves to the WSL launcher stub with no distro, and `helm`, `kustomize`, `actionlint`, `kubeconform` are absent. | **OPEN** — unverified end to end |
 | 19 | Coverage | `npm run test:coverage` + Codecov | **ADVISORY — thresholds not met** | `coverage` | **neither** | `continue-on-error: true` (L130). The workflow comment states the backend vitest config carries 80% thresholds this tree does not meet, and the frontend has no coverage provider installed. | **OPEN** — documented as intentional non-gating |
-| 20 | Release preflight | `node scripts/release-preflight.mjs` | **PASS** — 18/18, with and without `SKIP_ENVIRONMENT_CHECKS=1` | `docker-compose-validation` | local = CI | — | **DONE** |
-| 21 | Preflight self-test | `node --test scripts/release-preflight.test.mjs` | **PASS** — 32/32 | `docker-compose-validation` | local = CI | — | **DONE** |
+| 20 | Release preflight | `node scripts/release-preflight.mjs` | **PASS** — 19/19, with and without `SKIP_ENVIRONMENT_CHECKS=1` | `docker-compose-validation` | local = CI | **Proven defect D28** when this check was first written — it went red on a real 0-byte file | **DONE** (D28 closed; `source-files-nonempty` added) |
+| 21 | Preflight self-test | `node --test scripts/release-preflight.test.mjs` | **PASS** — 35/35 | `docker-compose-validation` | local = CI | — | **DONE** (+3 cases for `source-files-nonempty`) |
 | 22 | Pre-commit gate suite | `node --test scripts/lint-staged-typecheck.test.mjs` | **PASS** — 14/14 | `docker-compose-validation` | local = CI | — | **DONE** (`dfcf0c2` root-cause fix) |
 | 23 | lint-staged / pre-commit | `.husky/pre-commit` → `npx lint-staged` | **PASS** — real commits verified | local + CI | local = CI | — | **DONE** |
 | 24 | Commitlint | `npx commitlint --from 7c9eb76 --to HEAD` | **PASS** for every new commit | local (`.husky/commit-msg`) | local = CI | Full range `--from eb7a6db` exits 1 | **PARTIAL by design** — see [Commitlint scope](#commitlint-scope) |
@@ -1177,6 +1177,56 @@ server configuration before migrating.
 **Remediation:** either set `shared_preload_libraries = 'pg_stat_statements'` on every Postgres
 instance before migration 17 runs, or drop the extension from the migration and manage it as
 infrastructure. Add a pre-migration assertion so the setting is verified, not assumed.
+
+### Defect D28 - no gate in the chain can see an empty source file
+
+The whole quality chain treats an empty file as valid. Proven by inserting a 0-byte
+`frontend/src/app/core/services/zerobyte-probe.component.ts` and running every stage:
+
+| stage                                        | result                                                                            |
+| -------------------------------------------- | --------------------------------------------------------------------------------- |
+| `ng build` (production)                      | exit 0, bundle complete — the file is not referenced, so it is simply not emitted |
+| `eslint .`                                   | exit 0, same 379 warnings as the clean tree                                       |
+| `prettier --check` (what `lint-staged` runs) | "All matched files use Prettier code style!"                                      |
+| `commitlint`                                 | exit 0 — it only ever reads the commit message                                    |
+
+The probe was then deleted. Nothing objected at any stage.
+
+**Root cause:** the chain has no emptiness assertion. `tsc` type-checks statements, not files, so a
+module with no statements is well-typed; eslint and prettier format what is there and have nothing to
+say about what is absent; commitlint reads the message. An empty file also never enters the bundle,
+so the build has no reason to fail. The failure mode is silent by construction, and it is the worst
+kind: a component or spec that exists but does nothing.
+
+The tree was not clean. It carried exactly such a file — `frontend/src/app/core/services/index.ts`,
+0 bytes — the **only** empty barrel among 26 `index.ts` files in the repository, imported by nothing.
+Its two siblings in the same directory, `page-context.service.ts` (1 973 B) and
+`page-context.config.ts` (7 896 B), were imported by nothing either: ~9,9 KB of scaffold that no gate
+had ever noticed. All three arrived in the baseline commit `7c9eb76`.
+
+**Remediation applied.** The three dead files were deleted — `theme.service.ts` in the same directory
+is imported by `main-layout.component.ts` and was kept. A preflight check now asserts emptiness, so
+the class cannot recur and the three CI entry points inherit it for free, because
+`release-preflight.mjs` already runs in `ci.yml`, `deploy.yml` and `pr-validation.yml`:
+
+```
+check("source-files-nonempty", "Source files are not empty", (root) => { ... })
+```
+
+It walks `frontend/src`, `backend/src`, `e2e` and `scripts` for `.ts`, `.js`, `.mjs`, `.html` and
+`.scss`, and fails on a file whose content is empty **or whitespace-only**. Scope is deliberately
+limited to source: `secrets/.gitkeep`, the 0-byte files under `backend/logs/` and the two empty
+documents (`docs/mobile/security.md`, `docs/phase-5/phase-5b1-service-line-strategy.md`) are
+legitimately empty and must not be reported.
+
+The check was written before the deletions and went red on the live tree —
+`frontend/src/app/core/services/index.ts is empty`, preflight `0/1` — then passed `19/19` after them.
+Three cases cover it: a 0-byte file, a whitespace-only file, and a fixture proving placeholders, logs
+and documents are not flagged. `tsc`, `eslint`, `ng build` and the unit suites (backend 553, frontend 72) were re-run afterwards and stay green.
+
+Scope note: this catches emptiness only. A file with content that does nothing — an empty
+`templateUrl`, a spec with no cases, a component that is never declared in a module — is a different
+class and is not covered here.
 
 ### Not claimed
 
