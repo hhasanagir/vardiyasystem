@@ -58,7 +58,7 @@ edit or diff. Every other part of this file is prettier-formatted.
 | 26 | Migration drift validation | — | **NOT IMPLEMENTED** | — | n/a | Nothing proves `schema.prisma` and `prisma/migrations/` agree. No `prisma migrate diff` exists in the repo; `migrate status` appears only in `backend/scripts/migrate-baseline.{sh,ps1}`, which are operator utilities. Migrations are *executed* in CI (`migrate deploy`) and by the Helm `pre-install,pre-upgrade` job, never *validated*. | **OPEN** |
 | 27 | Weekly security scan | `npx audit-ci --high ... \|\| true`, `npm-check-updates \|\| true`, trufflehog, SBOM | **ADVISORY** | `security-scan.yml` (cron + manual) | **neither** | Both audit steps end in `\|\| true`, and the outdated-package step is additionally `continue-on-error`. Scheduled weekly, so it never blocks a PR. | **OPEN** — separate from the blocking `--critical` PR gate |
 | 28 | Backend container runtime | `docker run` + Docker healthcheck + `GET /api/v1/health/live` | **PASS** — healthy, HTTP 200 `{"status":"ok"}`, `uid=100(vardiya)` | none | **neither** | — | **NONE REQUIRED**. No CI gate runs the image; see gate 32 |
-| 29 | Frontend container runtime | `docker run` + HTTP content assertion | **FAIL** — serves `Welcome to nginx!` (615 B) | none | **neither** | **Proven defect D5.** The Angular build emits `dist/frontend/browser/`, so `COPY /app/dist/frontend` lands the app in `html/browser/` and the base image's own `index.html` survives. nginx `root` points at `html/`, so the app is never served. | **OPEN** — copy `dist/frontend/browser`, and assert on content, not just status |
+| 29 | Frontend container runtime | `docker build` + `docker run` + HTTP content assertion | **PASS** — `GET /` 200, 34 250 B, serves the real VardiyaOS SPA (`<app-root>`, no `Welcome to nginx!`); `main-*.js` 200 / 195 305 B Angular chunk; SPA fallback `/app/command-center` 200; `/health` 200 `ok`; non-root `uid=100(vardiya)` retained | `frontend/Dockerfile` COPY path | **local** (built and run this round) | **D5 CLOSED.** Root cause as documented below; the fix was the one-line COPY correction and it is now verified by a content assertion, not a status code. Standalone `docker run` also needs `--add-host backend:...` — see finding F-DNS below. | **NONE REQUIRED** — no CI gate runs the frontend image (see gate 32) |
 | 30 | Non-root execution | `docker exec <c> id` | **PASS** — `uid=100(vardiya)` in both | none | local | — | **NONE REQUIRED** |
 | 31 | Secret hygiene in images | filesystem scan, `Config.Env`, `docker history` | **PASS** — no `.env`, no secret files, no secret-like env, nothing baked into history | none | local | — | **NONE REQUIRED** |
 | 32 | Image content verification | — | **NOT IMPLEMENTED** | — | n/a | `docker-build-validation` builds with `push: false` and never runs the image, so D5 is structurally invisible to CI. A build-only gate cannot detect a wrong-content image. | **OPEN** — add a run-and-assert step |
@@ -349,6 +349,50 @@ cleanly and serves the wrong bytes.
 
 The fix is one line — copy `dist/frontend/browser` — but a content assertion belongs with it, or
 the same class of bug returns the next time the output layout changes.
+
+**Resolution.** The COPY now targets `browser/`, and the fix was verified by rebuilding the image
+and asserting on bytes rather than status:
+
+| check                                       | result                                                       |
+| ------------------------------------------- | ------------------------------------------------------------ |
+| `/usr/share/nginx/html/index.html` in image | present, no `html/browser/`                                  |
+| `GET /`                                     | 200, 34 250 B, contains `<app-root>`, no `Welcome to nginx!` |
+| `GET /main-*.js`                            | 200, 195 305 B, Angular chunk                                |
+| `GET /app/command-center` (SPA fallback)    | 200, serves `index.html`                                     |
+| `GET /health`                               | 200 `ok`                                                     |
+| `docker exec <c> id`                        | `uid=100(vardiya)` — unchanged                               |
+
+### Finding F-DNS: nginx resolves `backend` at startup, so the container cannot start alone
+
+While verifying D5 the frontend image refused to start outside Compose:
+
+```
+nginx: [emerg] host not found in upstream "backend" in /etc/nginx/conf.d/default.conf:45
+```
+
+`nginx.conf` hardcodes the literal hostname in all nine `proxy_pass` directives (lines 45, 60, 75,
+90, 105, 120, 132, 146, 160). nginx resolves those **once, at startup**, and aborts if resolution
+fails. Consequences:
+
+- `docker run` of the frontend image fails outright unless `backend` is injected as a host.
+- In Compose, `depends_on: - backend` is short-form, so it waits only for _started_, not _healthy_ —
+  a frontend that starts first dies immediately and is not retried.
+- If the backend container is recreated it gets a new IP, but nginx keeps the address it resolved
+  at boot, so the proxy silently targets a dead address until nginx restarts.
+
+The conventional remedy is Docker's embedded resolver plus a variable, so resolution happens per
+request instead of at boot:
+
+```
+resolver 127.0.0.11 valid=10s ipv6=off;
+set $backend_upstream backend:3000;
+proxy_pass http://$backend_upstream$request_uri;
+```
+
+This is **not applied** here: with a variable in `proxy_pass` the URI-replacement semantics change,
+and three of the nine directives rely on them (`proxy_pass http://backend:3000/api/;` strips the
+`/api/` prefix). Converting all nine by hand is a materially larger and riskier change than D5, so
+it is recorded as a finding for an explicit decision rather than folded into this fix.
 
 ### Smoke test commands
 
