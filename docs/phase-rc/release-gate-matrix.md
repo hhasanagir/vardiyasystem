@@ -4,7 +4,7 @@ Source of truth for the VardiyaOS release gates.
 
 - **Snapshot commit:** `7e720af` (`fix(backend): document the encryption master key in env.example`)
 - **Measured:** 2026-10-04
-- **Updated:** 2026-10-07 — D1, D2 and D3 closed (`e6cf05e`, `5ac97d5`); gate 12 re-measured; D29 opened
+- **Updated:** 2026-10-07 — D1, D2, D3 and D29 closed (`e6cf05e`, `5ac97d5`, `60bf681`); gate 12 re-measured (28/57)
 - **Host:** Windows, PowerShell 5.1, Node `v22.14.0`, npm `9.9.4`, Docker engine `29.4.0`, Compose `v5.1.2`
 - **CI surface:** `.github/workflows/pr-validation.yml`, 11 jobs, triggered on every PR to `main`/`develop`
 - **Companion document:** `release-candidate-remediation-report.md` (history of the remediation work)
@@ -34,15 +34,15 @@ edit or diff. Every other part of this file is prettier-formatted.
 | 1 | Backend typecheck | `npm run typecheck --prefix backend` (`tsc --noEmit`) | **PASS** | `lint-typecheck` | local = CI | — | **DONE** (`daaf848`) |
 | 2 | Frontend typecheck | `npm run typecheck --prefix frontend` (app + spec projects) | **PASS** | `lint-typecheck` | local = CI | — | **DONE** (`7fae115`; it used to pass while checking zero files) |
 | 3 | Backend lint | `npm run lint --prefix backend` (`node scripts/lint-gate.mjs`) | **PASS** — 0 errors, 0 warnings | `lint-typecheck` | local = CI | — | **DONE** |
-| 4 | Frontend lint | `npm run lint --prefix frontend` (`eslint .`) | **PASS** — 0 errors, **379 warnings** | `lint-typecheck` | local = CI (exits 0: warnings are `warn` level) | — | **OPEN (backlog, deliberate)** — 208 `no-explicit-any`, 170 `no-unused-vars`, 1 `no-console` |
+| 4 | Frontend lint | `npm run lint --prefix frontend` (`eslint .`) | **PASS** — 0 errors, **378 warnings** | `lint-typecheck` | local = CI (exits 0: warnings are `warn` level) | — | **OPEN (backlog, deliberate)** — 208 `no-explicit-any`, 169 `no-unused-vars`, 1 `no-console` (re-measured 2026-10-07; was 379) |
 | 5 | Backend unit tests | `npm run test --prefix backend` (`vitest run`) | **PASS** — 553/553, 43 files, 42.7s | `unit-tests` | local = CI | — | **DONE** (`8d1b724`) |
-| 6 | Frontend unit tests | `npm run test --prefix frontend` (`ng test`) | **PASS** — 72/72, 8 files, 28.0s | `unit-tests` | local = CI | Includes the only integration-style specs in the repo: `device-api.integration.spec.ts`, `schedule-api.integration.spec.ts` | **DONE** (`2445ad9`) |
+| 6 | Frontend unit tests | `npm run test --prefix frontend` (`ng test`) | **PASS** — 76/76, 9 files (4 new RBAC specs), 31.1s | `unit-tests` | local = CI | Includes the only integration-style specs in the repo: `device-api.integration.spec.ts`, `schedule-api.integration.spec.ts` | **DONE** (`2445ad9`; +4 regression specs for D29 in `60bf681`) |
 | 7 | Prisma client generation | `npx prisma generate` | **PASS** — exit 0 even with only `DATABASE_URL` | 6 jobs | local = CI | — | **NONE REQUIRED** |
 | 8 | Prisma schema validation | `npx prisma validate` | **PASS local / fix committed, CI unverified** | `unit-tests` | **CI** | **Proven defect D2, now fixed.** `schema.prisma` reads `env("DATABASE_DIRECT_URL")`, defined **nowhere** in the workflow `env:` block or any step. The step supplies only `DATABASE_URL` (L95-100), so `prisma validate` exits 1 with `P1012 Environment variable not found: DATABASE_DIRECT_URL` — reproduced on this host, exit 1 without the variable and exit 0 with it. The same defect hit all six steps that read Prisma config: the `validate` step (L104) and five `migrate deploy` steps (L110, L176, L272, L347, L500), each of which sets `DATABASE_URL` only. `generate` alone never needed it, and the old comment at L22-23 generalised that true fact to `validate`. | **FIXED** (`5ac97d5`) — `DATABASE_DIRECT_URL` added to the workflow `env:`, so every step inherits it. CI proof needs a push (no GitHub push in this round) |
 | 9 | Backend build | `npm run build --prefix backend` | **PASS** | `build-check` | local = CI | — | **NONE REQUIRED** |
 | 10 | Frontend build | `npm run build --prefix frontend` (`ng build`) | **PASS** — 0 errors, 0 warnings, initial 619.23 kB / 150.78 kB lazy | `build-check` | local = CI | — | **DONE** (`81c5bae`: NG8107 cleared, budgets recalibrated) |
 | 11 | Backend E2E | `npm run test:e2e --prefix backend` | **PASS local** — 8/8 files, 36/36 tests, 0 skipped, green twice consecutively; backend typecheck PASS; lint 0/0 | `backend-e2e` | **local** (the job has not been re-run in CI — no GitHub push) | The 403/429 flood was a **test-harness defect, not product behaviour**. `backend/e2e/test-app.ts` now boots the way `main.ts` does — `cookie-parser`, `trust proxy`, a CSRF token pair per app, and a per-app `X-Forwarded-For` — so the shared Redis throttle bucket no longer cross-couples the 8 files. CSRF coverage was added to 7 specs; `auth.e2e-spec.ts` is untouched by design because login is `@SkipCsrf()`. Removing the harness mask exposed 5 real product bugs, all fixed. No test was weakened or bypassed. | **PARTIAL** — suite is green locally; D1, the reason the job could not boot the API at all, is **fixed** (`5ac97d5`), but the job still has no CI run (no GitHub push), so seed and boot-time behaviour remain unmeasured there. Fixes `9352dea`, `c51acb9`; verdict + this row `87a7801`, `e8fb0cb` |
-| 12 | Browser acceptance | `npm test --prefix e2e` (`playwright test`) | **FAIL** — **26/57**, 31 failing, 11.6m (was 0/57) | `browser-acceptance` | **CI** | **D3 closed, suite now executes.** `e2e/playwright.config.ts` was written (`e6cf05e`): `baseURL` from `E2E_BASE_URL`, `testMatch **/*.spec.ts`, `workers: 1`, `tr-TR`, and the two `webServer` entries the job comment always claimed existed (Nest `npm run start:prod` → `/api/v1/health/live` 180s; Angular `npm start` → baseUrl 420s, `reuseExistingServer: !CI`). Four specs then failed for a harness reason of their own — they navigated straight to guarded routes and never authenticated — so a shared `login()` helper was added (`23 → 26` passing) and the invalid-credential assertions were repointed at the PrimeNG toast the login page actually renders (`.p-toast-message-error`); no assertion was weakened. The remaining **31 failures are product/seed defects, not harness**: **5 = D29** (below), **≈16 = empty device seed** (every plan unit renders `.empty-state` "Cihaz bulunamadı", so `.calendar-cell` and the grid do not exist), **≈10 = stale selectors** (real DOM has `.schedule-shell` not `.schedule-grid`; the audit page has no `h1/h2` "Denetim" but `.audit-table`/`.filter-grid`; dashboard has `.kpi-card` not `.heatmap`; plan month buttons are icon-only `aria-label="Sonraki Ay"`). | **OPEN — D3 fixed (`e6cf05e`), D1/D2 fixed (`5ac97d5`); gate stays FAIL until D29 and the stale selectors are fixed and the seed gap is decided** |
+| 12 | Browser acceptance | `npm test --prefix e2e` (`playwright test`) | **FAIL** — **28/57**, 29 failing, 11.7m (was 0/57) | `browser-acceptance` | **CI** | **D3 and D29 closed; the suite executes and measures product/seed defects only.** `e2e/playwright.config.ts` was written (`e6cf05e`): `baseURL` from `E2E_BASE_URL`, `testMatch **/*.spec.ts`, `workers: 1`, `tr-TR`, and the two `webServer` entries the job comment always claimed existed (Nest `npm run start:prod` → `/api/v1/health/live` 180s; Angular `npm start` → baseUrl 420s, `reuseExistingServer: !CI`). Four specs never authenticated, so a shared `login()` helper was added and the invalid-credential assertions were repointed at the PrimeNG toast the page renders (`.p-toast-message-error`); no assertion was weakened. **D29** (hard-load RBAC redirect) was fixed in `60bf681` and the suite moved 26 → 28. The **29 remaining failures**, classified from every `error-context.md` snapshot: **18 = empty device seed** — the snapshot contains "Cihaz bulunamadı", so `.calendar`/grid/cells and the save controls never exist; **11 = stale selectors** — real DOM has `.schedule-shell` not `.schedule-grid`, the audit page has no `h1/h2` "Denetim" (it has `.audit-table`/`.filter-grid`), the personnel page renders cards not `table`/`.personnel-list`, the dashboard has `.kpi-card` not `.heatmap`, and plan month buttons are icon-only `aria-label="Sonraki Ay"`. | **OPEN — D3 (`e6cf05e`), D1/D2 (`5ac97d5`) and D29 (`60bf681`) fixed; gate stays FAIL until the stale selectors are aligned and the device seed gap is decided** |
 | 13 | Security invariant tests | `npx vitest run src/modules/schedules/__tests__/security-invariants.spec.ts` | **PASS** | `security-tests` | local = CI | — | **NONE REQUIRED** |
 | 14 | Dependency audit (PR gate) | `npx --yes audit-ci@6 --critical --report-type summary`, per workspace | **PASS** — 0 critical | `security-scan` | **CI** | — | **NONE REQUIRED** at this threshold. See [Dependency audit](#dependency-audit) for what it does not cover |
 | 15 | Secret scanning (PR gate) | `gitleaks/gitleaks-action@v2` + tracked-material shell checks | **PARTIAL** | `security-scan` | **CI** | No local failure. The tracked-material half is proven by preflight ("No tracked secret material"). `gitleaks` is **not installable locally**, so its half is unverified here; the action also needs a GitHub token and full history. | **OPEN** — unverified locally |
@@ -70,7 +70,7 @@ edit or diff. Every other part of this file is prettier-formatted.
 | Result | Gates |
 |---|---|
 | PASS | 1, 2, 3, 5, 6, 7, 9, 10, 13, 14, 16, 20, 21, 22, 23, 28, 29, 30, 31 |
-| PASS with caveat | 4 (379 warnings), 8 (fixed, CI unverified), 11 (green locally, CI unverified), 15 (half unverified), 24 (full history fails) |
+| PASS with caveat | 4 (378 warnings), 8 (fixed, CI unverified), 11 (green locally, CI unverified), 15 (half unverified), 24 (full history fails) |
 | FAIL | 12, 17 |
 | ADVISORY | 19, 27 |
 | BLOCKED | 18 |
@@ -86,18 +86,18 @@ database.
 Two gates are red: **12** and **17**. The four CI configuration defects D1-D3 are closed this round
 (`e6cf05e`, `5ac97d5`), which is what moved gates 8 and 11 out of the red and made gate 12
 measurable; D4 is what keeps gate 17 red, and 18 stays blocked behind it. Gate 12 is red for a new
-reason: it now runs the whole suite against the seeded database and measures **26/57**, with the 31
-failures attributed to product and seed defects (D29, stale selectors, empty device seed) rather
-than to the harness. Gates 1-7, 9-10 and 13-14 are genuinely green in both environments, which is
-why a green-looking pipeline was possible: the first failures lived entirely in the environment the
-workflow supplies to its own jobs. D5 is different in kind — a real product defect that survived
-because no gate ever runs the image it just built.
+reason: it runs the whole suite against the seeded database and measures **28/57**, with the 29
+failures attributed to product and seed defects — 18 to an empty device seed, 11 to stale selectors —
+rather than to the harness. Gates 1-7, 9-10 and 13-14 are genuinely green in both environments,
+which is why a green-looking pipeline was possible: the first failures lived entirely in the
+environment the workflow supplies to its own jobs. D5 is different in kind — a real product defect
+that survived because no gate ever runs the image it just built.
 
 | ID  | Defect                                                    | Impact                                                          | Status (2026-10-07)                                                       |
 | --- | --------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | D1  | `ENCRYPTION_MASTER_KEY` absent from all 11 jobs           | `backend-e2e` and `browser-acceptance` cannot boot the Nest API | **FIXED** `5ac97d5` — added to the workflow `env:` as a test-only literal |
 | D2  | `DATABASE_DIRECT_URL` absent from the workflow `env:`     | `Validate Prisma schema` exits 1 (`P1012`)                      | **FIXED** `5ac97d5` — same block; covers all six validate/migrate steps   |
-| D3  | `e2e/playwright.config.ts` does not exist                 | `browser-acceptance` fails all 57 tests                         | **FIXED** `e6cf05e` — config written; suite now measures 26/57            |
+| D3  | `e2e/playwright.config.ts` does not exist                 | `browser-acceptance` fails all 57 tests                         | **FIXED** `e6cf05e` — config written; suite now measures 28/57            |
 | D4  | `docker-compose-validation` placeholder `.env` incomplete | Both `config -q` steps fail; `manifest-render` never runs       | **OPEN**                                                                  |
 | D5  | Frontend image serves the nginx base-image page           | The shipped SPA is never served; image still reports healthy    | **CLOSED** — see gate 29                                                  |
 
@@ -138,7 +138,7 @@ ordering holds at 2 transitions:
 | D26 | No smoke or staging E2E stage | Zero `smoke`/`rollout status`; D6-D10 are unobservable until this exists |
 | D27 | Pipeline ends at a public GitHub Release | Every push to `main` publishes a non-draft, non-prerelease release while D1-D22 are open |
 
-### Browser round opened D29
+### Browser round opened D29 - closed the same round
 
 The 2026-10-07 browser round could not see this defect before D3 was fixed, because no browser test
 ever executed:
@@ -146,7 +146,7 @@ ever executed:
 <!-- prettier-ignore -->
 | ID | Defect | Impact |
 |---|---|---|
-| D29 | The first RBAC permission load can return before permissions arrive | A **hard page load** of `/app/employees`, `/app/reports` or `/app/settings` redirects to `/app/dashboard`; 5 of the 31 browser failures |
+| D29 | The first RBAC permission load can return before permissions arrive | A **hard page load** of `/app/employees`, `/app/reports` or `/app/settings` redirected to `/app/dashboard` — **FIXED** `60bf681`, suite 26 → 28 |
 
 **Evidence.** Against the running app with an authenticated admin session: SPA (client-side) sidebar
 navigation to all three routes works, while `page.goto(...)` followed by a reload lands on the
@@ -155,15 +155,21 @@ all 129 permissions (`personnel.read`, `analytics.read`, `organization.update` i
 console error, page error or 4xx appears. So the guard is deciding against an empty permission set
 on the first load.
 
-**Root cause (code, not yet changed).** `frontend/src/app/services/rbac.service.ts:38` starts the
-load with `if (this.loaded() || this.loading) return;`. When a load is already in flight the method
-returns **without waiting for it**, so the caller proceeds with `hasAllPermissions([])`, and
-`auth.guard.ts:70` redirects to `/app/dashboard`. On SPA navigation the request has usually
-completed already, which is why only hard loads fail.
+**Root cause.** `frontend/src/app/services/rbac.service.ts:38` started the load with
+`if (this.loaded() || this.loading) return;`. When a load was already in flight the method returned
+**without waiting for it**, so the caller proceeded with `hasAllPermissions([])`, and
+`auth.guard.ts:70` redirected to `/app/dashboard`. On SPA navigation the request had usually
+completed already, which is why only hard loads failed. The two callers are the service constructor
+(`rbac.service.ts:33`) and `rbacGuard` (`auth.guard.ts:61`, the one that awaits).
 
-**Remediation — OPEN, product change pending a scope decision:** hold the in-flight promise and
-await it (`if (this.pending) return this.pending;`) instead of returning early. This is the only
-fix in this round that touches product code, so it is deliberately not applied until approved.
+**Resolution — FIXED (`60bf681`).** `ensureLoaded()` now holds the in-flight promise and hands the
+same promise to every concurrent caller. Locked in by a regression spec
+(`frontend/src/app/services/__tests__/rbac.service.spec.ts`) that fails on the old code: a second
+caller must not settle before the response is flushed. Verified three ways — frontend typecheck 0,
+lint 0 errors, unit **76/76** (4 new), build exit 0; and the browser suite moved **26 → 28**: the
+export and reports-tab tests now pass, and the three personnel tests reach the page (their failure
+snapshots carry the `Personel Yonetimi` heading and the card list) instead of sitting on the
+dashboard. The 29 tests still red are the seed and selector classes below, not this defect.
 
 ### Defect D30 - `deploy.yml` runs the same migration without the direct URL
 

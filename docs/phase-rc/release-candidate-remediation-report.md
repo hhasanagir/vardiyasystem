@@ -214,6 +214,7 @@ sonları CRLF idi (index LF); `prettier --write` ile LF'e normalize edildi, diff
 | ------------------------------------ | --------------------------- | ------- |
 | config yazıldıktan sonra             | **23** geçti / 34 düştü     | 11.4 dk |
 | login + toast düzeltmelerinden sonra | **26** geçti / **31** düştü | 11.6 dk |
+| D29 fix'inden sonra (`60bf681`)      | **28** geçti / **29** düştü | 11.7 dk |
 
 ### 6.2 D1 ve D2 — workflow'ın kendi ortamı iki değişkeni hiç vermiyordu
 
@@ -231,41 +232,50 @@ bırakıldı.
 Dürüstlük notu: düzeltme **CI'da çalıştırılmadı** (bu turda GitHub'a push yok). Gate 8 ve 11
 "PASS with caveat" olarak, gate 12 ise ölçülmüş **FAIL** olarak işaretlendi.
 
-### 6.3 Kalan 31 hata — artık ürün/seed, harness değil
+### 6.3 D29 kapatıldı, kalan 29 hata seed/sınıf sorunu (artık harness değil)
 
-| Sınıf                                         | Adet | Kanıt (gerçek DOM / davranış)                                                                                                                                                                                                  |
-| --------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **D29** — sert sayfa yükleme RBAC'e takılıyor | 5    | `page.goto('/app/employees' \| '/reports' \| '/settings')` + reload → `/app/dashboard`; SPA (client-side) navigasyon **çalışıyor**. Permission API'leri 200 ve 129 izin dönüyor; console/pageerror/4xx yok                     |
-| **Boş cihaz seed'i**                          | ~16  | Tüm plan birimleri `.empty-state` "Cihaz bulunamadı" gösteriyor; `.calendar-cell`/grid hiç oluşmuyor (MR/BT/Röntgen/Nükleer, ayarlama senaryoları)                                                                             |
-| **Spec↔UI drift (stale selector)**            | ~10  | grid gerçek sınıfı `.schedule-shell` (`.schedule-grid` yok); audit'te `h1/h2` "Denetim" yok, `.audit-table`/`.filter-grid` var; dashboard'da `.heatmap` yok, `.kpi-card` var; ay butonları ikon-only `aria-label="Sonraki Ay"` |
+D29 ürün fix'i (`60bf681`) sonrası suite **26 → 28/57**'ye çıktı; kalan 29 hata, 29 `error-context.md`
+snapshot'ının tek tek okunmasıyla sınıflandırıldı:
 
-### 6.4 Yeni defektler (matrix'e işlendi)
+| Sınıf                              | Adet | Kanıt (snapshot / gerçek DOM)                                                                                                                                                                                                                           |
+| ---------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Boş cihaz seed'i**               | 18   | Snapshot'ta birebir **"Cihaz bulunamadı"** var → `.calendar`/grid/hücre ve "Kaydet" kontrolleri hiç oluşmuyor (MR/BT/Röntgen/Nükleer/Onkoloji planları + gece/yorulma/ilk 5 senaryo)                                                                    |
+| **Spec↔UI drift (stale selector)** | 11   | Personnel sayfası **kart** listesi (`.personnel-list`/`table` yok, başlık `Personel Yonetimi` snapshot'ta); audit'te `h1/h2` "Denetim" yok → `.audit-table`/`.filter-grid`; dashboard `.kpi-card` (`.heatmap` yok); canlı takipte `MR/BT/RÖ` butonu yok |
+| **Toplam**                         | 29   | **28/57 geçti** (11.7 dk). D29'ün kapanış kanıtı: personnel testleri artık sayfaya ulaşıyor (snapshot'ta `Personel Yonetimi` başlığı + 30 personel kartı), eskiden dashboard'a düşüyordu                                                                |
 
-- **D29** — `rbac.service.ts:38` `if (this.loaded() \|\| this.loading) return;` akıştaki isteği
-  beklemeden dönüyor → ilk yüklemede `hasAllPermissions([])` → `auth.guard.ts:70` dashboard'a
-  yönlendiriyor. **Ürün kodu değişikliği gerektirir ve bu turda uygulanmadı** (onay bekliyor).
-- **D30** — `deploy.yml` migrate adımı da yalnız `DATABASE_URL` veriyor (aynı D2 sınıfı, tek satır).
-  Dokümante edildi, ayrı pipeline olduğu için değiştirilmedi.
+### 6.4 Defekt kayıtları (matrix'e işlendi)
+
+- **D29 — KAPANDI (`60bf681`).** `rbac.service.ts:38` `if (this.loaded() \|\| this.loading) return;`
+  akıştaki isteği beklemeden dönüyordu → ilk yüklemede `hasAllPermissions([])` → `auth.guard.ts:70`
+  dashboard'a yönlendiriyordu. Aynı servisi başlatan (constructor L33) ve bekleyen (rbacGuard L61)
+  iki çağıran artık aynı in-flight promise'i paylaşıyor. Regresyon testi eklendi
+  (`rbac.service.spec.ts`, 4 test): eski kodda ikinci çağıran flush'tan önce çözüldüğü için test
+  kırmızı olur. Doğrulama: typecheck 0, lint 0 hata (**378** uyarı, 379'dan 1 düştü), unit
+  **76/76** (4 yeni), build exit 0, browser suite 26 → 28.
+- **D30 — açık.** `deploy.yml` migrate adımı da yalnız `DATABASE_URL` veriyor (aynı D2 sınıfı, tek
+  satır). Dokümante edildi, ayrı pipeline olduğu için değiştirilmedi.
 
 ### 6.5 Gate etkisi
 
-| Gate                  | Önce                         | Sonra                                                           |
-| --------------------- | ---------------------------- | --------------------------------------------------------------- |
-| 8 Prisma validate     | PASS local / FAIL in CI (D2) | **PASS with caveat** — fix committed, CI'da doğrulanmadı        |
-| 11 Backend E2E        | FAIL (D1)                    | **PASS with caveat** — suite local yeşil, CI koşusu yok         |
-| 12 Browser acceptance | FAIL 0/57 (D3)               | **FAIL 26/57** — gate artık ölçüyor; kırmızı kalmayı sürdürüyor |
+| Gate                  | Önce                         | Sonra                                                      |
+| --------------------- | ---------------------------- | ---------------------------------------------------------- |
+| 8 Prisma validate     | PASS local / FAIL in CI (D2) | **PASS with caveat** — fix committed, CI'da doğrulanmadı   |
+| 11 Backend E2E        | FAIL (D1)                    | **PASS with caveat** — suite local yeşil, CI koşusu yok    |
+| 12 Browser acceptance | FAIL 0/57 (D3)               | **FAIL 28/57** — gate ölçüyor; 18 seed + 11 selector kaldı |
+| 4 Frontend lint       | 379 uyarı                    | **378 uyarı** (yeniden ölçüm)                              |
+| 6 Frontend unit       | 72/72                        | **76/76** (+4 D29 regresyon testi)                         |
 
 Özet tablo: kırmızı gate sayısı **5 → 2** (12 ve 17). Release recommendation **hâlâ BLOCKED**.
 
 ## 7. Son durum
 
-- **TUR 2 (2026-10-07):** D3 + D1 + D2 kapatıldı (`e6cf05e`, `5ac97d5`); gate 12 artık çalışıp
-  **26/57** ölçüyor, gate 8 ve 11 caveat'e düştü. Release recommendation **BLOCKED** — gate 12
-  (D29 + stale selector + boş seed) ve gate 17 (D4) kırmızı. Ayrıntı §6 ve gate matrix'i.
+- **TUR 2 (2026-10-07):** D3 + D1 + D2 + D29 kapatıldı (`e6cf05e`, `5ac97d5`, `60bf681`); gate 12
+  artık çalışıp **28/57** ölçüyor, gate 8 ve 11 caveat'e düştü. Release recommendation **BLOCKED** —
+  gate 12 (18 boş seed + 11 stale selector) ve gate 17 (D4) kırmızı. Ayrıntı §6 ve gate matrix'i.
 
 - **COMPLETE** — RED gate kapsamı bitti: backend unit 553/553 + lint 0/0 + typecheck 0, frontend test 72/72 + typecheck 0 (app **ve** spec) + **lint 0 hata (exit 0)** + **`ng build` PASS (0 hata, 0 uyarı)**, hook testleri 14/14, preflight 32/32 + 18/18, audit critical 0, plain `npm ci`, root `npm run lint` ve root `npm run typecheck` PASS. commitlint: 23 commit'in 22'si PASS; `7c9eb76` hariç range (`--from 7c9eb76`) exit 0, yeni commit'ler `--edit` ile ayrıca doğrulandı (§4-10).
 - **Pre-commit hook — ÇALIŞIR VE GERÇEK GATE.** Dört yönlü uçtan uca doğrulama, `--no-verify` **kullanılmadan**: (A) app tip hatası → **bloke**; (B) temiz kod → **geçti** (≈ 35 s); (C) spec tip hatası → **bloke** (`tsconfig.spec.json`); (D) temiz kod → **geçti**. Hiçbir senaryoda HEAD değişmedi ya da hook atlanmadı.
 - **PASS — backend E2E 8/8 dosya, 36/36 test, 0 skip** (üst üste iki ardışık koşu). 403 ve 429'un ikisi de test harness kusuruydu; `main.ts`'in `cookie-parser` ve `trust proxy` middleware'ini yansıtmayan spec'ler yüzünden ürün hatalıymış izlenimi veriyordu. Altından üç gerçek ürün hatası çıktı ve düzeltildi (`schedules-export.service.ts` enum/sayfa-adı, `findMyShifts`+`getMySummary` yanıt şekli). Commit'ler: `49ae0d5`, `9352dea`, `c51acb9`. Ayrıntı §4-4.
-- **BACKLOG (bilinçli karar, §4-9):** 379 frontend lint uyarısı, bundle küçültme, orphan `supervisor-center` feature'ı.
+- **BACKLOG (bilinçli karar, §4-9):** 378 frontend lint uyarısı (2026-10-07 yeniden ölçüm), bundle küçültme, orphan `supervisor-center` feature'ı.
 - **PRE-EXISTING BORÇ (bu turun kapsamı dışında, CI'da değil):** kök `npm run format:check` 70 `.ts`/`.json` dosyasında uyumsuzluk raporluyor. Bu, glob genişletmesinden **önce de** vardı (önce/sonra aynı 70 dosya ölçüldü) ve hiçbir workflow `format:check` çalıştırmıyor. lint-staged yalnızca **staged** dosyaları formatladığı için bu borç geliştiriciyi rahatsız etmiyor; toplu 70 dosyalık reformat ayrı bir çalışma olarak değerlendirilmeli.
 - Commit'lerle birlikte çalışma ağacı temiz olarak bırakılır (untracked sıfır).
