@@ -24,7 +24,7 @@ export class RbacService {
   private permissions = signal<string[]>([]);
   private rbacRoles = signal<RbacRoleInfo[]>([]);
   private loaded = signal(false);
-  private loading = false;
+  private loading: Promise<void> | null = null;
 
   readonly hasAnyRole = computed(() => this.rbacRoles().length > 0);
 
@@ -35,8 +35,17 @@ export class RbacService {
   }
 
   async ensureLoaded(): Promise<void> {
-    if (this.loaded() || this.loading) return;
-    this.loading = true;
+    if (this.loaded()) return;
+    if (this.loading) return this.loading;
+    this.loading = this.fetchPermissions();
+    try {
+      await this.loading;
+    } finally {
+      this.loading = null;
+    }
+  }
+
+  private async fetchPermissions(): Promise<void> {
     try {
       const res = await firstValueFrom(
         this.http.get<RbacPermissionsResponse>(`${this.apiUrl}/rbac/me/permissions`),
@@ -48,8 +57,6 @@ export class RbacService {
       this.permissions.set([]);
       this.rbacRoles.set([]);
       this.loaded.set(true);
-    } finally {
-      this.loading = false;
     }
   }
 
