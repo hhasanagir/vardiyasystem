@@ -9,19 +9,17 @@ test.describe("Personnel Management", () => {
   });
 
   test("should display personnel list", async ({ page }) => {
-    const table = page.locator("table, .personnel-list, .employee-list");
-    await expect(table).toBeVisible();
+    const firstCard = page.getByRole("heading", { level: 3 }).first();
+    await expect(firstCard).toBeVisible();
   });
 
-  test("should navigate to add personnel form", async ({ page }) => {
-    const addButton = page.locator(
-      'button:has-text("Ekle"), button:has-text("Yeni"), a:has-text("Personel Ekle")',
-    );
+  test("should open add personnel wizard", async ({ page }) => {
+    const addButton = page.locator('button:has-text("Yeni Personel")');
     if ((await addButton.count()) > 0) {
       await addButton.first().click();
       await page.waitForTimeout(500);
-      const form = page.locator("form, .form, .modal");
-      await expect(form).toBeVisible();
+      const wizard = page.locator(".wizard-container");
+      await expect(wizard).toBeVisible();
     }
   });
 

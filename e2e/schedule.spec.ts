@@ -9,40 +9,37 @@ test.describe("Schedule Pages", () => {
   test("should load MR plan page", async ({ page }) => {
     await page.goto("/app/mr-plan");
     await page.waitForLoadState("networkidle");
-    const calendar = page.locator(".calendar, .plan-container, .schedule-grid");
+    const calendar = page.locator(".schedule-shell");
     await expect(calendar).toBeVisible();
   });
 
   test("should load BT plan page", async ({ page }) => {
     await page.goto("/app/bt-plan");
     await page.waitForLoadState("networkidle");
-    const calendar = page.locator(".calendar, .plan-container, .schedule-grid");
+    const calendar = page.locator(".schedule-shell");
     await expect(calendar).toBeVisible();
   });
 
   test("should load Röntgen plan page", async ({ page }) => {
     await page.goto("/app/rontgen-plan");
     await page.waitForLoadState("networkidle");
-    const calendar = page.locator(".calendar, .plan-container, .schedule-grid");
+    const calendar = page.locator(".schedule-shell");
     await expect(calendar).toBeVisible();
   });
 
   test("should load Nükleer Tıp plan page", async ({ page }) => {
     await page.goto("/app/nukleer-tip-plan");
     await page.waitForLoadState("networkidle");
-    const calendar = page.locator(".calendar, .plan-container, .schedule-grid");
+    const calendar = page.locator(".schedule-shell");
     await expect(calendar).toBeVisible();
   });
 
   test("should navigate months on plan page", async ({ page }) => {
     await page.goto("/app/mr-plan");
     await page.waitForLoadState("networkidle");
-    const nextBtn = page.locator(
-      'button:has-text("Sonraki"), button:has-text("İleri"), button[aria-label="Next"]',
-    );
-    const prevBtn = page.locator(
-      'button:has-text("Önceki"), button:has-text("Geri"), button[aria-label="Previous"]',
-    );
+    const nextBtn = page.locator('button[title="Sonraki Ay"]');
+    const prevBtn = page.locator('button[title="Önceki Ay"]');
+    await expect(nextBtn.or(prevBtn)).toBeVisible();
     if ((await nextBtn.count()) > 0) {
       await nextBtn.first().click();
       await page.waitForTimeout(500);
@@ -56,7 +53,7 @@ test.describe("Schedule Pages", () => {
   test("should display shift legend", async ({ page }) => {
     await page.goto("/app/mr-plan");
     await page.waitForLoadState("networkidle");
-    const legend = page.locator(".legend, .shift-legend, .calendar-legend");
+    const legend = page.locator(".kpi-legend");
     await expect(legend).toBeVisible();
   });
 });

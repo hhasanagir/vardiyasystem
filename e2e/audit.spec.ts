@@ -1,45 +1,38 @@
 import { test, expect } from "@playwright/test";
 import { login } from "./helpers";
 
-test.describe("Audit Timeline", () => {
+test.describe("Audit Center", () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
   });
 
-  test("should load audit timeline page", async ({ page }) => {
+  test("should load audit page", async ({ page }) => {
     await page.goto("/app/audit");
     await page.waitForLoadState("networkidle");
-    const heading = page.locator(
-      'h1:has-text("Denetim"), h2:has-text("Denetim")',
-    );
-    await expect(heading).toBeVisible();
+    const table = page.locator(".audit-table");
+    await expect(table).toBeVisible();
   });
 
-  test("should display timeline entries", async ({ page }) => {
+  test("should display audit entries", async ({ page }) => {
     await page.goto("/app/audit");
     await page.waitForLoadState("networkidle");
-    const timeline = page.locator(".timeline-entries, .audit-list, .log-list");
-    await expect(timeline).toBeVisible();
+    const firstRow = page.locator(".audit-table tbody tr").first();
+    await expect(firstRow).toBeVisible();
   });
 
   test("should have filter controls", async ({ page }) => {
     await page.goto("/app/audit");
     await page.waitForLoadState("networkidle");
-    const filter = page.locator(".filter-bar, .filters, .audit-filters");
+    const filter = page.locator(".filter-grid");
     await expect(filter).toBeVisible();
   });
 
-  test("should show suspicious activities section", async ({ page }) => {
+  test("should support filtering by activity status", async ({ page }) => {
     await page.goto("/app/audit");
     await page.waitForLoadState("networkidle");
-    const suspicious = page.locator("text=Şüpheli");
-    await expect(suspicious).toBeVisible();
-  });
-
-  test("should have refresh button", async ({ page }) => {
-    await page.goto("/app/audit");
-    await page.waitForLoadState("networkidle");
-    const refreshBtn = page.locator('button:has-text("Yenile")');
-    await expect(refreshBtn).toBeVisible();
+    const statusFilter = page
+      .locator(".filter-grid select")
+      .filter({ has: page.locator("option", { hasText: "Başarısız" }) });
+    await expect(statusFilter).toBeVisible();
   });
 });

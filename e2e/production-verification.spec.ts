@@ -113,7 +113,8 @@ test.describe("Production Verification — Personnel", () => {
   test("personnel table loads", async ({ page }) => {
     await page.goto("/app/employees");
     await page.waitForLoadState("networkidle");
-    await expect(page.locator("table, .personnel-list")).toBeVisible();
+    const firstCard = page.getByRole("heading", { level: 3 }).first();
+    await expect(firstCard).toBeVisible();
   });
 
   test("personnel search filter works", async ({ page }) => {
@@ -137,19 +138,15 @@ test.describe("Production Verification — Schedule Engine", () => {
   test("MR plan page loads calendar", async ({ page }) => {
     await page.goto("/app/mr-plan");
     await page.waitForLoadState("networkidle");
-    const calendar = page.locator(".calendar, .plan-container, .schedule-grid");
+    const calendar = page.locator(".schedule-shell");
     await expect(calendar).toBeVisible();
   });
 
   test("schedule navigation controls present", async ({ page }) => {
     await page.goto("/app/mr-plan");
     await page.waitForLoadState("networkidle");
-    const nextBtn = page.locator(
-      'button:has-text("İleri"), button[aria-label="Next"]',
-    );
-    const prevBtn = page.locator(
-      'button:has-text("Geri"), button[aria-label="Previous"]',
-    );
+    const nextBtn = page.locator('button[title="Sonraki Ay"]');
+    const prevBtn = page.locator('button[title="Önceki Ay"]');
     await expect(nextBtn.or(prevBtn)).toBeVisible();
   });
 
@@ -248,9 +245,7 @@ test.describe("Production Verification — Schedule Units", () => {
     test(`${unit} plan page loads`, async ({ page }) => {
       await page.goto(`/app/${unit}-plan`);
       await page.waitForLoadState("networkidle");
-      const calendar = page.locator(
-        ".calendar, .plan-container, .schedule-grid",
-      );
+      const calendar = page.locator(".schedule-shell");
       await expect(calendar).toBeVisible();
     });
   }

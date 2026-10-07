@@ -13,12 +13,12 @@ test.describe("Live Tracking & WebSocket", () => {
     await expect(heading).toBeVisible();
   });
 
-  test("should display unit tabs on live tracking", async ({ page }) => {
+  test("should display unit occupancy stats on live tracking", async ({
+    page,
+  }) => {
     await page.goto("/app/live-tracking");
     await page.waitForLoadState("networkidle");
-    const unitTabs = page.locator(
-      'button:has-text("MR"), button:has-text("BT"), button:has-text("RÖ")',
-    );
-    await expect(unitTabs.first()).toBeVisible();
+    await expect(page.locator("main")).toContainText(/MR/);
+    await expect(page.locator("main")).toContainText(/BT/);
   });
 });

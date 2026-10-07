@@ -11,35 +11,37 @@ test.describe("VardiyaOS Critical Test Scenarios", () => {
       page,
     }) => {
       await page.goto("/app/mr-plan");
+      await page.waitForLoadState("networkidle");
 
-      const nightShiftCell = page.locator(".calendar-cell").first();
-      await nightShiftCell.click();
+      await page
+        .locator("tr.night-shift-row td.person-cell.night-cell .add-person-btn")
+        .first()
+        .click();
+      await expect(page.locator(".personnel-item").first()).toBeVisible();
+      const nightPerson = page
+        .locator(".personnel-item:not(.ineligible)")
+        .first();
+      const personName = (
+        await nightPerson.locator(".personnel-name").textContent()
+      )?.trim();
+      await nightPerson.click();
+      await page.locator("button.btn-primary").click();
+      await page.waitForTimeout(1200);
 
-      const personnelDropdown = page.locator(
-        'select[formControlName="personnel"]',
+      await page
+        .locator("tr.day-shift-row td.person-cell .add-person-btn")
+        .nth(1)
+        .click();
+      await expect(page.locator(".personnel-item").first()).toBeVisible();
+      await page
+        .locator(".personnel-item", { hasText: personName ?? "" })
+        .first()
+        .click();
+
+      await expect(page.locator("button.btn-primary")).toContainText(
+        "Atama Engellendi",
+        { timeout: 3000 },
       );
-      await personnelDropdown.selectOption({ index: 0 });
-
-      const shiftTypeSelect = page.locator(
-        'select[formControlName="shiftType"]',
-      );
-      await shiftTypeSelect.selectOption("night");
-
-      await page.locator('button:has-text("Kaydet")').click();
-
-      await page.waitForTimeout(500);
-
-      const nextDayCell = page.locator(".calendar-cell").nth(1);
-      await nextDayCell.click();
-      await personnelDropdown.selectOption({ index: 0 });
-      await shiftTypeSelect.selectOption("day");
-
-      await page.locator('button:has-text("Kaydet")').click();
-
-      const errorMessage = page.locator(
-        ".constraint-error, .conflict-alert, .error-message",
-      );
-      await expect(errorMessage.first()).toBeVisible({ timeout: 3000 });
     });
   });
 
@@ -48,39 +50,50 @@ test.describe("VardiyaOS Critical Test Scenarios", () => {
       page,
     }) => {
       await page.goto("/app/mr-plan");
+      await page.waitForLoadState("networkidle");
 
-      const dayCell = page.locator(".calendar-cell").first();
-      await dayCell.click();
+      await page
+        .locator("tr.night-shift-row td.person-cell.night-cell .add-person-btn")
+        .first()
+        .click();
+      await expect(page.locator(".personnel-item").first()).toBeVisible();
+      const nightPerson = page
+        .locator(".personnel-item:not(.ineligible)")
+        .first();
+      const personName = (
+        await nightPerson.locator(".personnel-name").textContent()
+      )?.trim();
+      await nightPerson.click();
+      await page.locator("button.btn-primary").click();
+      await page.waitForTimeout(1200);
 
-      const shiftTypeSelect = page.locator(
-        'select[formControlName="shiftType"]',
-      );
-      await shiftTypeSelect.selectOption("day");
+      await page
+        .locator("tr.day-shift-row td.person-cell .add-person-btn")
+        .nth(1)
+        .click();
+      await expect(page.locator(".personnel-item").first()).toBeVisible();
+      await page
+        .locator(".personnel-item", { hasText: personName ?? "" })
+        .first()
+        .click();
 
-      const nextCell = page.locator(".calendar-cell").nth(1);
-      await nextCell.click();
-      await shiftTypeSelect.selectOption("day");
-
-      await page.locator('button:has-text("Kaydet")').click();
-
-      await page.waitForTimeout(500);
-
-      const alert = page.locator(".rest-violation, .constraint-error");
-      await expect(alert.first()).toBeVisible({ timeout: 3000 });
+      const warning = page.locator(".slot-warning.error").first();
+      await expect(warning).toContainText("dinlenme kuralı ihlali", {
+        timeout: 3000,
+      });
     });
   });
 
   test.describe("3. Fair Night Distribution Maintained", () => {
     test("should balance night shifts across personnel", async ({ page }) => {
-      await page.goto("/app/mr-plan");
-
       await page.goto("/app/reports");
+      await page.waitForLoadState("networkidle");
 
-      const fairnessScore = page.locator(".fairness-score, .fairness-metric");
-      await expect(fairnessScore.first()).toBeVisible();
+      await page.locator('button:has-text("Personel")').first().click();
+      await page.waitForTimeout(400);
 
-      const nightDistribution = page.locator("text=Gece Dağılımı");
-      await expect(nightDistribution).toBeVisible();
+      const employeeStats = page.locator(".employee-grid");
+      await expect(employeeStats).toBeAttached();
     });
   });
 
@@ -89,16 +102,19 @@ test.describe("VardiyaOS Critical Test Scenarios", () => {
       page,
     }) => {
       await page.goto("/app/mr-plan");
+      await page.waitForLoadState("networkidle");
 
       await page.goto("/app/bt-plan");
+      await page.waitForLoadState("networkidle");
 
       const nationalHoliday = page
-        .locator(".calendar-cell.national-holiday, .holiday.national")
+        .locator(".date-col.national-holiday")
         .first();
       if ((await nationalHoliday.count()) > 0) {
-        await expect(nationalHoliday).toHaveCSS(
+        const label = nationalHoliday.locator(".holiday-label");
+        await expect(label).toHaveCSS(
           "background-color",
-          "rgb(220, 38, 38)",
+          "rgba(220, 38, 38, 0.2)",
         );
       }
     });
@@ -107,28 +123,32 @@ test.describe("VardiyaOS Critical Test Scenarios", () => {
       page,
     }) => {
       await page.goto("/app/mr-plan");
+      await page.waitForLoadState("networkidle");
 
       await page.goto("/app/bt-plan");
+      await page.waitForLoadState("networkidle");
 
       const religiousHoliday = page
-        .locator(".calendar-cell.religious-holiday, .holiday.religious")
+        .locator(".date-col.religious-holiday")
         .first();
       if ((await religiousHoliday.count()) > 0) {
-        await expect(religiousHoliday).toHaveCSS(
+        const label = religiousHoliday.locator(".holiday-label");
+        await expect(label).toHaveCSS(
           "background-color",
-          "rgb(234, 179, 8)",
+          "rgba(180, 30, 30, 0.25)",
         );
+        await expect(label).toHaveCSS("color", "rgb(251, 191, 36)");
       }
     });
 
-    test("should show holiday name on hover", async ({ page }) => {
+    test("should show holiday name label", async ({ page }) => {
       await page.goto("/app/mr-plan");
+      await page.waitForLoadState("networkidle");
 
-      const holidayCell = page.locator(".calendar-cell.is-holiday").first();
-      if ((await holidayCell.count()) > 0) {
-        await holidayCell.hover();
-        const tooltip = page.locator(".holiday-tooltip, .tooltip");
-        await expect(tooltip.first()).toBeVisible({ timeout: 2000 });
+      const holidayCol = page.locator(".date-col.holiday").first();
+      if ((await holidayCol.count()) > 0) {
+        const label = holidayCol.locator(".holiday-label");
+        await expect(label).toBeVisible();
       }
     });
   });
@@ -136,55 +156,61 @@ test.describe("VardiyaOS Critical Test Scenarios", () => {
   test.describe("5. Save/Load Persistence Works", () => {
     test("should persist schedule changes", async ({ page }) => {
       await page.goto("/app/mr-plan");
+      await page.waitForLoadState("networkidle");
 
-      const cell = page.locator(".calendar-cell").first();
-      await cell.click();
-
-      const personnelDropdown = page.locator(
-        'select[formControlName="personnel"]',
-      );
-      await personnelDropdown.selectOption({ index: 0 });
-
-      await page.locator('button:has-text("Kaydet")').click();
-      await page.waitForTimeout(1000);
+      await page
+        .locator(
+          "tr.day-shift-row td.person-cell:not(:has(.person-card)) .add-person-btn",
+        )
+        .first()
+        .click();
+      await expect(page.locator(".personnel-item").first()).toBeVisible();
+      await page.locator(".personnel-item").first().click();
+      await page.locator("button.btn-primary").click();
+      await page.waitForTimeout(1500);
 
       await page.reload();
       await page.waitForLoadState("networkidle");
 
       await page.goto("/app/mr-plan");
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle");
 
-      const savedCell = page.locator(".calendar-cell.has-assignment").first();
+      const savedCell = page.locator("tr.day-shift-row .person-card").first();
       await expect(savedCell).toBeVisible();
     });
 
     test("should preserve month navigation state", async ({ page }) => {
       await page.goto("/app/mr-plan");
+      await page.waitForLoadState("networkidle");
 
-      await page.locator('button:has-text("Sonraki Ay")').click();
-      await page.waitForTimeout(500);
+      const firstMonth = (
+        await page.locator(".current-month").textContent()
+      )?.trim();
+      await page.locator('button[title="Sonraki Ay"]').first().click();
+      await page.waitForTimeout(600);
+
+      const nextMonth = (
+        await page.locator(".current-month").textContent()
+      )?.trim();
+      expect(nextMonth).not.toBe(firstMonth);
 
       await page.reload();
       await page.waitForLoadState("networkidle");
 
       await page.goto("/app/mr-plan");
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(800);
 
-      const monthLabel = page.locator(".current-month, .month-label");
-      await expect(monthLabel).toContainText("Haziran");
+      await expect(page.locator(".current-month")).toHaveText(nextMonth ?? "");
     });
 
     test("should sync between dashboard and plan pages", async ({ page }) => {
       await page.goto("/app/mr-plan");
-
-      await page.locator('button:has-text("Kaydet")').first().click();
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle");
+      await expect(page.locator(".schedule-shell")).toBeVisible();
 
       await page.goto("/app");
-      await page.waitForTimeout(500);
-
-      const metrics = page.locator(".metrics-row");
-      await expect(metrics).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      await expect(page.locator(".kpi-grid")).toBeVisible();
     });
   });
 });
@@ -194,25 +220,17 @@ test.describe("Dashboard Navigation", () => {
     await login(page);
   });
 
-  test("should switch between heatmap units", async ({ page }) => {
+  test("should navigate from dashboard to unit plan pages", async ({
+    page,
+  }) => {
     await page.goto("/app");
+    await page.waitForLoadState("networkidle");
 
-    const mrTab = page.locator('button:has-text("MR")');
-    const btTab = page.locator('button:has-text("BT")');
-    const rontgenTab = page.locator('button:has-text("RÖ")');
-    const nukleerTab = page.locator('button:has-text("NT")');
+    const firstUnit = page.locator(".unit-summary").first();
+    await expect(firstUnit).toBeVisible();
+    await firstUnit.click();
 
-    await mrTab.click();
-    await expect(mrTab).toHaveClass(/active/);
-
-    await btTab.click();
-    await expect(btTab).toHaveClass(/active/);
-
-    await rontgenTab.click();
-    await expect(rontgenTab).toHaveClass(/active/);
-
-    await nukleerTab.click();
-    await expect(nukleerTab).toHaveClass(/active/);
+    await expect(page).toHaveURL(/-plan/);
   });
 });
 
@@ -223,16 +241,16 @@ test.describe("Plan Page Navigation", () => {
 
   test("should navigate to all 4 unit plan pages", async ({ page }) => {
     await page.goto("/app/mr-plan");
-    await expect(page.locator("h1, h2")).toContainText(/MR/);
+    await expect(page.locator(".unit-label")).toContainText(/MR/i);
 
     await page.goto("/app/bt-plan");
-    await expect(page.locator("h1, h2")).toContainText(/BT/);
+    await expect(page.locator(".unit-label")).toContainText(/BT/i);
 
     await page.goto("/app/rontgen-plan");
-    await expect(page.locator("h1, h2")).toContainText(/Röntgen/);
+    await expect(page.locator(".unit-label")).toContainText(/Röntgen/i);
 
     await page.goto("/app/nukleer-tip-plan");
-    await expect(page.locator("h1, h2")).toContainText(/Nükleer/);
+    await expect(page.locator(".unit-label")).toContainText(/Nükleer/i);
   });
 });
 
