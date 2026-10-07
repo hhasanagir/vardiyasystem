@@ -19,8 +19,15 @@ env:
   REDIS_URL: redis://localhost:6379
   JWT_ACCESS_TOKEN_SECRET: ci-validation-secret
   JWT_REFRESH_TOKEN_SECRET: ci-validation-secret
-  # Prisma only needs the variable to be present when generating the client; it
-  # never dials the database during `generate`.
+  # prisma/schema.prisma:10 reads directUrl = env("DATABASE_DIRECT_URL").
+  # `generate` never needs it, but `prisma validate` and every `prisma migrate
+  # deploy` step exit 1 with P1012 "Environment variable not found" without it.
+  DATABASE_DIRECT_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
+  # EncryptionService throws during Nest bootstrap unless this is >= 64 hex
+  # chars, so no job that boots the API can start without it. Test-only value.
+  ENCRYPTION_MASTER_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+  # Prisma only needs this stub present when generating the client; it never
+  # dials the database during `generate`.
   PRISMA_STUB_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
 
 jobs:
