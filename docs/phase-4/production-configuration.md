@@ -56,6 +56,14 @@
 
 > Seeded accounts must have their passwords rotated or accounts disabled before go-live.
 
+> **Guard behaviour.** These variables are read only by the one-time
+> `npm run seed` (`backend/prisma/seed.ts`) run during first-deploy bootstrap.
+> The running application ignores them entirely when `NODE_ENV=production`:
+> `SeedService.onModuleInit` skips `ensureUsers()`, so app restarts never
+> re-create, re-password, or re-role the well-known seed accounts.
+> `SEED_TECHNICIAN_PASSWORD` is never read by the app at all — it is
+> `prisma/seed.ts`-only.
+
 ### 1.6 Rate Limiting
 
 | Variable                  | Required | Default | Description                    |

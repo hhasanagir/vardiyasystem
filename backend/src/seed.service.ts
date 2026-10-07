@@ -25,7 +25,11 @@ export class SeedService implements OnModuleInit {
 
   async onModuleInit() {
     await this.rbacSeedService.seed();
-    const seedPassword = this.configService.get<string>('SEED_ADMIN_PASSWORD');
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
+    const seedPassword = isProduction
+      ? undefined
+      : this.configService.get<string>('SEED_ADMIN_PASSWORD');
     if (seedPassword) {
       await this.ensureUsers(seedPassword);
     }
