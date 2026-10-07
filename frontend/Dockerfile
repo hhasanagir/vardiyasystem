@@ -18,7 +18,7 @@ RUN npm run build -- --configuration production && \
     rm -rf /root/.npm /tmp/* /app/node_modules
 
 # Stage 2: Serve with nginx
-FROM nginx:1.27-alpine
+FROM nginx:1.31-alpine
 
 LABEL vendor="VardiyaOS"
 LABEL org.opencontainers.image.title="VardiyaOS Frontend"
