@@ -2335,7 +2335,14 @@ export class PlanPageComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (schedule) => {
-          if (schedule && schedule.id) {
+          if (!schedule) {
+            this.viewState.set({
+              status: 'empty',
+              reason: `${this.unitLabel()} birimi için ${this.monthLabel()} döneminde plan bulunamadı.`,
+            });
+            return;
+          }
+          if (schedule.id) {
             this.lastUpdated = new Date();
             this.viewState.set({ status: 'success', schedule });
             this.scheduleStore.setSchedule({
@@ -2359,11 +2366,9 @@ export class PlanPageComponent implements OnInit, OnDestroy {
                 this.alertsLoading.set(false);
               },
             });
-          } else if (schedule && !schedule.id) {
-            this.viewState.set({
-              status: 'empty',
-              reason: `${this.unitLabel()} birimi için ${this.monthLabel()} döneminde plan bulunamadı.`,
-            });
+          } else if ((schedule.devices?.length ?? 0) > 0) {
+            this.lastUpdated = new Date();
+            this.viewState.set({ status: 'success', schedule });
           } else {
             this.viewState.set({
               status: 'empty',
