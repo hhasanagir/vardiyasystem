@@ -25,7 +25,9 @@ test.describe("Authentication", () => {
       await passwordInput.fill("wrongpass");
       await submitButton.click();
       await page.waitForTimeout(1000);
-      const error = page.locator(".error-message, .alert-error, .toast-error");
+      const error = page.locator(
+        ".p-toast-message-error, .error-message, .alert-error, .toast-error",
+      );
       await expect(error).toBeVisible();
     }
   });

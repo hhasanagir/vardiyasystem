@@ -1,9 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { login } from "./helpers";
 
 test.describe("VardiyaOS Critical Test Scenarios", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await login(page);
   });
 
   test.describe("1. Night Shift followed by Day Shift must FAIL", () => {
@@ -190,6 +190,10 @@ test.describe("VardiyaOS Critical Test Scenarios", () => {
 });
 
 test.describe("Dashboard Navigation", () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page);
+  });
+
   test("should switch between heatmap units", async ({ page }) => {
     await page.goto("/app");
 
@@ -213,6 +217,10 @@ test.describe("Dashboard Navigation", () => {
 });
 
 test.describe("Plan Page Navigation", () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page);
+  });
+
   test("should navigate to all 4 unit plan pages", async ({ page }) => {
     await page.goto("/app/mr-plan");
     await expect(page.locator("h1, h2")).toContainText(/MR/);
@@ -229,6 +237,10 @@ test.describe("Plan Page Navigation", () => {
 });
 
 test.describe("Reports Page", () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page);
+  });
+
   test("should switch between all tabs", async ({ page }) => {
     await page.goto("/app/reports");
 

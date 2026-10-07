@@ -1,7 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { login } from "./helpers";
 
 test.describe("Personnel Management", () => {
   test.beforeEach(async ({ page }) => {
+    await login(page);
     await page.goto("/app/employees");
     await page.waitForLoadState("networkidle");
   });

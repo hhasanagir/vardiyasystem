@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { login } from "./helpers";
 
 test.describe("Production Verification — Auth + Session", () => {
   test("login page loads with form", async ({ page }) => {
@@ -19,7 +20,9 @@ test.describe("Production Verification — Auth + Session", () => {
     await password.fill("wrongpass");
     await page.locator('button[type="submit"]').click();
     await expect(
-      page.locator(".error-message, .alert, .toast-error"),
+      page.locator(
+        ".p-toast-message-error, .error-message, .alert, .toast-error",
+      ),
     ).toBeVisible({ timeout: 5000 });
   });
 
@@ -70,6 +73,10 @@ test.describe("Production Verification — RBAC", () => {
 });
 
 test.describe("Production Verification — Dashboard + Metrics", () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page);
+  });
+
   test("dashboard loads with KPIs", async ({ page }) => {
     await page.goto("/login");
     await page.waitForLoadState("networkidle");
@@ -99,6 +106,10 @@ test.describe("Production Verification — Dashboard + Metrics", () => {
 });
 
 test.describe("Production Verification — Personnel", () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page);
+  });
+
   test("personnel table loads", async ({ page }) => {
     await page.goto("/app/employees");
     await page.waitForLoadState("networkidle");
@@ -119,6 +130,10 @@ test.describe("Production Verification — Personnel", () => {
 });
 
 test.describe("Production Verification — Schedule Engine", () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page);
+  });
+
   test("MR plan page loads calendar", async ({ page }) => {
     await page.goto("/app/mr-plan");
     await page.waitForLoadState("networkidle");
@@ -147,6 +162,10 @@ test.describe("Production Verification — Schedule Engine", () => {
 });
 
 test.describe("Production Verification — Refresh Persistence", () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page);
+  });
+
   test("page state persists after refresh", async ({ page }) => {
     await page.goto("/app/mr-plan");
     await page.waitForLoadState("networkidle");
@@ -164,6 +183,10 @@ test.describe("Production Verification — Refresh Persistence", () => {
 });
 
 test.describe("Production Verification — Notifications", () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page);
+  });
+
   test("notification panel accessible", async ({ page }) => {
     await page.goto("/app/dashboard");
     await page.waitForLoadState("networkidle");
@@ -178,6 +201,10 @@ test.describe("Production Verification — Notifications", () => {
 });
 
 test.describe("Production Verification — Export", () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page);
+  });
+
   test("export button present on reports", async ({ page }) => {
     await page.goto("/app/reports");
     await page.waitForLoadState("networkidle");
@@ -212,6 +239,10 @@ test.describe("Production Verification — Error Resilience", () => {
 });
 
 test.describe("Production Verification — Schedule Units", () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page);
+  });
+
   const units = ["mr", "bt", "rontgen", "nukleer-tip", "onkoloji"];
   for (const unit of units) {
     test(`${unit} plan page loads`, async ({ page }) => {
@@ -226,6 +257,10 @@ test.describe("Production Verification — Schedule Units", () => {
 });
 
 test.describe("Production Verification — Multi-Role Access", () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page);
+  });
+
   test("operations center loads with controls", async ({ page }) => {
     await page.goto("/app/operations");
     await page.waitForLoadState("networkidle");

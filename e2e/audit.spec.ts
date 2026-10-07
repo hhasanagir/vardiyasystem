@@ -1,6 +1,11 @@
 import { test, expect } from "@playwright/test";
+import { login } from "./helpers";
 
 test.describe("Audit Timeline", () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page);
+  });
+
   test("should load audit timeline page", async ({ page }) => {
     await page.goto("/app/audit");
     await page.waitForLoadState("networkidle");
