@@ -2,7 +2,7 @@
 # Multi-stage: builder → nginx
 # Serves pre-built Angular SPA with custom nginx config
 
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 
 LABEL stage="builder"
 LABEL org.opencontainers.image.description="VardiyaOS Frontend — build stage"
