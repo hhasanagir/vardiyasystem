@@ -4,8 +4,9 @@ Source of truth for the VardiyaOS release gates.
 
 - **Snapshot commit:** `7e720af` (`fix(backend): document the encryption master key in env.example`)
 - **Measured:** 2026-10-04
+- **Updated:** 2026-10-07 — D1, D2 and D3 closed (`e6cf05e`, `5ac97d5`); gate 12 re-measured; D29 opened
 - **Host:** Windows, PowerShell 5.1, Node `v22.14.0`, npm `9.9.4`, Docker engine `29.4.0`, Compose `v5.1.2`
-- **CI surface:** `.github/workflows/pr-validation.yml`, 13 jobs, triggered on every PR to `main`/`develop`
+- **CI surface:** `.github/workflows/pr-validation.yml`, 11 jobs, triggered on every PR to `main`/`develop`
 - **Companion document:** `release-candidate-remediation-report.md` (history of the remediation work)
 
 Every result below was produced by running the command, not by reading it. Four CI defects were
@@ -37,11 +38,11 @@ edit or diff. Every other part of this file is prettier-formatted.
 | 5 | Backend unit tests | `npm run test --prefix backend` (`vitest run`) | **PASS** — 553/553, 43 files, 42.7s | `unit-tests` | local = CI | — | **DONE** (`8d1b724`) |
 | 6 | Frontend unit tests | `npm run test --prefix frontend` (`ng test`) | **PASS** — 72/72, 8 files, 28.0s | `unit-tests` | local = CI | Includes the only integration-style specs in the repo: `device-api.integration.spec.ts`, `schedule-api.integration.spec.ts` | **DONE** (`2445ad9`) |
 | 7 | Prisma client generation | `npx prisma generate` | **PASS** — exit 0 even with only `DATABASE_URL` | 6 jobs | local = CI | — | **NONE REQUIRED** |
-| 8 | Prisma schema validation | `npx prisma validate` | **PASS local / FAIL in CI** | `unit-tests` | **CI** | **Proven defect D2.** `schema.prisma` reads `env("DATABASE_DIRECT_URL")`, defined **nowhere** in the workflow `env:` block or any step. The step supplies only `DATABASE_URL` (L95-100), so `prisma validate` exits 1 with `P1012 Environment variable not found: DATABASE_DIRECT_URL`. The comment at L22-23 generalises a true fact about `generate` to `validate`. | **OPEN** — add `DATABASE_DIRECT_URL` to the workflow `env:` |
+| 8 | Prisma schema validation | `npx prisma validate` | **PASS local / fix committed, CI unverified** | `unit-tests` | **CI** | **Proven defect D2, now fixed.** `schema.prisma` reads `env("DATABASE_DIRECT_URL")`, defined **nowhere** in the workflow `env:` block or any step. The step supplies only `DATABASE_URL` (L95-100), so `prisma validate` exits 1 with `P1012 Environment variable not found: DATABASE_DIRECT_URL` — reproduced on this host, exit 1 without the variable and exit 0 with it. The same defect hit all six steps that read Prisma config: the `validate` step (L104) and five `migrate deploy` steps (L110, L176, L272, L347, L500), each of which sets `DATABASE_URL` only. `generate` alone never needed it, and the old comment at L22-23 generalised that true fact to `validate`. | **FIXED** (`5ac97d5`) — `DATABASE_DIRECT_URL` added to the workflow `env:`, so every step inherits it. CI proof needs a push (no GitHub push in this round) |
 | 9 | Backend build | `npm run build --prefix backend` | **PASS** | `build-check` | local = CI | — | **NONE REQUIRED** |
 | 10 | Frontend build | `npm run build --prefix frontend` (`ng build`) | **PASS** — 0 errors, 0 warnings, initial 619.23 kB / 150.78 kB lazy | `build-check` | local = CI | — | **DONE** (`81c5bae`: NG8107 cleared, budgets recalibrated) |
-| 11 | Backend E2E | `npm run test:e2e --prefix backend` | **PASS local** — 8/8 files, 36/36 tests, 0 skipped, green twice consecutively; backend typecheck PASS; lint 0/0 | `backend-e2e` | **local** (the job has not been re-run in CI — no GitHub push) | The 403/429 flood was a **test-harness defect, not product behaviour**. `backend/e2e/test-app.ts` now boots the way `main.ts` does — `cookie-parser`, `trust proxy`, a CSRF token pair per app, and a per-app `X-Forwarded-For` — so the shared Redis throttle bucket no longer cross-couples the 8 files. CSRF coverage was added to 7 specs; `auth.e2e-spec.ts` is untouched by design because login is `@SkipCsrf()`. Removing the harness mask exposed 5 real product bugs, all fixed. No test was weakened or bypassed. | **PARTIAL** — suite is green locally, but the `backend-e2e` job still needs CI env/secrets, seed data and boot-time work. Fixes `9352dea`, `c51acb9`; verdict + this row `87a7801`, `e8fb0cb` |
-| 12 | Browser acceptance | `npm test --prefix e2e` (`playwright test`) | **FAIL** — 0/57, all files | `browser-acceptance` | **CI** | **Proven defects D1 + D3.** `e2e/playwright.config.ts` **does not exist anywhere in the repo**, so Playwright runs with defaults: no `baseURL`, no `webServer`. Every spec uses relative URLs (`page.goto("/login")`), so all 57 fail on `Cannot navigate to invalid URL`. Nothing starts port 3000 or 4200, though the job comment claims `playwright.config.ts` starts both. The `E2E_BASE_URL`/`E2E_API_URL` env passed at L368-369 is read by nothing. | **OPEN** — write the config, or delete the job |
+| 11 | Backend E2E | `npm run test:e2e --prefix backend` | **PASS local** — 8/8 files, 36/36 tests, 0 skipped, green twice consecutively; backend typecheck PASS; lint 0/0 | `backend-e2e` | **local** (the job has not been re-run in CI — no GitHub push) | The 403/429 flood was a **test-harness defect, not product behaviour**. `backend/e2e/test-app.ts` now boots the way `main.ts` does — `cookie-parser`, `trust proxy`, a CSRF token pair per app, and a per-app `X-Forwarded-For` — so the shared Redis throttle bucket no longer cross-couples the 8 files. CSRF coverage was added to 7 specs; `auth.e2e-spec.ts` is untouched by design because login is `@SkipCsrf()`. Removing the harness mask exposed 5 real product bugs, all fixed. No test was weakened or bypassed. | **PARTIAL** — suite is green locally; D1, the reason the job could not boot the API at all, is **fixed** (`5ac97d5`), but the job still has no CI run (no GitHub push), so seed and boot-time behaviour remain unmeasured there. Fixes `9352dea`, `c51acb9`; verdict + this row `87a7801`, `e8fb0cb` |
+| 12 | Browser acceptance | `npm test --prefix e2e` (`playwright test`) | **FAIL** — **26/57**, 31 failing, 11.6m (was 0/57) | `browser-acceptance` | **CI** | **D3 closed, suite now executes.** `e2e/playwright.config.ts` was written (`e6cf05e`): `baseURL` from `E2E_BASE_URL`, `testMatch **/*.spec.ts`, `workers: 1`, `tr-TR`, and the two `webServer` entries the job comment always claimed existed (Nest `npm run start:prod` → `/api/v1/health/live` 180s; Angular `npm start` → baseUrl 420s, `reuseExistingServer: !CI`). Four specs then failed for a harness reason of their own — they navigated straight to guarded routes and never authenticated — so a shared `login()` helper was added (`23 → 26` passing) and the invalid-credential assertions were repointed at the PrimeNG toast the login page actually renders (`.p-toast-message-error`); no assertion was weakened. The remaining **31 failures are product/seed defects, not harness**: **5 = D29** (below), **≈16 = empty device seed** (every plan unit renders `.empty-state` "Cihaz bulunamadı", so `.calendar-cell` and the grid do not exist), **≈10 = stale selectors** (real DOM has `.schedule-shell` not `.schedule-grid`; the audit page has no `h1/h2` "Denetim" but `.audit-table`/`.filter-grid`; dashboard has `.kpi-card` not `.heatmap`; plan month buttons are icon-only `aria-label="Sonraki Ay"`). | **OPEN — D3 fixed (`e6cf05e`), D1/D2 fixed (`5ac97d5`); gate stays FAIL until D29 and the stale selectors are fixed and the seed gap is decided** |
 | 13 | Security invariant tests | `npx vitest run src/modules/schedules/__tests__/security-invariants.spec.ts` | **PASS** | `security-tests` | local = CI | — | **NONE REQUIRED** |
 | 14 | Dependency audit (PR gate) | `npx --yes audit-ci@6 --critical --report-type summary`, per workspace | **PASS** — 0 critical | `security-scan` | **CI** | — | **NONE REQUIRED** at this threshold. See [Dependency audit](#dependency-audit) for what it does not cover |
 | 15 | Secret scanning (PR gate) | `gitleaks/gitleaks-action@v2` + tracked-material shell checks | **PARTIAL** | `security-scan` | **CI** | No local failure. The tracked-material half is proven by preflight ("No tracked secret material"). `gitleaks` is **not installable locally**, so its half is unverified here; the action also needs a GitHub token and full history. | **OPEN** — unverified locally |
@@ -68,32 +69,37 @@ edit or diff. Every other part of this file is prettier-formatted.
 <!-- prettier-ignore -->
 | Result | Gates |
 |---|---|
-| PASS | 1, 2, 3, 5, 6, 7, 9, 10, 13, 14, 16, 20, 21, 22, 23, 28, 30, 31 |
-| PASS with caveat | 4 (379 warnings), 15 (half unverified), 24 (full history fails) |
-| FAIL | 8, 11, 12, 17, 29 |
+| PASS | 1, 2, 3, 5, 6, 7, 9, 10, 13, 14, 16, 20, 21, 22, 23, 28, 29, 30, 31 |
+| PASS with caveat | 4 (379 warnings), 8 (fixed, CI unverified), 11 (green locally, CI unverified), 15 (half unverified), 24 (full history fails) |
+| FAIL | 12, 17 |
 | ADVISORY | 19, 27 |
 | BLOCKED | 18 |
 | NOT IMPLEMENTED | 25, 26, 32 |
 
 **Release recommendation: BLOCKED.**
 
-**Do not run any database migration.** D1-D13 are open, so the container and Helm gates are not
-green, and migration execution is gated behind them. Migration analysis has since added nine more
-defects, D14-D22, two of which would corrupt or block a real database.
+**Do not run any database migration.** Gate 17 (D4) and the Helm findings D6-D13 are open, so the
+container and Helm gates are not green, and migration execution is gated behind them. Migration
+analysis has since added nine more defects, D14-D22, two of which would corrupt or block a real
+database.
 
-Five gates are red. Four of them (D1-D4) are CI configuration defects rather than application
-defects. Gates 1-7, 9-10 and 13-14 are genuinely green in both environments, which is why a
-green-looking pipeline was possible: the failures live entirely in the environment the workflow
-supplies to its own jobs. D5 is different in kind — a real product defect that survived because
-no gate ever runs the image it just built.
+Two gates are red: **12** and **17**. The four CI configuration defects D1-D3 are closed this round
+(`e6cf05e`, `5ac97d5`), which is what moved gates 8 and 11 out of the red and made gate 12
+measurable; D4 is what keeps gate 17 red, and 18 stays blocked behind it. Gate 12 is red for a new
+reason: it now runs the whole suite against the seeded database and measures **26/57**, with the 31
+failures attributed to product and seed defects (D29, stale selectors, empty device seed) rather
+than to the harness. Gates 1-7, 9-10 and 13-14 are genuinely green in both environments, which is
+why a green-looking pipeline was possible: the first failures lived entirely in the environment the
+workflow supplies to its own jobs. D5 is different in kind — a real product defect that survived
+because no gate ever runs the image it just built.
 
-| ID  | Defect                                                    | Impact                                                          |
-| --- | --------------------------------------------------------- | --------------------------------------------------------------- |
-| D1  | `ENCRYPTION_MASTER_KEY` absent from all 13 jobs           | `backend-e2e` and `browser-acceptance` cannot boot the Nest API |
-| D2  | `DATABASE_DIRECT_URL` absent from the workflow `env:`     | `Validate Prisma schema` exits 1 (`P1012`)                      |
-| D3  | `e2e/playwright.config.ts` does not exist                 | `browser-acceptance` fails all 57 tests                         |
-| D4  | `docker-compose-validation` placeholder `.env` incomplete | Both `config -q` steps fail; `manifest-render` never runs       |
-| D5  | Frontend image serves the nginx base-image page           | The shipped SPA is never served; image still reports healthy    |
+| ID  | Defect                                                    | Impact                                                          | Status (2026-10-07)                                                       |
+| --- | --------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| D1  | `ENCRYPTION_MASTER_KEY` absent from all 11 jobs           | `backend-e2e` and `browser-acceptance` cannot boot the Nest API | **FIXED** `5ac97d5` — added to the workflow `env:` as a test-only literal |
+| D2  | `DATABASE_DIRECT_URL` absent from the workflow `env:`     | `Validate Prisma schema` exits 1 (`P1012`)                      | **FIXED** `5ac97d5` — same block; covers all six validate/migrate steps   |
+| D3  | `e2e/playwright.config.ts` does not exist                 | `browser-acceptance` fails all 57 tests                         | **FIXED** `e6cf05e` — config written; suite now measures 26/57            |
+| D4  | `docker-compose-validation` placeholder `.env` incomplete | Both `config -q` steps fail; `manifest-render` never runs       | **OPEN**                                                                  |
+| D5  | Frontend image serves the nginx base-image page           | The shipped SPA is never served; image still reports healthy    | **CLOSED** — see gate 29                                                  |
 
 Helm and Kubernetes validation added eight further defects, D6-D13, all recorded with root cause
 and remediation in the Helm section below. The two that would corrupt production data if shipped:
@@ -132,6 +138,41 @@ ordering holds at 2 transitions:
 | D26 | No smoke or staging E2E stage | Zero `smoke`/`rollout status`; D6-D10 are unobservable until this exists |
 | D27 | Pipeline ends at a public GitHub Release | Every push to `main` publishes a non-draft, non-prerelease release while D1-D22 are open |
 
+### Browser round opened D29
+
+The 2026-10-07 browser round could not see this defect before D3 was fixed, because no browser test
+ever executed:
+
+<!-- prettier-ignore -->
+| ID | Defect | Impact |
+|---|---|---|
+| D29 | The first RBAC permission load can return before permissions arrive | A **hard page load** of `/app/employees`, `/app/reports` or `/app/settings` redirects to `/app/dashboard`; 5 of the 31 browser failures |
+
+**Evidence.** Against the running app with an authenticated admin session: SPA (client-side) sidebar
+navigation to all three routes works, while `page.goto(...)` followed by a reload lands on the
+dashboard. The backend is not the cause — `GET` on the permission endpoints returns HTTP 200 with
+all 129 permissions (`personnel.read`, `analytics.read`, `organization.update` included), and no
+console error, page error or 4xx appears. So the guard is deciding against an empty permission set
+on the first load.
+
+**Root cause (code, not yet changed).** `frontend/src/app/services/rbac.service.ts:38` starts the
+load with `if (this.loaded() || this.loading) return;`. When a load is already in flight the method
+returns **without waiting for it**, so the caller proceeds with `hasAllPermissions([])`, and
+`auth.guard.ts:70` redirects to `/app/dashboard`. On SPA navigation the request has usually
+completed already, which is why only hard loads fail.
+
+**Remediation — OPEN, product change pending a scope decision:** hold the in-flight promise and
+await it (`if (this.pending) return this.pending;`) instead of returning early. This is the only
+fix in this round that touches product code, so it is deliberately not applied until approved.
+
+### Defect D30 - `deploy.yml` runs the same migration without the direct URL
+
+Same root cause as D2, outside the workflow this round touched: `deploy.yml:140-145` runs
+`prisma migrate deploy` with a step-level `DATABASE_URL` only, which reproduces the `P1012` exit on
+this host. The step also seeds afterwards, so the job dies before it seeds. One line in that
+workflow's `env:` fixes it. Recorded rather than changed, because `deploy.yml` is a separate
+pipeline that was not part of this remediation's scope.
+
 ## Pipeline gate coverage
 
 The intended release chain is a single ordered sequence:
@@ -144,20 +185,20 @@ Source Code -> Typecheck/Lint -> Unit/Integration -> E2E -> Build -> Docker
 Measured against `.github/workflows/`, that chain does not exist. Three stages are absent
 outright, and the ordering is enforced at two transitions only.
 
-| #   | Stage           | Implemented                                                                   | Gate holds?                                               |
-| --- | --------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------- |
-| 1   | Source Code     | `pr-validation.yml` on PR to `main`/`develop`; `deploy.yml` on push to `main` | n/a                                                       |
-| 2   | Typecheck/Lint  | `lint-typecheck`                                                              | **No** — no job declares `needs:` on it                   |
-| 3   | Unit            | `unit-tests` in `pr-validation.yml`                                           | **No** — no `needs:`                                      |
-| 3   | Integration     | `integration-test`, but in **`deploy.yml`**, after `docker-build-push`        | Yes, within `deploy.yml` only                             |
-| 4   | E2E             | `backend-e2e`, `browser-acceptance`                                           | **No** — no `needs:`; both fail anyway (D1, D3)           |
-| 5   | Build           | `build-check`                                                                 | **No** — no `needs:`, runs even when E2E fails            |
-| 6   | Docker          | `docker-build-validation`                                                     | **Yes** — `needs: [build-check, lint-typecheck]`          |
-| 7   | Helm validation | `manifest-render` → `bash scripts/release-dry-run.sh --ci`                    | Linked, but **dead** — D4 fails upstream so it never runs |
-| 8   | CI              | Split across two files with no link                                           | **No** — see D24                                          |
-| 9   | Staging         | —                                                                             | **Absent**                                                |
-| 10  | Smoke/E2E       | —                                                                             | **Absent**                                                |
-| 11  | Production      | — `create-release` only creates a GitHub Release                              | **Absent**                                                |
+| #   | Stage           | Implemented                                                                   | Gate holds?                                                                |
+| --- | --------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 1   | Source Code     | `pr-validation.yml` on PR to `main`/`develop`; `deploy.yml` on push to `main` | n/a                                                                        |
+| 2   | Typecheck/Lint  | `lint-typecheck`                                                              | **No** — no job declares `needs:` on it                                    |
+| 3   | Unit            | `unit-tests` in `pr-validation.yml`                                           | **No** — no `needs:`                                                       |
+| 3   | Integration     | `integration-test`, but in **`deploy.yml`**, after `docker-build-push`        | Yes, within `deploy.yml` only                                              |
+| 4   | E2E             | `backend-e2e`, `browser-acceptance`                                           | **No** — no `needs:`; D1/D3 fixed but the jobs are still independent roots |
+| 5   | Build           | `build-check`                                                                 | **No** — no `needs:`, runs even when E2E fails                             |
+| 6   | Docker          | `docker-build-validation`                                                     | **Yes** — `needs: [build-check, lint-typecheck]`                           |
+| 7   | Helm validation | `manifest-render` → `bash scripts/release-dry-run.sh --ci`                    | Linked, but **dead** — D4 fails upstream so it never runs                  |
+| 8   | CI              | Split across two files with no link                                           | **No** — see D24                                                           |
+| 9   | Staging         | —                                                                             | **Absent**                                                                 |
+| 10  | Smoke/E2E       | —                                                                             | **Absent**                                                                 |
+| 11  | Production      | — `create-release` only creates a GitHub Release                              | **Absent**                                                                 |
 
 `pr-validation.yml` contains 11 jobs, and the only edges in its graph are
 `docker-build-validation → docker-compose-validation → manifest-render` plus
@@ -488,7 +529,7 @@ test-mode exemption, so any entrypoint that builds `AppModule` fails.
 
 The variable exists only on production paths: the Helm `deployment.yaml` (L83, sourced from
 `/run/secrets/encryption_master_key`) and `docker-compose.prod.yml` (L146). It was absent from
-`backend/.env.example`, from dev `docker-compose.yml`, and from **all 13 CI jobs**.
+`backend/.env.example`, from dev `docker-compose.yml`, and from **all 11 CI jobs**.
 
 Without it every spec file fails at boot. Adding the key locally moved the run from 100.4s of
 immediate failures to 381.5s with real HTTP traffic — which is how the remaining causes became

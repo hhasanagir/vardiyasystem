@@ -159,7 +159,7 @@
 
     **Bu 11 dosyadaki BOM gate kırıyor muydu — hayır (ölçüldü).** Kontrollü deney: aynı markdown içeriği TEMP dizininde BOM'lu ve BOM'suz olarak ayrı ayrı `prettier --check` edildi, **ikisi de exit 0** → BOM, prettier'ı etkilemiyor. Prettier TypeScript'te baştaki BOM'u bilerek korur. Repodaki markdown dosyası BOM'suz haliyle de exit 1 veriyor; sebebi markdown biçimlendirme borcu ve kök `package.json`'daki `"prettier"` anahtarı, **BOM değil**. Kök `format:check` glob'u `**/*.{ts,js,mjs,cjs,json,scss,html}` olduğu için `.md` kapsam dışıdır: `format:check` hâlâ **70 dosya** bildiriyor, içinde `.md` **yok**.
 
-    **Alınan düzeltme.** 11 dosyadan yalnızca ilk 3 bayt silindi (`EF BB BF`), gerisi bayt bayt korundu — toplam `11 dosya, 11 satır` değişiklik, sıfır anlamsal değişiklik. Gerekçe: hiçbir gate bugün kırık olmadığı için bu **önleyici (preventive)** bir düzeltmedir, zorunlu değil; ancak BOM diff'lerde görünmez ve `JSON.parse` gibi katı parser'ları sessizce kırar, `format:check` glob'u `.json`'u kapsadığı için bu sınıf bir hata ileride gerçek bir gate kırabilirdi. Tüm gate'ler düzeltme sonrası yeniden koşuldu: frontend lint/typecheck/build/test, backend lint/typecheck/build/unit, root lint/typecheck, hook testleri → **hepsi PASS** (§6).
+    **Alınan düzeltme.** 11 dosyadan yalnızca ilk 3 bayt silindi (`EF BB BF`), gerisi bayt bayt korundu — toplam `11 dosya, 11 satır` değişiklik, sıfır anlamsal değişiklik. Gerekçe: hiçbir gate bugün kırık olmadığı için bu **önleyici (preventive)** bir düzeltmedir, zorunlu değil; ancak BOM diff'lerde görünmez ve `JSON.parse` gibi katı parser'ları sessizce kırar, `format:check` glob'u `.json`'u kapsadığı için bu sınıf bir hata ileride gerçek bir gate kırabilirdi. Tüm gate'ler düzeltme sonrası yeniden koşuldu: frontend lint/typecheck/build/test, backend lint/typecheck/build/unit, root lint/typecheck, hook testleri → **hepsi PASS** (§7).
 
 ---
 
@@ -187,7 +187,81 @@ Sıralı, konu-bazlı commit'ler (yeni commit'lerin her biri `npx commitlint --e
 
 **Nelere dokunulmadı:** PR / GHCR push / Helm kurulumu / kubectl apply / üretim DB migration / geçmiş yeniden yazma / `reset --hard` / `--no-verify` / hook devre dışı bırakma / lint devre dışı bırakma / hata bastırma / test zayıflatma (`.skip`, `.only`, timeout artışı, fake assert, `any`-maskeleme).
 
-## 6. Son durum
+## 6. Tarayıcı kabul gate'i ve CI ortam düzeltmeleri (2026-10-07)
+
+Bu tur `release-gate-matrix.md` gate **8, 11, 12** ile D1/D2/D3'ü kapatmak içindi. Yeni özellik,
+refactor, ürün kodu değişikliği, assertion zayıflatma, `--no-verify` veya push **yoktur**.
+
+### 6.1 D3 — `playwright.config.ts` hiç yoktu (gate 12 kök nedeni)
+
+E2E job'ı `playwright.config.ts` başlattığını iddia ediyordu; dosya repoda hiçbir yerde yoktu.
+Playwright defaultsuz çalıştı, tüm 57 spec `Cannot navigate to invalid URL` ile düştü. Yazılan
+config (`e6cf05e`): `testDir`/`testMatch`, `baseURL` (`E2E_BASE_URL`), `workers: 1`, `retries:
+CI ? 1 : 0`, `list+html` reporter, `tr-TR` locale ve iki `webServer` — backend `npm run start:prod` +
+`/api/v1/health/live` (180 sn), frontend `npm start` (420 sn, `reuseExistingServer: !CI`).
+
+Config'ten sonra kalan hataların bir kısmı **harness'tan** çıktı: dört spec korumalı sayfalara
+doğrudan girip hiç login olmuyordu. `e2e/helpers.ts` içindeki ortak `login()` eklendi, geçerli
+kimlik hatası assert'i PrimeNG toast'ına (`.p-toast-message-error`) yönlendirildi — ng-select
+zaten `.error-message` kullanıyor, yani bu hedef **daha** spesifik. 14 adet `test.beforeEach(login)`
+destructure sarmalına çevrildi ("First argument must use the object destructuring pattern").
+**Hiçbir assertion kaldırılmadı veya `expect` sayısı azaltılmadı.** Ayrıca 7 spec dosyasının satır
+sonları CRLF idi (index LF); `prettier --write` ile LF'e normalize edildi, diff içerik bazlı kaldı.
+
+Ölçüm (node ile sayım, PowerShell bayt sayaçları değil):
+
+| Koşu                                 | Sonuç                       | Süre    |
+| ------------------------------------ | --------------------------- | ------- |
+| config yazıldıktan sonra             | **23** geçti / 34 düştü     | 11.4 dk |
+| login + toast düzeltmelerinden sonra | **26** geçti / **31** düştü | 11.6 dk |
+
+### 6.2 D1 ve D2 — workflow'ın kendi ortamı iki değişkeni hiç vermiyordu
+
+| Defekt                     | İzole kanıt                                                                                                                                                                                                                                                                         | Düzeltme                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| D1 `ENCRYPTION_MASTER_KEY` | Anahtar **yokken** boot: `ENCRYPTION_MASTER_KEY must be at least 64 hex characters (256 bits)` (`encryption.service.js:61`), port 3000 **kapalı**. Anahtarla: 9 sn boot + `/health/live` 200                                                                                        | workflow `env:`'e 64-hex test literal (`5ac97d5`)      |
+| D2 `DATABASE_DIRECT_URL`   | `prisma validate` **exit 1** (1 hata, `getConfig`) → değişken eklenince **exit 0**. `prisma migrate deploy` aynı şekilde exit 1: `Environment variable not found: DATABASE_DIRECT_URL.` (`schema.prisma:10`). `prisma generate` exit 0 — eski yorum yalnız `generate` için doğruydu | workflow `env:`'e aynı DB'nin direct URL'i (`5ac97d5`) |
+
+Önemli ayrım: **D2 prisma CLI'ı ilgilendirir, runtime'ı değil.** `ENCRYPTION_MASTER_KEY` varken
+`DATABASE_DIRECT_URL` **olmadan** API normal boot edip 200 döndü. Bu yüzden D2'nin etkisi
+`Validate Prisma schema` + beş `migrate deploy` adımıdır (workflow içi 6 adım), boot değildir.
+Aynı kusurun `deploy.yml:140-145`'teki örneği matrix'e **D30** olarak yazıldı ve kapsam dışı
+bırakıldı.
+
+Dürüstlük notu: düzeltme **CI'da çalıştırılmadı** (bu turda GitHub'a push yok). Gate 8 ve 11
+"PASS with caveat" olarak, gate 12 ise ölçülmüş **FAIL** olarak işaretlendi.
+
+### 6.3 Kalan 31 hata — artık ürün/seed, harness değil
+
+| Sınıf                                         | Adet | Kanıt (gerçek DOM / davranış)                                                                                                                                                                                                  |
+| --------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **D29** — sert sayfa yükleme RBAC'e takılıyor | 5    | `page.goto('/app/employees' \| '/reports' \| '/settings')` + reload → `/app/dashboard`; SPA (client-side) navigasyon **çalışıyor**. Permission API'leri 200 ve 129 izin dönüyor; console/pageerror/4xx yok                     |
+| **Boş cihaz seed'i**                          | ~16  | Tüm plan birimleri `.empty-state` "Cihaz bulunamadı" gösteriyor; `.calendar-cell`/grid hiç oluşmuyor (MR/BT/Röntgen/Nükleer, ayarlama senaryoları)                                                                             |
+| **Spec↔UI drift (stale selector)**            | ~10  | grid gerçek sınıfı `.schedule-shell` (`.schedule-grid` yok); audit'te `h1/h2` "Denetim" yok, `.audit-table`/`.filter-grid` var; dashboard'da `.heatmap` yok, `.kpi-card` var; ay butonları ikon-only `aria-label="Sonraki Ay"` |
+
+### 6.4 Yeni defektler (matrix'e işlendi)
+
+- **D29** — `rbac.service.ts:38` `if (this.loaded() \|\| this.loading) return;` akıştaki isteği
+  beklemeden dönüyor → ilk yüklemede `hasAllPermissions([])` → `auth.guard.ts:70` dashboard'a
+  yönlendiriyor. **Ürün kodu değişikliği gerektirir ve bu turda uygulanmadı** (onay bekliyor).
+- **D30** — `deploy.yml` migrate adımı da yalnız `DATABASE_URL` veriyor (aynı D2 sınıfı, tek satır).
+  Dokümante edildi, ayrı pipeline olduğu için değiştirilmedi.
+
+### 6.5 Gate etkisi
+
+| Gate                  | Önce                         | Sonra                                                           |
+| --------------------- | ---------------------------- | --------------------------------------------------------------- |
+| 8 Prisma validate     | PASS local / FAIL in CI (D2) | **PASS with caveat** — fix committed, CI'da doğrulanmadı        |
+| 11 Backend E2E        | FAIL (D1)                    | **PASS with caveat** — suite local yeşil, CI koşusu yok         |
+| 12 Browser acceptance | FAIL 0/57 (D3)               | **FAIL 26/57** — gate artık ölçüyor; kırmızı kalmayı sürdürüyor |
+
+Özet tablo: kırmızı gate sayısı **5 → 2** (12 ve 17). Release recommendation **hâlâ BLOCKED**.
+
+## 7. Son durum
+
+- **TUR 2 (2026-10-07):** D3 + D1 + D2 kapatıldı (`e6cf05e`, `5ac97d5`); gate 12 artık çalışıp
+  **26/57** ölçüyor, gate 8 ve 11 caveat'e düştü. Release recommendation **BLOCKED** — gate 12
+  (D29 + stale selector + boş seed) ve gate 17 (D4) kırmızı. Ayrıntı §6 ve gate matrix'i.
 
 - **COMPLETE** — RED gate kapsamı bitti: backend unit 553/553 + lint 0/0 + typecheck 0, frontend test 72/72 + typecheck 0 (app **ve** spec) + **lint 0 hata (exit 0)** + **`ng build` PASS (0 hata, 0 uyarı)**, hook testleri 14/14, preflight 32/32 + 18/18, audit critical 0, plain `npm ci`, root `npm run lint` ve root `npm run typecheck` PASS. commitlint: 23 commit'in 22'si PASS; `7c9eb76` hariç range (`--from 7c9eb76`) exit 0, yeni commit'ler `--edit` ile ayrıca doğrulandı (§4-10).
 - **Pre-commit hook — ÇALIŞIR VE GERÇEK GATE.** Dört yönlü uçtan uca doğrulama, `--no-verify` **kullanılmadan**: (A) app tip hatası → **bloke**; (B) temiz kod → **geçti** (≈ 35 s); (C) spec tip hatası → **bloke** (`tsconfig.spec.json`); (D) temiz kod → **geçti**. Hiçbir senaryoda HEAD değişmedi ya da hook atlanmadı.
