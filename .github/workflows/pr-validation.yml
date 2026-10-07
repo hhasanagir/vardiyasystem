@@ -533,12 +533,22 @@ jobs:
           POSTGRES_DB=vardiyasystem
           LOG_LEVEL=info
           GRAFANA_ROOT_URL=https://grafana.example.invalid
+          FRONTEND_URL=http://frontend:80
+          VAPID_PUBLIC_KEY=BJmBEUlEpzbxsHEWjAAFuI-iKEJ171-JUZYmtVYBc-V84pBMyvqLDGtCeW__3I3OjaKYQ7TLpqOTQKuzCHLKNOc
+          VAPID_PRIVATE_KEY=LCOGiaom9OORU7nWAZoBeNgtFVGdf-bCjRuKBkUE-Iw
           ENVEOF
           mkdir -p secrets
-          for f in db_password jwt_access_secret jwt_refresh_secret jwt_secret grafana_admin_password; do
+          # Both compose files reference secrets: docker-compose.yml uses
+          # db_password+jwt_secret, the prod file the six credential files plus
+          # the slack webhook. Missing any file makes its config -q exit 1.
+          for f in db_password jwt_secret jwt_access_secret jwt_refresh_secret cookie_secret encryption_master_key grafana_admin_password; do
             printf 'placeholder-not-a-real-secret\n' > "secrets/${f}.txt"
           done
           printf 'https://hooks.slack.invalid/services/placeholder\n' > secrets/slack_webhook.txt
+          # docker-compose.yml mounts backend/.env via env_file, so the gate
+          # must provide it. config -q only parses KEY=VALUE lines, so the
+          # committed template satisfies it without carrying real values.
+          cp backend/.env.example backend/.env
       - name: Validate docker-compose.yml
         run: docker compose -f docker-compose.yml config -q
       - name: Validate docker-compose.prod.yml

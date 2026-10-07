@@ -143,13 +143,19 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
+          # schema.prisma declares directUrl = env("DATABASE_DIRECT_URL"), so
+          # migrate deploy dies with P1012 unless this is set (defect D2/D30).
+          DATABASE_DIRECT_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
       - name: Seed database
         # The suite asserts against seeded rows, so migrate-only leaves it red.
+        # The generated client resolves the directUrl at runtime, so this step
+        # needs the same variable as migrate deploy.
         if: matrix.workspace == 'backend'
         run: npm run seed
         working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
+          DATABASE_DIRECT_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
       - run: npm run test
         working-directory: ${{ matrix.workspace }}
         env:
