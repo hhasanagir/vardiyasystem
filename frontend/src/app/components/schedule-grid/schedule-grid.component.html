@@ -48,7 +48,11 @@
                 @let pt = shift.personnelType;
                 @let st = shift.startTime;
                 @let et = shift.endTime;
-                <tr class="shift-row" [class]="getRowClass(shiftType)">
+                <tr
+                  class="shift-row"
+                  [class]="getRowClass(shiftType)"
+                  [attr.data-device]="device.id"
+                >
                   <td class="shift-label" [class]="getLabelCellClass(shiftType)">
                     @if (isFirstShift(device, idx)) {
                       <div class="device-group-header">
@@ -94,6 +98,7 @@
                   @for (day of days(); track day.dateStr) {
                     <td
                       class="person-cell"
+                      [attr.data-date]="day.dateStr"
                       [class]="getCellClass(shiftType)"
                       [class.today]="day.isToday"
                       [class.drag-over]="isDragTarget(device.id, day.dateStr, shiftType)"
@@ -266,7 +271,7 @@
             }
           } @else {
             @if (isShiftVisibleFallback(device)) {
-              <tr class="shift-row day-shift-row">
+              <tr class="shift-row day-shift-row" [attr.data-device]="device.id">
                 <td class="shift-label day-label-cell">
                   <div class="device-group-header">
                     <div class="device-info">
@@ -283,6 +288,7 @@
                 @for (day of days(); track day.dateStr) {
                   <td
                     class="person-cell"
+                    [attr.data-date]="day.dateStr"
                     [class.today]="day.isToday"
                     [class.drag-over]="isDragTarget(device.id, day.dateStr, 'gunduz')"
                     [class.empty-cell]="isPolyclinicClosed(device, day)"
@@ -421,7 +427,7 @@
                 }
               </tr>
               @if (device.mode === 'vardiya') {
-                <tr class="shift-row night-shift-row">
+                <tr class="shift-row night-shift-row" [attr.data-device]="device.id">
                   <td class="shift-label night-label-cell">
                     <div class="device-group-child device-group-end">
                       <span class="branch-line"></span>
@@ -433,6 +439,7 @@
                   @for (day of days(); track day.dateStr) {
                     <td
                       class="person-cell night-cell"
+                      [attr.data-date]="day.dateStr"
                       [class.today]="day.isToday"
                       [class.drag-over]="isDragTarget(device.id, day.dateStr, 'gece')"
                       (dragover)="

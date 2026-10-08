@@ -41,6 +41,11 @@ export interface PublishedSchedule {
   providedIn: 'root',
 })
 export class ScheduleStore {
+  // The month/year a user navigated to is part of their working context; the
+  // store already serialised it (toJSON) but nothing ever restored it, so a
+  // reload always snapped back to the current month.
+  private static readonly UI_MONTH_KEY = 'vardiyasystem.ui.month';
+
   private readonly deviceApi = inject(DeviceApiService);
   private readonly state = signal<ScheduleState>({
     selectedMonth: new Date().getMonth() + 1,
@@ -54,6 +59,40 @@ export class ScheduleStore {
     lastError: null,
     lastUpdated: null,
   });
+
+  constructor() {
+    const stored = ScheduleStore.readUiMonth();
+    if (stored) {
+      this.state.update((s) => ({ ...s, ...stored }));
+    }
+  }
+
+  private static readUiMonth(): { selectedMonth: number; selectedYear: number } | null {
+    try {
+      if (typeof localStorage === 'undefined') return null;
+      const raw = localStorage.getItem(ScheduleStore.UI_MONTH_KEY);
+      if (!raw) return null;
+      const ui = JSON.parse(raw) as { selectedMonth?: number; selectedYear?: number };
+      if (typeof ui.selectedMonth === 'number' && typeof ui.selectedYear === 'number') {
+        return { selectedMonth: ui.selectedMonth, selectedYear: ui.selectedYear };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private static writeUiMonth(selectedMonth: number, selectedYear: number): void {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      localStorage.setItem(
+        ScheduleStore.UI_MONTH_KEY,
+        JSON.stringify({ selectedMonth, selectedYear }),
+      );
+    } catch {
+      // best-effort persistence
+    }
+  }
 
   readonly selectedMonth = computed(() => this.state().selectedMonth);
   readonly selectedYear = computed(() => this.state().selectedYear);
@@ -198,6 +237,7 @@ export class ScheduleStore {
       selectedMonth: month,
       selectedYear: year ?? s.selectedYear,
     }));
+    ScheduleStore.writeUiMonth(this.state().selectedMonth, this.state().selectedYear);
   }
 
   nextMonth(): void {
