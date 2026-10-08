@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { reserveLoginSlot } from "./helpers";
 
 test.describe("Authentication", () => {
   test("should show login page", async ({ page }) => {
@@ -23,6 +24,7 @@ test.describe("Authentication", () => {
     if ((await emailInput.count()) > 0) {
       await emailInput.fill("wrong@email.com");
       await passwordInput.fill("wrongpass");
+      await reserveLoginSlot();
       await submitButton.click();
       await page.waitForTimeout(1000);
       const error = page.locator(
@@ -47,6 +49,7 @@ test.describe("Authentication", () => {
     if ((await emailInput.count()) > 0) {
       await emailInput.fill("admin@hospital.com");
       await passwordInput.fill("admin123");
+      await reserveLoginSlot();
       await submitButton.click();
       await page.waitForURL(/dashboard/, { timeout: 5000 }).catch(() => {});
       expect(page.url()).toContain("dashboard");

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { login } from "./helpers";
+import { login, reserveLoginSlot } from "./helpers";
 
 test.describe("Production Verification — Auth + Session", () => {
   test("login page loads with form", async ({ page }) => {
@@ -18,6 +18,7 @@ test.describe("Production Verification — Auth + Session", () => {
     const password = page.locator('input[type="password"]');
     await email.fill("wrong@test.com");
     await password.fill("wrongpass");
+    await reserveLoginSlot();
     await page.locator('button[type="submit"]').click();
     await expect(
       page.locator(
@@ -40,6 +41,7 @@ test.describe("Production Verification — Auth + Session", () => {
     if ((await email.count()) > 0) {
       await email.fill("admin@hospital.com");
       await password.fill("admin123");
+      await reserveLoginSlot();
       await page.locator('button[type="submit"]').click();
       await page.waitForTimeout(2000);
       const logoutBtn = page.locator(
@@ -63,8 +65,9 @@ test.describe("Production Verification — RBAC", () => {
     if ((await email.count()) > 0) {
       await email.fill("admin@hospital.com");
       await password.fill("admin123");
+      await reserveLoginSlot();
       await page.locator('button[type="submit"]').click();
-      await page.waitForTimeout(2000);
+      await page.waitForURL(/\/app\//, { timeout: 15000 });
     }
     await page.goto("/app/approval-center");
     await page.waitForLoadState("networkidle");
@@ -85,6 +88,7 @@ test.describe("Production Verification — Dashboard + Metrics", () => {
     if ((await email.count()) > 0) {
       await email.fill("admin@hospital.com");
       await password.fill("admin123");
+      await reserveLoginSlot();
       await page.locator('button[type="submit"]').click();
       await page.waitForURL(/dashboard/, { timeout: 10000 }).catch(() => {});
     }
@@ -147,14 +151,16 @@ test.describe("Production Verification — Schedule Engine", () => {
     await page.waitForLoadState("networkidle");
     const nextBtn = page.locator('button[title="Sonraki Ay"]');
     const prevBtn = page.locator('button[title="Önceki Ay"]');
-    await expect(nextBtn.or(prevBtn)).toBeVisible();
+    await expect(nextBtn.first()).toBeVisible();
+    await expect(prevBtn.first()).toBeVisible();
   });
 
   test("schedule has month/year display", async ({ page }) => {
     await page.goto("/app/mr-plan");
     await page.waitForLoadState("networkidle");
-    const monthLabel = page.locator("text=/202[0-9]/");
+    const monthLabel = page.locator(".current-month").first();
     await expect(monthLabel).toBeVisible();
+    await expect(monthLabel).toContainText(/202\d/);
   });
 });
 

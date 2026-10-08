@@ -32,7 +32,8 @@ test.describe("Audit Center", () => {
     await page.waitForLoadState("networkidle");
     const statusFilter = page
       .locator(".filter-grid select")
-      .filter({ has: page.locator("option", { hasText: "Başarısız" }) });
+      .filter({ has: page.locator("option", { hasText: "Başarısız" }) })
+      .first();
     await expect(statusFilter).toBeVisible();
   });
 });

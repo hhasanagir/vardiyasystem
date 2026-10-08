@@ -39,7 +39,8 @@ test.describe("Schedule Pages", () => {
     await page.waitForLoadState("networkidle");
     const nextBtn = page.locator('button[title="Sonraki Ay"]');
     const prevBtn = page.locator('button[title="Önceki Ay"]');
-    await expect(nextBtn.or(prevBtn)).toBeVisible();
+    await expect(nextBtn.first()).toBeVisible();
+    await expect(prevBtn.first()).toBeVisible();
     if ((await nextBtn.count()) > 0) {
       await nextBtn.first().click();
       await page.waitForTimeout(500);
