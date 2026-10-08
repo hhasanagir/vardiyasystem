@@ -105,6 +105,15 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: ${{ env.PRISMA_STUB_URL }}
+      - name: Migration drift check
+        # Release gate 26: replay the full migration history into a shadow
+        # database on the job's Postgres service and fail if `schema.prisma`
+        # and the migrations disagree (D17/D18 provenance).
+        if: matrix.workspace == 'backend'
+        run: npm run check:migration-drift
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
       - name: Run migrations
         if: matrix.workspace == 'backend'
         run: npx prisma migrate deploy
@@ -390,6 +399,29 @@ jobs:
       fail-fast: false
       matrix:
         service: [backend, frontend]
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: ${{ env.DB_USER }}
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
@@ -399,9 +431,103 @@ jobs:
         with:
           context: ./${{ matrix.service }}
           push: false
+          # Without load: true buildx only caches the image and `docker run`
+          # finds nothing. The smoke steps below cannot exist without it.
+          load: true
           tags: vardiya/${{ matrix.service }}:pr-${{ github.event.pull_request.number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Smoke test backend image
+        # Release gate 32: a gate that only builds images validates nothing.
+        # Boot the image against the same Postgres/Redis services every backend
+        # job gets, probe the liveness endpoint, and prove the non-root runtime.
+        if: matrix.service == 'backend'
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          IMAGE="vardiya/backend:pr-${{ github.event.pull_request.number }}"
+          # Throwaway smoke literals only. Production meaning comes from the
+          # strong-secret checks in backend/src/config/env.config.ts; these are
+          # never the deployment values.
+          CID=$(docker run -d --name smoke-backend --network host \
+            -e NODE_ENV=production \
+            -e DATABASE_URL=${{ env.DATABASE_URL }} \
+            -e DATABASE_DIRECT_URL=${{ env.DATABASE_DIRECT_URL }} \
+            -e REDIS_URL=${{ env.REDIS_URL }} \
+            -e JWT_ACCESS_TOKEN_SECRET=0123456789abcdef0123456789abcdef \
+            -e JWT_REFRESH_TOKEN_SECRET=fedcba9876543210fedcba9876543210 \
+            -e ENCRYPTION_MASTER_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+            -e COOKIE_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef \
+            -e FRONTEND_URL=http://frontend:80 \
+            -e VAPID_PUBLIC_KEY=BJmBEUlEpzbxsHEWjAAFuI-iKEJ171-JUZYmtVYBc-V84pBMyvqLDGtCeW__3I3OjaKYQ7TLpqOTQKuzCHLKNOc \
+            -e VAPID_PRIVATE_KEY=LCOGiaom9OORU7nWAZoBeNgtFVGdf-bCjRuKBkUE-Iw \
+            "$IMAGE")
+          trap 'docker rm -f smoke-backend >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost:3000/api/v1/health/live -o /tmp/health.json; then
+              if grep -q '"status":"ok"' /tmp/health.json; then
+                echo "backend healthy on attempt $i"
+                ok=1
+                break
+              fi
+            fi
+            sleep 2
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::backend container never became healthy"
+            docker logs smoke-backend --tail 100 2>&1 || true
+            exit 1
+          fi
+          uid=$(docker exec smoke-backend id)
+          echo "$uid"
+          case "$uid" in
+            *uid=100*) echo "backend runs as uid 100" ;;
+            *) echo "::error::backend not running as uid 100: $uid"; exit 1 ;;
+          esac
+          echo "backend smoke test passed"
+      - name: Smoke test frontend image
+        # Release gate 32: prove the nginx image starts, serves the SPA on /,
+        # answers /health, does not serve the default page, and drops to the
+        # non-root user. No backend is required for these assertions.
+        if: matrix.service == 'frontend'
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          IMAGE="vardiya/frontend:pr-${{ github.event.pull_request.number }}"
+          docker run -d --name smoke-frontend \
+            --add-host backend:127.0.0.1 \
+            -p 8080:80 \
+            "$IMAGE"
+          trap 'docker rm -f smoke-frontend >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/health -o /tmp/fhealth.txt; then
+              echo "frontend up on attempt $i"
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::frontend container never served /health"
+            docker logs smoke-frontend --tail 100 2>&1 || true
+            exit 1
+          fi
+          grep -q 'ok' /tmp/fhealth.txt
+          curl -sf http://localhost:8080/ -o /tmp/findex.html
+          grep -q '<app-root' /tmp/findex.html
+          if curl -s http://localhost:8080/ | grep -qi 'Welcome to nginx!'; then
+            echo "::error::default nginx page is being served instead of the SPA"
+            exit 1
+          fi
+          uid=$(docker exec smoke-frontend id)
+          echo "$uid"
+          case "$uid" in
+            *uid=100*) echo "frontend runs as uid 100" ;;
+            *) echo "::error::frontend not running as uid 100: $uid"; exit 1 ;;
+          esac
+          echo "frontend smoke test passed"
 
   security-scan:
     name: Security Scan
