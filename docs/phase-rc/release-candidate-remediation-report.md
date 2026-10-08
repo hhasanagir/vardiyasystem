@@ -273,9 +273,95 @@ snapshot'ının tek tek okunmasıyla sınıflandırıldı:
   artık çalışıp **28/57** ölçüyor, gate 8 ve 11 caveat'e düştü. Release recommendation **BLOCKED** —
   gate 12 (18 boş seed + 11 stale selector) ve gate 17 (D4) kırmızı. Ayrıntı §6 ve gate matrix'i.
 
+- **TUR 3 (2026-10-07):** kalan üç NOT IMPLEMENTED gate kapatıldı, gate 12'nin kalan hataları
+  kök nedenle temizlendi. Gate **25** (integration tier yokluğu **kasıtlı ilan edildi** —
+  `backend/e2e` 36/36 + deploy `integration-test` prod stack), gate **26** (migration drift
+  doğrulaması: `backend/scripts/migration-drift.mjs` + CI adımı; ilk koşu gerçek drift buldu —
+  iki eksik FK + `assignments_source_idx` — corrective migration `20261007000000` + `@@index([source])`
+  ile kapatıldı, her iki diff yönü temiz), gate **32** (docker-build-validation `load:true` +
+  Postgres/Redis services + backend/frontend **run-and-assert** smoke'ları). Gate **12** local
+  yeşil: 7 spec gerçek DOM'a hizalandı, `plan-page.component.ts#loadPlan` persist edilmemiş
+  scheduleyı render ediyor; CI kanıtı **PR ister**. **D4** matrix'te FIXED (`b672483`) → gate 17
+  "PASS local / unverified", gate 18 blocker'sız. Kırmızı/engel durumu: yalnız gate 12 CI koşusu
+  ve Helm D6-D13. Ayrıntı §8.
+
 - **COMPLETE** — RED gate kapsamı bitti: backend unit 553/553 + lint 0/0 + typecheck 0, frontend test 72/72 + typecheck 0 (app **ve** spec) + **lint 0 hata (exit 0)** + **`ng build` PASS (0 hata, 0 uyarı)**, hook testleri 14/14, preflight 32/32 + 18/18, audit critical 0, plain `npm ci`, root `npm run lint` ve root `npm run typecheck` PASS. commitlint: 23 commit'in 22'si PASS; `7c9eb76` hariç range (`--from 7c9eb76`) exit 0, yeni commit'ler `--edit` ile ayrıca doğrulandı (§4-10).
 - **Pre-commit hook — ÇALIŞIR VE GERÇEK GATE.** Dört yönlü uçtan uca doğrulama, `--no-verify` **kullanılmadan**: (A) app tip hatası → **bloke**; (B) temiz kod → **geçti** (≈ 35 s); (C) spec tip hatası → **bloke** (`tsconfig.spec.json`); (D) temiz kod → **geçti**. Hiçbir senaryoda HEAD değişmedi ya da hook atlanmadı.
 - **PASS — backend E2E 8/8 dosya, 36/36 test, 0 skip** (üst üste iki ardışık koşu). 403 ve 429'un ikisi de test harness kusuruydu; `main.ts`'in `cookie-parser` ve `trust proxy` middleware'ini yansıtmayan spec'ler yüzünden ürün hatalıymış izlenimi veriyordu. Altından üç gerçek ürün hatası çıktı ve düzeltildi (`schedules-export.service.ts` enum/sayfa-adı, `findMyShifts`+`getMySummary` yanıt şekli). Commit'ler: `49ae0d5`, `9352dea`, `c51acb9`. Ayrıntı §4-4.
 - **BACKLOG (bilinçli karar, §4-9):** 378 frontend lint uyarısı (2026-10-07 yeniden ölçüm), bundle küçültme, orphan `supervisor-center` feature'ı.
 - **PRE-EXISTING BORÇ (bu turun kapsamı dışında, CI'da değil):** kök `npm run format:check` 70 `.ts`/`.json` dosyasında uyumsuzluk raporluyor. Bu, glob genişletmesinden **önce de** vardı (önce/sonra aynı 70 dosya ölçüldü) ve hiçbir workflow `format:check` çalıştırmıyor. lint-staged yalnızca **staged** dosyaları formatladığı için bu borç geliştiriciyi rahatsız etmiyor; toplu 70 dosyalık reformat ayrı bir çalışma olarak değerlendirilmeli.
 - Commit'lerle birlikte çalışma ağacı temiz olarak bırakılır (untracked sıfır).
+
+## 8. Kalan üç NOT IMPLEMENTED gate kapatıldı; gate 12 kök neden düzeltildi (2026-10-07)
+
+Bu tur `release-gate-matrix.md` gate **25, 26, 32**'yi NOT IMPLEMENTED'tan çıkarmak, gate **12**'nin
+kalan hatalarını kök nedenle kapatmak ve D4 sonrası gate **17/18** durumunu işlemek içindi.
+
+### 8.1 Gate 12 — stale selector 11 hata temizlendi, boş-schedule kök nedeni düzeltildi
+
+- 7 spec dosyası gerçek DOM'a hizalandı: `audit` (`.audit-table`/`.filter-grid`, Durum combobox),
+  `personnel-e2e` (h3 kartlar + wizard container), `livesync` (`main` içeriği), `schedule`
+  (`.schedule-shell`, `.kpi-legend`, `button[title="Sonraki Ay"]`), `production-verification`
+  (her birim için `.schedule-shell`), `vardiyasystem` (kritik testler asıl atama dialoguna yazıldı:
+  `.add-person-btn` → `.personnel-item:not(.ineligible)` → `.slot-warning.error` "dinlenme kuralı
+  ihlali"; boş slot persist; `/unit` plan-nav; ulusal bayram CSS testleri `.date-col`/
+  `.holiday-label` gerçek renklerine bağlandı).
+- Kök neden: `plan-page.component.ts#loadPlan` persist edilmemiş bir schedule'da `id` üretmeden
+  success/hazırlama dalına girmiyordu → grid ve kaydet kontrolleri hiç oluşmuyordu (18 hata
+  sınıfının görünen "Cihaz bulunamadı" kaynağı). Fix `aec6416`: `!schedule` → boş state;
+  `schedule.id` varsa → success+store+toast; `devices.length > 0` → gerçek render; yoksa boş state.
+- Lokal doğrulama: frontend typecheck + lint 0 hata, unit **76/76**, prod build, Playwright spec
+  listesi **56 test** derleniyor, prettier temiz. CI koşusu PR ister (`browser-acceptance` yalnız
+  `pull_request` tetikli); `playwright-report` artifact'i iterasyon için kullanılacak.
+
+### 8.2 Gate 25 — backend "integration tier" yokluğu kasıtlı ilan edildi
+
+Karar: vitest katmanı unit-only kalır; gerçek altyapı entegrasyonu iki üretim şekilli süitte zaten
+ölçülüyor — `backend/e2e` (8 dosya, 36/36, gerçek Postgres/Redis, mock yok) ve `deploy.yml`
+`integration-test` (compose prod stack `postgres redis pgbouncer backend frontend`, nginx edge
+routing, `/health/ready` DB/Redis probe, backup/restore round trip). Mock-bazlı bir arakatman bunları
+tekrarlar, kapsam eklemezdi.
+
+### 8.3 Gate 26 — migration drift doğrulaması uygulandı (ilk koşuda gerçek drift buldu)
+
+- `backend/scripts/migration-drift.mjs` + `npm run check:migration-drift`; CI'da `unit-tests`
+  job'ına adım eklendi (`DATABASE_URL` postgres service'in shadow URL'i). Shadow replay + datamodel
+  diff; benign sayılan yalnız idempotent `CREATE EXTENSION` satırları.
+- İlk koşu **gerçek drift** çıkardı ve düzeltildi:
+  1. Migration tarihçesi `web_push_subscriptions.userId` ve `notification_preferences.userId`
+     FK kısıtlarını hiç oluşturmamış (tablo v6'da yaratılmıştı) → corrective migration
+     `20261007000000_add_notification_subscription_fks` (prisma isimlendirmesiyle birebir iki
+     FK; `ON DELETE CASCADE ON UPDATE CASCADE`).
+  2. `20260821000000` `assignments_source_idx` index'ini oluşturmuş, datamodel tanımıyordu →
+     `Assignment` modeline `@@index([source])` eklendi.
+- Doğrulama: taze DB'de `migrate deploy` **24/24**, FK'lar ve index gerçekten var; her iki diff
+  yönü (`--from-migrations` ve `--from-schema-datamodel`) temiz; `prisma validate` PASS.
+- D18 notu: shadow URL `?schema=public` ile sabitlenmiştir; `public` dışı schema'da `ltree` hâlâ
+  kırılır. Extension'ın `WITH SCHEMA public` alması uygulanmış DB'lerde checksum drift'ı yaratır,
+  bu yüzden migration dosyasına dokunulmadı.
+
+### 8.4 Gate 32 — docker-build-validation artık image'ı çalıştırıp assert ediyor
+
+- `load: true` — buildx önceden image'ı yalnız cache'liyordu, `docker run` hiçbir şey bulamıyordu
+  (D5'in CI'da yapısal olarak görünmez kalmasının nedeni). Postgres/Redis service'leri eklendi.
+- Matrix başına smoke adımı:
+  - **backend:** `--network host` + üretim-secret env (NODE_ENV=production, strong JWT/COOKIE,
+    ENCRYPTION_MASTER_KEY, VAPID, non-localhost FRONTEND_URL) → `GET /api/v1/health/live`
+    `{"status":"ok"}` poll (90×2 s) + `docker exec id` → `uid=100`.
+  - **frontend:** `--add-host backend:127.0.0.1`, `-p 8080:80` → `/health` 200 `ok`, `/` içinde
+    `<app-root>` ve **"Welcome to nginx!" YOK** + `uid=100`.
+- Matrix sayısıyla smoke adımı lokal **build + çalıştırma ile doğrulandı** (Windows Docker Desktop'ta
+  `--network host` yerine `-p` map + `host.docker.internal` kullanıldı, CI Linux runner'larında
+  adımlar birebir workflow'daki gibi): backend `/api/v1/health/live` HTTP 200 `{"status":"ok",...}`
+  - `uid=100(vardiya)`; frontend `/health` 200 `ok`, `/` 200 34 250 B `<app-root>` içeriyor ve
+    "Welcome to nginx!" içermiyor + `uid=100(vardiya)`.
+- Gate 16 (build) ve 28/29/30 (runtime, non-root) artık CI'da; D5 sınıfı hatalar sessizce ship
+  olamaz. Workflow YAML python-yaml ile parse edildi.
+
+### 8.5 D4 ve gate 17/18
+
+- D4 `b672483`'te zaten commit edilmişti; bu tur matrix'e **FIXED** işlendi: compose-validation
+  job'ı placeholder `.env` + tüm secret dosyaları + `backend/.env` (`.env.example` kopyası)
+  üretiyor, her iki `config -q` geçer. Gate 17 → "PASS local / CI unverified"; gate 18 → blocker
+  removed, CI'da koşmadı (local bash/helm/kustomize yok). Her ikisi de ilk PR'da ölçülecek.
+- actionlint lokal yok; workflow geçerliliği YAML parse + adım isimleriyle doğrulandı.
