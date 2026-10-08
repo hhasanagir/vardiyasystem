@@ -109,11 +109,23 @@ jobs:
         # Release gate 26: replay the full migration history into a shadow
         # database on the job's Postgres service and fail if `schema.prisma`
         # and the migrations disagree (D17/D18 provenance).
+        #
+        # The shadow must be a database of its own: `migrate diff` leaves the
+        # replayed schema behind, and pointed at the app database that residue
+        # (tables without `_prisma_migrations`) makes the next
+        # `npx prisma migrate deploy` exit 1 with P3005 "database schema is
+        # not empty". Recreated on every run so a previous replay cannot
+        # poison it either.
         if: matrix.workspace == 'backend'
-        run: npm run check:migration-drift
+        run: |
+          set -euo pipefail
+          PG=$(docker ps -qf ancestor=postgres:15-alpine)
+          docker exec "$PG" psql -U postgres -c 'DROP DATABASE IF EXISTS vardiya_drift_shadow'
+          docker exec "$PG" createdb -U postgres vardiya_drift_shadow
+          npm run check:migration-drift
         working-directory: backend
         env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vardiya_drift_shadow
       - name: Run migrations
         if: matrix.workspace == 'backend'
         run: npx prisma migrate deploy
@@ -441,6 +453,11 @@ jobs:
         # Release gate 32: a gate that only builds images validates nothing.
         # Boot the image against the same Postgres/Redis services every backend
         # job gets, probe the liveness endpoint, and prove the non-root runtime.
+        #
+        # The command mirrors docker-compose.yml: the image ships no migration
+        # step of its own, so booting it bare against a fresh database dies in
+        # SeedService with "The table `public.units` does not exist" and the
+        # health probe never succeeds. Migrate first, then start.
         if: matrix.service == 'backend'
         timeout-minutes: 10
         run: |
@@ -461,7 +478,7 @@ jobs:
             -e FRONTEND_URL=http://frontend:80 \
             -e VAPID_PUBLIC_KEY=BJmBEUlEpzbxsHEWjAAFuI-iKEJ171-JUZYmtVYBc-V84pBMyvqLDGtCeW__3I3OjaKYQ7TLpqOTQKuzCHLKNOc \
             -e VAPID_PRIVATE_KEY=LCOGiaom9OORU7nWAZoBeNgtFVGdf-bCjRuKBkUE-Iw \
-            "$IMAGE")
+            "$IMAGE" sh -c "npx prisma migrate deploy && node dist/src/main")
           trap 'docker rm -f smoke-backend >/dev/null 2>&1 || true' EXIT
           ok=0
           for i in $(seq 1 90); do
