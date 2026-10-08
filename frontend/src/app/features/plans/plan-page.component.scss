@@ -105,6 +105,12 @@ app-person-shift-view {
   color: var(--text-primary);
   border-color: var(--border-default);
 }
+// The month label (min-width 140px) would overflow a fixed 34px nav-btn and
+// cover the "previous month" button, stealing its pointer events.
+.month-select {
+  width: auto;
+  padding: 0 12px;
+}
 .current-month {
   font-size: 17px;
   font-weight: 600;
