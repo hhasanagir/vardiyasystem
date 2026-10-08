@@ -1,5 +1,86 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { login } from "./helpers";
+
+type SlotPair = { device: string; nightDate: string; dayDate: string };
+
+// Slotlar doluluk durumuna göre kaydığı için nth() ile seçim yapılamaz;
+// her cihaz satırında gerçekten boş olan gece hücresini bulup hedef günün
+// (aynı gün / ertesi gün) gündüz hücresiyle eşleştirir.
+async function findSlotPair(
+  page: Page,
+  mode: "same-day" | "next-day",
+): Promise<SlotPair | null> {
+  const nightCells = page.locator("tr.night-shift-row td.night-cell");
+  const count = await nightCells.count();
+  for (let i = 0; i < count; i++) {
+    const cell = nightCells.nth(i);
+    if ((await cell.locator(".add-person-btn").count()) === 0) continue;
+    const date = await cell.getAttribute("data-date");
+    const device = await cell.evaluate(
+      (el) => el.closest("tr")?.getAttribute("data-device") ?? "",
+    );
+    if (!date || !device) continue;
+    const target =
+      mode === "same-day"
+        ? date
+        : new Date(Date.parse(`${date}T00:00:00Z`) + 86400000)
+            .toISOString()
+            .slice(0, 10);
+    const dayAdd = page.locator(
+      `tr.day-shift-row[data-device="${device}"] td.person-cell[data-date="${target}"] .add-person-btn`,
+    );
+    if ((await dayAdd.count()) > 0) {
+      return { device, nightDate: date, dayDate: target };
+    }
+  }
+  return null;
+}
+
+// Diyalogda kaydetmeyi engellemeyen ilk personeli seçer, kaydeder ve seçilen
+// adı döner; hiçbiri engelsiz değilse null.
+async function saveFirstUnblocked(page: Page): Promise<string | null> {
+  const candidates = page.locator(".personnel-item:not(.ineligible)");
+  const total = await candidates.count();
+  for (let i = 0; i < total && i < 8; i++) {
+    const candidate = candidates.nth(i);
+    await candidate.click();
+    const name = (
+      await candidate.locator(".personnel-name").textContent()
+    )?.trim();
+    const saveBtn = page.locator(".dialog-footer .btn-primary");
+    try {
+      await expect(saveBtn).toBeEnabled({ timeout: 1500 });
+    } catch {
+      continue;
+    }
+    await saveBtn.click();
+    return name ?? null;
+  }
+  return null;
+}
+
+// Gece slotuna, çakışma uyarısı üretmeyen ilk uygun personeli atar ve
+// kaydın gerçekten hücreye düştüğünü doğrular.
+async function assignNightSlot(page: Page, pair: SlotPair): Promise<string> {
+  await page
+    .locator(
+      `tr.night-shift-row[data-device="${pair.device}"] td.night-cell[data-date="${pair.nightDate}"] .add-person-btn`,
+    )
+    .first()
+    .click();
+  await expect(page.locator(".personnel-item").first()).toBeVisible();
+
+  const name = await saveFirstUnblocked(page);
+  if (!name) {
+    throw new Error("Gece vardiyasina atanabilir personel bulunamadi");
+  }
+  await expect(
+    page.locator(
+      `tr.night-shift-row[data-device="${pair.device}"] td.night-cell[data-date="${pair.nightDate}"] .person-card`,
+    ),
+  ).toBeVisible({ timeout: 5000 });
+  return name;
+}
 
 test.describe("VardiyaOS Critical Test Scenarios", () => {
   test.beforeEach(async ({ page }) => {
@@ -13,35 +94,27 @@ test.describe("VardiyaOS Critical Test Scenarios", () => {
       await page.goto("/app/mr-plan");
       await page.waitForLoadState("networkidle");
 
+      const pair = await findSlotPair(page, "same-day");
+      test.skip(!pair, "Eslesen bos gun/gunduz slotu yok");
+      const personName = await assignNightSlot(page, pair!);
+
       await page
-        .locator("tr.night-shift-row td.person-cell.night-cell .add-person-btn")
+        .locator(
+          `tr.day-shift-row[data-device="${pair!.device}"] td.person-cell[data-date="${pair!.dayDate}"] .add-person-btn`,
+        )
         .first()
         .click();
       await expect(page.locator(".personnel-item").first()).toBeVisible();
-      const nightPerson = page
-        .locator(".personnel-item:not(.ineligible)")
-        .first();
-      const personName = (
-        await nightPerson.locator(".personnel-name").textContent()
-      )?.trim();
-      await nightPerson.click();
-      await page.locator("button.btn-primary").click();
-      await page.waitForTimeout(1200);
-
       await page
-        .locator("tr.day-shift-row td.person-cell .add-person-btn")
-        .nth(1)
-        .click();
-      await expect(page.locator(".personnel-item").first()).toBeVisible();
-      await page
-        .locator(".personnel-item", { hasText: personName ?? "" })
+        .locator(".personnel-item", { hasText: personName })
         .first()
         .click();
 
-      await expect(page.locator("button.btn-primary")).toContainText(
-        "Atama Engellendi",
-        { timeout: 3000 },
-      );
+      const saveBtn = page.locator(".dialog-footer .btn-primary");
+      await expect(saveBtn).toContainText("Atama Engellendi", {
+        timeout: 3000,
+      });
+      await expect(saveBtn).toBeDisabled();
     });
   });
 
@@ -52,35 +125,27 @@ test.describe("VardiyaOS Critical Test Scenarios", () => {
       await page.goto("/app/mr-plan");
       await page.waitForLoadState("networkidle");
 
+      const pair = await findSlotPair(page, "next-day");
+      test.skip(!pair, "Ardasik gun eslesen bos slot yok");
+      const personName = await assignNightSlot(page, pair!);
+
       await page
-        .locator("tr.night-shift-row td.person-cell.night-cell .add-person-btn")
+        .locator(
+          `tr.day-shift-row[data-device="${pair!.device}"] td.person-cell[data-date="${pair!.dayDate}"] .add-person-btn`,
+        )
         .first()
         .click();
       await expect(page.locator(".personnel-item").first()).toBeVisible();
-      const nightPerson = page
-        .locator(".personnel-item:not(.ineligible)")
-        .first();
-      const personName = (
-        await nightPerson.locator(".personnel-name").textContent()
-      )?.trim();
-      await nightPerson.click();
-      await page.locator("button.btn-primary").click();
-      await page.waitForTimeout(1200);
-
       await page
-        .locator("tr.day-shift-row td.person-cell .add-person-btn")
-        .nth(1)
-        .click();
-      await expect(page.locator(".personnel-item").first()).toBeVisible();
-      await page
-        .locator(".personnel-item", { hasText: personName ?? "" })
+        .locator(".personnel-item", { hasText: personName })
         .first()
         .click();
 
-      const warning = page.locator(".slot-warning.error").first();
-      await expect(warning).toContainText("dinlenme kuralı ihlali", {
-        timeout: 3000,
-      });
+      await expect(
+        page.locator(".slot-warning.error", {
+          hasText: "dinlenme kuralı ihlali",
+        }),
+      ).toBeVisible({ timeout: 3000 });
     });
   });
 
@@ -165,8 +230,8 @@ test.describe("VardiyaOS Critical Test Scenarios", () => {
         .first()
         .click();
       await expect(page.locator(".personnel-item").first()).toBeVisible();
-      await page.locator(".personnel-item").first().click();
-      await page.locator("button.btn-primary").click();
+      const savedName = await saveFirstUnblocked(page);
+      expect(savedName).toBeTruthy();
       await page.waitForTimeout(1500);
 
       await page.reload();
