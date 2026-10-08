@@ -47,13 +47,12 @@ services:
       - ./backend/.env
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/vardiyasystem?schema=public&connection_limit=5}
-      JWT_ACCESS_TOKEN_SECRET: ${JWT_ACCESS_TOKEN_SECRET:-}
-      JWT_REFRESH_TOKEN_SECRET: ${JWT_REFRESH_TOKEN_SECRET:-}
+      DATABASE_DIRECT_URL: ${DATABASE_DIRECT_URL:-postgresql://postgres:postgres@postgres:5432/vardiyasystem?schema=public}
       PORT: ${PORT:-3000}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
       NODE_ENV: ${NODE_ENV:-development}
       LOG_DIR: /var/log/vardiya
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_LEVEL: ${LOG_LEVEL:-log}
       REDIS_URL: redis://redis:6379
     ports:
       - "3000:3000"
@@ -67,7 +66,7 @@ services:
       - jwt_secret
     volumes:
       - vardiya_logs:/var/log/vardiya
-    command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run start:prod"
+    command: sh -c "npx prisma migrate deploy && node dist/src/main"
 
   frontend:
     build:
