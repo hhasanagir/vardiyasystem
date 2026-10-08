@@ -917,6 +917,7 @@ model Assignment {
   @@index([unitId])
   @@index([personnelGroupId])
   @@index([kind])
+  @@index([source])
   @@map("assignments")
 }
 
