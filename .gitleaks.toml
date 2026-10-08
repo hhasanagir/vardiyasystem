@@ -4,27 +4,25 @@ title = "VardiyaOS Gitleaks Configuration"
 # Use the base Gitleaks rules
 useDefault = true
 
-[[rules.allowlist]]
-description = "Test and example secrets"
+[allowlist]
+description = "Test/example placeholders and known false positives"
 regexes = [
   "(?i)ci-(validation|deploy|e2e)-secret",
   "(?i)CHANGE_ME",
   "(?i)changethis",
   "your-approle-role-id",
   "your-approle-secret-id",
-]
-paths = [
-  ".env.production.example",
-  "backend/.env.example",
-  "README.md",
-  "**/*.md",
-  "secrets/README.md",
-]
-
-[[rules.allowlist]]
-description = "Known false positives — commit hashes and example data"
-regexes = [
   "(?i)AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
   "0000000000000000000000000000000000000000",
   "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  # Well-known non-secret fixtures: CI smoke-test env values and the
+  # documented dev-default VAPID keypair (Joi requires a production value).
+  "0123456789abcdef0123456789abcdef",
+  "fedcba9876543210fedcba9876543210",
+  "LCOGiaom9OORU7nWAZoBeNgtFVGdf-bCjRuKBkUE-Iw",
+]
+paths = [
+  '(^|/)\.env\.production\.example$',
+  '(^|/)backend/\.env\.example$',
+  '\.md$',
 ]
