@@ -588,7 +588,8 @@ jobs:
           fi
 
           # 3) the runtime secrets/ directory, documentation only
-          if grep -E '^secrets/' /tmp/tracked.txt | grep -vE '^secrets/README\.md$'; then
+          # (.gitkeep only exists to keep the empty directory in git)
+          if grep -E '^secrets/' /tmp/tracked.txt | grep -vE '^secrets/(README\.md|\.gitkeep)$'; then
             echo "::error::runtime secret files above must not be committed"
             fail=1
           fi
