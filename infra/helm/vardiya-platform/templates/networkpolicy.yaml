@@ -1,0 +1,234 @@
+{{- if .Values.networkPolicy.enabled }}
+---
+# Default-deny ingress for every pod in the release namespace. Egress is left
+# unrestricted on purpose: the backend needs outbound access to push/email/SMS
+# providers and the OTLP collector, which the kustomize base's blanket egress
+# deny does not enumerate. Ingress isolation is what defect D6 requires.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "vardiya.fullname" . }}-default-deny-all
+  labels:
+    {{- include "vardiya.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "vardiya.fullname" . }}-allow-dns-egress
+  labels:
+    {{- include "vardiya.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "vardiya.fullname" . }}-allow-backend-ingress
+  labels:
+    {{- include "vardiya.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "vardiya.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "vardiya.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: frontend
+        - podSelector:
+            matchLabels:
+              {{- include "vardiya.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: prometheus
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "vardiya.fullname" . }}-allow-frontend-ingress
+  labels:
+    {{- include "vardiya.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "vardiya.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "vardiya.fullname" . }}-allow-postgres-ingress
+  labels:
+    {{- include "vardiya.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "vardiya.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "vardiya.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: backend
+        - podSelector:
+            matchLabels:
+              {{- include "vardiya.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: pgbouncer
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "vardiya.fullname" . }}-allow-pgbouncer-ingress
+  labels:
+    {{- include "vardiya.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pgbouncer
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "vardiya.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: pgbouncer
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "vardiya.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: backend
+        - podSelector:
+            matchLabels:
+              {{- include "vardiya.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: prometheus
+      ports:
+        - protocol: TCP
+          port: 6432
+        - protocol: TCP
+          port: 9127
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "vardiya.fullname" . }}-allow-redis-ingress
+  labels:
+    {{- include "vardiya.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "vardiya.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "vardiya.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: backend
+        - podSelector:
+            matchLabels:
+              {{- include "vardiya.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: redis
+        - podSelector:
+            matchLabels:
+              {{- include "vardiya.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: redis-sentinel
+      ports:
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 16379
+---
+# Allows the monitoring namespace (Prometheus scraping) and the ingress
+# controller (Grafana UI) to reach the observability pods, plus OTLP from the
+# backend into Tempo.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "vardiya.fullname" . }}-allow-monitoring-ingress
+  labels:
+    {{- include "vardiya.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [prometheus, loki, grafana, tempo, alertmanager]
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: [prometheus, loki, grafana, tempo, alertmanager]
+        - podSelector:
+            matchLabels:
+              {{- include "vardiya.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: backend
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 9093
+        - protocol: TCP
+          port: 3100
+        - protocol: TCP
+          port: 3200
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
+        - protocol: TCP
+          port: 3000
+{{- end }}

@@ -19,7 +19,11 @@ backend:
       memory: 1Gi
 
 postgres:
-  replicaCount: 2
+  # Single-instance subchart: it implements no replication, so replicaCount > 1
+  # would run two independent writable primaries behind one headless Service and
+  # silently split the dataset (defect D7). Scale vertically (resources/storage)
+  # until a replication-capable subchart (streaming/Patroni) is in place.
+  replicaCount: 1
   storage:
     size: 50Gi
     storageClass: gp3

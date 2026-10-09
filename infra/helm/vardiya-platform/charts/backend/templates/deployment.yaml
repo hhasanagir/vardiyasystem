@@ -24,6 +24,7 @@ spec:
         prometheus.io/path: "{{ .Values.serviceMonitor.path }}"
     spec:
       {{- include "vardiya.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "backend") }}
       # The backend image ships USER vardiya; the alpine adduser -S default is
       # uid 100, so pin the pod to the image UID instead of an arbitrary one —
       # otherwise /var/log/vardiya (chowned to uid 100) is not writable.

@@ -20,6 +20,7 @@ spec:
         app.kubernetes.io/component: frontend
     spec:
       {{- include "vardiya.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "frontend") }}
       # The frontend image ships USER vardiya (alpine adduser -S → uid 100).
       securityContext:
         runAsNonRoot: true

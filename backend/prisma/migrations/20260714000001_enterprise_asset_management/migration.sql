@@ -74,13 +74,106 @@ CREATE TYPE "AlertType" AS ENUM ('low_stock', 'expiring_soon', 'expired', 'maint
 CREATE TYPE "WasteType" AS ENUM ('expired', 'damaged', 'recalled', 'contaminated', 'surplus', 'opened_unused', 'other');
 
 -- AlterEnum
-BEGIN;
+-- Every legacy RbacRoleName value is mapped before the cast so a populated
+-- `roles` table cannot abort with `invalid input value for enum` (defect D16).
 CREATE TYPE "RbacRoleName_new" AS ENUM ('SYSTEM_ADMIN', 'HOSPITAL_ADMIN', 'IMAGING_DIRECTOR', 'SUPERVISOR', 'MEDICAL_ENGINEER', 'SENIOR_TECHNICIAN', 'TECHNICIAN', 'ASSISTANT_TECHNICIAN', 'SECRETARY', 'GUEST');
-ALTER TABLE "roles" ALTER COLUMN "name" TYPE "RbacRoleName_new" USING ("name"::text::"RbacRoleName_new");
+
+-- Collision guard (defect D16): the mapping below collapses several legacy roles
+-- onto one new value, but `roles_name_key` is UNIQUE, so two rows such as
+-- HOSPITAL_DIRECTOR and IMAGING_MANAGER would abort the cast with SQLSTATE 23505.
+-- Merge every colliding set into a deterministic keeper (lowest `level`, then
+-- lowest `id`), repoint all references, then remove the duplicates. Repointing
+-- first avoids the ON DELETE CASCADE wiping their permissions and assignments.
+CREATE TEMP TABLE "_role_target" AS
+SELECT "id", "level",
+       CASE "name"::text
+           WHEN 'SYSTEM_ADMIN' THEN 'SYSTEM_ADMIN'
+           WHEN 'ORGANIZATION_ADMIN' THEN 'HOSPITAL_ADMIN'
+           WHEN 'HOSPITAL_DIRECTOR' THEN 'IMAGING_DIRECTOR'
+           WHEN 'IMAGING_MANAGER' THEN 'IMAGING_DIRECTOR'
+           WHEN 'UNIT_SUPERVISOR' THEN 'SUPERVISOR'
+           WHEN 'SHIFT_COORDINATOR' THEN 'SUPERVISOR'
+           WHEN 'HR_MANAGER' THEN 'SECRETARY'
+           WHEN 'TECHNICIAN' THEN 'TECHNICIAN'
+           WHEN 'READ_ONLY_AUDITOR' THEN 'GUEST'
+           ELSE "name"::text
+       END AS "target"
+FROM "roles";
+
+CREATE TEMP TABLE "_role_merge" AS
+SELECT "id" AS "old_id",
+       first_value("id") OVER (PARTITION BY "target" ORDER BY "level", "id") AS "keep_id"
+FROM "_role_target";
+
+-- Repoint the self-referencing hierarchy before the duplicates disappear.
+UPDATE "roles" AS r
+SET "parentId" = m."keep_id"
+FROM "_role_merge" AS m
+WHERE r."parentId" = m."old_id" AND m."old_id" <> m."keep_id";
+
+-- role_permissions: copy each duplicate's unique permission onto the keeper,
+-- then delete the rows that lived on the duplicates.
+INSERT INTO "role_permissions" ("id", "roleId", "permissionId", "createdAt")
+SELECT DISTINCT ON (m."keep_id", rp."permissionId")
+       md5(m."keep_id" || rp."permissionId"), m."keep_id", rp."permissionId", rp."createdAt"
+FROM "role_permissions" AS rp
+JOIN "_role_merge" AS m ON m."old_id" = rp."roleId"
+WHERE m."old_id" <> m."keep_id"
+  AND NOT EXISTS (
+      SELECT 1 FROM "role_permissions" AS keep
+      WHERE keep."roleId" = m."keep_id" AND keep."permissionId" = rp."permissionId"
+  )
+ORDER BY m."keep_id", rp."permissionId", rp."createdAt";
+
+DELETE FROM "role_permissions" AS rp
+USING "_role_merge" AS m
+WHERE rp."roleId" = m."old_id" AND m."old_id" <> m."keep_id";
+
+-- user_role_assignments: same merge against its unique key.
+INSERT INTO "user_role_assignments" ("id", "userId", "roleId", "organizationId", "unitId", "assignedBy", "expiresAt", "isActive", "createdAt")
+SELECT DISTINCT ON (m."keep_id", ura."userId", ura."organizationId", ura."unitId")
+       md5(m."keep_id" || ura."userId" || COALESCE(ura."organizationId", '') || COALESCE(ura."unitId", '')),
+       ura."userId", m."keep_id", ura."organizationId", ura."unitId", ura."assignedBy", ura."expiresAt", ura."isActive", ura."createdAt"
+FROM "user_role_assignments" AS ura
+JOIN "_role_merge" AS m ON m."old_id" = ura."roleId"
+WHERE m."old_id" <> m."keep_id"
+  AND NOT EXISTS (
+      SELECT 1 FROM "user_role_assignments" AS keep
+      WHERE keep."roleId" = m."keep_id" AND keep."userId" = ura."userId"
+        AND keep."organizationId" IS NOT DISTINCT FROM ura."organizationId"
+        AND keep."unitId" IS NOT DISTINCT FROM ura."unitId"
+  )
+ORDER BY m."keep_id", ura."userId", ura."organizationId", ura."unitId", ura."createdAt";
+
+DELETE FROM "user_role_assignments" AS ura
+USING "_role_merge" AS m
+WHERE ura."roleId" = m."old_id" AND m."old_id" <> m."keep_id";
+
+-- The duplicates are now safe to drop: their children were merged above.
+DELETE FROM "roles" AS r
+USING "_role_merge" AS m
+WHERE r."id" = m."old_id" AND m."old_id" <> m."keep_id";
+
+DROP TABLE "_role_merge";
+DROP TABLE "_role_target";
+
+ALTER TABLE "roles" ALTER COLUMN "name" TYPE "RbacRoleName_new" USING (
+    CASE "name"::text
+        WHEN 'SYSTEM_ADMIN' THEN 'SYSTEM_ADMIN'
+        WHEN 'ORGANIZATION_ADMIN' THEN 'HOSPITAL_ADMIN'
+        WHEN 'HOSPITAL_DIRECTOR' THEN 'IMAGING_DIRECTOR'
+        WHEN 'IMAGING_MANAGER' THEN 'IMAGING_DIRECTOR'
+        WHEN 'UNIT_SUPERVISOR' THEN 'SUPERVISOR'
+        WHEN 'SHIFT_COORDINATOR' THEN 'SUPERVISOR'
+        WHEN 'HR_MANAGER' THEN 'SECRETARY'
+        WHEN 'TECHNICIAN' THEN 'TECHNICIAN'
+        WHEN 'READ_ONLY_AUDITOR' THEN 'GUEST'
+        ELSE "name"::text
+    END
+)::"RbacRoleName_new";
 ALTER TYPE "RbacRoleName" RENAME TO "RbacRoleName_old";
 ALTER TYPE "RbacRoleName_new" RENAME TO "RbacRoleName";
 DROP TYPE "RbacRoleName_old";
-COMMIT;
 
 -- AlterEnum
 -- This migration adds more than one value to an enum.
@@ -98,15 +191,26 @@ ALTER TYPE "ShiftType" ADD VALUE 'training';
 ALTER TYPE "ShiftType" ADD VALUE 'backup';
 
 -- AlterEnum
-BEGIN;
+-- Same mapping guard for the legacy UserRole values (defect D16).
 CREATE TYPE "UserRole_new" AS ENUM ('system_admin', 'hospital_admin', 'imaging_director', 'supervisor', 'medical_engineer', 'senior_technician', 'technician', 'assistant_technician', 'secretary', 'guest');
 ALTER TABLE "users" ALTER COLUMN "role" DROP DEFAULT;
-ALTER TABLE "users" ALTER COLUMN "role" TYPE "UserRole_new" USING ("role"::text::"UserRole_new");
+ALTER TABLE "users" ALTER COLUMN "role" TYPE "UserRole_new" USING (
+    CASE "role"::text
+        WHEN 'super_admin' THEN 'system_admin'
+        WHEN 'admin' THEN 'hospital_admin'
+        WHEN 'project_manager' THEN 'imaging_director'
+        WHEN 'head_technician' THEN 'senior_technician'
+        WHEN 'supervisor' THEN 'supervisor'
+        WHEN 'field_supervisor' THEN 'supervisor'
+        WHEN 'technician' THEN 'technician'
+        WHEN 'staff' THEN 'guest'
+        ELSE "role"::text
+    END
+)::"UserRole_new";
 ALTER TYPE "UserRole" RENAME TO "UserRole_old";
 ALTER TYPE "UserRole_new" RENAME TO "UserRole";
 DROP TYPE "UserRole_old";
 ALTER TABLE "users" ALTER COLUMN "role" SET DEFAULT 'guest';
-COMMIT;
 
 -- DropIndex
 DROP INDEX "areas_path_idx";

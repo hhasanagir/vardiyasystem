@@ -59,49 +59,59 @@ DROP INDEX "notifications_organizationId_idx";
 DROP INDEX "notifications_userId_isRead_idx";
 
 -- AlterTable
-ALTER TABLE "auth_attempts" DROP COLUMN "attempt_type",
-DROP COLUMN "created_at",
-DROP COLUMN "ip_address",
-DROP COLUMN "lockout_until",
-DROP COLUMN "user_agent",
-DROP COLUMN "user_id",
-ADD COLUMN     "attemptType" TEXT NOT NULL DEFAULT 'LOGIN',
-ADD COLUMN     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-ADD COLUMN     "ipAddress" TEXT,
-ADD COLUMN     "lockoutUntil" TIMESTAMP(3),
-ADD COLUMN     "userAgent" TEXT,
-ADD COLUMN     "userId" TEXT;
+-- snake_case -> camelCase is a case-only rename: use RENAME COLUMN so every
+-- existing row (and each lockout / rate-limit signal) is preserved. The former
+-- DROP + ADD pair lost the data and aborted with SQLSTATE 23502 on a populated
+-- table (defect D15).
+ALTER TABLE "auth_attempts" RENAME COLUMN "attempt_type" TO "attemptType";
+ALTER TABLE "auth_attempts" RENAME COLUMN "created_at" TO "createdAt";
+ALTER TABLE "auth_attempts" RENAME COLUMN "ip_address" TO "ipAddress";
+ALTER TABLE "auth_attempts" RENAME COLUMN "lockout_until" TO "lockoutUntil";
+ALTER TABLE "auth_attempts" RENAME COLUMN "user_agent" TO "userAgent";
+ALTER TABLE "auth_attempts" RENAME COLUMN "user_id" TO "userId";
 
 -- AlterTable
-ALTER TABLE "auth_sessions" DROP COLUMN "created_at",
-DROP COLUMN "device_info",
-DROP COLUMN "expires_at",
-DROP COLUMN "hashed_token",
-DROP COLUMN "ip_address",
-DROP COLUMN "last_used_at",
-DROP COLUMN "revoked_at",
-DROP COLUMN "user_agent",
-DROP COLUMN "user_id",
-ADD COLUMN     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-ADD COLUMN     "deviceInfo" TEXT,
-ADD COLUMN     "expiresAt" TIMESTAMP(3) NOT NULL,
-ADD COLUMN     "hashedToken" TEXT NOT NULL,
-ADD COLUMN     "ipAddress" TEXT,
-ADD COLUMN     "lastUsedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-ADD COLUMN     "revokedAt" TIMESTAMP(3),
-ADD COLUMN     "userAgent" TEXT,
-ADD COLUMN     "userId" TEXT NOT NULL;
+-- Same case-only rename for sessions. RENAME COLUMN keeps every session row and
+-- its nullability, so `expiresAt` / `hashedToken` / `userId` cannot fail
+-- `NOT NULL` on a populated table (defect D15).
+ALTER TABLE "auth_sessions" RENAME COLUMN "created_at" TO "createdAt";
+ALTER TABLE "auth_sessions" RENAME COLUMN "device_info" TO "deviceInfo";
+ALTER TABLE "auth_sessions" RENAME COLUMN "expires_at" TO "expiresAt";
+ALTER TABLE "auth_sessions" RENAME COLUMN "hashed_token" TO "hashedToken";
+ALTER TABLE "auth_sessions" RENAME COLUMN "ip_address" TO "ipAddress";
+ALTER TABLE "auth_sessions" RENAME COLUMN "last_used_at" TO "lastUsedAt";
+ALTER TABLE "auth_sessions" RENAME COLUMN "revoked_at" TO "revokedAt";
+ALTER TABLE "auth_sessions" RENAME COLUMN "user_agent" TO "userAgent";
+ALTER TABLE "auth_sessions" RENAME COLUMN "user_id" TO "userId";
 
 -- AlterTable
-ALTER TABLE "notifications" DROP COLUMN "isRead",
-DROP COLUMN "readAt",
-DROP COLUMN "userId",
+-- `type` changes from free text to the NotificationType enum. Legacy values that
+-- already name a value are kept; anything else falls back to a safe member
+-- instead of rejecting the row (defect D15).
+ALTER TABLE "notifications" ALTER COLUMN "type" TYPE "NotificationType" USING (
+    CASE
+        WHEN UPPER("type") IN (
+            'SCHEDULE_CHANGED', 'SCHEDULE_APPROVED', 'SCHEDULE_REJECTED',
+            'SHIFT_SWAP_REQUESTED', 'SHIFT_SWAP_APPROVED', 'SHIFT_SWAP_REJECTED',
+            'TRAINING_ASSIGNED', 'TRAINING_EXPIRING', 'TRAINING_EXPIRED',
+            'CERTIFICATION_EXPIRING', 'CERTIFICATION_EXPIRED', 'DEVICE_INCIDENT',
+            'DEVICE_INCIDENT_CRITICAL', 'SYSTEM_ANNOUNCEMENT', 'ROLE_ASSIGNED',
+            'PERMISSION_CHANGED', 'ATTENDANCE_ALERT', 'EMERGENCY_ALERT',
+            'CLOCK_IN_REMINDER', 'SCHEDULE_REMINDER'
+        ) THEN UPPER("type")
+        ELSE 'SYSTEM_ANNOUNCEMENT'
+    END
+)::"NotificationType";
+
+-- The new NOT NULL columns carry a DEFAULT so a populated table cannot fail with
+-- SQLSTATE 23502; the transient updatedAt default is dropped afterwards so the
+-- column matches the datamodel (@updatedAt has no database default).
+ALTER TABLE "notifications"
 ADD COLUMN     "priority" "NotificationPriority" NOT NULL DEFAULT 'NORMAL',
 ADD COLUMN     "senderId" TEXT,
 ADD COLUMN     "status" "NotificationStatus" NOT NULL DEFAULT 'PENDING',
-ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL,
-DROP COLUMN "type",
-ADD COLUMN     "type" "NotificationType" NOT NULL;
+ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "notifications" ALTER COLUMN "updatedAt" DROP DEFAULT;
 
 -- CreateTable
 CREATE TABLE "roles" (
@@ -271,6 +281,19 @@ CREATE TABLE "notification_recipients" (
 
     CONSTRAINT "notification_recipients_pkey" PRIMARY KEY ("id")
 );
+
+-- Backfill: carry each legacy notification's owner and read state into the new
+-- notification_recipients table before the legacy columns are removed, so
+-- per-user read state and notification ownership survive (defect D15).
+INSERT INTO "notification_recipients" ("id", "notificationId", "userId", "isRead", "readAt", "isDeleted", "deletedAt", "createdAt")
+SELECT md5("id" || clock_timestamp()::text), "id", "userId", "isRead", "readAt", false, NULL, "createdAt"
+FROM "notifications"
+WHERE "userId" IS NOT NULL;
+
+-- AlterTable
+ALTER TABLE "notifications" DROP COLUMN "isRead",
+DROP COLUMN "readAt",
+DROP COLUMN "userId";
 
 -- CreateTable
 CREATE TABLE "notification_deliveries" (

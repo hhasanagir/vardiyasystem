@@ -10,12 +10,15 @@ metadata:
     "helm.sh/hook-weight": "-5"
     "helm.sh/hook-delete-policy": before-hook-creation
 spec:
+  backoffLimit: {{ .Values.migrationJob.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migrationJob.activeDeadlineSeconds }}
   template:
     metadata:
       labels: {{- include "vardiya.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: migration
+        app.kubernetes.io/component: backend
     spec:
       {{- include "vardiya.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "backend") }}
       restartPolicy: OnFailure
       # The backend image ships USER vardiya (alpine adduser -S → uid 100).
       securityContext:
@@ -31,6 +34,14 @@ spec:
           # pools client connections in this deployment.
           env:
             - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: database_direct_url
+            # Prisma's schema declares both url and directUrl (schema.prisma),
+            # so `migrate deploy` aborts with P1012 unless DATABASE_DIRECT_URL is
+            # also present (defect D14).
+            - name: DATABASE_DIRECT_URL
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.existingSecret }}

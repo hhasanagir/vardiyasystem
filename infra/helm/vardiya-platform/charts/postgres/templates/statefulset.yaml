@@ -1,3 +1,6 @@
+{{- if gt (int .Values.replicaCount) 1 }}
+{{- fail "postgres.replicaCount > 1 is unsupported: this subchart has no replication, so a second replica is an independent writable primary behind the headless Service and would silently split the dataset (defect D7). Set postgres.replicaCount=1 or install a replication-capable subchart." }}
+{{- end }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -16,6 +19,7 @@ spec:
         app.kubernetes.io/component: postgres
     spec:
       {{- include "vardiya.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "postgres") }}
       terminationGracePeriodSeconds: 120
       containers:
         - name: postgres

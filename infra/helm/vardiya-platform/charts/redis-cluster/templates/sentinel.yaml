@@ -15,6 +15,7 @@ spec:
       labels: {{- include "vardiya.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: redis-sentinel
     spec:
+      serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "redis") }}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
