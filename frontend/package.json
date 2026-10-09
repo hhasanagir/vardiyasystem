@@ -11,7 +11,7 @@
     "test:watch": "ng test --watch --browsers ChromeHeadless",
     "test:ci": "ng test --no-watch --browsers ChromeHeadless",
     "test:coverage": "ng test --coverage --browsers ChromeHeadless",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=378",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json",
     "e2e": "npx playwright test",
     "e2e:ui": "npx playwright test --ui",
