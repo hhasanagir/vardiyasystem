@@ -41,7 +41,7 @@
     "@angular/service-worker": "^21.2.9",
     "@capacitor/app": "^8.1.0",
     "@capacitor/camera": "^8.2.0",
-    "@capacitor/cli": "^8.4.0",
+    "@capacitor/cli": "^8.5.2",
     "@capacitor/core": "^8.4.0",
     "@capacitor/device": "^8.0.2",
     "@capacitor/haptics": "^8.0.2",
