@@ -235,19 +235,19 @@ jobs:
           sbom: true
       - name: Verify the image manifest is published
         # Fail-closed: the push is only a success once the registry serves the
-        # exact tag the deployment chain is going to pull.
+        # exact tag the deployment chain is going to pull. Verify through the
+        # already-authenticated docker session — a raw `Authorization: Bearer
+        # $GITHUB_TOKEN` against the GHCR API is rejected (401, the GitHub token
+        # is not a registry token) and the prefix-less `/manifests/` path
+        # redirects (303), so neither can confirm the push (defect D32).
         run: |
           set -euo pipefail
-          repo="${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.service }}"
-          code=$(curl -s -o /dev/null -w '%{http_code}' \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json" \
-            "https://${repo}/manifests/${{ env.IMAGE_TAG }}")
-          if [ "$code" != "200" ]; then
-            echo "::error::manifest not served for ${repo}:${{ env.IMAGE_TAG }} (HTTP $code)"
+          image="${REGISTRY}/${{ github.repository }}/${{ matrix.service }}:${IMAGE_TAG}"
+          if ! docker buildx imagetools inspect "${image}" >/dev/null 2>&1; then
+            echo "::error::manifest not served for ${image}"
             exit 1
           fi
-          echo "manifest verified: ${repo}:${{ env.IMAGE_TAG }}"
+          echo "manifest verified: ${image}"
 
   integration-test:
     name: Integration Test (Production Stack)
