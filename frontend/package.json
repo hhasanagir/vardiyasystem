@@ -66,7 +66,7 @@
     "@angular-eslint/eslint-plugin-template": "^21.4.0",
     "@angular-eslint/template-parser": "^21.4.0",
     "@angular/build": "^21.2.7",
-    "@angular/cli": "^21.2.7",
+    "@angular/cli": "^22.2.1",
     "@angular/compiler-cli": "^21.2.0",
     "@angular/platform-browser-dynamic": "^21.2.9",
     "@capacitor/android": "^8.4.0",
