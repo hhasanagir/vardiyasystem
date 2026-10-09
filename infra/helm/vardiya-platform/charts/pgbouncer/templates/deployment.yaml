@@ -23,6 +23,7 @@ spec:
         prometheus.io/port: "9127"
     spec:
       {{- include "vardiya.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "pgbouncer") }}
       containers:
         - name: pgbouncer
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

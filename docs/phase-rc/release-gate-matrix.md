@@ -777,6 +777,14 @@ consume a pre-created namespace and record which path is authoritative. Until th
 path must be declared the source of truth, because a production install through Helm silently
 loses all network isolation.
 
+**Remediated (`fix/helm-migration-hardening`).** The isolation layers were ported into the parent
+chart: `templates/serviceaccounts.yaml` (6 ServiceAccounts), `templates/rbac.yaml` (ClusterRole /
+ClusterRoleBinding and Role / RoleBinding), `templates/networkpolicy.yaml` (8 policies) and
+`templates/resourcequota.yaml` (ResourceQuota + LimitRange). Every workload — backend, frontend,
+postgres, pgbouncer, redis and the five monitoring pods — now resolves `serviceAccountName` through
+`vardiya.serviceAccountName`. `helm lint` is clean and `helm template` renders for default, staging
+and production with each ServiceAccount reference resolving to a created object.
+
 ### Defect D7 - production Postgres scales to 2 replicas with no replication
 
 `values/production.yaml` sets `postgres.replicaCount: 2`. The rendered StatefulSet has **one**
@@ -799,6 +807,11 @@ scale-out via real replication.
 (bigger `resources`, `storage.size`, `pgbouncer`) until a streaming or Patroni-based subchart is in
 place. If replication is genuinely wanted, replace the subchart with one that implements it and
 verify failover before re-enabling a replica count above 1.
+
+**Remediated (`fix/helm-migration-hardening`).** `values/production.yaml` now sets
+`postgres.replicaCount: 1`, and `charts/postgres/templates/statefulset.yaml` calls `fail` when
+`replicaCount > 1`, so the single-instance subchart cannot be scaled into two writable primaries
+again without replacing it with a replication-aware chart.
 
 ### Defect D8 - probes missing on the whole monitoring stack
 
@@ -1073,6 +1086,11 @@ introduced.
 **Remediation:** add `DATABASE_DIRECT_URL` from `key: database_direct_url` to the Job, and set
 `backoffLimit: 3` so a genuinely failing migration surfaces as a failed Job.
 
+**Remediated (`fix/helm-migration-hardening`).** The Job now supplies `DATABASE_DIRECT_URL` from
+`key: database_direct_url` alongside `DATABASE_URL`, and sources `backoffLimit` and
+`activeDeadlineSeconds` from `migrationJob`, so a genuinely failing migration surfaces as a failed
+Job instead of restarting forever.
+
 ### Defect D15 - migration 6 cannot run against a populated database
 
 `20260619000001_v6_enterprise_notification_system` converts three tables from `snake_case` to
@@ -1108,6 +1126,14 @@ near-instant. Because these migrations are already applied on some environments,
 per environment whether a data backfill is needed before rewriting history — do not edit applied
 migrations. Add a CI gate that runs `migrate deploy` onto a database seeded with representative
 rows, because a fresh-database run cannot catch this class of bug.
+
+**Remediated (`fix/helm-migration-hardening`).** `auth_attempts` (6 columns) and `auth_sessions`
+(9 columns) now use `ALTER TABLE ... RENAME COLUMN`; `notifications.type` is retyped through an
+explicit `CASE` mapping with a `SYSTEM_ANNOUNCEMENT` fallback and the new `NOT NULL` columns carry a
+`DEFAULT`; and per-user read state plus ownership are backfilled into `notification_recipients`
+before the legacy `isRead` / `readAt` / `userId` columns are dropped. Verified on `mig_lab` against
+representative rows: sessions and attempts survive, the type mapping resolves, and 3 recipients are
+created with their read state.
 
 ### Defect D16 - migration 17 fails on any pre-existing role
 
@@ -1169,6 +1195,21 @@ bare `::text::enum` cast cannot rename, only reject.
 'SUPERVISOR' ... ELSE "name"::text END)::"RbacRoleName_new"`, plus a pre-flight `SELECT` that
 lists any value with no target so nothing fails mid-migration. Remove the inner `BEGIN;`/`COMMIT;`
 so real errors surface.
+
+**Remediated (`fix/helm-migration-hardening`).** The approved mapping is now in both `USING`
+clauses — `RbacRoleName`: `SYSTEM_ADMIN→SYSTEM_ADMIN`, `ORGANIZATION_ADMIN→HOSPITAL_ADMIN`,
+`HOSPITAL_DIRECTOR→IMAGING_DIRECTOR`, `IMAGING_MANAGER→IMAGING_DIRECTOR`, `UNIT_SUPERVISOR→SUPERVISOR`,
+`SHIFT_COORDINATOR→SUPERVISOR`, `HR_MANAGER→SECRETARY`, `TECHNICIAN→TECHNICIAN`,
+`READ_ONLY_AUDITOR→GUEST`; `UserRole`: `super_admin→system_admin`, `admin→hospital_admin`,
+`project_manager→imaging_director`, `head_technician→senior_technician`, `supervisor→supervisor`,
+`field_supervisor→supervisor`, `technician→technician`, `staff→guest`. The inner `BEGIN;`/`COMMIT;`
+pairs were removed so a real error surfaces instead of a cascade. Because the mapping collapses
+several legacy roles onto one new value while `roles_name_key` is UNIQUE, colliding roles are merged
+first into a deterministic keeper (lowest `level`, then `id`): the self-referencing `parentId`,
+`role_permissions` and `user_role_assignments` rows are repointed and de-duplicated (with
+`IS NOT DISTINCT FROM` for nullable `organizationId`/`unitId`) before the duplicates are deleted.
+Verified on `mig_lab` with 9 colliding roles and 8 legacy `users.role` values: no cast error and no
+dangling references.
 
 ### Defect D17 - migration 5 destroys audit data silently
 

@@ -50,6 +50,7 @@ spec:
       labels:
         app.kubernetes.io/component: grafana
     spec:
+      serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "monitoring") }}
       containers:
         - name: grafana
           image: grafana/grafana:11.1.0

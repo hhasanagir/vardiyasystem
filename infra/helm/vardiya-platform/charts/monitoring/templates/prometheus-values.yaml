@@ -164,6 +164,7 @@ spec:
       labels:
         app.kubernetes.io/component: prometheus
     spec:
+      serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "monitoring") }}
       securityContext:
         runAsUser: 65534
         fsGroup: 65534

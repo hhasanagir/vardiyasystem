@@ -17,6 +17,7 @@ spec:
         app.kubernetes.io/component: redis
     spec:
       {{- include "vardiya.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "redis") }}
       terminationGracePeriodSeconds: 60
       affinity:
         podAntiAffinity:

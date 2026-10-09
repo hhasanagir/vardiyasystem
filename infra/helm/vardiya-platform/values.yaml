@@ -70,6 +70,11 @@ backend:
     OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     LOG_LEVEL: log
   existingSecret: vardiya-backend-secrets
+  # pre-install/pre-upgrade migration Job. The bounded retry/deadline stop a
+  # failing `migrate deploy` from hanging forever behind `OnFailure` (defect D14).
+  migrationJob:
+    backoffLimit: 3
+    activeDeadlineSeconds: 900
   serviceMonitor:
     enabled: true
     interval: 15s
@@ -228,3 +233,66 @@ ingress:
     enabled: true
     origins:
       - https://vardiya.example.com
+
+# Dedicated ServiceAccounts so no workload runs as the namespace default
+# (defect D6). The backend token is mounted for the leader-election lease; every
+# other account disables automount.
+serviceAccounts:
+  backend:
+    automountServiceAccountToken: true
+  frontend:
+    automountServiceAccountToken: false
+  postgres:
+    automountServiceAccountToken: false
+  pgbouncer:
+    automountServiceAccountToken: false
+  redis:
+    automountServiceAccountToken: false
+  monitoring:
+    automountServiceAccountToken: false
+
+rbac:
+  create: true
+
+networkPolicy:
+  enabled: true
+
+# Namespace ResourceQuota. Sizes cover the production storage footprint
+# (postgres 50Gi + prometheus 100Gi + loki 200Gi + grafana 10Gi + tempo 20Gi)
+# with headroom; tighten per environment via values/<env>.yaml.
+resourceQuota:
+  enabled: true
+  hard:
+    requests.cpu: "16"
+    requests.memory: 32Gi
+    limits.cpu: "32"
+    limits.memory: 64Gi
+    requests.storage: 600Gi
+    persistentvolumeclaims: "20"
+    services: "40"
+    secrets: "60"
+    configmaps: "40"
+    pods: "100"
+    deployments.apps: "20"
+    statefulsets.apps: "10"
+
+limitRange:
+  enabled: true
+  container:
+    max:
+      cpu: "4"
+      memory: 4Gi
+    min:
+      cpu: 25m
+      memory: 32Mi
+    default:
+      cpu: 250m
+      memory: 256Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+  pvc:
+    max:
+      storage: 250Gi
+    min:
+      storage: 1Gi

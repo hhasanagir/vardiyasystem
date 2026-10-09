@@ -69,3 +69,7 @@ imagePullSecrets:
 {{- $port := "6379" -}}
 {{- printf "redis://:%s@%s:%s" (printf "$(REDIS_PASSWORD)") $host $port -}}
 {{- end }}
+
+{{- define "vardiya.serviceAccountName" -}}
+{{- printf "%s-%s" (include "vardiya.fullname" .root) .component -}}
+{{- end }}
