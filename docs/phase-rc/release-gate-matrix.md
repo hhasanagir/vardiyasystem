@@ -177,10 +177,23 @@ The `main` push also triggered `deploy.yml`
 `Pre-Deploy Validation`, `Unit Tests`, `Release Dry Run` and `Security Scan` passed, but
 **`Build & Push Images (backend)` and `(frontend)` failed at "Verify the image manifest is
 published"**, so `Integration Test` and `Create GitHub Release` were skipped and **no release was
-published**. Job logs are not retrievable with the available token (403 `Must have admin rights`),
-so the failure is observed but not yet root-caused; the likely causes are GHCR credentials /
-`packages: write` or the manifest-inspection command. This is the D24/D27 class — `deploy.yml`
-runs off `push: main` independently of the PR gate.
+published**. Reproduced on the next two `main` pushes (`21ca5c5`, `b4f3d14`): the build and the push
+themselves succeed — all four tags are pushed — and only the verification step fails.
+
+**Root cause (2026-10-09).** The verify step pings the registry with a raw
+`Authorization: Bearer $GITHUB_TOKEN` and a path without the registry API prefix:
+`https://ghcr.io/<owner>/<repo>/<service>/manifests/<sha>`. GHCR answers that path with
+`303 See Other`, and the correct registry path `https://ghcr.io/v2/...` answers `401` because the
+GitHub token is not a registry token (it must be exchanged at `https://ghcr.io/token`). Tested
+directly: `/v2/` absent → `303`, `/v2/` present → `401`. The step therefore fails on every run
+regardless of the push outcome.
+
+**Remediated (`fix/deploy-manifest-verification`).** The step now verifies through the
+already-authenticated docker session: `docker buildx imagetools inspect "$image"` under
+`set -euo pipefail`, which fails closed if the exact image tag is not served. This is the D24/D27
+class — `deploy.yml` runs off `push: main` independently of the PR gate — but with the verification
+fixed a `main` push now publishes the image and reaches `Integration Test` and
+`Create GitHub Release`.
 
 | ID  | Defect                                                          | Impact                                                                                      | Status (2026-10-07)                                                                                              |
 | --- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
@@ -190,7 +203,7 @@ runs off `push: main` independently of the PR gate.
 | D4  | `docker-compose-validation` placeholder `.env` incomplete       | Both `config -q` steps fail; `manifest-render` never runs                                   | **FIXED** `b672483` — full placeholder env + secret files + `backend/.env`; gate 17, 18 unblocked                |
 | D5  | Frontend image serves the nginx base-image page                 | The shipped SPA is never served; image still reports healthy                                | **CLOSED** — see gate 29                                                                                         |
 | D31 | `npm audit fix` / `npm update` crash on `null.read('edgesOut')` | No safe in-range dependency remediation; 56 high advisories stay open                       | **OPEN** — reproducible on npm 9.9.4 and 10.9.9; see [Dependency advisories](#dependency-advisories-gates-14-27) |
-| D32 | deploy `Build & Push Images` fails manifest verification        | `main` push cannot publish an image; `Integration Test` and `Create GitHub Release` skipped | **OPEN** — observed in run `37940091878`, not yet root-caused                                                    |
+| D32 | deploy `Build & Push Images` fails manifest verification        | `main` push cannot publish an image; `Integration Test` and `Create GitHub Release` skipped | **FIXED** — GHCR URL lacked `/v2/` and used a non-registry token; now `docker buildx imagetools inspect`         |
 
 Helm and Kubernetes validation added eight further defects, D6-D13, all recorded with root cause
 and remediation in the Helm section below. The two that would corrupt production data if shipped:
