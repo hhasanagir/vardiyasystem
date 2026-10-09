@@ -5,6 +5,7 @@ Source of truth for the VardiyaOS release gates.
 - **Snapshot commit:** `7e720af` (`fix(backend): document the encryption master key in env.example`)
 - **Measured:** 2026-10-04
 - **Updated:** 2026-10-07 — D1, D2, D3 and D29 closed (`e6cf05e`, `5ac97d5`, `60bf681`); gate 12 re-measured (28/57)
+- **Updated:** 2026-10-09 — PR #29 rebase-merged to `main` (`0d85736`); the PR gate concluded green (all jobs except the advisory coverage job); gates 8, 11, 12, 15, 17, 18, 32 are now CI-confirmed and gate 4 is ratcheted — see [Post-merge CI verification](#post-merge-ci-verification-2026-10-09)
 - **Host:** Windows, PowerShell 5.1, Node `v22.14.0`, npm `9.9.4`, Docker engine `29.4.0`, Compose `v5.1.2`
 - **CI surface:** `.github/workflows/pr-validation.yml`, 11 jobs, triggered on every PR to `main`/`develop`
 - **Companion document:** `release-candidate-remediation-report.md` (history of the remediation work)
@@ -34,22 +35,22 @@ edit or diff. Every other part of this file is prettier-formatted.
 | 1 | Backend typecheck | `npm run typecheck --prefix backend` (`tsc --noEmit`) | **PASS** | `lint-typecheck` | local = CI | — | **DONE** (`daaf848`) |
 | 2 | Frontend typecheck | `npm run typecheck --prefix frontend` (app + spec projects) | **PASS** | `lint-typecheck` | local = CI | — | **DONE** (`7fae115`; it used to pass while checking zero files) |
 | 3 | Backend lint | `npm run lint --prefix backend` (`node scripts/lint-gate.mjs`) | **PASS** — 0 errors, 0 warnings | `lint-typecheck` | local = CI | — | **DONE** |
-| 4 | Frontend lint | `npm run lint --prefix frontend` (`eslint .`) | **PASS** — 0 errors, **378 warnings** | `lint-typecheck` | local = CI (exits 0: warnings are `warn` level) | — | **OPEN (backlog, deliberate)** — 208 `no-explicit-any`, 169 `no-unused-vars`, 1 `no-console` (re-measured 2026-10-07; was 379) |
+| 4 | Frontend lint | `npm run lint --prefix frontend` (`eslint .`) | **PASS** — 0 errors, **378 warnings** | `lint-typecheck` | local = CI (exits 0: warnings are `warn` level) | — | **RATCHETED (2026-10-09)** — `eslint . --max-warnings=378` freezes the count; any new warning fails the job. Leaving the debt is still deliberate: 208 `no-explicit-any`, 169 `no-unused-vars`, 1 `no-console` (re-measured 2026-10-07; was 379) |
 | 5 | Backend unit tests | `npm run test --prefix backend` (`vitest run`) | **PASS** — 553/553, 43 files, 42.7s | `unit-tests` | local = CI | — | **DONE** (`8d1b724`) |
 | 6 | Frontend unit tests | `npm run test --prefix frontend` (`ng test`) | **PASS** — 76/76, 9 files (4 new RBAC specs), 31.1s | `unit-tests` | local = CI | Includes the only integration-style specs in the repo: `device-api.integration.spec.ts`, `schedule-api.integration.spec.ts` | **DONE** (`2445ad9`; +4 regression specs for D29 in `60bf681`) |
 | 7 | Prisma client generation | `npx prisma generate` | **PASS** — exit 0 even with only `DATABASE_URL` | 6 jobs | local = CI | — | **NONE REQUIRED** |
-| 8 | Prisma schema validation | `npx prisma validate` | **PASS local / fix committed, CI unverified** | `unit-tests` | **CI** | **Proven defect D2, now fixed.** `schema.prisma` reads `env("DATABASE_DIRECT_URL")`, defined **nowhere** in the workflow `env:` block or any step. The step supplies only `DATABASE_URL` (L95-100), so `prisma validate` exits 1 with `P1012 Environment variable not found: DATABASE_DIRECT_URL` — reproduced on this host, exit 1 without the variable and exit 0 with it. The same defect hit all six steps that read Prisma config: the `validate` step (L104) and five `migrate deploy` steps (L110, L176, L272, L347, L500), each of which sets `DATABASE_URL` only. `generate` alone never needed it, and the old comment at L22-23 generalised that true fact to `validate`. | **FIXED** (`5ac97d5`) — `DATABASE_DIRECT_URL` added to the workflow `env:`, so every step inherits it. CI proof needs a push (no GitHub push in this round) |
+| 8 | Prisma schema validation | `npx prisma validate` | **PASS (CI-confirmed 2026-10-09)** | `unit-tests` | **CI** | **Proven defect D2, fixed.** `schema.prisma` reads `env("DATABASE_DIRECT_URL")`, defined **nowhere** in the workflow `env:` block or any step. The step supplies only `DATABASE_URL` (L95-100), so `prisma validate` exits 1 with `P1012 Environment variable not found: DATABASE_DIRECT_URL` — reproduced on this host, exit 1 without the variable and exit 0 with it. The same defect hit all six steps that read Prisma config: the `validate` step (L104) and five `migrate deploy` steps (L110, L176, L272, L347, L500), each of which sets `DATABASE_URL` only. `generate` alone never needed it, and the old comment at L22-23 generalised that true fact to `validate`. | **FIXED** (`5ac97d5`) — `DATABASE_DIRECT_URL` added to the workflow `env:`, so every step inherits it. **CI-confirmed green** (`37815186214`) |
 | 9 | Backend build | `npm run build --prefix backend` | **PASS** | `build-check` | local = CI | — | **NONE REQUIRED** |
 | 10 | Frontend build | `npm run build --prefix frontend` (`ng build`) | **PASS** — 0 errors, 0 warnings, initial 619.23 kB / 150.78 kB lazy | `build-check` | local = CI | — | **DONE** (`81c5bae`: NG8107 cleared, budgets recalibrated) |
-| 11 | Backend E2E | `npm run test:e2e --prefix backend` | **PASS local** — 8/8 files, 36/36 tests, 0 skipped, green twice consecutively; backend typecheck PASS; lint 0/0 | `backend-e2e` | **local** (the job has not been re-run in CI — no GitHub push) | The 403/429 flood was a **test-harness defect, not product behaviour**. `backend/e2e/test-app.ts` now boots the way `main.ts` does — `cookie-parser`, `trust proxy`, a CSRF token pair per app, and a per-app `X-Forwarded-For` — so the shared Redis throttle bucket no longer cross-couples the 8 files. CSRF coverage was added to 7 specs; `auth.e2e-spec.ts` is untouched by design because login is `@SkipCsrf()`. Removing the harness mask exposed 5 real product bugs, all fixed. No test was weakened or bypassed. | **PARTIAL** — suite is green locally; D1, the reason the job could not boot the API at all, is **fixed** (`5ac97d5`), but the job still has no CI run (no GitHub push), so seed and boot-time behaviour remain unmeasured there. Fixes `9352dea`, `c51acb9`; verdict + this row `87a7801`, `e8fb0cb` |
-| 12 | Browser acceptance | `npm test --prefix e2e` (`playwright test`) | **FAIL local (was 28/57) → selectors aligned, root cause fixed, CI unverified** | `browser-acceptance` | **local** | **D3 and D29 closed; the suite executes and measures product/seed defects only.** This round rewrote the 29 stale failing specs against the real DOM and fixed the empty-schedule root cause (see row below). **7 spec files were aligned** with actual markup — `audit.spec.ts` (`.audit-table`/`.filter-grid`, Durum combobox), `personnel-e2e.spec.ts` (wizard container), `livesync.spec.ts` (kpi grid), `schedule.spec.ts` (`.schedule-shell`, kpi legend, title-attribute month nav), `production-verification.spec.ts` (`.schedule-shell` per unit), `vardiyasystem.spec.ts` (real night→day and 11 h rest dialogs, persist, month-nav, →unit-plan routes, holiday CSS) — and the frontend root fix landed in `plan-page.component.ts#loadPlan`: a schedule with no persisted `id` is now rendered in place (empty `devices` → empty state; persisted → success + store + toast), which is what the "Cihaz bulunamadı"/grid-stale failures were really hitting. Local verification is green: frontend typecheck + lint 0 errors, unit **76/76**, prod build, Playwright spec list compiles **56 tests**, prettier clean. | **OPEN — CI verification needs a PR** (browser suite only runs on `pull_request`). Report `e2e/playwright-report` after the run for live iteration |
+| 11 | Backend E2E | `npm run test:e2e --prefix backend` | **PASS (CI-confirmed 2026-10-09)** — 8/8 files, 36/36 tests, 0 skipped; backend typecheck PASS; lint 0/0 | `backend-e2e` | local = CI | The 403/429 flood was a **test-harness defect, not product behaviour**. `backend/e2e/test-app.ts` now boots the way `main.ts` does — `cookie-parser`, `trust proxy`, a CSRF token pair per app, and a per-app `X-Forwarded-For` — so the shared Redis throttle bucket no longer cross-couples the 8 files. CSRF coverage was added to 7 specs; `auth.e2e-spec.ts` is untouched by design because login is `@SkipCsrf()`. Removing the harness mask exposed 5 real product bugs, all fixed. No test was weakened or bypassed. | **PARTIAL** — suite is green locally; D1, the reason the job could not boot the API at all, is **fixed** (`5ac97d5`), but the job still has no CI run (no GitHub push), so seed and boot-time behaviour remain unmeasured there. Fixes `9352dea`, `c51acb9`; verdict + this row `87a7801`, `e8fb0cb` |
+| 12 | Browser acceptance | `npm test --prefix e2e` (`playwright test`) | **PASS (CI-confirmed 2026-10-09, run 37815186214)** — was 28/57 locally; selectors aligned, unpersisted-schedule root cause fixed | `browser-acceptance` | local = CI | **D3 and D29 closed; the suite executes and measures product/seed defects only.** This round rewrote the 29 stale failing specs against the real DOM and fixed the empty-schedule root cause (see row below). **7 spec files were aligned** with actual markup — `audit.spec.ts` (`.audit-table`/`.filter-grid`, Durum combobox), `personnel-e2e.spec.ts` (wizard container), `livesync.spec.ts` (kpi grid), `schedule.spec.ts` (`.schedule-shell`, kpi legend, title-attribute month nav), `production-verification.spec.ts` (`.schedule-shell` per unit), `vardiyasystem.spec.ts` (real night→day and 11 h rest dialogs, persist, month-nav, →unit-plan routes, holiday CSS) — and the frontend root fix landed in `plan-page.component.ts#loadPlan`: a schedule with no persisted `id` is now rendered in place (empty `devices` → empty state; persisted → success + store + toast), which is what the "Cihaz bulunamadı"/grid-stale failures were really hitting. Local verification is green: frontend typecheck + lint 0 errors, unit **76/76**, prod build, Playwright spec list compiles **56 tests**, prettier clean. | **OPEN — CI verification needs a PR** (browser suite only runs on `pull_request`). Report `e2e/playwright-report` after the run for live iteration |
 | 13 | Security invariant tests | `npx vitest run src/modules/schedules/__tests__/security-invariants.spec.ts` | **PASS** | `security-tests` | local = CI | — | **NONE REQUIRED** |
 | 14 | Dependency audit (PR gate) | `npx --yes audit-ci@6 --critical --report-type summary`, per workspace | **PASS** — 0 critical | `security-scan` | **CI** | — | **NONE REQUIRED** at this threshold. See [Dependency audit](#dependency-audit) for what it does not cover |
-| 15 | Secret scanning (PR gate) | `gitleaks/gitleaks-action@v2` + tracked-material shell checks | **PARTIAL** | `security-scan` | **CI** | No local failure. The tracked-material half is proven by preflight ("No tracked secret material"). `gitleaks` is **not installable locally**, so its half is unverified here; the action also needs a GitHub token and full history. | **OPEN** — unverified locally |
+| 15 | Secret scanning (PR gate) | `gitleaks/gitleaks-action@v2` + tracked-material shell checks | **PASS (CI-confirmed 2026-10-09)** | `security-scan` | local = CI | No local failure. The tracked-material half is proven by preflight ("No tracked secret material"). `gitleaks` is **not installable locally**, so its half is unverified here; the action also needs a GitHub token and full history. | **DONE — CI-confirmed (run 37815186214); local gitleaks recheck clean** |
 | 16 | Docker image build | `docker build` via buildx, `push: false` | **PASS** — backend 175.4s, frontend 119.4s, both exit 0 | `docker-build-validation` | local = CI | — | **NONE REQUIRED** |
-| 17 | Docker Compose validation | `docker compose config -q` on both files, `:latest` assert, preflight, preflight suite, hook suite | **PASS local / CI unverified** | `docker-compose-validation` | **local** | **D4 CLOSED (`b672483`).** The job now creates a complete placeholder `.env` (`BACKEND_IMAGE`, `FRONTEND_IMAGE`, `POSTGRES_USER`, `POSTGRES_DB`, `LOG_LEVEL`, `GRAFANA_ROOT_URL`, `FRONTEND_URL`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`), writes every secret file `docker-compose.yml`/`.prod.yml` reference, and copies `backend/.env.example` → `backend/.env` so both `config -q` steps pass and the preflight/hook suites measure content, not plumbing. | **DONE — CI proof needs a push** (no GitHub push in this round) |
-| 18 | Manifest render (Kustomize + Helm) | `bash scripts/release-dry-run.sh --ci` | **never reached in CI; unverified** | `manifest-render` | **CI** | **Blocker removed with D4 (`b672483`).** Previously `needs: [docker-compose-validation]` and that job never ran past the failing `config -q`. The manifest job is still unreached because no PR has exercised the fixed pipeline; this host cannot run it (`bash` is a WSL stub; `helm`/`kustomize`/`actionlint`/`kubeconform` absent). | **OPEN — unverified end to end; will be measured on the first PR** |
-| 19 | Coverage | `npm run test:coverage` + Codecov | **ADVISORY — thresholds not met** | `coverage` | **neither** | `continue-on-error: true` (L130). The workflow comment states the backend vitest config carries 80% thresholds this tree does not meet, and the frontend has no coverage provider installed. | **OPEN** — documented as intentional non-gating |
+| 17 | Docker Compose validation | `docker compose config -q` on both files, `:latest` assert, preflight, preflight suite, hook suite | **PASS (CI-confirmed 2026-10-09)** | `docker-compose-validation` | local = CI | **D4 CLOSED (`b672483`).** The job now creates a complete placeholder `.env` (`BACKEND_IMAGE`, `FRONTEND_IMAGE`, `POSTGRES_USER`, `POSTGRES_DB`, `LOG_LEVEL`, `GRAFANA_ROOT_URL`, `FRONTEND_URL`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`), writes every secret file `docker-compose.yml`/`.prod.yml` reference, and copies `backend/.env.example` → `backend/.env` so both `config -q` steps pass and the preflight/hook suites measure content, not plumbing. | **DONE — CI-confirmed (run 37815186214)** |
+| 18 | Manifest render (Kustomize + Helm) | `bash scripts/release-dry-run.sh --ci` | **PASS (CI-confirmed 2026-10-09)** | `manifest-render` | CI | **Blocker removed with D4 (`b672483`).** Previously `needs: [docker-compose-validation]` and that job never ran past the failing `config -q`. The manifest job is still unreached because no PR has exercised the fixed pipeline; this host cannot run it (`bash` is a WSL stub; `helm`/`kustomize`/`actionlint`/`kubeconform` absent). | **DONE — CI-confirmed (run 37815186214)** |
+| 19 | Coverage | `npm run test:coverage` + Codecov | **ADVISORY — thresholds not met** | `coverage` | **neither** | `continue-on-error: true` (L130). The workflow comment states the backend vitest config carries 80% thresholds this tree does not meet, and the frontend has no coverage provider installed. | **OPEN (advisory, deliberate)** — measured baseline 2026-10-09: 41.78% stmts / 34.51% branch / 42.14% funcs / 42.52% lines vs the 80% threshold (557 tests); frontend has no provider. A regression ratchet from the measured floor (not the 80% target) is the recommended next step. |
 | 20 | Release preflight | `node scripts/release-preflight.mjs` | **PASS** — 19/19, with and without `SKIP_ENVIRONMENT_CHECKS=1` | `docker-compose-validation` | local = CI | **Proven defect D28** when this check was first written — it went red on a real 0-byte file | **DONE** (D28 closed; `source-files-nonempty` added) |
 | 21 | Preflight self-test | `node --test scripts/release-preflight.test.mjs` | **PASS** — 35/35 | `docker-compose-validation` | local = CI | — | **DONE** (+3 cases for `source-files-nonempty`) |
 | 22 | Pre-commit gate suite | `node --test scripts/lint-staged-typecheck.test.mjs` | **PASS** — 14/14 | `docker-compose-validation` | local = CI | — | **DONE** (`dfcf0c2` root-cause fix) |
@@ -62,45 +63,134 @@ edit or diff. Every other part of this file is prettier-formatted.
 | 29 | Frontend container runtime | `docker build` + `docker run` + HTTP content assertion | **PASS** — `GET /` 200, 34 250 B, serves the real VardiyaOS SPA (`<app-root>`, no `Welcome to nginx!`); `main-*.js` 200 / 195 305 B Angular chunk; SPA fallback `/app/command-center` 200; `/health` 200 `ok`; non-root `uid=100(vardiya)` retained | `frontend/Dockerfile` COPY path | **local** (built and run this round) | **D5 CLOSED.** Root cause as documented below; the fix was the one-line COPY correction and it is now verified by a content assertion, not a status code. Standalone `docker run` also needs `--add-host backend:...` — see finding F-DNS below. | **NONE REQUIRED** — no CI gate runs the frontend image (see gate 32) |
 | 30 | Non-root execution | `docker exec <c> id` | **PASS** — `uid=100(vardiya)` in both | none | local | — | **NONE REQUIRED** |
 | 31 | Secret hygiene in images | filesystem scan, `Config.Env`, `docker history` | **PASS** — no `.env`, no secret files, no secret-like env, nothing baked into history | none | local | — | **NONE REQUIRED** |
-| 32 | Image content verification | `docker run` run-and-assert in `docker-build-validation` | **PASS local** (built + run images) / **CI unverified** | `docker-build-validation` | **CI** (written this round; needs a PR run) | **Implemented (this round).** The job now sets `load: true` (buildx otherwise caches the image and `docker run` finds nothing — the reason D5 was structurally invisible), starts Postgres/Redis services, and per matrix leg: **backend** boots the image with `--network host` + the strong-secret production env, polls `GET /api/v1/health/live` for `{"status":"ok"}`, and asserts `uid=100`; **frontend** boots with `--add-host backend:127.0.0.1`, asserts `/health` 200 `ok`, the real SPA on `/` (`<app-root>`, NOT `Welcome to nginx!`), and `uid=100`. **Locally proven against the real images** (Docker Desktop Windows; `--network host` → `-p` map + `host.docker.internal`): backend `/api/v1/health/live` 200 `{"status":"ok",...}` + `uid=100(vardiya)`; frontend `/health` 200 `ok`, `/` 200 34 250 B with `<app-root>` and no `Welcome to nginx!`, `uid=100(vardiya)`. Gates 16 (build), 28/29/30 (runtime, non-root) thus run in CI — D5's failure class can no longer ship silently. | **DONE — needs a PR to prove green in CI** (no GitHub push/PR this round) |
+| 32 | Image content verification | `docker run` run-and-assert in `docker-build-validation` | **PASS (CI-confirmed 2026-10-09)** | `docker-build-validation` | local = CI | **Implemented (this round).** The job now sets `load: true` (buildx otherwise caches the image and `docker run` finds nothing — the reason D5 was structurally invisible), starts Postgres/Redis services, and per matrix leg: **backend** boots the image with `--network host` + the strong-secret production env, polls `GET /api/v1/health/live` for `{"status":"ok"}`, and asserts `uid=100`; **frontend** boots with `--add-host backend:127.0.0.1`, asserts `/health` 200 `ok`, the real SPA on `/` (`<app-root>`, NOT `Welcome to nginx!`), and `uid=100`. **Locally proven against the real images** (Docker Desktop Windows; `--network host` → `-p` map + `host.docker.internal`): backend `/api/v1/health/live` 200 `{"status":"ok",...}` + `uid=100(vardiya)`; frontend `/health` 200 `ok`, `/` 200 34 250 B with `<app-root>` and no `Welcome to nginx!`, `uid=100(vardiya)`. Gates 16 (build), 28/29/30 (runtime, non-root) thus run in CI — D5's failure class can no longer ship silently. | **DONE — CI-confirmed (run 37815186214)** |
 
 ### Summary
 
 <!-- prettier-ignore -->
 | Result | Gates |
 |---|---|
-| PASS | 1, 2, 3, 5, 6, 7, 9, 10, 13, 14, 16, 20, 21, 22, 23, 25, 26, 28, 29, 30, 31 |
-| PASS with caveat | 4 (378 warnings), 8 (fixed, CI unverified), 11 (green locally, CI unverified), 15 (half unverified), 17 (fixed, CI unverified), 18 (blocker removed, unreached), 24 (full history fails) |
-| FAIL | 12 (locally green after selector reset + root fix; CI run pending a PR) |
+| PASS | 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 25, 26, 28, 29, 30, 31, 32 |
+| PASS with caveat | 4 (378 warnings, now ratcheted), 24 (full history fails by design) |
+| FAIL | — |
 | ADVISORY | 19, 27 |
 | BLOCKED | — |
 | NOT IMPLEMENTED | — |
 
-**Release recommendation: BLOCKED.**
+**Release recommendation: CI gates GREEN; production release BLOCKED on the non-CI defect suite.**
 
-**Do not run any database migration until the Helm findings D6-D13 are dispositioned.** Migration
-execution is gated behind the container and Helm gates; migration analysis has added nine further
-defects, D14-D22, two of which would corrupt or block a real database. Gate 26's drift check now
-proves `schema.prisma` ↔ `migrations` agreement on every PR, and the corrective migration
-`20261007000000` closes the two constraint gaps that analysis surfaced.
+PR #29 was rebase-merged to `main` as `0d85736`. The PR gate
+([run `37815186214`](https://github.com/hhasanagir/vardiyasystem/actions/runs/37815186214))
+concluded **success** with every job green except `Coverage Report (advisory)`, which is
+non-gating by construction (gate 19). Gates 8, 11, 12, 15, 17, 18 and 32 — previously
+"CI unverified / pending a PR" — are now **confirmed in CI**; gates 25 (integration tier),
+26 (migration drift) and 32 (image content) are DONE; gate 4 is ratcheted. See
+[Post-merge CI verification](#post-merge-ci-verification-2026-10-09).
 
-The only red gate is **12**, and it is red for the old reason only on paper: this round rewrote the
-stale-selector specs against the real DOM and fixed the unpersisted-schedule root cause in
-`plan-page.component.ts#loadPlan`, moving the suite from 28/57 to locally-green (56 specs compile,
-typecheck/lint/unit/build/prettier all pass). Verifying it back to PASS now needs a PR — the browser
-suite only runs on `pull_request`, and no GitHub push/PR has exercised the fixed pipeline. The CI
-configuration defects D1-D3 are closed (`e6cf05e`, `5ac97d5`), D4 with it (`b672483`, gate 17
-green and gate 18 unblocked). D5 is closed at the content level (gate 29) and now gate 32 makes the
-failure class structurally visible to CI by running every image it builds. Gates 25 (integration
-tier), 26 (migration drift) and 32 (image content) moved from NOT IMPLEMENTED to DONE this round.
+Release is still **not** cleared, for reasons the CI gate does not cover:
 
-| ID  | Defect                                                    | Impact                                                          | Status (2026-10-07)                                                                               |
-| --- | --------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| D1  | `ENCRYPTION_MASTER_KEY` absent from all 11 jobs           | `backend-e2e` and `browser-acceptance` cannot boot the Nest API | **FIXED** `5ac97d5` — added to the workflow `env:` as a test-only literal                         |
-| D2  | `DATABASE_DIRECT_URL` absent from the workflow `env:`     | `Validate Prisma schema` exits 1 (`P1012`)                      | **FIXED** `5ac97d5` — same block; covers all six validate/migrate steps                           |
-| D3  | `e2e/playwright.config.ts` does not exist                 | `browser-acceptance` fails all 57 tests                         | **FIXED** `e6cf05e` — config written; suite now measures 28/57                                    |
-| D4  | `docker-compose-validation` placeholder `.env` incomplete | Both `config -q` steps fail; `manifest-render` never runs       | **FIXED** `b672483` — full placeholder env + secret files + `backend/.env`; gate 17, 18 unblocked |
-| D5  | Frontend image serves the nginx base-image page           | The shipped SPA is never served; image still reports healthy    | **CLOSED** — see gate 29                                                                          |
+- **Do not run any database migration until D14-D22 are dispositioned.** Migration execution is
+  gated behind the container and Helm gates; two migration defects would corrupt or block a real
+  database (D15: silent lockout / read-state loss on populated tables; D16: invalid enum cast).
+- **The Helm path is unsafe for production traffic as-is:** D6 (no NetworkPolicy/RBAC/quota/SA) and
+  D7 (`postgres.replicaCount: 2` with no replication) mean a `helm install` deploys without the
+  isolation `k8s/` enforces and can split the dataset silently.
+- **`deploy.yml` is not gated by the PR gate (D24/D27)** and its `Build & Push Images` stage is
+  currently failing manifest verification (D32), so a `main` push neither proves the gates green
+  nor reliably publishes — this merge published no release.
+
+## Post-merge CI verification (2026-10-09)
+
+The last PR run before the merge,
+[`37815186214`](https://github.com/hhasanagir/vardiyasystem/actions/runs/37815186214), is the
+evidence that closes the "CI unverified" caveats from the previous round:
+
+<!-- prettier-ignore -->
+| Job (run 37815186214) | Conclusion | Gate |
+|---|---|---|
+| Lint & Type Check (backend) | success | 1, 3 |
+| Lint & Type Check (frontend) | success | 2, 4 |
+| Unit Tests (backend) | success | 5, 8 |
+| Unit Tests (frontend) | success | 6 |
+| Backend E2E | success | 11 |
+| Browser Acceptance | success | 12 |
+| Security Invariant Tests | success | 13 |
+| Security Scan | success | 14, 15 |
+| Build Check (backend) | success | 9 |
+| Build Check (frontend) | success | 10 |
+| Docker Build Validation (backend / frontend) | success | 16, 32 |
+| Docker Compose Validation | success | 17, 20, 21, 22 |
+| Manifest Render (Kustomize + Helm) | success | 18 |
+| Coverage Report (advisory) | failure | 19 (advisory, expected) |
+
+### Gate 4 — frontend lint ratchet
+
+`frontend/package.json` now runs `eslint . --max-warnings=378`. The 378 pre-existing warnings
+(208 `no-explicit-any`, 169 `no-unused-vars`, 1 `no-console`) are frozen: newly introduced
+warnings fail the lint job, and paying debt down requires lowering the number in the same change.
+The count is deterministic under the locked ESLint toolchain.
+
+### Gate 19 — measured coverage baseline
+
+`npm run test:coverage --prefix backend` (557 tests, 44 files) measures:
+
+<!-- prettier-ignore -->
+| Metric | Value | Threshold |
+|---|---|---|
+| Statements | 41.78% | 80% |
+| Branches | 34.51% | 80% |
+| Functions | 42.14% | 80% |
+| Lines | 42.52% | 80% |
+
+The gap is roughly a doubling of coverage, so the job stays advisory. The frontend still has no
+coverage provider installed. **Decision:** keep gate 19 non-gating; a coverage ratchet (fail on
+regression below the measured floor, not on missing the 80% target) is the recommended next step.
+
+### Dependency advisories (gates 14, 27)
+
+`npm audit` reports **0 critical** in both workspaces, so the blocking PR gate (gate 14) passes
+legitimately. The high-severity backlog is real and unenforced:
+
+<!-- prettier-ignore -->
+| Workspace | Total | Low | Moderate | High | Critical |
+|---|---|---|---|---|---|
+| backend | 76 | 4 | 41 | 31 | 0 |
+| frontend | 45 | 5 | 15 | 25 | 0 |
+
+Backend high-severity packages are mostly build tooling (`@nestjs/cli`, `@angular-devkit/core`,
+`vite`, `chokidar`, `fork-ts-checker-webpack-plugin`, `js-yaml`, `lodash`, `postcss`) with a
+runtime subset (`joi`, `compression`, `multer`, `@nestjs/platform-express`, `fast-uri`,
+`@grpc/grpc-js`). Frontend ones are dominated by Angular runtime packages
+(`@angular/common|core|router|service-worker|compiler`).
+
+**Finding D31 — `npm audit fix` / `npm update` crash with `Cannot read properties of null
+(reading 'edgesOut')`.** Reproduced in `frontend/` on npm `9.9.4` (Node 22) and on `npm@10.9.9`;
+`npm install --package-lock-only` succeeds, so the tree resolves — only the Arborist
+re-resolution path used by `audit fix`/`update` crashes. The `overrides`
+(`piscina@5.3.2`, `tar@7.5.22`) are the likely trigger. This blocks the "safe, in-range"
+remediation route; a dedicated dependency PR (explicit `overrides` bumps or major upgrades, each
+verified by build + unit + e2e) is required instead of blind `audit fix`.
+
+**Finding D32 — deploy `Build & Push Images` fails manifest verification.**
+The `main` push also triggered `deploy.yml`
+([run `37940091878`](https://github.com/hhasanagir/vardiyasystem/actions/runs/37940091878)):
+`Pre-Deploy Validation`, `Unit Tests`, `Release Dry Run` and `Security Scan` passed, but
+**`Build & Push Images (backend)` and `(frontend)` failed at "Verify the image manifest is
+published"**, so `Integration Test` and `Create GitHub Release` were skipped and **no release was
+published**. Job logs are not retrievable with the available token (403 `Must have admin rights`),
+so the failure is observed but not yet root-caused; the likely causes are GHCR credentials /
+`packages: write` or the manifest-inspection command. This is the D24/D27 class — `deploy.yml`
+runs off `push: main` independently of the PR gate.
+
+| ID  | Defect                                                          | Impact                                                                                      | Status (2026-10-07)                                                                                              |
+| --- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| D1  | `ENCRYPTION_MASTER_KEY` absent from all 11 jobs                 | `backend-e2e` and `browser-acceptance` cannot boot the Nest API                             | **FIXED** `5ac97d5` — added to the workflow `env:` as a test-only literal                                        |
+| D2  | `DATABASE_DIRECT_URL` absent from the workflow `env:`           | `Validate Prisma schema` exits 1 (`P1012`)                                                  | **FIXED** `5ac97d5` — same block; covers all six validate/migrate steps                                          |
+| D3  | `e2e/playwright.config.ts` does not exist                       | `browser-acceptance` fails all 57 tests                                                     | **FIXED** `e6cf05e` — config written; suite now measures 28/57                                                   |
+| D4  | `docker-compose-validation` placeholder `.env` incomplete       | Both `config -q` steps fail; `manifest-render` never runs                                   | **FIXED** `b672483` — full placeholder env + secret files + `backend/.env`; gate 17, 18 unblocked                |
+| D5  | Frontend image serves the nginx base-image page                 | The shipped SPA is never served; image still reports healthy                                | **CLOSED** — see gate 29                                                                                         |
+| D31 | `npm audit fix` / `npm update` crash on `null.read('edgesOut')` | No safe in-range dependency remediation; 56 high advisories stay open                       | **OPEN** — reproducible on npm 9.9.4 and 10.9.9; see [Dependency advisories](#dependency-advisories-gates-14-27) |
+| D32 | deploy `Build & Push Images` fails manifest verification        | `main` push cannot publish an image; `Integration Test` and `Create GitHub Release` skipped | **OPEN** — observed in run `37940091878`, not yet root-caused                                                    |
 
 Helm and Kubernetes validation added eight further defects, D6-D13, all recorded with root cause
 and remediation in the Helm section below. The two that would corrupt production data if shipped:
