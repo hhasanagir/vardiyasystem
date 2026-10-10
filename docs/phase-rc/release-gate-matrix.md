@@ -238,17 +238,38 @@ zero bytes and reports `input file is too short (read 0, expected 5)`.
 **Remediated (`fix/restore-check-gzip`).** The workflow now pipes the dump through `gzip -9` and
 asserts the result with `gzip -t`, producing exactly the framing the restore scripts consume.
 
-| ID  | Defect                                                            | Impact                                                                                                       | Status (2026-10-07)                                                                                              |
-| --- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| D1  | `ENCRYPTION_MASTER_KEY` absent from all 11 jobs                   | `backend-e2e` and `browser-acceptance` cannot boot the Nest API                                              | **FIXED** `5ac97d5` — added to the workflow `env:` as a test-only literal                                        |
-| D2  | `DATABASE_DIRECT_URL` absent from the workflow `env:`             | `Validate Prisma schema` exits 1 (`P1012`)                                                                   | **FIXED** `5ac97d5` — same block; covers all six validate/migrate steps                                          |
-| D3  | `e2e/playwright.config.ts` does not exist                         | `browser-acceptance` fails all 57 tests                                                                      | **FIXED** `e6cf05e` — config written; suite now measures 28/57                                                   |
-| D4  | `docker-compose-validation` placeholder `.env` incomplete         | Both `config -q` steps fail; `manifest-render` never runs                                                    | **FIXED** `b672483` — full placeholder env + secret files + `backend/.env`; gate 17, 18 unblocked                |
-| D5  | Frontend image serves the nginx base-image page                   | The shipped SPA is never served; image still reports healthy                                                 | **CLOSED** — see gate 29                                                                                         |
-| D31 | `npm audit fix` / `npm update` crash on `null.read('edgesOut')`   | No safe in-range dependency remediation; 56 high advisories stay open                                        | **OPEN** — reproducible on npm 9.9.4 and 10.9.9; see [Dependency advisories](#dependency-advisories-gates-14-27) |
-| D32 | deploy `Build & Push Images` fails manifest verification          | `main` push cannot publish an image; `Integration Test` and `Create GitHub Release` skipped                  | **FIXED** — GHCR URL lacked `/v2/` and used a non-registry token; now `docker buildx imagetools inspect`         |
-| D33 | `LOG_LEVEL` vocabulary inconsistent (schema vs winston vs values) | `LOG_LEVEL=info` (configmap/prod-compose/CI) crashes at boot; `log` (Helm/dev-compose) silently logs nothing | **FIXED** — schema + values standardised on `info`                                                               |
-| D34 | deploy "backup and restore round trip" writes an un-gzipped dump  | `Integration Test` fails at the restore check (`gunzip: invalid magic`); `Create GitHub Release` skipped     | **FIXED** — dump now `gzip -9`-wrapped like `backup-db.sh`                                                       |
+**Finding D35 — the first release never published (`Create GitHub Release` failed).**
+With D34 fixed, `Integration Test` passes end to end and `Create GitHub Release` runs for the first
+time; it fails in the changelog step:
+
+```
+# Resolve tags
+Retrieved 0 (fetching max: 0)
+fatal: No names found, cannot describe anything.
+##[error]Process completed with exit code 1.
+```
+
+**Root cause.** `mikepenz/release-changelog-builder-action@v5` was given no `fromTag`/`toTag`, so it
+resolved the range with `git describe` against the tag list. The repository has no tags yet (this
+would have been the first release), so the diff has no anchor and the action aborts before the release
+step is reached.
+
+**Remediated (`fix/release-notes`).** The changelog builder is replaced with GitHub's native release
+notes (`generate_release_notes: true` on `softprops/action-gh-release@v2`), which has no
+previous-tag bootstrap dependency.
+
+| ID  | Defect                                                             | Impact                                                                                                       | Status (2026-10-07)                                                                                              |
+| --- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| D1  | `ENCRYPTION_MASTER_KEY` absent from all 11 jobs                    | `backend-e2e` and `browser-acceptance` cannot boot the Nest API                                              | **FIXED** `5ac97d5` — added to the workflow `env:` as a test-only literal                                        |
+| D2  | `DATABASE_DIRECT_URL` absent from the workflow `env:`              | `Validate Prisma schema` exits 1 (`P1012`)                                                                   | **FIXED** `5ac97d5` — same block; covers all six validate/migrate steps                                          |
+| D3  | `e2e/playwright.config.ts` does not exist                          | `browser-acceptance` fails all 57 tests                                                                      | **FIXED** `e6cf05e` — config written; suite now measures 28/57                                                   |
+| D4  | `docker-compose-validation` placeholder `.env` incomplete          | Both `config -q` steps fail; `manifest-render` never runs                                                    | **FIXED** `b672483` — full placeholder env + secret files + `backend/.env`; gate 17, 18 unblocked                |
+| D5  | Frontend image serves the nginx base-image page                    | The shipped SPA is never served; image still reports healthy                                                 | **CLOSED** — see gate 29                                                                                         |
+| D31 | `npm audit fix` / `npm update` crash on `null.read('edgesOut')`    | No safe in-range dependency remediation; 56 high advisories stay open                                        | **OPEN** — reproducible on npm 9.9.4 and 10.9.9; see [Dependency advisories](#dependency-advisories-gates-14-27) |
+| D32 | deploy `Build & Push Images` fails manifest verification           | `main` push cannot publish an image; `Integration Test` and `Create GitHub Release` skipped                  | **FIXED** — GHCR URL lacked `/v2/` and used a non-registry token; now `docker buildx imagetools inspect`         |
+| D33 | `LOG_LEVEL` vocabulary inconsistent (schema vs winston vs values)  | `LOG_LEVEL=info` (configmap/prod-compose/CI) crashes at boot; `log` (Helm/dev-compose) silently logs nothing | **FIXED** — schema + values standardised on `info`                                                               |
+| D34 | deploy "backup and restore round trip" writes an un-gzipped dump   | `Integration Test` fails at the restore check (`gunzip: invalid magic`); `Create GitHub Release` skipped     | **FIXED** — dump now `gzip -9`-wrapped like `backup-db.sh`                                                       |
+| D35 | `Create GitHub Release` aborts resolving tags on the first release | No release is ever published (changelog builder needs a prior tag)                                           | **FIXED** — native `generate_release_notes` replaces the tag-diffing action                                      |
 
 Helm and Kubernetes validation added eight further defects, D6-D13, all recorded with root cause
 and remediation in the Helm section below. The two that would corrupt production data if shipped:
