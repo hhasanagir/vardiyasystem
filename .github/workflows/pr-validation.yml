@@ -735,7 +735,7 @@ jobs:
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
       - name: Install Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
       - name: Render and validate the release chain
         # One script, one source of truth: compose config, kustomize renders,
         # helm templates for production and staging, and the image/sealed
