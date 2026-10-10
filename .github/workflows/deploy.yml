@@ -363,33 +363,19 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-      - name: Generate changelog
-        id: changelog
-        uses: mikepenz/release-changelog-builder-action@v5
-        with:
-          configurationJson: |
-            {
-              "template": "#{{CHANGELOG}}",
-              "categories": [
-                { "title": "## 🚀 Features", "labels": ["feature", "enhancement"] },
-                { "title": "## 🐛 Bug Fixes", "labels": ["bug", "fix"] },
-                { "title": "## 🛠️ Maintenance", "labels": ["chore", "dependencies", "refactor"] },
-                { "title": "## 📖 Documentation", "labels": ["documentation"] },
-                { "title": "## 🔒 Security", "labels": ["security"] }
-              ]
-            }
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract version
         id: version
         run: echo "version=$(node -p "require('./backend/package.json').version")" >> "$GITHUB_OUTPUT"
       - name: Create Release
+        # Native release notes. The previous changelog builder diffed tags and
+        # aborted on the first release because the repository had no previous tag
+        # (defect D35); GitHub's own note generation has no such bootstrap
+        # dependency.
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}-${{ github.sha }}
           name: "Release v${{ steps.version.outputs.version }}"
-          body: ${{ steps.changelog.outputs.changelog }}
           draft: false
           prerelease: false
-          generate_release_notes: false
+          generate_release_notes: true
           target_commitish: ${{ github.sha }}
