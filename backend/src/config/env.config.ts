@@ -72,8 +72,8 @@ export const validationSchema = Joi.object({
   }),
   VAPID_SUBJECT: Joi.string().default('mailto:vardiyaos@hospital.com'),
   LOG_LEVEL: Joi.string()
-    .valid('error', 'warn', 'log', 'debug', 'verbose')
-    .default('log'),
+    .valid('error', 'warn', 'info', 'debug', 'verbose')
+    .default('info'),
   LOG_DIR: Joi.string().default('logs'),
   ENABLE_REALTIME_COLLABORATION: Joi.boolean().default(false),
   ENABLE_ADVANCED_AUDIT: Joi.boolean().default(false),

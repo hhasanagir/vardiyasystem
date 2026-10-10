@@ -52,7 +52,7 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
       NODE_ENV: ${NODE_ENV:-development}
       LOG_DIR: /var/log/vardiya
-      LOG_LEVEL: ${LOG_LEVEL:-log}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       REDIS_URL: redis://redis:6379
     ports:
       - "3000:3000"

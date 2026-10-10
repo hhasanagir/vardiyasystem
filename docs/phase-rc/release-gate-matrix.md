@@ -195,15 +195,38 @@ class — `deploy.yml` runs off `push: main` independently of the PR gate — bu
 fixed a `main` push now publishes the image and reaches `Integration Test` and
 `Create GitHub Release`.
 
-| ID  | Defect                                                          | Impact                                                                                      | Status (2026-10-07)                                                                                              |
-| --- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| D1  | `ENCRYPTION_MASTER_KEY` absent from all 11 jobs                 | `backend-e2e` and `browser-acceptance` cannot boot the Nest API                             | **FIXED** `5ac97d5` — added to the workflow `env:` as a test-only literal                                        |
-| D2  | `DATABASE_DIRECT_URL` absent from the workflow `env:`           | `Validate Prisma schema` exits 1 (`P1012`)                                                  | **FIXED** `5ac97d5` — same block; covers all six validate/migrate steps                                          |
-| D3  | `e2e/playwright.config.ts` does not exist                       | `browser-acceptance` fails all 57 tests                                                     | **FIXED** `e6cf05e` — config written; suite now measures 28/57                                                   |
-| D4  | `docker-compose-validation` placeholder `.env` incomplete       | Both `config -q` steps fail; `manifest-render` never runs                                   | **FIXED** `b672483` — full placeholder env + secret files + `backend/.env`; gate 17, 18 unblocked                |
-| D5  | Frontend image serves the nginx base-image page                 | The shipped SPA is never served; image still reports healthy                                | **CLOSED** — see gate 29                                                                                         |
-| D31 | `npm audit fix` / `npm update` crash on `null.read('edgesOut')` | No safe in-range dependency remediation; 56 high advisories stay open                       | **OPEN** — reproducible on npm 9.9.4 and 10.9.9; see [Dependency advisories](#dependency-advisories-gates-14-27) |
-| D32 | deploy `Build & Push Images` fails manifest verification        | `main` push cannot publish an image; `Integration Test` and `Create GitHub Release` skipped | **FIXED** — GHCR URL lacked `/v2/` and used a non-registry token; now `docker buildx imagetools inspect`         |
+**Finding D33 — `LOG_LEVEL` values are inconsistent, so production boots fail.**
+With D32 fixed, `Integration Test` ran for the first time and failed at `Start production stack`:
+`vardiya-backend` never became healthy, logging `Config validation error: "LOG_LEVEL" must be one of
+[error, warn, log, debug, verbose]`. The `.env` the step writes sets `LOG_LEVEL=info`.
+
+**Root cause.** Three sources disagree about the level vocabulary:
+`backend/src/config/env.config.ts` validates `error, warn, log, debug, verbose` (NestJS logger levels,
+no `info`) with default `log`; `backend/src/logger/winston-logger.ts` passes the value straight to
+`winston.createLogger({ level })`, which uses the npm levels `error, warn, info, http, verbose,
+debug, silly` (no `log`); and the deployment values split across both — `info` in
+`k8s/configmap.yaml`, `.env.production.example`, `docker-compose.prod.yml`, `deploy.yml`,
+`pr-validation.yml`, `scripts/release-dry-run.sh` and the winston default, versus `log` in
+`infra/helm/.../values.yaml`, `docker-compose.yml` and the Joi default. So `log` passes validation but
+is not a winston level (silent log loss), while `info` — the value every production example and the
+documented table use — is rejected and the process dies at boot. The kustomize/configmap path and the
+prod-compose default were therefore dead on arrival; the Helm path started but logged nothing.
+
+**Remediated (`fix/log-level-consistency`).** One vocabulary, the winston npm set: `env.config.ts`
+now validates `error, warn, info, debug, verbose` with default `info`, and the two `log` values
+(`values.yaml`, `docker-compose.yml` default) become `info`. This matches
+`docs/phase-4/production-configuration.md`'s documented table.
+
+| ID  | Defect                                                            | Impact                                                                                                       | Status (2026-10-07)                                                                                              |
+| --- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| D1  | `ENCRYPTION_MASTER_KEY` absent from all 11 jobs                   | `backend-e2e` and `browser-acceptance` cannot boot the Nest API                                              | **FIXED** `5ac97d5` — added to the workflow `env:` as a test-only literal                                        |
+| D2  | `DATABASE_DIRECT_URL` absent from the workflow `env:`             | `Validate Prisma schema` exits 1 (`P1012`)                                                                   | **FIXED** `5ac97d5` — same block; covers all six validate/migrate steps                                          |
+| D3  | `e2e/playwright.config.ts` does not exist                         | `browser-acceptance` fails all 57 tests                                                                      | **FIXED** `e6cf05e` — config written; suite now measures 28/57                                                   |
+| D4  | `docker-compose-validation` placeholder `.env` incomplete         | Both `config -q` steps fail; `manifest-render` never runs                                                    | **FIXED** `b672483` — full placeholder env + secret files + `backend/.env`; gate 17, 18 unblocked                |
+| D5  | Frontend image serves the nginx base-image page                   | The shipped SPA is never served; image still reports healthy                                                 | **CLOSED** — see gate 29                                                                                         |
+| D31 | `npm audit fix` / `npm update` crash on `null.read('edgesOut')`   | No safe in-range dependency remediation; 56 high advisories stay open                                        | **OPEN** — reproducible on npm 9.9.4 and 10.9.9; see [Dependency advisories](#dependency-advisories-gates-14-27) |
+| D32 | deploy `Build & Push Images` fails manifest verification          | `main` push cannot publish an image; `Integration Test` and `Create GitHub Release` skipped                  | **FIXED** — GHCR URL lacked `/v2/` and used a non-registry token; now `docker buildx imagetools inspect`         |
+| D33 | `LOG_LEVEL` vocabulary inconsistent (schema vs winston vs values) | `LOG_LEVEL=info` (configmap/prod-compose/CI) crashes at boot; `log` (Helm/dev-compose) silently logs nothing | **FIXED** — schema + values standardised on `info`                                                               |
 
 Helm and Kubernetes validation added eight further defects, D6-D13, all recorded with root cause
 and remediation in the Helm section below. The two that would corrupt production data if shipped:

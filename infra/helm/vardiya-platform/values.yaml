@@ -68,7 +68,7 @@ backend:
     GLOBAL_THROTTLE_TTL: "60000"
     GLOBAL_THROTTLE_LIMIT: "100"
     OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-    LOG_LEVEL: log
+    LOG_LEVEL: info
   existingSecret: vardiya-backend-secrets
   # pre-install/pre-upgrade migration Job. The bounded retry/deadline stop a
   # failing `migrate deploy` from hanging forever behind `OnFailure` (defect D14).
