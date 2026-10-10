@@ -217,6 +217,27 @@ now validates `error, warn, info, debug, verbose` with default `info`, and the t
 (`values.yaml`, `docker-compose.yml` default) become `info`. This matches
 `docs/phase-4/production-configuration.md`'s documented table.
 
+**Finding D34 — deploy "backup and restore round trip" writes an un-gzipped dump.**
+With D33 fixed the backend boots, the edge-routing checks pass, and `Integration Test` finally reaches
+`Verify backup and restore round trip`, where it fails:
+
+```
+dump size: 365612 bytes
+gunzip: invalid magic
+[restore-check] FAIL: pg_restore reported errors (exit non-zero)
+```
+
+**Root cause.** `deploy.yml` produced the dump with
+`pg_dump --format=custom --compress=9 ... > /tmp/vardiya-restore-check.dump.gz` — a raw custom-format
+archive (PGDMP magic, zlib-compressed data blocks) simply written to a `.gz`-named file. The restore
+path expects the framing `scripts/backup-db.sh` actually ships: a custom archive that is then wrapped
+in gzip (`gzip -f`) and read back with `gunzip -c | pg_restore` in both `scripts/restore-check.sh` and
+`scripts/restore-db.sh`. `gunzip` rejects the PGDMP header (`invalid magic`), so `pg_restore` receives
+zero bytes and reports `input file is too short (read 0, expected 5)`.
+
+**Remediated (`fix/restore-check-gzip`).** The workflow now pipes the dump through `gzip -9` and
+asserts the result with `gzip -t`, producing exactly the framing the restore scripts consume.
+
 | ID  | Defect                                                            | Impact                                                                                                       | Status (2026-10-07)                                                                                              |
 | --- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
 | D1  | `ENCRYPTION_MASTER_KEY` absent from all 11 jobs                   | `backend-e2e` and `browser-acceptance` cannot boot the Nest API                                              | **FIXED** `5ac97d5` — added to the workflow `env:` as a test-only literal                                        |
@@ -227,6 +248,7 @@ now validates `error, warn, info, debug, verbose` with default `info`, and the t
 | D31 | `npm audit fix` / `npm update` crash on `null.read('edgesOut')`   | No safe in-range dependency remediation; 56 high advisories stay open                                        | **OPEN** — reproducible on npm 9.9.4 and 10.9.9; see [Dependency advisories](#dependency-advisories-gates-14-27) |
 | D32 | deploy `Build & Push Images` fails manifest verification          | `main` push cannot publish an image; `Integration Test` and `Create GitHub Release` skipped                  | **FIXED** — GHCR URL lacked `/v2/` and used a non-registry token; now `docker buildx imagetools inspect`         |
 | D33 | `LOG_LEVEL` vocabulary inconsistent (schema vs winston vs values) | `LOG_LEVEL=info` (configmap/prod-compose/CI) crashes at boot; `log` (Helm/dev-compose) silently logs nothing | **FIXED** — schema + values standardised on `info`                                                               |
+| D34 | deploy "backup and restore round trip" writes an un-gzipped dump  | `Integration Test` fails at the restore check (`gunzip: invalid magic`); `Create GitHub Release` skipped     | **FIXED** — dump now `gzip -9`-wrapped like `backup-db.sh`                                                       |
 
 Helm and Kubernetes validation added eight further defects, D6-D13, all recorded with root cause
 and remediation in the Helm section below. The two that would corrupt production data if shipped:

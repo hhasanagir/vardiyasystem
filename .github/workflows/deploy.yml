@@ -329,16 +329,17 @@ jobs:
           echo "WebSocket path does not fall through to the SPA"
       - name: Verify backup and restore round trip
         # Goal 7: the restore path has to be proven against every release image,
-        # not just documented. Takes a custom-format dump from the live stack's
-        # PostgreSQL and restores it into a scratch container via
-        # scripts/restore-check.sh (non-destructive; nothing about the stack is
-        # modified).
+        # not just documented. Takes a gzip-wrapped custom-format dump from the
+        # live stack's PostgreSQL — the exact framing scripts/backup-db.sh ships —
+        # and restores it into a scratch container via scripts/restore-check.sh
+        # (non-destructive; nothing about the stack is modified).
         run: |
           set -euo pipefail
           docker compose -f docker-compose.prod.yml exec -T postgres \
             pg_dump --username=vardiya --dbname=vardiyasystem \
             --format=custom --compress=9 --no-owner --no-acl \
-            > /tmp/vardiya-restore-check.dump.gz
+            | gzip -9 > /tmp/vardiya-restore-check.dump.gz
+          gzip -t /tmp/vardiya-restore-check.dump.gz
           echo "dump size: $(stat -c%s /tmp/vardiya-restore-check.dump.gz) bytes"
           bash scripts/restore-check.sh /tmp/vardiya-restore-check.dump.gz
       - name: Stack diagnostics
