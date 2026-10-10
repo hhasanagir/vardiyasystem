@@ -7,6 +7,7 @@ Source of truth for the VardiyaOS release gates.
 - **Updated:** 2026-10-07 — D1, D2, D3 and D29 closed (`e6cf05e`, `5ac97d5`, `60bf681`); gate 12 re-measured (28/57)
 - **Updated:** 2026-10-09 — PR #29 rebase-merged to `main` (`0d85736`); the PR gate concluded green (all jobs except the advisory coverage job); gates 8, 11, 12, 15, 17, 18, 32 are now CI-confirmed and gate 4 is ratcheted — see [Post-merge CI verification](#post-merge-ci-verification-2026-10-09)
 - **Updated:** 2026-10-10 — D8–D12 remediated on `fix/helm-prod-hardening` (monitoring probes, sentinel + backup CronJob resources, platform-wide pod/container hardening, `values/dev.yaml` + dev in the render gate, `spec.ingressClassName`); D13 deferred to a `vardiya-common` library chart
+- **Updated:** 2026-10-10 — D36 remediated on `fix/restore-check-startup-race` (restore-check no longer races the scratch Postgres init, which was making `Integration Test` intermittently red)
 - **Host:** Windows, PowerShell 5.1, Node `v22.14.0`, npm `9.9.4`, Docker engine `29.4.0`, Compose `v5.1.2`
 - **CI surface:** `.github/workflows/pr-validation.yml`, 11 jobs, triggered on every PR to `main`/`develop`
 - **Companion document:** `release-candidate-remediation-report.md` (history of the remediation work)
@@ -259,18 +260,36 @@ step is reached.
 notes (`generate_release_notes: true` on `softprops/action-gh-release@v2`), which has no
 previous-tag bootstrap dependency.
 
-| ID  | Defect                                                             | Impact                                                                                                       | Status (2026-10-07)                                                                                              |
-| --- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| D1  | `ENCRYPTION_MASTER_KEY` absent from all 11 jobs                    | `backend-e2e` and `browser-acceptance` cannot boot the Nest API                                              | **FIXED** `5ac97d5` — added to the workflow `env:` as a test-only literal                                        |
-| D2  | `DATABASE_DIRECT_URL` absent from the workflow `env:`              | `Validate Prisma schema` exits 1 (`P1012`)                                                                   | **FIXED** `5ac97d5` — same block; covers all six validate/migrate steps                                          |
-| D3  | `e2e/playwright.config.ts` does not exist                          | `browser-acceptance` fails all 57 tests                                                                      | **FIXED** `e6cf05e` — config written; suite now measures 28/57                                                   |
-| D4  | `docker-compose-validation` placeholder `.env` incomplete          | Both `config -q` steps fail; `manifest-render` never runs                                                    | **FIXED** `b672483` — full placeholder env + secret files + `backend/.env`; gate 17, 18 unblocked                |
-| D5  | Frontend image serves the nginx base-image page                    | The shipped SPA is never served; image still reports healthy                                                 | **CLOSED** — see gate 29                                                                                         |
-| D31 | `npm audit fix` / `npm update` crash on `null.read('edgesOut')`    | No safe in-range dependency remediation; 56 high advisories stay open                                        | **OPEN** — reproducible on npm 9.9.4 and 10.9.9; see [Dependency advisories](#dependency-advisories-gates-14-27) |
-| D32 | deploy `Build & Push Images` fails manifest verification           | `main` push cannot publish an image; `Integration Test` and `Create GitHub Release` skipped                  | **FIXED** — GHCR URL lacked `/v2/` and used a non-registry token; now `docker buildx imagetools inspect`         |
-| D33 | `LOG_LEVEL` vocabulary inconsistent (schema vs winston vs values)  | `LOG_LEVEL=info` (configmap/prod-compose/CI) crashes at boot; `log` (Helm/dev-compose) silently logs nothing | **FIXED** — schema + values standardised on `info`                                                               |
-| D34 | deploy "backup and restore round trip" writes an un-gzipped dump   | `Integration Test` fails at the restore check (`gunzip: invalid magic`); `Create GitHub Release` skipped     | **FIXED** — dump now `gzip -9`-wrapped like `backup-db.sh`                                                       |
-| D35 | `Create GitHub Release` aborts resolving tags on the first release | No release is ever published (changelog builder needs a prior tag)                                           | **FIXED** — native `generate_release_notes` replaces the tag-diffing action                                      |
+**Finding D36 — the restore round-trip check races the scratch Postgres init.**
+After D8–D12 merged, `Integration Test` failed at the backup/restore step with
+`pg_restore: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: server closed the connection unexpectedly`,
+and it reproduced on the re-run.
+
+**Root cause.** `postgres:15-alpine`'s entrypoint boots a _temporary_ server (unix socket only) to run
+the init scripts, then shuts it down and starts the real server. Verified locally from `docker logs`:
+the temp server logs `database system is ready to accept connections` at `t+0.000s`, `shutting down`
+at `t+0.160s`, `database system is shut down` at `t+0.254s`, and only then
+`PostgreSQL init process complete; ready for start up.` with the real server ready at `t+0.444s`.
+`scripts/restore-check.sh` broke out of its readiness loop on the first `pg_isready` success — the
+temp server — so `pg_restore` connected to a server that was already closing. Whether the window is
+hit depends on runner timing, which is why the gate was intermittently red.
+
+**Remediated (`fix/restore-check-startup-race`).** The readiness loop now requires the connection to
+stay up across a two-second settle window before restoring, so it can only break on the real server.
+
+| ID  | Defect                                                             | Impact                                                                                                                 | Status (2026-10-07)                                                                                              |
+| --- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| D1  | `ENCRYPTION_MASTER_KEY` absent from all 11 jobs                    | `backend-e2e` and `browser-acceptance` cannot boot the Nest API                                                        | **FIXED** `5ac97d5` — added to the workflow `env:` as a test-only literal                                        |
+| D2  | `DATABASE_DIRECT_URL` absent from the workflow `env:`              | `Validate Prisma schema` exits 1 (`P1012`)                                                                             | **FIXED** `5ac97d5` — same block; covers all six validate/migrate steps                                          |
+| D3  | `e2e/playwright.config.ts` does not exist                          | `browser-acceptance` fails all 57 tests                                                                                | **FIXED** `e6cf05e` — config written; suite now measures 28/57                                                   |
+| D4  | `docker-compose-validation` placeholder `.env` incomplete          | Both `config -q` steps fail; `manifest-render` never runs                                                              | **FIXED** `b672483` — full placeholder env + secret files + `backend/.env`; gate 17, 18 unblocked                |
+| D5  | Frontend image serves the nginx base-image page                    | The shipped SPA is never served; image still reports healthy                                                           | **CLOSED** — see gate 29                                                                                         |
+| D31 | `npm audit fix` / `npm update` crash on `null.read('edgesOut')`    | No safe in-range dependency remediation; 56 high advisories stay open                                                  | **OPEN** — reproducible on npm 9.9.4 and 10.9.9; see [Dependency advisories](#dependency-advisories-gates-14-27) |
+| D32 | deploy `Build & Push Images` fails manifest verification           | `main` push cannot publish an image; `Integration Test` and `Create GitHub Release` skipped                            | **FIXED** — GHCR URL lacked `/v2/` and used a non-registry token; now `docker buildx imagetools inspect`         |
+| D33 | `LOG_LEVEL` vocabulary inconsistent (schema vs winston vs values)  | `LOG_LEVEL=info` (configmap/prod-compose/CI) crashes at boot; `log` (Helm/dev-compose) silently logs nothing           | **FIXED** — schema + values standardised on `info`                                                               |
+| D34 | deploy "backup and restore round trip" writes an un-gzipped dump   | `Integration Test` fails at the restore check (`gunzip: invalid magic`); `Create GitHub Release` skipped               | **FIXED** — dump now `gzip -9`-wrapped like `backup-db.sh`                                                       |
+| D35 | `Create GitHub Release` aborts resolving tags on the first release | No release is ever published (changelog builder needs a prior tag)                                                     | **FIXED** — native `generate_release_notes` replaces the tag-diffing action                                      |
+| D36 | restore-check races the scratch Postgres init (temp server)        | `Integration Test` intermittently fails (`server closed the connection unexpectedly`); `Create GitHub Release` skipped | **FIXED** — readiness loop now requires a 2s settle window before `pg_restore`                                   |
 
 Helm and Kubernetes validation added eight further defects, D6-D13, all recorded with root cause
 and remediation in the Helm section below. The two that would corrupt production data if shipped:
