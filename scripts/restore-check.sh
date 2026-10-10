@@ -57,8 +57,17 @@ docker run -d --rm \
 ready=0
 for i in $(seq 1 60); do
   if docker exec "$CONTAINER_NAME" pg_isready -U vardiya -d vardiyasystem >/dev/null 2>&1; then
-    ready=1
-    break
+    # The official entrypoint boots a *temporary* server (unix socket only) to
+    # run the init scripts, then shuts it down and starts the real server.
+    # pg_isready answers during that window, so a single success can be against
+    # a server that is about to close its connections — the race behind the
+    # flaky `pg_restore: connection ... server closed the connection
+    # unexpectedly` (D36). Require the connection to survive a settle window.
+    sleep 2
+    if docker exec "$CONTAINER_NAME" pg_isready -U vardiya -d vardiyasystem >/dev/null 2>&1; then
+      ready=1
+      break
+    fi
   fi
   sleep 1
 done
