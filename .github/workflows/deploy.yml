@@ -371,7 +371,7 @@ jobs:
         # aborted on the first release because the repository had no previous tag
         # (defect D35); GitHub's own note generation has no such bootstrap
         # dependency.
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.version.outputs.version }}-${{ github.sha }}
           name: "Release v${{ steps.version.outputs.version }}"
