@@ -18,6 +18,8 @@ spec:
     spec:
       {{- include "vardiya.imagePullSecrets" . | nindent 6 }}
       serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "redis") }}
+      securityContext:
+        {{- include "vardiya.podSecurityContext" (dict "runAsUser" 999 "runAsGroup" 1000 "fsGroup" 1000) | nindent 8 }}
       terminationGracePeriodSeconds: 60
       affinity:
         podAntiAffinity:
@@ -32,6 +34,8 @@ spec:
         - name: redis
           image: "{{ index .Values "image" "repository" }}:{{ index .Values "image" "tag" }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            {{- include "vardiya.containerSecurityContext" (dict) | nindent 12 }}
           ports:
             - containerPort: 6379
               protocol: TCP

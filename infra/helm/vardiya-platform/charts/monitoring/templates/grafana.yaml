@@ -51,9 +51,13 @@ spec:
         app.kubernetes.io/component: grafana
     spec:
       serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "monitoring") }}
+      securityContext:
+        {{- include "vardiya.podSecurityContext" (dict "runAsUser" 472 "runAsGroup" 472 "fsGroup" 472) | nindent 8 }}
       containers:
         - name: grafana
           image: grafana/grafana:11.1.0
+          securityContext:
+            {{- include "vardiya.containerSecurityContext" (dict "readOnlyRootFilesystem" true) | nindent 12 }}
           env:
             - name: GF_SECURITY_ADMIN_PASSWORD
               valueFrom:
@@ -75,11 +79,31 @@ spec:
             limits:
               cpu: 1
               memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           volumeMounts:
             - name: datasources
               mountPath: /etc/grafana/provisioning/datasources
             - name: storage
               mountPath: /var/lib/grafana
+            - name: logs
+              mountPath: /var/log/grafana
+            - name: tmp
+              mountPath: /tmp
       volumes:
         - name: datasources
           configMap:
@@ -87,6 +111,10 @@ spec:
         - name: storage
           persistentVolumeClaim:
             claimName: {{ include "vardiya.fullname" . }}-grafana
+        - name: logs
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

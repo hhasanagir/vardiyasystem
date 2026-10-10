@@ -7,7 +7,7 @@
 #   2. release preflight (repository release invariants)
 #   3. docker-compose config (the production file must resolve)
 #   4. kustomize renders (k8s base overlay + sealed secrets)
-#   5. helm templates for the production and staging value files
+#   5. helm templates for the production, staging, and dev value files
 #   6. image parity assertions on the rendered output
 #
 # Usage:
@@ -122,9 +122,9 @@ echo "k8s/ rendered ($(grep -c '^kind:' "$TMP_DIR/k8s-rendered.yaml") kinds)"
 kubectl kustomize infra/sealed-secrets > "$TMP_DIR/sealed-rendered.yaml"
 echo "infra/sealed-secrets rendered"
 
-step "Helm templates (production and staging must render)"
+step "Helm templates (production, staging, and dev must render)"
 require helm
-for vf in values/production.yaml values/staging.yaml; do
+for vf in values/production.yaml values/staging.yaml values/dev.yaml; do
   helm template vardiya infra/helm/vardiya-platform \
     -f "infra/helm/vardiya-platform/$vf" \
     > "$TMP_DIR/$(basename "$vf" .yaml).rendered.yaml" \
@@ -142,7 +142,8 @@ for manifest in \
   "$TMP_DIR/k8s-rendered.yaml" \
   "$TMP_DIR/sealed-rendered.yaml" \
   "$TMP_DIR/production.rendered.yaml" \
-  "$TMP_DIR/staging.rendered.yaml"; do
+  "$TMP_DIR/staging.rendered.yaml" \
+  "$TMP_DIR/dev.rendered.yaml"; do
   [ -f "$manifest" ] || continue
   images="$(grep -hoE 'image:[[:space:]]+[^[:space:]]+' "$manifest" | sed -E 's/^image:[[:space:]]*//; s/^["'\'']//; s/["'\'']$//' || true)"
   while IFS= read -r image; do

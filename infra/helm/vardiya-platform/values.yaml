@@ -126,6 +126,13 @@ postgres:
     enabled: true
     schedule: "0 3 * * *"
     retention: 30
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
     storage:
       size: 20Gi
       storageClass: standard
@@ -167,6 +174,13 @@ redis-cluster:
     sentinel:
       enabled: true
       replicas: 3
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 250m
+          memory: 128Mi
   image:
     repository: redis
     tag: 7-alpine
@@ -216,7 +230,9 @@ monitoring:
 
 ingress:
   enabled: true
-  className: nginx
+  # Sets spec.ingressClassName (the field the API server honours). The legacy
+  # kubernetes.io/ingress.class annotation was dropped in D12.
+  ingressClassName: nginx
   service:
     # Mirrors backend.service.port / frontend.service.port so the Ingress
     # subchart can route without cross-subchart value access.

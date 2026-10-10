@@ -1,0 +1,63 @@
+# Dev environment: single replica everywhere, no autoscaling/PDB, no database
+# backup cron, single-node redis without sentinel. Purpose: exercise every
+# template on a laptop/minikube without production-shaped resources (defect D11).
+global:
+  environment: dev
+  imagePullPolicy: IfNotPresent
+  publicHost: dev.vardiya.example.com
+
+backend:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  podDisruptionBudget:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+frontend:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  podDisruptionBudget:
+    enabled: false
+
+postgres:
+  replicaCount: 1
+  storage:
+    size: 5Gi
+    storageClass: standard
+  backup:
+    enabled: false
+
+pgbouncer:
+  replicaCount: 1
+
+redis-cluster:
+  cluster:
+    replicas: 1
+    sentinel:
+      enabled: false
+
+monitoring:
+  prometheus:
+    storage:
+      size: 5Gi
+  grafana:
+    storage:
+      size: 2Gi
+  loki:
+    storage:
+      size: 5Gi
+  tempo:
+    storage:
+      size: 5Gi
+
+ingress:
+  rateLimiting:
+    rps: 20

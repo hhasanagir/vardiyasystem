@@ -23,14 +23,16 @@ spec:
       serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "frontend") }}
       # The frontend image ships USER vardiya (alpine adduser -S → uid 100).
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 100
-        fsGroup: 100
+        {{- include "vardiya.podSecurityContext" (dict "runAsUser" 100 "runAsGroup" 100 "fsGroup" 100) | nindent 8 }}
       terminationGracePeriodSeconds: 30
       containers:
         - name: frontend
           image: "{{ include "vardiya.registry" . }}{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          # nginx binds :80 as a non-root user, so it keeps NET_BIND_SERVICE;
+          # every other capability is dropped.
+          securityContext:
+            {{- include "vardiya.containerSecurityContext" (dict "addCapabilities" (list "NET_BIND_SERVICE")) | nindent 12 }}
           ports:
             - containerPort: {{ .Values.service.targetPort }}
               protocol: TCP

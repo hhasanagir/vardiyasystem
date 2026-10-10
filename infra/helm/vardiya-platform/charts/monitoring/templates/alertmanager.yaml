@@ -69,9 +69,13 @@ spec:
         app.kubernetes.io/component: alertmanager
     spec:
       serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "monitoring") }}
+      securityContext:
+        {{- include "vardiya.podSecurityContext" (dict "runAsUser" 65534 "runAsGroup" 65534 "fsGroup" 65534) | nindent 8 }}
       containers:
         - name: alertmanager
           image: prom/alertmanager:v0.27.0
+          securityContext:
+            {{- include "vardiya.containerSecurityContext" (dict "readOnlyRootFilesystem" true) | nindent 12 }}
           args:
             - --config.file=/etc/alertmanager/alertmanager.yml
             - --storage.path=/alertmanager
@@ -86,12 +90,32 @@ spec:
             limits:
               cpu: 250m
               memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9093
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9093
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           volumeMounts:
             - name: config
               mountPath: /etc/alertmanager
             - name: slack-webhook
               mountPath: /etc/alertmanager/slack_webhook
               subPath: slack_webhook
+            - name: data
+              mountPath: /alertmanager
+            - name: tmp
+              mountPath: /tmp
       volumes:
         - name: config
           configMap:
@@ -102,6 +126,10 @@ spec:
             items:
               - key: slack_webhook
                 path: slack_webhook
+        - name: data
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

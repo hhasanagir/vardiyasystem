@@ -6,6 +6,7 @@ Source of truth for the VardiyaOS release gates.
 - **Measured:** 2026-10-04
 - **Updated:** 2026-10-07 — D1, D2, D3 and D29 closed (`e6cf05e`, `5ac97d5`, `60bf681`); gate 12 re-measured (28/57)
 - **Updated:** 2026-10-09 — PR #29 rebase-merged to `main` (`0d85736`); the PR gate concluded green (all jobs except the advisory coverage job); gates 8, 11, 12, 15, 17, 18, 32 are now CI-confirmed and gate 4 is ratcheted — see [Post-merge CI verification](#post-merge-ci-verification-2026-10-09)
+- **Updated:** 2026-10-10 — D8–D12 remediated on `fix/helm-prod-hardening` (monitoring probes, sentinel + backup CronJob resources, platform-wide pod/container hardening, `values/dev.yaml` + dev in the render gate, `spec.ingressClassName`); D13 deferred to a `vardiya-common` library chart
 - **Host:** Windows, PowerShell 5.1, Node `v22.14.0`, npm `9.9.4`, Docker engine `29.4.0`, Compose `v5.1.2`
 - **CI surface:** `.github/workflows/pr-validation.yml`, 11 jobs, triggered on every PR to `main`/`develop`
 - **Companion document:** `release-candidate-remediation-report.md` (history of the remediation work)
@@ -282,7 +283,8 @@ and remediation in the Helm section below. The two that would corrupt production
 D8-D13 are missing probes, missing resource bounds, absent container hardening, the missing
 `values/dev.yaml`, a deprecated Ingress class annotation, and subcharts that cannot be linted
 standalone. None of these are style complaints: D7 alone makes the production database unsafe to
-point at real traffic.
+point at real traffic. **D8–D12 are remediated (`fix/helm-prod-hardening`); D13 is deferred to a
+`vardiya-common` library-chart refactor.**
 
 Migration analysis added D14-D22. The two that block or damage a real database outright:
 
@@ -917,6 +919,12 @@ Prometheus, `/api/v1/status/config` for Alertmanager, `/ready` for Loki, `/api/h
 `/ready` for Grafana) and a liveness probe for sentinel. Note these subcharts are not hardened at
 all — see D10.
 
+**Remediated (`fix/helm-prod-hardening`).** Every monitoring workload now ships liveness and
+readiness probes (`/-/healthy` + `/-/ready` on Prometheus :9090 and Alertmanager :9093, `/ready` on
+Loki :3100 and Tempo :3200, `/api/health` on Grafana :3000) and `vardiya-redis-sentinel` gained a
+`tcpSocket` liveness plus readiness probe on :26379. `helm lint`/`helm template` pass for default,
+dev, staging and production.
+
 ### Defect D9 - resource requests and limits missing
 
 <!-- prettier-ignore -->
@@ -935,6 +943,10 @@ check exists.
 **Remediation:** give sentinel and the backup CronJob explicit `resources.requests`/`limits`, and
 add a Helm-unittest or `kubeconform`-adjacent policy check so a future subchart cannot ship
 without them.
+
+**Remediated (`fix/helm-prod-hardening`).** `values.yaml` now defines
+`redis-cluster.cluster.sentinel.resources` (50m/64Mi → 250m/128Mi) and `postgres.backup.resources`
+(100m/128Mi → 500m/512Mi); both templates render the block via `toYaml`.
 
 ### Defect D10 - container hardening is absent outside backend and frontend
 
@@ -963,6 +975,19 @@ vendored from upstream were adopted with their defaults.
 the component tolerates it) across every subchart. Mirror the pattern already used in
 `charts/backend` and `charts/frontend`.
 
+**Remediated (`fix/helm-prod-hardening`).** `templates/_helpers.tpl` now defines
+`vardiya.podSecurityContext` and `vardiya.containerSecurityContext`, used by every workload. All 12
+pods render `runAsNonRoot: true` + `seccompProfile: RuntimeDefault` (with `runAsUser`/`fsGroup` pinned
+where the image requires it — postgres + backup 70, redis/sentinel 999/1000, pgbouncer 1001,
+prometheus/alertmanager 65534, grafana 472, loki/tempo 10001), and all 13 containers render
+`allowPrivilegeEscalation: false` + `capabilities.drop: [ALL]`. `readOnlyRootFilesystem: true` is
+applied to the seven components whose writes are confined to mounted volumes plus an explicit
+`emptyDir` (`/tmp`, plus `/alertmanager` and `/var/log/grafana`): Prometheus, Alertmanager, Grafana,
+Loki, Tempo, the pgbouncer-exporter and the backup CronJob. The database plane (postgres, pgbouncer,
+redis, sentinel) and the app plane (backend logs to `/var/log/vardiya`; frontend nginx writes its
+cache/run/tmp dirs) keep a writable root fs until a live rehearsal proves otherwise; frontend retains
+only `NET_BIND_SERVICE` because it binds :80 as a non-root user.
+
 ### Defect D11 - no dev values, and dev is neither represented nor tested
 
 The chart ships `values.yaml` plus `values/staging.yaml` and `values/production.yaml`. There is no
@@ -980,6 +1005,11 @@ backup schedule, `replicas` 2→3 backend / 3→2 PgBouncer / 1→2 Postgres / 3
 ingress host and disabled TLS, and include dev in the lint/template/kubeconform matrix so all four
 environments are validated on every change.
 
+**Remediated (`fix/helm-prod-hardening`).** `values/dev.yaml` now ships a single-replica,
+no-autoscaling/no-PDB, backup-disabled, single-node-Redis (sentinel off) overlay pointing at
+`dev.vardiya.example.com`, and `scripts/release-dry-run.sh` renders production, staging **and** dev
+on every run (the manifest-render gate), so dev is represented and exercised by CI.
+
 ### Defect D12 - Ingress uses the deprecated class annotation
 
 `charts/ingress/templates/ingress.yaml` sets
@@ -993,6 +1023,11 @@ annotation is present.
 **Remediation:** emit `spec.ingressClassName: {{ .Values.ingressClassName }}` and keep the
 annotation only if a specific controller still needs it. Rename the values key to match so the
 field is discoverable.
+
+**Remediated (`fix/helm-prod-hardening`).** `charts/ingress/templates/ingress.yaml` now emits
+`spec.ingressClassName: {{ .Values.ingressClassName }}` and the umbrella `values.yaml` key was renamed
+`ingress.className` → `ingress.ingressClassName`; the legacy annotation was dropped. `k8s/ingress.yaml`
+already used `spec.ingressClassName`.
 
 ### Defect D13 - every subchart fails `helm lint` on its own
 
@@ -1008,6 +1043,13 @@ legitimate layout, but it means subcharts cannot be linted, documented or consum
 the umbrella passes down), which makes standalone `helm lint` meaningful and lets a single
 subchart be reused. Until then lint the umbrella only and say so in CI, so the failures are not
 silently ignored.
+
+**Deferred.** A `values.yaml` alone would not fix the standalone lint: all seven subcharts resolve
+`vardiya.*` helpers defined in the umbrella's `templates/_helpers.tpl`, so `helm lint charts/<sub>`
+still fails on the missing helpers. The correct fix is a `type: library` subchart (`vardiya-common`)
+that owns those helpers and is added as a dependency of every subchart; that is a dedicated
+follow-up. Until then the umbrella is linted and rendered for default, dev, staging and production
+in CI.
 
 ### Minor findings, not release blockers
 

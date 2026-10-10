@@ -24,10 +24,14 @@ spec:
     spec:
       {{- include "vardiya.imagePullSecrets" . | nindent 6 }}
       serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "pgbouncer") }}
+      securityContext:
+        {{- include "vardiya.podSecurityContext" (dict "runAsUser" 1001 "runAsGroup" 1001 "fsGroup" 1001) | nindent 8 }}
       containers:
         - name: pgbouncer
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            {{- include "vardiya.containerSecurityContext" (dict) | nindent 12 }}
           ports:
             - containerPort: 6432
               protocol: TCP
@@ -72,6 +76,8 @@ spec:
         - name: pgbouncer-exporter
           image: prometheuscommunity/pgbouncer-exporter:v0.11.0
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            {{- include "vardiya.containerSecurityContext" (dict "readOnlyRootFilesystem" true) | nindent 12 }}
           ports:
             - containerPort: 9127
               protocol: TCP

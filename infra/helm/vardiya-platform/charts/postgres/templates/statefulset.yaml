@@ -20,11 +20,18 @@ spec:
     spec:
       {{- include "vardiya.imagePullSecrets" . | nindent 6 }}
       serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "postgres") }}
+      # The postgres image ships no USER (it drops from root via gosu at runtime),
+      # so runAsNonRoot alone cannot pass — pin uid/gid 70 (the alpine "postgres"
+      # user) and fsGroup 70 so the freshly provisioned PVC is writable.
+      securityContext:
+        {{- include "vardiya.podSecurityContext" (dict "runAsUser" 70 "runAsGroup" 70 "fsGroup" 70) | nindent 8 }}
       terminationGracePeriodSeconds: 120
       containers:
         - name: postgres
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            {{- include "vardiya.containerSecurityContext" (dict) | nindent 12 }}
           ports:
             - containerPort: 5432
               protocol: TCP
