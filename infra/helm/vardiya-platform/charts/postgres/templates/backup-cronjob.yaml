@@ -15,9 +15,13 @@ spec:
       template:
         spec:
           restartPolicy: OnFailure
+          securityContext:
+            {{- include "vardiya.podSecurityContext" (dict "runAsUser" 70 "runAsGroup" 70 "fsGroup" 70) | nindent 12 }}
           containers:
             - name: backup
               image: postgres:{{ .Values.version }}-alpine
+              securityContext:
+                {{- include "vardiya.containerSecurityContext" (dict "readOnlyRootFilesystem" true) | nindent 16 }}
               env:
                 - name: PGPASSWORD
                   valueFrom:
@@ -39,13 +43,18 @@ spec:
                   pg_dump --format=custom --compress=9 --file=/backups/$${FILENAME}
                   echo "Backup created: $${FILENAME}"
                   find /backups -name "vardiya_backup_*.dump" -mtime +{{ .Values.backup.retention }} -delete
+              resources: {{ toYaml .Values.backup.resources | nindent 16 }}
               volumeMounts:
                 - name: backups
                   mountPath: /backups
+                - name: tmp
+                  mountPath: /tmp
           volumes:
             - name: backups
               persistentVolumeClaim:
                 claimName: {{ include "vardiya.fullname" . }}-postgres-backups
+            - name: tmp
+              emptyDir: {}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

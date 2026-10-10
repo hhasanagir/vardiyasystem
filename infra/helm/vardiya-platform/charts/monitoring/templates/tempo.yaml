@@ -63,9 +63,13 @@ spec:
         app.kubernetes.io/component: tempo
     spec:
       serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "monitoring") }}
+      securityContext:
+        {{- include "vardiya.podSecurityContext" (dict "runAsUser" 10001 "runAsGroup" 10001 "fsGroup" 10001) | nindent 8 }}
       containers:
         - name: tempo
           image: grafana/tempo:2.6.0
+          securityContext:
+            {{- include "vardiya.containerSecurityContext" (dict "readOnlyRootFilesystem" true) | nindent 12 }}
           args:
             - -config.file=/etc/tempo/tempo-config.yml
           ports:
@@ -82,6 +86,22 @@ spec:
             limits:
               cpu: 1
               memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 3200
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3200
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           volumeMounts:
             - name: config
               mountPath: /etc/tempo

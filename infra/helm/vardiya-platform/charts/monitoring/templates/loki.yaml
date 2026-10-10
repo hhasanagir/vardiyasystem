@@ -73,9 +73,13 @@ spec:
         app.kubernetes.io/component: loki
     spec:
       serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "monitoring") }}
+      securityContext:
+        {{- include "vardiya.podSecurityContext" (dict "runAsUser" 10001 "runAsGroup" 10001 "fsGroup" 10001) | nindent 8 }}
       containers:
         - name: loki
           image: grafana/loki:3.1.0
+          securityContext:
+            {{- include "vardiya.containerSecurityContext" (dict "readOnlyRootFilesystem" true) | nindent 12 }}
           args:
             - -config.file=/etc/loki/loki-config.yml
           ports:
@@ -88,11 +92,29 @@ spec:
             limits:
               cpu: 2
               memory: 2Gi
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 3100
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3100
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           volumeMounts:
             - name: config
               mountPath: /etc/loki
             - name: storage
               mountPath: /loki
+            - name: tmp
+              mountPath: /tmp
       volumes:
         - name: config
           configMap:
@@ -100,6 +122,8 @@ spec:
         - name: storage
           persistentVolumeClaim:
             claimName: {{ include "vardiya.fullname" . }}-loki
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

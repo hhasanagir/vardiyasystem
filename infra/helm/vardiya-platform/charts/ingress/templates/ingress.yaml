@@ -6,7 +6,6 @@ metadata:
   labels: {{- include "vardiya.labels" . | nindent 4 }}
     app.kubernetes.io/component: ingress
   annotations:
-    kubernetes.io/ingress.class: {{ .Values.className }}
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: 10m
@@ -25,6 +24,7 @@ metadata:
     {{- end }}
     cert-manager.io/cluster-issuer: {{ .Values.tls.clusterIssuer }}
 spec:
+  ingressClassName: {{ .Values.ingressClassName }}
   tls:
     - hosts:
         - {{ .Values.global.publicHost }}

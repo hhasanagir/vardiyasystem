@@ -166,11 +166,12 @@ spec:
     spec:
       serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "monitoring") }}
       securityContext:
-        runAsUser: 65534
-        fsGroup: 65534
+        {{- include "vardiya.podSecurityContext" (dict "runAsUser" 65534 "runAsGroup" 65534 "fsGroup" 65534) | nindent 8 }}
       containers:
         - name: prometheus
           image: prom/prometheus:v2.53.0
+          securityContext:
+            {{- include "vardiya.containerSecurityContext" (dict "readOnlyRootFilesystem" true) | nindent 12 }}
           args:
             - --config.file=/etc/prometheus/prometheus.yml
             - --storage.tsdb.path=/prometheus
@@ -187,11 +188,29 @@ spec:
             limits:
               cpu: 2
               memory: 4Gi
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           volumeMounts:
             - name: config
               mountPath: /etc/prometheus
             - name: storage
               mountPath: /prometheus
+            - name: tmp
+              mountPath: /tmp
       volumes:
         - name: config
           configMap:
@@ -199,6 +218,8 @@ spec:
         - name: storage
           persistentVolumeClaim:
             claimName: {{ include "vardiya.fullname" . }}-prometheus
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

@@ -29,14 +29,14 @@ spec:
       # uid 100, so pin the pod to the image UID instead of an arbitrary one —
       # otherwise /var/log/vardiya (chowned to uid 100) is not writable.
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 100
-        fsGroup: 100
+        {{- include "vardiya.podSecurityContext" (dict "runAsUser" 100 "runAsGroup" 100 "fsGroup" 100) | nindent 8 }}
       terminationGracePeriodSeconds: 60
       containers:
         - name: backend
           image: "{{ include "vardiya.registry" . }}{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            {{- include "vardiya.containerSecurityContext" (dict) | nindent 12 }}
           ports:
             - containerPort: {{ .Values.service.targetPort }}
               protocol: TCP

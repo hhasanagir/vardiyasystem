@@ -16,6 +16,8 @@ spec:
         app.kubernetes.io/component: redis-sentinel
     spec:
       serviceAccountName: {{ include "vardiya.serviceAccountName" (dict "root" . "component" "redis") }}
+      securityContext:
+        {{- include "vardiya.podSecurityContext" (dict "runAsUser" 999 "runAsGroup" 1000) | nindent 8 }}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -29,6 +31,8 @@ spec:
         - name: sentinel
           image: "{{ index .Values "image" "repository" }}:{{ index .Values "image" "tag" }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            {{- include "vardiya.containerSecurityContext" (dict) | nindent 12 }}
           ports:
             - containerPort: 26379
               protocol: TCP
@@ -42,14 +46,24 @@ spec:
                 secretKeyRef:
                   name: {{ index .Values "existingSecret" }}
                   key: redis_password
+          resources: {{ toYaml (index .Values "cluster" "sentinel" "resources") | nindent 12 }}
           volumeMounts:
             - name: config
               mountPath: /etc/redis
+          livenessProbe:
+            tcpSocket:
+              port: 26379
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             tcpSocket:
               port: 26379
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
       volumes:
         - name: config
           configMap:
