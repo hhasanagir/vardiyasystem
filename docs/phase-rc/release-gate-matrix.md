@@ -326,13 +326,13 @@ Pipeline gate coverage added D23-D27. The intended chain has 11 stages; 3 do not
 ordering holds at 2 transitions:
 
 <!-- prettier-ignore -->
-| ID | Defect | Impact |
-|---|---|---|
-| D23 | `unit-tests`, `backend-e2e`, `build-check` have no `needs:` | Typecheck and E2E failures do not stop the build; only Docker is truly gated |
-| D24 | `deploy.yml` has no link to `pr-validation.yml` | Both fire on the same push; "PR is green" is not a precondition for deploying |
-| D25 | No staging deploy stage | Zero `kubectl`/`helm`/`kubeconfig` operations in any workflow |
-| D26 | No smoke or staging E2E stage | Zero `smoke`/`rollout status`; D6-D10 are unobservable until this exists |
-| D27 | Pipeline ends at a public GitHub Release | Every push to `main` publishes a non-draft, non-prerelease release while D1-D22 are open |
+| ID | Defect | Impact | Status |
+|---|---|---|---|
+| D23 | `unit-tests`, `backend-e2e`, `build-check` have no `needs:` | Typecheck and E2E failures do not stop the build; only Docker is truly gated | **FIXED** — gate ordering in `pr-validation.yml` |
+| D24 | `deploy.yml` has no link to `pr-validation.yml` | Both fire on the same push; "PR is green" is not a precondition for deploying | **FIXED** — `deploy.yml` triggered via `workflow_run` |
+| D25 | No staging deploy stage | Zero `kubectl`/`helm`/`kubeconfig` operations in any workflow | **DEFERRED** — cluster not available |
+| D26 | No smoke or staging E2E stage | Zero `smoke`/`rollout status`; D6-D10 are unobservable until this exists | **DEFERRED** — depends on D25 |
+| D27 | Pipeline ends at a public GitHub Release | Every push to `main` publishes a non-draft, non-prerelease release while D1-D22 are open | **FIXED** — `draft: true` until staging exists |
 
 ### Browser round opened D29 - closed the same round
 
@@ -369,11 +369,10 @@ dashboard. The 29 tests still red are the seed and selector classes below, not t
 
 ### Defect D30 - `deploy.yml` runs the same migration without the direct URL
 
-Same root cause as D2, outside the workflow this round touched: `deploy.yml:140-145` runs
-`prisma migrate deploy` with a step-level `DATABASE_URL` only, which reproduces the `P1012` exit on
-this host. The step also seeds afterwards, so the job dies before it seeds. One line in that
-workflow's `env:` fixes it. Recorded rather than changed, because `deploy.yml` is a separate
-pipeline that was not part of this remediation's scope.
+Same root cause as D2, outside the workflow this round touched: `deploy.yml` runs
+`prisma migrate deploy` with a step-level `DATABASE_URL` only. The step also seeds afterwards.
+**FIXED** — added `DATABASE_DIRECT_URL` for backend migrate and seed steps in `deploy.yml` (140–159).
+The deploy workflow already has the direct URL present for validate/build; migrate and seed now use it. This mirrors the PR workflow fix for D2.
 
 ## Pipeline gate coverage
 
