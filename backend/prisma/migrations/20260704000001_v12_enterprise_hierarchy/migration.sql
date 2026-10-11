@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS "hospital_groups" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "code" TEXT NOT NULL,
-    "path" ltree,
+    "path" public.ltree,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS "hospitals" (
     "groupId" TEXT,
     "name" TEXT NOT NULL,
     "code" TEXT NOT NULL,
-    "path" ltree,
+    "path" public.ltree,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS "directorates" (
     "hospitalId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "code" TEXT NOT NULL,
-    "path" ltree,
+    "path" public.ltree,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS "departments" (
     "directorateId" TEXT,
     "name" TEXT NOT NULL,
     "code" TEXT NOT NULL,
-    "path" ltree,
+    "path" public.ltree,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS "areas" (
     "name" TEXT NOT NULL,
     "code" TEXT NOT NULL,
     "type" "AreaType" NOT NULL DEFAULT 'scanning',
-    "path" ltree,
+    "path" public.ltree,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS "rooms" (
     "name" TEXT NOT NULL,
     "code" TEXT NOT NULL,
     "type" "RoomType" NOT NULL DEFAULT 'patient_exam',
-    "path" ltree,
+    "path" public.ltree,
     "capacity" INTEGER NOT NULL DEFAULT 1,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -118,7 +118,7 @@ ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "hospitalId" TEXT;
 ALTER TABLE "units" ADD COLUMN IF NOT EXISTS "departmentId" TEXT;
 ALTER TABLE "units" ADD COLUMN IF NOT EXISTS "hospitalId" TEXT;
 ALTER TABLE "devices" ADD COLUMN IF NOT EXISTS "roomId" TEXT;
-ALTER TABLE "devices" ADD COLUMN IF NOT EXISTS "path" ltree;
+ALTER TABLE "devices" ADD COLUMN IF NOT EXISTS "path" public.ltree;
 
 -- ===== UNIQUE CONSTRAINTS =====
 CREATE UNIQUE INDEX IF NOT EXISTS "hospital_groups_code_key" ON "hospital_groups"("code");

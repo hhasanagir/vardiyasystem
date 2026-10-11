@@ -1,11 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { RbacRoleName } from '@prisma/client';
 import { HierarchyService } from '../hierarchy.service';
 import { PrismaService } from '../../../prisma.service';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
+/**
+ * D21: the fixtures below used to be untyped string literals naming roles that
+ * migration 17 deleted (ORGANIZATION_ADMIN, HOSPITAL_DIRECTOR, IMAGING_MANAGER,
+ * READ_ONLY_AUDITOR). Because they were never typed as the enum, removing those
+ * values broke nothing at compile time and quietly turned the assertions into
+ * fiction. Paths are now built from the `RbacRoleName` enum, so any future enum
+ * change fails the build instead of passing silently.
+ */
+const rolePath = (...segments: RbacRoleName[]): string => segments.join('.');
+
+type RoleNode = { id: string; name: RbacRoleName; path: string };
+type RoleRow = RoleNode & { depth: number };
+
 describe('HierarchyService', () => {
   let service: HierarchyService;
-  let prisma: PrismaService;
 
   const mockQueryRaw = vi.fn();
 
@@ -23,31 +36,40 @@ describe('HierarchyService', () => {
     }).compile();
 
     service = module.get<HierarchyService>(HierarchyService);
-    prisma = module.get<PrismaService>(PrismaService);
   });
 
   describe('getAncestors', () => {
     it('should return ancestors excluding self', async () => {
-      const mockResult = [
-        { id: 'root-1', name: 'SYSTEM_ADMIN', path: 'SYSTEM_ADMIN', depth: 1 },
+      const mockResult: RoleRow[] = [
+        {
+          id: 'root-1',
+          name: RbacRoleName.SYSTEM_ADMIN,
+          path: rolePath(RbacRoleName.SYSTEM_ADMIN),
+          depth: 1,
+        },
         {
           id: 'org-1',
-          name: 'ORGANIZATION_ADMIN',
-          path: 'SYSTEM_ADMIN.ORGANIZATION_ADMIN',
+          name: RbacRoleName.HOSPITAL_ADMIN,
+          path: rolePath(
+            RbacRoleName.SYSTEM_ADMIN,
+            RbacRoleName.HOSPITAL_ADMIN,
+          ),
           depth: 2,
         },
       ];
       mockQueryRaw.mockResolvedValue(mockResult);
 
-      const result = await service.getAncestors(
-        'roles',
-        'SYSTEM_ADMIN.ORGANIZATION_ADMIN.HOSPITAL_DIRECTOR',
+      const leaf = rolePath(
+        RbacRoleName.SYSTEM_ADMIN,
+        RbacRoleName.HOSPITAL_ADMIN,
+        RbacRoleName.IMAGING_DIRECTOR,
       );
+      const result = await service.getAncestors('roles', leaf);
 
       expect(mockQueryRaw).toHaveBeenCalledTimes(1);
       expect(mockQueryRaw).toHaveBeenCalledWith(
         expect.stringContaining('@>'),
-        'SYSTEM_ADMIN.ORGANIZATION_ADMIN.HOSPITAL_DIRECTOR',
+        leaf,
       );
       expect(result).toEqual(mockResult);
     });
@@ -55,21 +77,25 @@ describe('HierarchyService', () => {
 
   describe('getDescendants', () => {
     it('should return descendants excluding self', async () => {
-      const mockResult = [
+      const mockResult: RoleRow[] = [
         {
           id: 'child-1',
-          name: 'TECHNICIAN',
-          path: 'SYSTEM_ADMIN.TECHNICIAN',
+          name: RbacRoleName.TECHNICIAN,
+          path: rolePath(RbacRoleName.SYSTEM_ADMIN, RbacRoleName.TECHNICIAN),
           depth: 2,
         },
       ];
       mockQueryRaw.mockResolvedValue(mockResult);
 
-      const result = await service.getDescendants('roles', 'SYSTEM_ADMIN', 2);
+      const result = await service.getDescendants(
+        'roles',
+        rolePath(RbacRoleName.SYSTEM_ADMIN),
+        2,
+      );
 
       expect(mockQueryRaw).toHaveBeenCalledWith(
         expect.stringContaining('<@'),
-        'SYSTEM_ADMIN',
+        rolePath(RbacRoleName.SYSTEM_ADMIN),
       );
       expect(result).toEqual(mockResult);
     });
@@ -77,12 +103,17 @@ describe('HierarchyService', () => {
 
   describe('getDescendantsIncludingSelf', () => {
     it('should return descendants including self', async () => {
-      const mockResult = [
-        { id: 'root-1', name: 'SYSTEM_ADMIN', path: 'SYSTEM_ADMIN', depth: 1 },
+      const mockResult: RoleRow[] = [
+        {
+          id: 'root-1',
+          name: RbacRoleName.SYSTEM_ADMIN,
+          path: rolePath(RbacRoleName.SYSTEM_ADMIN),
+          depth: 1,
+        },
         {
           id: 'child-1',
-          name: 'TECHNICIAN',
-          path: 'SYSTEM_ADMIN.TECHNICIAN',
+          name: RbacRoleName.TECHNICIAN,
+          path: rolePath(RbacRoleName.SYSTEM_ADMIN, RbacRoleName.TECHNICIAN),
           depth: 2,
         },
       ];
@@ -90,7 +121,7 @@ describe('HierarchyService', () => {
 
       const result = await service.getDescendantsIncludingSelf(
         'roles',
-        'SYSTEM_ADMIN',
+        rolePath(RbacRoleName.SYSTEM_ADMIN),
       );
 
       expect(result).toEqual(mockResult);
@@ -98,52 +129,64 @@ describe('HierarchyService', () => {
   });
 
   describe('getSubtree', () => {
-    it('should return subtree with max depth', async () => {
-      const mockResult = [
-        { id: 'root-1', name: 'SYSTEM_ADMIN', path: 'SYSTEM_ADMIN', depth: 1 },
+    it('should return the subtree within the depth limit', async () => {
+      const mockResult: RoleRow[] = [
+        {
+          id: 'root-1',
+          name: RbacRoleName.SYSTEM_ADMIN,
+          path: rolePath(RbacRoleName.SYSTEM_ADMIN),
+          depth: 1,
+        },
         {
           id: 'child-1',
-          name: 'ORGANIZATION_ADMIN',
-          path: 'SYSTEM_ADMIN.ORGANIZATION_ADMIN',
+          name: RbacRoleName.TECHNICIAN,
+          path: rolePath(RbacRoleName.SYSTEM_ADMIN, RbacRoleName.TECHNICIAN),
           depth: 2,
         },
       ];
       mockQueryRaw.mockResolvedValue(mockResult);
 
-      const result = await service.getSubtree('roles', 'SYSTEM_ADMIN', 1);
+      const result = await service.getSubtree(
+        'roles',
+        rolePath(RbacRoleName.SYSTEM_ADMIN),
+        2,
+      );
 
       expect(result).toEqual(mockResult);
     });
   });
 
   describe('isDescendant', () => {
-    it('should return true when descendant is under ancestor', async () => {
+    it('should return true when the path is under the ancestor', async () => {
       mockQueryRaw.mockResolvedValue([{ is_descendant: true }]);
 
       const result = await service.isDescendant(
-        'SYSTEM_ADMIN.ORGANIZATION_ADMIN',
-        'SYSTEM_ADMIN',
+        rolePath(RbacRoleName.SYSTEM_ADMIN, RbacRoleName.HOSPITAL_ADMIN),
+        rolePath(RbacRoleName.SYSTEM_ADMIN),
       );
 
       expect(result).toBe(true);
     });
 
-    it('should return false when descendant is not under ancestor', async () => {
+    it('should return false when the paths are unrelated', async () => {
       mockQueryRaw.mockResolvedValue([{ is_descendant: false }]);
 
-      const result = await service.isDescendant('SYSTEM_ADMIN', 'OTHER_PATH');
+      const result = await service.isDescendant(
+        rolePath(RbacRoleName.GUEST),
+        rolePath(RbacRoleName.SECRETARY),
+      );
 
       expect(result).toBe(false);
     });
   });
 
   describe('isAncestor', () => {
-    it('should return true when path is ancestor of descendant', async () => {
+    it('should return true when the path is an ancestor of the descendant', async () => {
       mockQueryRaw.mockResolvedValue([{ is_descendant: true }]);
 
       const result = await service.isAncestor(
-        'SYSTEM_ADMIN',
-        'SYSTEM_ADMIN.ORGANIZATION_ADMIN',
+        rolePath(RbacRoleName.SYSTEM_ADMIN),
+        rolePath(RbacRoleName.SYSTEM_ADMIN, RbacRoleName.HOSPITAL_ADMIN),
       );
 
       expect(result).toBe(true);
@@ -152,22 +195,35 @@ describe('HierarchyService', () => {
 
   describe('getLowestCommonAncestor', () => {
     it('should return the lowest common ancestor path', async () => {
-      mockQueryRaw.mockResolvedValue([
-        { lca: 'SYSTEM_ADMIN.ORGANIZATION_ADMIN' },
-      ]);
+      const lca = rolePath(
+        RbacRoleName.SYSTEM_ADMIN,
+        RbacRoleName.HOSPITAL_ADMIN,
+      );
+      mockQueryRaw.mockResolvedValue([{ lca }]);
 
       const result = await service.getLowestCommonAncestor(
-        'SYSTEM_ADMIN.ORGANIZATION_ADMIN.HOSPITAL_DIRECTOR',
-        'SYSTEM_ADMIN.ORGANIZATION_ADMIN.IMAGING_MANAGER',
+        rolePath(
+          RbacRoleName.SYSTEM_ADMIN,
+          RbacRoleName.HOSPITAL_ADMIN,
+          RbacRoleName.IMAGING_DIRECTOR,
+        ),
+        rolePath(
+          RbacRoleName.SYSTEM_ADMIN,
+          RbacRoleName.HOSPITAL_ADMIN,
+          RbacRoleName.SUPERVISOR,
+        ),
       );
 
-      expect(result).toBe('SYSTEM_ADMIN.ORGANIZATION_ADMIN');
+      expect(result).toBe(lca);
     });
 
-    it('should return null when no common ancestor', async () => {
+    it('should return null when there is no common ancestor', async () => {
       mockQueryRaw.mockResolvedValue([{ lca: null }]);
 
-      const result = await service.getLowestCommonAncestor('A', 'B');
+      const result = await service.getLowestCommonAncestor(
+        rolePath(RbacRoleName.GUEST),
+        rolePath(RbacRoleName.SECRETARY),
+      );
 
       expect(result).toBeNull();
     });
@@ -178,7 +234,11 @@ describe('HierarchyService', () => {
       mockQueryRaw.mockResolvedValue([{ depth: 3 }]);
 
       const result = await service.getDepth(
-        'SYSTEM_ADMIN.ORGANIZATION_ADMIN.HOSPITAL_DIRECTOR',
+        rolePath(
+          RbacRoleName.SYSTEM_ADMIN,
+          RbacRoleName.HOSPITAL_ADMIN,
+          RbacRoleName.IMAGING_DIRECTOR,
+        ),
       );
 
       expect(result).toBe(3);
@@ -187,9 +247,17 @@ describe('HierarchyService', () => {
 
   describe('getRootNodes', () => {
     it('should return root nodes (depth 1)', async () => {
-      const mockResult = [
-        { id: 'root-1', name: 'SYSTEM_ADMIN', path: 'SYSTEM_ADMIN' },
-        { id: 'root-2', name: 'READ_ONLY_AUDITOR', path: 'READ_ONLY_AUDITOR' },
+      const mockResult: RoleNode[] = [
+        {
+          id: 'root-1',
+          name: RbacRoleName.SYSTEM_ADMIN,
+          path: rolePath(RbacRoleName.SYSTEM_ADMIN),
+        },
+        {
+          id: 'root-2',
+          name: RbacRoleName.GUEST,
+          path: rolePath(RbacRoleName.GUEST),
+        },
       ];
       mockQueryRaw.mockResolvedValue(mockResult);
 
@@ -201,16 +269,22 @@ describe('HierarchyService', () => {
 
   describe('getChildren', () => {
     it('should return direct children', async () => {
-      const mockResult = [
+      const mockResult: RoleNode[] = [
         {
           id: 'child-1',
-          name: 'ORGANIZATION_ADMIN',
-          path: 'SYSTEM_ADMIN.ORGANIZATION_ADMIN',
+          name: RbacRoleName.HOSPITAL_ADMIN,
+          path: rolePath(
+            RbacRoleName.SYSTEM_ADMIN,
+            RbacRoleName.HOSPITAL_ADMIN,
+          ),
         },
       ];
       mockQueryRaw.mockResolvedValue(mockResult);
 
-      const result = await service.getChildren('roles', 'SYSTEM_ADMIN');
+      const result = await service.getChildren(
+        'roles',
+        rolePath(RbacRoleName.SYSTEM_ADMIN),
+      );
 
       expect(result).toEqual(mockResult);
     });
@@ -218,8 +292,12 @@ describe('HierarchyService', () => {
 
   describe('getLeafNodes', () => {
     it('should return leaf nodes', async () => {
-      const mockResult = [
-        { id: 'leaf-1', name: 'TECHNICIAN', path: 'SYSTEM_ADMIN.TECHNICIAN' },
+      const mockResult: RoleNode[] = [
+        {
+          id: 'leaf-1',
+          name: RbacRoleName.TECHNICIAN,
+          path: rolePath(RbacRoleName.SYSTEM_ADMIN, RbacRoleName.TECHNICIAN),
+        },
       ];
       mockQueryRaw.mockResolvedValue(mockResult);
 

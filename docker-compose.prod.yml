@@ -39,6 +39,9 @@ services:
     image: postgres:15-alpine
     container_name: vardiya-postgres
     restart: unless-stopped
+    # pg_stat_statements is created by a migration (20260714000001) but only
+    # records anything when it is preloaded at server start (defect D22).
+    command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-vardiya}
       POSTGRES_PASSWORD_FILE: /run/secrets/db_password

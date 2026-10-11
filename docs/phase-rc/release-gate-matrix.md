@@ -8,6 +8,7 @@ Source of truth for the VardiyaOS release gates.
 - **Updated:** 2026-10-09 — PR #29 rebase-merged to `main` (`0d85736`); the PR gate concluded green (all jobs except the advisory coverage job); gates 8, 11, 12, 15, 17, 18, 32 are now CI-confirmed and gate 4 is ratcheted — see [Post-merge CI verification](#post-merge-ci-verification-2026-10-09)
 - **Updated:** 2026-10-10 — D8–D12 remediated on `fix/helm-prod-hardening` (monitoring probes, sentinel + backup CronJob resources, platform-wide pod/container hardening, `values/dev.yaml` + dev in the render gate, `spec.ingressClassName`); D13 deferred to a `vardiya-common` library chart
 - **Updated:** 2026-10-10 — D36 remediated on `fix/restore-check-startup-race` (restore-check no longer races the scratch Postgres init, which was making `Integration Test` intermittently red)
+- **Updated:** 2026-10-11 — D17–D22 data-layer defects remediated on `fix/data-layer-d17-d22`: migrations are schema-qualified (D18), `pg_stat_statements` is preloaded in both compose files and Helm (D22), the audit-column drops are documented as an accepted decision (D17), a rollback runbook exists (D19), and the two stale enum-driven tests are fixed (D20, D21) with typed fixtures plus a real-database hierarchy e2e. Preflight now runs 21 checks (20/20 pass with environment checks skipped) and the preflight self-test runs 40/40
 - **Host:** Windows, PowerShell 5.1, Node `v22.14.0`, npm `9.9.4`, Docker engine `29.4.0`, Compose `v5.1.2`
 - **CI surface:** `.github/workflows/pr-validation.yml`, 11 jobs, triggered on every PR to `main`/`develop`
 - **Companion document:** `release-candidate-remediation-report.md` (history of the remediation work)
@@ -38,7 +39,7 @@ edit or diff. Every other part of this file is prettier-formatted.
 | 2 | Frontend typecheck | `npm run typecheck --prefix frontend` (app + spec projects) | **PASS** | `lint-typecheck` | local = CI | — | **DONE** (`7fae115`; it used to pass while checking zero files) |
 | 3 | Backend lint | `npm run lint --prefix backend` (`node scripts/lint-gate.mjs`) | **PASS** — 0 errors, 0 warnings | `lint-typecheck` | local = CI | — | **DONE** |
 | 4 | Frontend lint | `npm run lint --prefix frontend` (`eslint .`) | **PASS** — 0 errors, **378 warnings** | `lint-typecheck` | local = CI (exits 0: warnings are `warn` level) | — | **RATCHETED (2026-10-09)** — `eslint . --max-warnings=378` freezes the count; any new warning fails the job. Leaving the debt is still deliberate: 208 `no-explicit-any`, 169 `no-unused-vars`, 1 `no-console` (re-measured 2026-10-07; was 379) |
-| 5 | Backend unit tests | `npm run test --prefix backend` (`vitest run`) | **PASS** — 553/553, 43 files, 42.7s | `unit-tests` | local = CI | — | **DONE** (`8d1b724`) |
+| 5 | Backend unit tests | `npm run test --prefix backend` (`vitest run`) | **PASS** — 557/557, 44 files, 55.4s | `unit-tests` | local = CI | — | **DONE** (`8d1b724`; +4 in `hierarchy.service.spec.ts` on `fix/data-layer-d17-d22`) |
 | 6 | Frontend unit tests | `npm run test --prefix frontend` (`ng test`) | **PASS** — 76/76, 9 files (4 new RBAC specs), 31.1s | `unit-tests` | local = CI | Includes the only integration-style specs in the repo: `device-api.integration.spec.ts`, `schedule-api.integration.spec.ts` | **DONE** (`2445ad9`; +4 regression specs for D29 in `60bf681`) |
 | 7 | Prisma client generation | `npx prisma generate` | **PASS** — exit 0 even with only `DATABASE_URL` | 6 jobs | local = CI | — | **NONE REQUIRED** |
 | 8 | Prisma schema validation | `npx prisma validate` | **PASS (CI-confirmed 2026-10-09)** | `unit-tests` | **CI** | **Proven defect D2, fixed.** `schema.prisma` reads `env("DATABASE_DIRECT_URL")`, defined **nowhere** in the workflow `env:` block or any step. The step supplies only `DATABASE_URL` (L95-100), so `prisma validate` exits 1 with `P1012 Environment variable not found: DATABASE_DIRECT_URL` — reproduced on this host, exit 1 without the variable and exit 0 with it. The same defect hit all six steps that read Prisma config: the `validate` step (L104) and five `migrate deploy` steps (L110, L176, L272, L347, L500), each of which sets `DATABASE_URL` only. `generate` alone never needed it, and the old comment at L22-23 generalised that true fact to `validate`. | **FIXED** (`5ac97d5`) — `DATABASE_DIRECT_URL` added to the workflow `env:`, so every step inherits it. **CI-confirmed green** (`37815186214`) |
@@ -53,8 +54,8 @@ edit or diff. Every other part of this file is prettier-formatted.
 | 17 | Docker Compose validation | `docker compose config -q` on both files, `:latest` assert, preflight, preflight suite, hook suite | **PASS (CI-confirmed 2026-10-09)** | `docker-compose-validation` | local = CI | **D4 CLOSED (`b672483`).** The job now creates a complete placeholder `.env` (`BACKEND_IMAGE`, `FRONTEND_IMAGE`, `POSTGRES_USER`, `POSTGRES_DB`, `LOG_LEVEL`, `GRAFANA_ROOT_URL`, `FRONTEND_URL`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`), writes every secret file `docker-compose.yml`/`.prod.yml` reference, and copies `backend/.env.example` → `backend/.env` so both `config -q` steps pass and the preflight/hook suites measure content, not plumbing. | **DONE — CI-confirmed (run 37815186214)** |
 | 18 | Manifest render (Kustomize + Helm) | `bash scripts/release-dry-run.sh --ci` | **PASS (CI-confirmed 2026-10-09)** | `manifest-render` | CI | **Blocker removed with D4 (`b672483`).** Previously `needs: [docker-compose-validation]` and that job never ran past the failing `config -q`. The manifest job is still unreached because no PR has exercised the fixed pipeline; this host cannot run it (`bash` is a WSL stub; `helm`/`kustomize`/`actionlint`/`kubeconform` absent). | **DONE — CI-confirmed (run 37815186214)** |
 | 19 | Coverage | `npm run test:coverage` + Codecov | **ADVISORY — thresholds not met** | `coverage` | **neither** | `continue-on-error: true` (L130). The workflow comment states the backend vitest config carries 80% thresholds this tree does not meet, and the frontend has no coverage provider installed. | **OPEN (advisory, deliberate)** — measured baseline 2026-10-09: 41.78% stmts / 34.51% branch / 42.14% funcs / 42.52% lines vs the 80% threshold (557 tests); frontend has no provider. A regression ratchet from the measured floor (not the 80% target) is the recommended next step. |
-| 20 | Release preflight | `node scripts/release-preflight.mjs` | **PASS** — 19/19, with and without `SKIP_ENVIRONMENT_CHECKS=1` | `docker-compose-validation` | local = CI | **Proven defect D28** when this check was first written — it went red on a real 0-byte file | **DONE** (D28 closed; `source-files-nonempty` added) |
-| 21 | Preflight self-test | `node --test scripts/release-preflight.test.mjs` | **PASS** — 35/35 | `docker-compose-validation` | local = CI | — | **DONE** (+3 cases for `source-files-nonempty`) |
+| 20 | Release preflight | `node scripts/release-preflight.mjs` | **PASS** — 21 checks all pass (`SKIP_ENVIRONMENT_CHECKS=1` skips the secret-contract check → 20/20) | `docker-compose-validation` | local = CI | **Proven defect D28** when this check was first written — it went red on a real 0-byte file | **DONE** (D28 closed; `source-files-nonempty` added; `migrations-schema-qualified` (D18) and `pg-stat-statements-preload` (D22) added on `fix/data-layer-d17-d22`) |
+| 21 | Preflight self-test | `node --test scripts/release-preflight.test.mjs` | **PASS** — 40/40 | `docker-compose-validation` | local = CI | — | **DONE** (+3 for `source-files-nonempty`, +5 for `migrations-schema-qualified`/`pg-stat-statements-preload`) |
 | 22 | Pre-commit gate suite | `node --test scripts/lint-staged-typecheck.test.mjs` | **PASS** — 14/14 | `docker-compose-validation` | local = CI | — | **DONE** (`dfcf0c2` root-cause fix) |
 | 23 | lint-staged / pre-commit | `.husky/pre-commit` → `npx lint-staged` | **PASS** — real commits verified | local + CI | local = CI | — | **DONE** |
 | 24 | Commitlint | `npx commitlint --from 7c9eb76 --to HEAD` | **PASS** for every new commit | local (`.husky/commit-msg`) | local = CI | Full range `--from eb7a6db` exits 1 | **PARTIAL by design** — see [Commitlint scope](#commitlint-scope) |
@@ -315,7 +316,11 @@ Migration analysis added D14-D22. The two that block or damage a real database o
 
 D17-D22 cover audit-column deletion, a `search_path` dependency that breaks the drift gate, the
 absent rollback path, two stale enum-driven tests, and `pg_stat_statements` being installed with an
-empty `shared_preload_libraries`.
+empty `shared_preload_libraries`. **All six are remediated (`fix/data-layer-d17-d22`, 2026-10-11):**
+D17 is documented as an accepted compliance decision in the migration, D18 is fixed by schema-qualifying
+every extension and `ltree` reference, D19 ships a rollback runbook, D20 and D21 are corrected (D20 was
+already fixed in `49ae0d5`), and D22 preloads `pg_stat_statements` in both compose files and Helm, each
+guarded by a new release-preflight check.
 
 Pipeline gate coverage added D23-D27. The intended chain has 11 stages; 3 do not exist, and the
 ordering holds at 2 transitions:
@@ -1375,6 +1380,12 @@ an audit log's value is the record itself.
 complete, or document the deletion as an accepted compliance decision. Do not re-add the columns
 empty — that would imply the data is retrievable when it is not.
 
+**Status: ACCEPTED / DOCUMENTED (`fix/data-layer-d17-d22`).** The deletion is recorded in the
+migration itself as an accepted compliance decision (a comment above the three `DROP COLUMN`
+statements), cross-referenced from the new [database rollback runbook](../phase-rc/database-rollback.md).
+The columns stay dropped; an operator who needs the trail restores `reason`/`comment` from a pre-v5
+backup into new columns first.
+
 ### Defect D18 - migrations only work when `public` is in `search_path`
 
 Five extensions are created without a schema, so they install into whatever `search_path` resolves
@@ -1400,6 +1411,15 @@ any deployment that does not use `?schema=public`.
 datasource pinned to `?schema=public`. This is also what unblocks `prisma migrate diff` as a CI
 drift gate.
 
+**Status: FIXED (`fix/data-layer-d17-d22`).** All five extension statements now carry
+`WITH SCHEMA public`, and `v11_add_ltree_path_columns` / `v12_enterprise_hierarchy` reference
+`public.ltree` / `public.text2ltree` explicitly. Verified by injecting a non-`public` `search_path`
+on a scratch server: the unqualified form failed with `type "ltree" does not exist`, the qualified
+form succeeds. The drift gate (`npm run check:migration-drift`) still reports clean (only the 5
+benign extension statements). A new release-preflight check (`migrations-schema-qualified`) fails
+any future migration that reintroduces an unqualified `ltree`/`text2ltree` reference or a
+`CREATE EXTENSION` without `WITH SCHEMA`.
+
 ### Defect D19 - there is no rollback path
 
 No `down.sql`, no `down` directory, no rollback script anywhere in `prisma/migrations`. The only
@@ -1422,6 +1442,12 @@ were present. Failure is atomic — which also means the `BEGIN;`/`COMMIT;` bloc
 compensating script per destructive migration. For D15 and D16 specifically, the correct action is
 to fix the migration before it ever reaches a populated database, not to plan a rollback.
 
+**Status: FIXED — runbook added (`fix/data-layer-d17-d22`).** `docs/phase-rc/database-rollback.md`
+documents the snapshot → verify → `migrate resolve --rolled-back` + compensating-script procedure,
+the `backend/prisma/rollback/<migration>.down.sql` convention for compensating scripts, and the
+per-migration atomicity guarantee this paragraph relies on. It records the D17/D15/D16 dispositions so
+an operator knows which defects need a compensating script and which are permanent.
+
 ### Application compatibility
 
 One confirmed break, one silent test-validity defect, and one thing that looks like a break but is
@@ -1441,6 +1467,11 @@ will insert cleanly.
 --to-schema-datamodel` fails with D18, so migrations and `schema.prisma` cannot currently be
 compared automatically. Everything above was therefore established by applying migrations to real
 databases and querying `information_schema`, which is the stronger method but is manual.
+
+**Resolved with D18 (`fix/data-layer-d17-d22`).** With the extensions schema-qualified, the drift
+gate runs: `backend/scripts/migration-drift.mjs` replays `prisma/migrations/` into a public-schema
+shadow database and diffs against `prisma/schema.prisma`, reporting only the 5 benign idempotent
+`CREATE EXTENSION` statements. Gate 26 is now wired into CI.
 
 ### Defect D20 - `auth.e2e-spec.ts` asserts a role the schema cannot store
 
@@ -1465,6 +1496,11 @@ the E2E suite never reached this line because of D1.
 **Remediation:** update the assertion to `system_admin` to match the seed, but only after D1 and D3
 are fixed so the suite can actually run and prove it. Changing it before then would be unverified.
 
+**Status: FIXED (`49ae0d5`, confirmed on `fix/data-layer-d17-d22`).** Once D1/D3 were fixed the
+suite booted, and `backend/e2e/auth.e2e-spec.ts:39` now asserts
+`expect(res.body.user.role).toBe('system_admin')`, matching `prisma/seed.ts`. No further change was
+needed this round.
+
 ### Defect D21 - `hierarchy.service.spec.ts` validates a schema that cannot exist
 
 23 references to removed `RbacRoleName` values across lines 35-192: `ORGANIZATION_ADMIN` ×15,
@@ -1482,6 +1518,17 @@ compilation or tests — it silently converts a real assertion into a fiction.
 breaks the build instead of passing. Then rewrite the paths to the current role hierarchy and add
 one integration test that runs the hierarchy query against a real database.
 
+**Status: FIXED (`fix/data-layer-d17-d22`).**
+`backend/src/modules/hierarchy/__tests__/hierarchy.service.spec.ts` now imports `RbacRoleName`, types
+its fixtures against it, and uses the current hierarchy (`SYSTEM_ADMIN` → `HOSPITAL_ADMIN`/…);
+the removed values are gone (13/13 tests pass). A real-database integration test,
+`backend/e2e/hierarchy.e2e-spec.ts`, inserts a three-level `hospitals` hierarchy with
+`public.text2ltree(...)` and runs the real `HierarchyService` queries through Prisma — 8/8 pass
+against Postgres 15 in CI. Writing it surfaced an ltree subtlety worth recording: `lca()` returns the
+longest common prefix but drops the deepest shared label when that prefix equals one of its
+arguments (docs: `lca('1.2.3','1.2.3.4.5.6') = 1.2`), so the spec asserts the sibling and
+ancestor cases explicitly rather than assuming `lca(node, ancestor) = ancestor`.
+
 ### Defect D22 - `pg_stat_statements` is installed but collecting nothing
 
 Migration 17 creates five extensions. `shared_preload_libraries` on the local server is **empty**,
@@ -1496,6 +1543,14 @@ server configuration before migrating.
 **Remediation:** either set `shared_preload_libraries = 'pg_stat_statements'` on every Postgres
 instance before migration 17 runs, or drop the extension from the migration and manage it as
 infrastructure. Add a pre-migration assertion so the setting is verified, not assumed.
+
+**Status: FIXED (`fix/data-layer-d17-d22`).** Both compose files
+(`docker-compose.yml`, `docker-compose.prod.yml`) start Postgres with
+`-c shared_preload_libraries=pg_stat_statements`; the Helm chart exposes
+`postgres.sharedPreloadLibraries` (default `[pg_stat_statements]`) and the `postgres` StatefulSet
+renders it into the server `args`. A new release-preflight check
+(`pg-stat-statements-preload`) fails the release if a migration creates `pg_stat_statements` without
+the preload being present in every compose file, the Helm values and the StatefulSet template.
 
 ### Defect D28 - no gate in the chain can see an empty source file
 

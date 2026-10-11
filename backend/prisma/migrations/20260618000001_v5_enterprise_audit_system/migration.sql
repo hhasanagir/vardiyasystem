@@ -17,6 +17,14 @@ ALTER TABLE "audit_logs" ADD COLUMN "description" TEXT;
 ALTER TABLE "audit_logs" ADD COLUMN "status" TEXT NOT NULL DEFAULT 'SUCCESS';
 
 -- Drop deprecated columns
+-- ACCEPTED COMPLIANCE DECISION (defect D17): sessionId/reason/comment were dropped
+-- because no application code referenced them, but they were audit *context* and
+-- the drop is destructive and silent. Dispositioned 2026-10-10 as intentionally
+-- removed BEFORE any populated production database existed, so no audit record is
+-- lost. Do NOT re-add them empty -- that would imply the historical values are
+-- recoverable when they are not. If a future populated database must keep these
+-- fields, they have to be reintroduced as new columns and backfilled from a
+-- verified pre-migration snapshot (see docs/phase-rc/database-rollback.md).
 ALTER TABLE "audit_logs" DROP COLUMN "sessionId";
 ALTER TABLE "audit_logs" DROP COLUMN "reason";
 ALTER TABLE "audit_logs" DROP COLUMN "comment";

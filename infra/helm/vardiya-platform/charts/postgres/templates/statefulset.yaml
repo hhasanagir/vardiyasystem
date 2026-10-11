@@ -30,6 +30,12 @@ spec:
         - name: postgres
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          {{- with .Values.sharedPreloadLibraries }}
+          # pg_stat_statements must be preloaded or it records nothing (D22).
+          args:
+            - "-c"
+            - "shared_preload_libraries={{ join "," . }}"
+          {{- end }}
           securityContext:
             {{- include "vardiya.containerSecurityContext" (dict) | nindent 12 }}
           ports:
