@@ -140,6 +140,10 @@ postgres:
   extensions:
     - uuid-ossp
     - pgcrypto
+  # Preloaded at server start (defect D22). pg_stat_statements is created by
+  # migration 20260714000001 but collects nothing unless it is listed here.
+  sharedPreloadLibraries:
+    - pg_stat_statements
 
 pgbouncer:
   enabled: true

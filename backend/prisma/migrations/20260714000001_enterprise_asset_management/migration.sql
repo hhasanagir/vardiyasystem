@@ -1,17 +1,21 @@
 -- CreateExtension
-CREATE EXTENSION IF NOT EXISTS "btree_gin";
+-- WITH SCHEMA public on every extension (defect D18): the extension object must
+-- live in a known schema, otherwise the unqualified `CREATE EXTENSION IF NOT
+-- EXISTS` skips on a database whose search_path excludes `public` and later
+-- unqualified type references fail.
+CREATE EXTENSION IF NOT EXISTS "btree_gin" WITH SCHEMA public;
 
 -- CreateExtension
-CREATE EXTENSION IF NOT EXISTS "citext";
+CREATE EXTENSION IF NOT EXISTS "citext" WITH SCHEMA public;
 
 -- CreateExtension
-CREATE EXTENSION IF NOT EXISTS "ltree";
+CREATE EXTENSION IF NOT EXISTS "ltree" WITH SCHEMA public;
 
 -- CreateExtension
-CREATE EXTENSION IF NOT EXISTS "pg_stat_statements";
+CREATE EXTENSION IF NOT EXISTS "pg_stat_statements" WITH SCHEMA public;
 
 -- CreateExtension
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA public;
 
 -- CreateEnum
 CREATE TYPE "DutyRosterRole" AS ENUM ('sorumlu_tekniker', 'tekniker', 'yardimci_tekniker', 'supervisor', 'radyolog');

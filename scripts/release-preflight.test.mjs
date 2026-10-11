@@ -274,7 +274,7 @@ test("a consistent repository passes every check", () => {
       failed.map((f) => `${f.id}: ${f.failures.join("; ")}`),
       [],
     );
-    assert.equal(results.length, 19);
+    assert.equal(results.length, 21);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -656,6 +656,94 @@ test("postgres-version-aligned: no pinned postgres anywhere is caught", () => {
     const failures = failsOn(root, "postgres-version-aligned");
     assert.ok(failures.length > 0);
     assert.match(failures.join(), /postgres/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("migrations-schema-qualified: an unqualified ltree reference is caught", () => {
+  const root = makeFixture({
+    "backend/prisma/migrations/20260101000000_x/migration.sql":
+      'ALTER TABLE "roles" ADD COLUMN "path" ltree;\n',
+  });
+  try {
+    assert.match(
+      failsOn(root, "migrations-schema-qualified").join(),
+      /unqualified ltree/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("migrations-schema-qualified: a CREATE EXTENSION without WITH SCHEMA is caught", () => {
+  const root = makeFixture({
+    "backend/prisma/migrations/20260101000000_x/migration.sql":
+      'CREATE EXTENSION IF NOT EXISTS "ltree";\n',
+  });
+  try {
+    assert.match(
+      failsOn(root, "migrations-schema-qualified").join(),
+      /missing WITH SCHEMA/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("migrations-schema-qualified: a fully schema-qualified migration passes", () => {
+  const root = makeFixture({
+    "backend/prisma/migrations/20260101000000_x/migration.sql":
+      'CREATE EXTENSION IF NOT EXISTS ltree WITH SCHEMA public;\nALTER TABLE "roles" ADD COLUMN "path" public.ltree;\nUPDATE roles SET path = public.text2ltree(name::text);\n',
+  });
+  try {
+    assert.deepEqual(failsOn(root, "migrations-schema-qualified"), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+const preloadedFixture = {
+  "backend/prisma/migrations/20260101000000_x/migration.sql":
+    'CREATE EXTENSION IF NOT EXISTS "pg_stat_statements" WITH SCHEMA public;\n',
+  "docker-compose.yml":
+    'services:\n  postgres:\n    image: postgres:15-alpine\n    command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements"]\n',
+  "docker-compose.prod.yml":
+    'services:\n  postgres:\n    image: postgres:15-alpine\n    command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements"]\n',
+  "infra/helm/vardiya-platform/values.yaml": [
+    "postgres:",
+    '  version: "15"',
+    "  image:",
+    "    repository: postgres",
+    "    tag: 15-alpine",
+    "  sharedPreloadLibraries:",
+    "    - pg_stat_statements",
+    "",
+  ].join("\n"),
+  "infra/helm/vardiya-platform/charts/postgres/templates/statefulset.yaml":
+    'args:\n  - "shared_preload_libraries={{ join \",\" .Values.sharedPreloadLibraries }}"\n',
+};
+
+test("pg-stat-statements-preload: a preloaded stack passes", () => {
+  const root = makeFixture(preloadedFixture);
+  try {
+    assert.deepEqual(failsOn(root, "pg-stat-statements-preload"), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("pg-stat-statements-preload: a compose layer without the preload is caught", () => {
+  const root = makeFixture({
+    ...preloadedFixture,
+    "docker-compose.prod.yml":
+      "services:\n  postgres:\n    image: postgres:15-alpine\n",
+  });
+  try {
+    assert.match(
+      failsOn(root, "pg-stat-statements-preload").join(),
+      /docker-compose\.prod\.yml does not set shared_preload_libraries/,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

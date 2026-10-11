@@ -728,6 +728,101 @@ const CHECKS = [
     },
   ),
 
+  check(
+    "migrations-schema-qualified",
+    "Migrations do not depend on search_path (D18)",
+    (root) => {
+      // D18: an unqualified CREATE EXTENSION installs into whatever search_path
+      // resolves to and an unqualified `ltree` type reference then fails on any
+      // deploy not pinned to `public`. Both must be schema-qualified.
+      const failures = [];
+      const files = listFiles(root, "backend/prisma/migrations").filter((f) =>
+        f.endsWith(".sql"),
+      );
+      for (const f of files) {
+        stripBom(read(root, f))
+          .split(/\r?\n/)
+          .forEach((raw, idx) => {
+            const line = raw.replace(/--.*$/, "");
+            if (/CREATE EXTENSION IF NOT EXISTS/i.test(line)) {
+              if (!/WITH SCHEMA/i.test(line)) {
+                failures.push(
+                  `${f}:${idx + 1} CREATE EXTENSION is missing WITH SCHEMA`,
+                );
+              }
+              return;
+            }
+            const m = /(?<!public\.)\b(ltree|text2ltree|lquery)\b/.exec(line);
+            if (m) {
+              failures.push(
+                `${f}:${idx + 1} unqualified ${m[1]}; use public.${m[1]}`,
+              );
+            }
+          });
+      }
+      return failures;
+    },
+  ),
+
+  check(
+    "pg-stat-statements-preload",
+    "pg_stat_statements is preloaded on every Postgres layer",
+    (root) => {
+      // D22: the extension is created by a migration but collects nothing unless
+      // it is in shared_preload_libraries at server start.
+      const failures = [];
+      const creates = listFiles(root, "backend/prisma/migrations")
+        .filter((f) => f.endsWith(".sql"))
+        .some((f) =>
+          /CREATE EXTENSION IF NOT EXISTS\s+"?pg_stat_statements"?/.test(
+            stripBom(read(root, f)),
+          ),
+        );
+      if (!creates) return [];
+
+      for (const rel of ["docker-compose.yml", "docker-compose.prod.yml"]) {
+        if (!has(root, rel)) {
+          failures.push(`${rel} is missing`);
+        } else if (
+          !/shared_preload_libraries=pg_stat_statements/.test(
+            stripBom(read(root, rel)),
+          )
+        ) {
+          failures.push(
+            `${rel} does not set shared_preload_libraries=pg_stat_statements`,
+          );
+        }
+      }
+
+      const helmValues = "infra/helm/vardiya-platform/values.yaml";
+      const helmStatefulset =
+        "infra/helm/vardiya-platform/charts/postgres/templates/statefulset.yaml";
+      if (!has(root, helmValues)) {
+        failures.push(`${helmValues} is missing`);
+      } else {
+        const block = yamlBlock(stripBom(read(root, helmValues)), "postgres");
+        if (
+          !block ||
+          !/sharedPreloadLibraries/.test(block) ||
+          !/pg_stat_statements/.test(block)
+        ) {
+          failures.push(
+            `${helmValues} postgres block lacks sharedPreloadLibraries with pg_stat_statements`,
+          );
+        }
+      }
+      if (
+        !has(root, helmStatefulset) ||
+        !/sharedPreloadLibraries/.test(stripBom(read(root, helmStatefulset)))
+      ) {
+        failures.push(
+          `${helmStatefulset} does not render sharedPreloadLibraries`,
+        );
+      }
+      return failures;
+    },
+  ),
+
   check("source-files-nonempty", "Source files are not empty", (root) => {
     const failures = [];
     const sourceDirs = ["frontend/src", "backend/src", "e2e", "scripts"];
