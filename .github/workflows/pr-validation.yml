@@ -31,36 +31,39 @@ env:
   PRISMA_STUB_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
 
 jobs:
-  lint-typecheck:
-    name: Lint & Type Check
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        workspace: [backend, frontend]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: ${{ matrix.workspace }}/package-lock.json
-      - run: npm ci
-        working-directory: ${{ matrix.workspace }}
-      - name: Lint
-        run: npm run lint
-        working-directory: ${{ matrix.workspace }}
-      - name: Type check
-        run: npm run typecheck
-        working-directory: ${{ matrix.workspace }}
+   lint-typecheck:
+     name: Lint & Type Check
+     runs-on: ubuntu-24.04
++    if: ${{ !cancelled() }}
+     strategy:
+       fail-fast: false
+       matrix:
+         workspace: [backend, frontend]
+     steps:
+       - uses: actions/checkout@v4
+       - uses: actions/setup-node@v4
+         with:
+           node-version: ${{ env.NODE_VERSION }}
+           cache: 'npm'
+           cache-dependency-path: ${{ matrix.workspace }}/package-lock.json
+       - run: npm ci
+         working-directory: ${{ matrix.workspace }}
+       - name: Lint
+         run: npm run lint
+         working-directory: ${{ matrix.workspace }}
+       - name: Type check
+         run: npm run typecheck
+         working-directory: ${{ matrix.workspace }}
 
-  unit-tests:
-    name: Unit Tests
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        workspace: [backend, frontend]
+   unit-tests:
+     name: Unit Tests
+     runs-on: ubuntu-24.04
++    needs: [lint-typecheck]
++    if: ${{ !cancelled() && needs.lint-typecheck.result == 'success' }}
+     strategy:
+       fail-fast: false
+       matrix:
+         workspace: [backend, frontend]
     services:
       postgres:
         image: postgres:15-alpine
@@ -149,15 +152,17 @@ jobs:
           JWT_ACCESS_TOKEN_SECRET: ${{ env.JWT_ACCESS_TOKEN_SECRET }}
           JWT_REFRESH_TOKEN_SECRET: ${{ env.JWT_REFRESH_TOKEN_SECRET }}
 
-  coverage:
-    # Reported, not enforced: the backend vitest config carries 80% thresholds
-    # that this tree does not meet yet, and the frontend has no coverage
-    # provider installed. Track it; do not let it silently gate a release.
-    name: Coverage Report (advisory)
-    runs-on: ubuntu-24.04
-    continue-on-error: true
-    services:
-      postgres:
+   coverage:
+     # Reported, not enforced: the backend vitest config carries 80% thresholds
+     # that this tree does not meet yet, and the frontend has no coverage
+     # provider installed. Track it; do not let it silently gate a release.
+     name: Coverage Report (advisory)
+     runs-on: ubuntu-24.04
++    needs: [unit-tests]
++    if: ${{ !cancelled() && needs.unit-tests.result == 'success' }}
+     continue-on-error: true
+     services:
+       postgres:
         image: postgres:15-alpine
         env:
           POSTGRES_USER: ${{ env.DB_USER }}
@@ -219,13 +224,15 @@ jobs:
           name: backend-coverage
           fail_ci_if_error: false
 
-  build-check:
-    name: Build Check
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        workspace: [backend, frontend]
+   build-check:
+     name: Build Check
+     runs-on: ubuntu-24.04
++    needs: [unit-tests, backend-e2e]
++    if: ${{ !cancelled() && needs.unit-tests.result == 'success' && needs.backend-e2e.result == 'success' }}
+     strategy:
+       fail-fast: false
+       matrix:
+         workspace: [backend, frontend]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -249,11 +256,13 @@ jobs:
           JWT_ACCESS_TOKEN_SECRET: ${{ env.JWT_ACCESS_TOKEN_SECRET }}
           JWT_REFRESH_TOKEN_SECRET: ${{ env.JWT_REFRESH_TOKEN_SECRET }}
 
-  backend-e2e:
-    name: Backend E2E
-    runs-on: ubuntu-24.04
-    services:
-      postgres:
+   backend-e2e:
+     name: Backend E2E
+     runs-on: ubuntu-24.04
++    needs: [unit-tests]
++    if: ${{ !cancelled() && needs.unit-tests.result == 'success' }}
+     services:
+       postgres:
         image: postgres:15-alpine
         env:
           POSTGRES_USER: ${{ env.DB_USER }}
@@ -316,13 +325,15 @@ jobs:
           JWT_REFRESH_TOKEN_SECRET: ${{ env.JWT_REFRESH_TOKEN_SECRET }}
           NODE_ENV: test
 
-  browser-acceptance:
-    # The real browser gate: the compiled Nest API plus the Angular dev server,
-    # both started by playwright.config.ts (CI never reuses a running server).
-    name: Browser Acceptance
-    runs-on: ubuntu-24.04
-    services:
-      postgres:
+   browser-acceptance:
+     # The real browser gate: the compiled Nest API plus the Angular dev server,
+     # both started by playwright.config.ts (CI never reuses a running server).
+     name: Browser Acceptance
+     runs-on: ubuntu-24.04
++    needs: [build-check]
++    if: ${{ !cancelled() && needs.build-check.result == 'success' }}
+     services:
+       postgres:
         image: postgres:15-alpine
         env:
           POSTGRES_USER: ${{ env.DB_USER }}
@@ -406,7 +417,8 @@ jobs:
   docker-build-validation:
     name: Docker Build Validation
     runs-on: ubuntu-24.04
-    needs: [build-check, lint-typecheck]
+    needs: [build-check]
++    if: ${{ !cancelled() && needs.build-check.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
@@ -546,10 +558,12 @@ jobs:
           esac
           echo "frontend smoke test passed"
 
-  security-scan:
-    name: Security Scan
-    runs-on: ubuntu-24.04
-    steps:
+   security-scan:
+     name: Security Scan
+     runs-on: ubuntu-24.04
++    needs: [lint-typecheck]
++    if: ${{ !cancelled() && needs.lint-typecheck.result == 'success' }}
+     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -600,10 +614,12 @@ jobs:
           fi
           echo "No tracked secret material."
 
-  security-tests:
-    name: Security Invariant Tests
-    runs-on: ubuntu-24.04
-    services:
+   security-tests:
+     name: Security Invariant Tests
+     runs-on: ubuntu-24.04
++    needs: [unit-tests]
++    if: ${{ !cancelled() && needs.unit-tests.result == 'success' }}
+     services:
       postgres:
         image: postgres:15-alpine
         env:
@@ -660,11 +676,13 @@ jobs:
           JWT_REFRESH_TOKEN_SECRET: ${{ env.JWT_REFRESH_TOKEN_SECRET }}
           NODE_ENV: test
 
-  docker-compose-validation:
-    name: Docker Compose Validation
-    runs-on: ubuntu-24.04
-    needs: [docker-build-validation]
-    steps:
+   docker-compose-validation:
+     name: Docker Compose Validation
+     runs-on: ubuntu-24.04
+-    needs: [docker-build-validation]
++    needs: [docker-build-validation, build-check]
++    if: ${{ !cancelled() && needs.docker-build-validation.result == 'success' && needs.build-check.result == 'success' }}
+     steps:
       - uses: actions/checkout@v4
       - name: Create placeholder environment and secret files
         # `config -q` fails on a missing env_file or secret file, so the gate
@@ -723,11 +741,13 @@ jobs:
         # in src. Same reasoning as the preflight suite above.
         run: node --test scripts/lint-staged-typecheck.test.mjs
 
-  manifest-render:
-    name: Manifest Render (Kustomize + Helm)
-    runs-on: ubuntu-24.04
-    needs: [docker-compose-validation]
-    steps:
+   manifest-render:
+     name: Manifest Render (Kustomize + Helm)
+     runs-on: ubuntu-24.04
+-    needs: [docker-compose-validation]
++    needs: [docker-compose-validation, lint-typecheck, unit-tests]
++    if: ${{ !cancelled() && needs.docker-compose-validation.result == 'success' && needs.lint-typecheck.result == 'success' && needs.unit-tests.result == 'success' }}
+     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
