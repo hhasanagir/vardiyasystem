@@ -34,6 +34,7 @@ jobs:
   lint-typecheck:
     name: Lint & Type Check
     runs-on: ubuntu-24.04
+    if: ${{ !cancelled() }}
     strategy:
       fail-fast: false
       matrix:
@@ -57,6 +58,8 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-24.04
+    needs: [lint-typecheck]
+    if: ${{ !cancelled() && needs.lint-typecheck.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
@@ -155,6 +158,8 @@ jobs:
     # provider installed. Track it; do not let it silently gate a release.
     name: Coverage Report (advisory)
     runs-on: ubuntu-24.04
+    needs: [unit-tests]
+    if: ${{ !cancelled() && needs.unit-tests.result == 'success' }}
     continue-on-error: true
     services:
       postgres:
@@ -222,6 +227,8 @@ jobs:
   build-check:
     name: Build Check
     runs-on: ubuntu-24.04
+    needs: [unit-tests, backend-e2e]
+    if: ${{ !cancelled() && needs.unit-tests.result == 'success' && needs.backend-e2e.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
@@ -252,6 +259,8 @@ jobs:
   backend-e2e:
     name: Backend E2E
     runs-on: ubuntu-24.04
+    needs: [unit-tests]
+    if: ${{ !cancelled() && needs.unit-tests.result == 'success' }}
     services:
       postgres:
         image: postgres:15-alpine
@@ -321,6 +330,8 @@ jobs:
     # both started by playwright.config.ts (CI never reuses a running server).
     name: Browser Acceptance
     runs-on: ubuntu-24.04
+    needs: [build-check]
+    if: ${{ !cancelled() && needs.build-check.result == 'success' }}
     services:
       postgres:
         image: postgres:15-alpine
@@ -407,6 +418,7 @@ jobs:
     name: Docker Build Validation
     runs-on: ubuntu-24.04
     needs: [build-check, lint-typecheck]
+    if: ${{ !cancelled() && needs.build-check.result == 'success' && needs.lint-typecheck.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
@@ -549,6 +561,8 @@ jobs:
   security-scan:
     name: Security Scan
     runs-on: ubuntu-24.04
+    needs: [lint-typecheck]
+    if: ${{ !cancelled() && needs.lint-typecheck.result == 'success' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -603,6 +617,8 @@ jobs:
   security-tests:
     name: Security Invariant Tests
     runs-on: ubuntu-24.04
+    needs: [unit-tests]
+    if: ${{ !cancelled() && needs.unit-tests.result == 'success' }}
     services:
       postgres:
         image: postgres:15-alpine
@@ -664,6 +680,7 @@ jobs:
     name: Docker Compose Validation
     runs-on: ubuntu-24.04
     needs: [docker-build-validation]
+    if: ${{ !cancelled() && needs.docker-build-validation.result == 'success' }}
     steps:
       - uses: actions/checkout@v4
       - name: Create placeholder environment and secret files
@@ -727,6 +744,7 @@ jobs:
     name: Manifest Render (Kustomize + Helm)
     runs-on: ubuntu-24.04
     needs: [docker-compose-validation]
+    if: ${{ !cancelled() && needs.docker-compose-validation.result == 'success' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

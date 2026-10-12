@@ -2,7 +2,10 @@ name: Production Deployment
 run-name: "Deploy ${{ github.sha }} to production"
 
 on:
-  push:
+  workflow_run:
+    workflows: ["PR Validation"]
+    types:
+      - completed
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -26,6 +29,7 @@ jobs:
   validate:
     name: Pre-Deploy Validation
     runs-on: ubuntu-24.04
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
     outputs:
       version: ${{ steps.version.outputs.version }}
     strategy:
@@ -375,7 +379,7 @@ jobs:
         with:
           tag_name: v${{ steps.version.outputs.version }}-${{ github.sha }}
           name: "Release v${{ steps.version.outputs.version }}"
-          draft: false
-          prerelease: false
+          draft: true
+          prerelease: true
           generate_release_notes: true
           target_commitish: ${{ github.sha }}
