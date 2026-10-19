@@ -1,10 +1,12 @@
 name: PR Validation
-run-name: "PR #${{ github.event.pull_request.number }} — ${{ github.event.pull_request.title }}"
+run-name: "${{ github.event_name == 'pull_request' && format('PR #{0} — {1}', github.event.pull_request.number, github.event.pull_request.title) || format('main {0}', github.sha) }}"
 
 on:
   pull_request:
     branches: [main, develop]
     types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
 
 concurrency:
   group: pr-${{ github.event.pull_request.number || github.ref }}
@@ -458,7 +460,7 @@ jobs:
           # Without load: true buildx only caches the image and `docker run`
           # finds nothing. The smoke steps below cannot exist without it.
           load: true
-          tags: vardiya/${{ matrix.service }}:pr-${{ github.event.pull_request.number }}
+          tags: vardiya/${{ matrix.service }}:pr-${{ github.event.pull_request.number || github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Smoke test backend image
@@ -474,7 +476,7 @@ jobs:
         timeout-minutes: 10
         run: |
           set -euo pipefail
-          IMAGE="vardiya/backend:pr-${{ github.event.pull_request.number }}"
+          IMAGE="vardiya/backend:pr-${{ github.event.pull_request.number || github.sha }}"
           # Throwaway smoke literals only. Production meaning comes from the
           # strong-secret checks in backend/src/config/env.config.ts; these are
           # never the deployment values.
@@ -523,7 +525,7 @@ jobs:
         timeout-minutes: 10
         run: |
           set -euo pipefail
-          IMAGE="vardiya/frontend:pr-${{ github.event.pull_request.number }}"
+          IMAGE="vardiya/frontend:pr-${{ github.event.pull_request.number || github.sha }}"
           docker run -d --name smoke-frontend \
             --add-host backend:127.0.0.1 \
             -p 8080:80 \
