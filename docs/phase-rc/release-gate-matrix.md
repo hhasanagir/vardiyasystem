@@ -157,8 +157,8 @@ legitimately. The high-severity backlog is real and unenforced:
 <!-- prettier-ignore -->
 | Workspace | Total | Low | Moderate | High | Critical |
 |---|---|---|---|---|---|
-| backend | 76 | 4 | 41 | 31 | 0 |
-| frontend | 45 | 5 | 15 | 25 | 0 |
+| backend | 52 | 4 | 42 | 6 | 0 |
+| frontend | 3 | 0 | 3 | 0 | 0 |
 
 Backend high-severity packages are mostly build tooling (`@nestjs/cli`, `@angular-devkit/core`,
 `vite`, `chokidar`, `fork-ts-checker-webpack-plugin`, `js-yaml`, `lodash`, `postcss`) with a
@@ -167,12 +167,50 @@ runtime subset (`joi`, `compression`, `multer`, `@nestjs/platform-express`, `fas
 (`@angular/common|core|router|service-worker|compiler`).
 
 **Finding D31 — `npm audit fix` / `npm update` crash with `Cannot read properties of null
-(reading 'edgesOut')`.** Reproduced in `frontend/` on npm `9.9.4` (Node 22) and on `npm@10.9.9`;
-`npm install --package-lock-only` succeeds, so the tree resolves — only the Arborist
-re-resolution path used by `audit fix`/`update` crashes. The `overrides`
-(`piscina@5.3.2`, `tar@7.5.22`) are the likely trigger. This blocks the "safe, in-range"
-remediation route; a dedicated dependency PR (explicit `overrides` bumps or major upgrades, each
-verified by build + unit + e2e) is required instead of blind `audit fix`.
+(reading 'edgesOut')`.** Reproduced in `frontend/` on npm `9.9.4` (Node 22) and on `npm@10.9.9`.
+The crash is emitted by the Arborist re-resolution path (`audit fix` / `npm update`, and even a
+plain `npm install`) and is **not** caused by the project's `overrides`: it reproduces on the
+pristine pre-change tree as well. It is a bug in the npm versions bundled with Node 20/22 at the
+time of writing. `npm install --legacy-peer-deps` and `npm install` under `npm@11` both succeed.
+
+**Remediated in-range (`fix/d31-frontend-transitive-security`).** The mandated route (explicit
+`overrides` bumps, verified by build + unit + e2e) was applied to every advisory whose fix is
+in-range:
+
+- **Frontend:** Angular runtime/tooling bumped to the patched 21.2.x line
+  (`@angular/common|compiler|core|forms|platform-browser|router|service-worker` → `^21.2.25`,
+  `@angular/build|cli` → `^21.2.27`, `@angular/cdk` → `^21.2.14`), plus `overrides` for the
+  18 transitive packages (`@modelcontextprotocol/sdk`, `@xmldom/xmldom`, `brace-expansion`,
+  `browserslist`, `fast-uri`, `hono`, `http-cache-semantics`, `immutable`, `ip-address`,
+  `js-yaml`, `nanoid`, `pacote`, `postcss`, `sigstore`, `socket.io-parser`, `source-map-js`,
+  `undici`, `vite`, `ws`). Audit highs: **25 → 0** (3 moderate remain).
+- **Backend:** `compression`/`joi` bumped directly (`^1.8.2` / `^18.3.0`) and `overrides` added
+  for 20 transitive packages (`@fastify/busboy`, `@grpc/grpc-js`,
+  `@opentelemetry/propagator-jaeger`, `brace-expansion`, `browserslist`, `engine.io`,
+  `fast-uri`, `form-data`, `glob@10`, `js-yaml`, `lodash`, `multer`, `nanoid`, `picomatch`,
+  `postcss`, `socket.io-parser`, `source-map-js`, `vite`, `ws`). Audit highs: **31 → 6**
+  (the 6 residual highs all chain off `@nestjs/cli`/`@nestjs/platform-express`/`@nestjs/swagger`/
+  `@opentelemetry/*` and need major upgrades — tracked as a follow-up PR).
+
+The lockfiles were updated with `npm@11` (they remain `lockfileVersion: 3`, so the Node 20 /
+`npm@10` CI's plain `npm ci` installs them unmodified — verified for both workspaces), and each
+workspace was re-verified with plain `npm ci` + `typecheck` + `build` + `lint` + unit tests
+(frontend 76 pass, backend 557 pass).
+
+**Lockfile mechanics (and a trap avoided).** The backend lockfile was updated **incrementally**
+(`npm install --package-lock-only` from the previous lockfile) so only the targeted packages move.
+A from-scratch re-resolve floated ~215 transitive packages to newer in-range versions, silently
+bumping `bullmq` and its `msgpackr` serializer (2.0.2 → 2.0.5) and breaking event delivery — the
+`Backend E2E` suite failed with `event.timestamp.getTime is not a function` because the queued
+`DomainEvent.timestamp` came back as a string. The incremental update keeps `bullmq`/`msgpackr`
+(and `debug`, `qs`, etc.) pinned, so only the security-relevant packages change. The frontend,
+which has no such queue/serialization surface, was re-resolved cleanly (Angular's strict peer
+pinning cannot be satisfied incrementally); it passed `npm ci` + build + lint + 76 unit tests.
+
+**Residual majors (follow-up PR).** The remaining backend highs (`@nestjs/cli`,
+`@nestjs/platform-express`, `@nestjs/swagger`, `@opentelemetry/sdk-node`,
+`@opentelemetry/auto-instrumentations-node`, `glob`/`chokidar`/`braces`/`picomatch`/`tmp`
+chains) require major-version upgrades and stay open here.
 
 **Finding D32 — deploy `Build & Push Images` fails manifest verification.**
 The `main` push also triggered `deploy.yml`
@@ -278,21 +316,21 @@ hit depends on runner timing, which is why the gate was intermittently red.
 **Remediated (`fix/restore-check-startup-race`).** The readiness loop now requires the connection to
 stay up across a two-second settle window before restoring, so it can only break on the real server.
 
-| ID  | Defect                                                             | Impact                                                                                                                                                                                   | Status (2026-10-07)                                                                                              |
-| --- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| D1  | `ENCRYPTION_MASTER_KEY` absent from all 11 jobs                    | `backend-e2e` and `browser-acceptance` cannot boot the Nest API                                                                                                                          | **FIXED** `5ac97d5` — added to the workflow `env:` as a test-only literal                                        |
-| D2  | `DATABASE_DIRECT_URL` absent from the workflow `env:`              | `Validate Prisma schema` exits 1 (`P1012`)                                                                                                                                               | **FIXED** `5ac97d5` — same block; covers all six validate/migrate steps                                          |
-| D3  | `e2e/playwright.config.ts` does not exist                          | `browser-acceptance` fails all 57 tests                                                                                                                                                  | **FIXED** `e6cf05e` — config written; suite now measures 28/57                                                   |
-| D4  | `docker-compose-validation` placeholder `.env` incomplete          | Both `config -q` steps fail; `manifest-render` never runs                                                                                                                                | **FIXED** `b672483` — full placeholder env + secret files + `backend/.env`; gate 17, 18 unblocked                |
-| D5  | Frontend image serves the nginx base-image page                    | The shipped SPA is never served; image still reports healthy                                                                                                                             | **CLOSED** — see gate 29                                                                                         |
-| D31 | `npm audit fix` / `npm update` crash on `null.read('edgesOut')`    | No safe in-range dependency remediation; 56 high advisories stay open                                                                                                                    | **OPEN** — reproducible on npm 9.9.4 and 10.9.9; see [Dependency advisories](#dependency-advisories-gates-14-27) |
-| D32 | deploy `Build & Push Images` fails manifest verification           | `main` push cannot publish an image; `Integration Test` and `Create GitHub Release` skipped                                                                                              | **FIXED** — GHCR URL lacked `/v2/` and used a non-registry token; now `docker buildx imagetools inspect`         |
-| D33 | `LOG_LEVEL` vocabulary inconsistent (schema vs winston vs values)  | `LOG_LEVEL=info` (configmap/prod-compose/CI) crashes at boot; `log` (Helm/dev-compose) silently logs nothing                                                                             | **FIXED** — schema + values standardised on `info`                                                               |
-| D34 | deploy "backup and restore round trip" writes an un-gzipped dump   | `Integration Test` fails at the restore check (`gunzip: invalid magic`); `Create GitHub Release` skipped                                                                                 | **FIXED** — dump now `gzip -9`-wrapped like `backup-db.sh`                                                       |
-| D35 | `Create GitHub Release` aborts resolving tags on the first release | No release is ever published (changelog builder needs a prior tag)                                                                                                                       | **FIXED** — native `generate_release_notes` replaces the tag-diffing action                                      |
-| D36 | restore-check races the scratch Postgres init (temp server)        | `Integration Test` intermittently fails (`server closed the connection unexpectedly`); `Create GitHub Release` skipped                                                                   | **FIXED** — readiness loop now requires a 2s settle window before `pg_restore`                                   |
-| D37 | `gitleaks-action@v2` rejects the `workflow_run` event              | D24 chains `deploy.yml` off PR Validation via `workflow_run`; gitleaks action fails (`The [workflow_run] event is not yet supported`), failing `Security Scan` and blocking every deploy | **FIXED** — pinned gitleaks CLI replaces the action in `deploy.yml`                                              |
-| D38 | edge-routing check fails on `curl \| grep -q` under `pipefail`     | `Integration Test` fails at `Verify edge routing through nginx` (exit 23); `Create GitHub Release` skipped, no deploy completes                                                          | **FIXED** — capture each body first, then match, in `deploy.yml`                                                 |
+| ID  | Defect                                                             | Impact                                                                                                                                                                                   | Status (2026-10-07)                                                                                                                                                                                                                                |
+| --- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | `ENCRYPTION_MASTER_KEY` absent from all 11 jobs                    | `backend-e2e` and `browser-acceptance` cannot boot the Nest API                                                                                                                          | **FIXED** `5ac97d5` — added to the workflow `env:` as a test-only literal                                                                                                                                                                          |
+| D2  | `DATABASE_DIRECT_URL` absent from the workflow `env:`              | `Validate Prisma schema` exits 1 (`P1012`)                                                                                                                                               | **FIXED** `5ac97d5` — same block; covers all six validate/migrate steps                                                                                                                                                                            |
+| D3  | `e2e/playwright.config.ts` does not exist                          | `browser-acceptance` fails all 57 tests                                                                                                                                                  | **FIXED** `e6cf05e` — config written; suite now measures 28/57                                                                                                                                                                                     |
+| D4  | `docker-compose-validation` placeholder `.env` incomplete          | Both `config -q` steps fail; `manifest-render` never runs                                                                                                                                | **FIXED** `b672483` — full placeholder env + secret files + `backend/.env`; gate 17, 18 unblocked                                                                                                                                                  |
+| D5  | Frontend image serves the nginx base-image page                    | The shipped SPA is never served; image still reports healthy                                                                                                                             | **CLOSED** — see gate 29                                                                                                                                                                                                                           |
+| D31 | `npm audit fix` / `npm update` crash on `null.read('edgesOut')`    | No safe in-range dependency remediation; 56 high advisories stay open                                                                                                                    | **FIXED (in-range)** — highs frontend 25→0, backend 31→6; 6 residual backend highs need major upgrades (follow-up PR); lockfiles regenerated with npm 11, plain `npm ci` verified; see [Dependency advisories](#dependency-advisories-gates-14-27) |
+| D32 | deploy `Build & Push Images` fails manifest verification           | `main` push cannot publish an image; `Integration Test` and `Create GitHub Release` skipped                                                                                              | **FIXED** — GHCR URL lacked `/v2/` and used a non-registry token; now `docker buildx imagetools inspect`                                                                                                                                           |
+| D33 | `LOG_LEVEL` vocabulary inconsistent (schema vs winston vs values)  | `LOG_LEVEL=info` (configmap/prod-compose/CI) crashes at boot; `log` (Helm/dev-compose) silently logs nothing                                                                             | **FIXED** — schema + values standardised on `info`                                                                                                                                                                                                 |
+| D34 | deploy "backup and restore round trip" writes an un-gzipped dump   | `Integration Test` fails at the restore check (`gunzip: invalid magic`); `Create GitHub Release` skipped                                                                                 | **FIXED** — dump now `gzip -9`-wrapped like `backup-db.sh`                                                                                                                                                                                         |
+| D35 | `Create GitHub Release` aborts resolving tags on the first release | No release is ever published (changelog builder needs a prior tag)                                                                                                                       | **FIXED** — native `generate_release_notes` replaces the tag-diffing action                                                                                                                                                                        |
+| D36 | restore-check races the scratch Postgres init (temp server)        | `Integration Test` intermittently fails (`server closed the connection unexpectedly`); `Create GitHub Release` skipped                                                                   | **FIXED** — readiness loop now requires a 2s settle window before `pg_restore`                                                                                                                                                                     |
+| D37 | `gitleaks-action@v2` rejects the `workflow_run` event              | D24 chains `deploy.yml` off PR Validation via `workflow_run`; gitleaks action fails (`The [workflow_run] event is not yet supported`), failing `Security Scan` and blocking every deploy | **FIXED** — pinned gitleaks CLI replaces the action in `deploy.yml`                                                                                                                                                                                |
+| D38 | edge-routing check fails on `curl \| grep -q` under `pipefail`     | `Integration Test` fails at `Verify edge routing through nginx` (exit 23); `Create GitHub Release` skipped, no deploy completes                                                          | **FIXED** — capture each body first, then match, in `deploy.yml`                                                                                                                                                                                   |
 
 Helm and Kubernetes validation added eight further defects, D6-D13, all recorded with root cause
 and remediation in the Helm section below. The two that would corrupt production data if shipped:
