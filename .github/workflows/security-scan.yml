@@ -22,7 +22,7 @@ jobs:
       matrix:
         workspace: [backend, frontend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -42,7 +42,7 @@ jobs:
     name: Secret Leak Detection
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Gitleaks full scan
@@ -60,7 +60,7 @@ jobs:
     permissions:
       security-events: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: CodeQL Initialization
         uses: github/codeql-action/init@v3
         with:
@@ -75,7 +75,7 @@ jobs:
     name: SBOM Generation
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Generate SPDX SBOM
         uses: anchore/sbom-action@v0
         with:
