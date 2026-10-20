@@ -2,7 +2,7 @@
 # Multi-stage: builder → production
 # Uses distroless-like minimal Node.js image with non-root user
 
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 
 LABEL stage="builder"
 LABEL org.opencontainers.image.description="VardiyaOS Backend — build stage"
@@ -25,7 +25,7 @@ RUN npm run build && \
     rm -rf /root/.npm /tmp/*
 
 # Stage 2: Production
-FROM node:20-alpine
+FROM node:26-alpine
 
 LABEL vendor="VardiyaOS"
 LABEL org.opencontainers.image.title="VardiyaOS Backend"
