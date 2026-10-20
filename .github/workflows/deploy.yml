@@ -329,15 +329,23 @@ jobs:
         # Exercises the real front door: SPA at /, the health endpoint the
         # orchestrator probes, the API under the canonical /api/v1 prefix, and a
         # non-SPA response on the WebSocket path.
+        #
+        # Every body is captured before it is matched. Piping curl straight into
+        # `grep -q` is unsafe here: grep -q exits on the first match and closes
+        # the pipe, so curl dies with SIGPIPE (exit 23) and `set -o pipefail`
+        # fails the step even when the match succeeded. D38.
         run: |
           set -euo pipefail
-          curl -sf http://127.0.0.1/health | grep -q 'ok'
+          body=$(curl -sf http://127.0.0.1/health)
+          echo "$body" | grep -q 'ok'
           echo "frontend /health ok"
-          curl -sf http://127.0.0.1/ | grep -qi '<html'
+          body=$(curl -sf http://127.0.0.1/)
+          echo "$body" | grep -qi '<html'
           echo "SPA served at /"
-          curl -sf http://127.0.0.1/api/v1/health/live | grep -q '"status"'
+          body=$(curl -sf http://127.0.0.1/api/v1/health/live)
+          echo "$body" | grep -q '"status"'
           echo "API proxied at /api/v1"
-          if curl -sf http://127.0.0.1/realtime | grep -qi '<html'; then
+          if body=$(curl -sf http://127.0.0.1/realtime) && echo "$body" | grep -qi '<html'; then
             echo "::error::/realtime fell through to the SPA"
             exit 1
           fi
