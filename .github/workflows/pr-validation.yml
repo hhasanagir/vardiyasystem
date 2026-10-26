@@ -219,7 +219,7 @@ jobs:
           JWT_ACCESS_TOKEN_SECRET: ${{ env.JWT_ACCESS_TOKEN_SECRET }}
           JWT_REFRESH_TOKEN_SECRET: ${{ env.JWT_REFRESH_TOKEN_SECRET }}
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           files: ./backend/coverage/coverage-final.json
           flags: backend-unittests
