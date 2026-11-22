@@ -16,34 +16,19 @@ async function main() {
     process.exit(1);
   }
 
-  const rontgenUnit = await prisma.unit.findFirst({
-    where: { type: 'rontgen' },
-  });
+  const rontgenUnit = await prisma.unit.findFirst({ where: { type: 'rontgen' } });
   if (!rontgenUnit) {
     console.error('Röntgen unit not found. Run the seed first.');
     process.exit(1);
   }
 
-  const stats = await applyRadiologyMasterConfig(
-    prisma,
-    org.id,
-    btUnit.id,
-    rontgenUnit.id,
-  );
-  console.log(
-    `Radiology (BT+Röntgen) master config applied: created=${stats.created}, updated=${stats.updated}, deactivated=${stats.deactivated}`,
-  );
+  const stats = await applyRadiologyMasterConfig(prisma, org.id, btUnit.id, rontgenUnit.id);
+  console.log(`Radiology (BT+Röntgen) master config applied: created=${stats.created}, updated=${stats.updated}, deactivated=${stats.deactivated}`);
 
   const devices = await prisma.device.findMany({
     where: { unitId: { in: [btUnit.id, rontgenUnit.id] } },
     orderBy: { code: 'asc' },
-    select: {
-      code: true,
-      name: true,
-      blockCode: true,
-      mode: true,
-      isMaster: true,
-    },
+    select: { code: true, name: true, blockCode: true, mode: true, isMaster: true },
   });
   console.table(devices);
 }

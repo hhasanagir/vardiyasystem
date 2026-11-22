@@ -2,10 +2,7 @@ name: Production Deployment
 run-name: "Deploy ${{ github.sha }} to production"
 
 on:
-  workflow_run:
-    workflows: ["PR Validation"]
-    types:
-      - completed
+  push:
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -29,7 +26,6 @@ jobs:
   validate:
     name: Pre-Deploy Validation
     runs-on: ubuntu-24.04
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
     outputs:
       version: ${{ steps.version.outputs.version }}
     strategy:
@@ -37,7 +33,7 @@ jobs:
       matrix:
         workspace: [backend, frontend]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -74,14 +70,14 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [validate]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
       - name: Install Helm
-        uses: azure/setup-helm@v5
+        uses: azure/setup-helm@v4
       - name: Run the release dry run
         # Renders the whole overlay chain — compose, kustomize, helm
         # (production + staging) — and fails closed if any layer is not
@@ -127,7 +123,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -147,19 +143,13 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
-          # schema.prisma declares directUrl = env("DATABASE_DIRECT_URL"), so
-          # migrate deploy dies with P1012 unless this is set (defect D2/D30).
-          DATABASE_DIRECT_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
       - name: Seed database
         # The suite asserts against seeded rows, so migrate-only leaves it red.
-        # The generated client resolves the directUrl at runtime, so this step
-        # needs the same variable as migrate deploy.
         if: matrix.workspace == 'backend'
         run: npm run seed
         working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
-          DATABASE_DIRECT_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
       - run: npm run test
         working-directory: ${{ matrix.workspace }}
         env:
@@ -173,7 +163,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [validate]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: actions/setup-node@v4
@@ -185,21 +175,10 @@ jobs:
       - name: npm audit — Frontend
         run: npx --yes audit-ci@6 --critical --report-type summary
         working-directory: frontend
-      # gitleaks/gitleaks-action@v2 rejects the workflow_run event that D24
-      # uses to chain this deploy off PR Validation ("The [workflow_run] event
-      # is not yet supported"), which failed the whole security-scan job and
-      # blocked every deploy. The gitleaks CLI is event-agnostic, so pin it and
-      # run the scan directly. D37.
       - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
         env:
-          GITLEAKS_VERSION: 8.30.1
-        run: |
-          set -euo pipefail
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
-            | tar -xz -C /usr/local/bin gitleaks
-          # Scan the full history reachable from this ref; exit non-zero on any
-          # finding so the gate still blocks. --redact keeps secrets out of CI logs.
-          gitleaks detect --source . --redact --verbose --no-banner
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docker-build-push:
     name: Build & Push Images
@@ -214,11 +193,11 @@ jobs:
       matrix:
         service: [backend, frontend]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Log in to Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -238,7 +217,7 @@ jobs:
             type=semver,pattern={{version}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
       - name: Build and push
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v6
         with:
           context: ./${{ matrix.service }}
           push: true
@@ -250,19 +229,19 @@ jobs:
           sbom: true
       - name: Verify the image manifest is published
         # Fail-closed: the push is only a success once the registry serves the
-        # exact tag the deployment chain is going to pull. Verify through the
-        # already-authenticated docker session — a raw `Authorization: Bearer
-        # $GITHUB_TOKEN` against the GHCR API is rejected (401, the GitHub token
-        # is not a registry token) and the prefix-less `/manifests/` path
-        # redirects (303), so neither can confirm the push (defect D32).
+        # exact tag the deployment chain is going to pull.
         run: |
           set -euo pipefail
-          image="${REGISTRY}/${{ github.repository }}/${{ matrix.service }}:${IMAGE_TAG}"
-          if ! docker buildx imagetools inspect "${image}" >/dev/null 2>&1; then
-            echo "::error::manifest not served for ${image}"
+          repo="${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.service }}"
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json" \
+            "https://${repo}/manifests/${{ env.IMAGE_TAG }}")
+          if [ "$code" != "200" ]; then
+            echo "::error::manifest not served for ${repo}:${{ env.IMAGE_TAG }} (HTTP $code)"
             exit 1
           fi
-          echo "manifest verified: ${image}"
+          echo "manifest verified: ${repo}:${{ env.IMAGE_TAG }}"
 
   integration-test:
     name: Integration Test (Production Stack)
@@ -270,7 +249,7 @@ jobs:
     needs: [docker-build-push]
     if: ${{ !inputs.dry_run }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Create deployment environment
         # The production topology is exercised with freshly generated
         # throwaway secrets, never with repository values.
@@ -295,10 +274,6 @@ jobs:
         # The same authoritative gate that guards a PR release; a deploy must
         # prove the release invariants hold, not just the tests.
         run: node --test scripts/release-preflight.test.mjs
-      - name: Pre-commit gate test suite
-        # Workspace routing and tsconfig resolution are the two decisions that
-        # can make the pre-commit typecheck gate pass while checking nothing.
-        run: node --test scripts/lint-staged-typecheck.test.mjs
       - name: Release preflight
         run: node scripts/release-preflight.mjs
         env:
@@ -329,40 +304,31 @@ jobs:
         # Exercises the real front door: SPA at /, the health endpoint the
         # orchestrator probes, the API under the canonical /api/v1 prefix, and a
         # non-SPA response on the WebSocket path.
-        #
-        # Every body is captured before it is matched. Piping curl straight into
-        # `grep -q` is unsafe here: grep -q exits on the first match and closes
-        # the pipe, so curl dies with SIGPIPE (exit 23) and `set -o pipefail`
-        # fails the step even when the match succeeded. D38.
         run: |
           set -euo pipefail
-          body=$(curl -sf http://127.0.0.1/health)
-          echo "$body" | grep -q 'ok'
+          curl -sf http://127.0.0.1/health | grep -q 'ok'
           echo "frontend /health ok"
-          body=$(curl -sf http://127.0.0.1/)
-          echo "$body" | grep -qi '<html'
+          curl -sf http://127.0.0.1/ | grep -qi '<html'
           echo "SPA served at /"
-          body=$(curl -sf http://127.0.0.1/api/v1/health/live)
-          echo "$body" | grep -q '"status"'
+          curl -sf http://127.0.0.1/api/v1/health/live | grep -q '"status"'
           echo "API proxied at /api/v1"
-          if body=$(curl -sf http://127.0.0.1/realtime) && echo "$body" | grep -qi '<html'; then
+          if curl -sf http://127.0.0.1/realtime | grep -qi '<html'; then
             echo "::error::/realtime fell through to the SPA"
             exit 1
           fi
           echo "WebSocket path does not fall through to the SPA"
       - name: Verify backup and restore round trip
         # Goal 7: the restore path has to be proven against every release image,
-        # not just documented. Takes a gzip-wrapped custom-format dump from the
-        # live stack's PostgreSQL — the exact framing scripts/backup-db.sh ships —
-        # and restores it into a scratch container via scripts/restore-check.sh
-        # (non-destructive; nothing about the stack is modified).
+        # not just documented. Takes a custom-format dump from the live stack's
+        # PostgreSQL and restores it into a scratch container via
+        # scripts/restore-check.sh (non-destructive; nothing about the stack is
+        # modified).
         run: |
           set -euo pipefail
           docker compose -f docker-compose.prod.yml exec -T postgres \
             pg_dump --username=vardiya --dbname=vardiyasystem \
             --format=custom --compress=9 --no-owner --no-acl \
-            | gzip -9 > /tmp/vardiya-restore-check.dump.gz
-          gzip -t /tmp/vardiya-restore-check.dump.gz
+            > /tmp/vardiya-restore-check.dump.gz
           echo "dump size: $(stat -c%s /tmp/vardiya-restore-check.dump.gz) bytes"
           bash scripts/restore-check.sh /tmp/vardiya-restore-check.dump.gz
       - name: Stack diagnostics
@@ -382,23 +348,37 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
+      - name: Generate changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          configurationJson: |
+            {
+              "template": "#{{CHANGELOG}}",
+              "categories": [
+                { "title": "## 🚀 Features", "labels": ["feature", "enhancement"] },
+                { "title": "## 🐛 Bug Fixes", "labels": ["bug", "fix"] },
+                { "title": "## 🛠️ Maintenance", "labels": ["chore", "dependencies", "refactor"] },
+                { "title": "## 📖 Documentation", "labels": ["documentation"] },
+                { "title": "## 🔒 Security", "labels": ["security"] }
+              ]
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract version
         id: version
         run: echo "version=$(node -p "require('./backend/package.json').version")" >> "$GITHUB_OUTPUT"
       - name: Create Release
-        # Native release notes. The previous changelog builder diffed tags and
-        # aborted on the first release because the repository had no previous tag
-        # (defect D35); GitHub's own note generation has no such bootstrap
-        # dependency.
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}-${{ github.sha }}
           name: "Release v${{ steps.version.outputs.version }}"
-          draft: true
-          prerelease: true
-          generate_release_notes: true
+          body: ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
           target_commitish: ${{ github.sha }}

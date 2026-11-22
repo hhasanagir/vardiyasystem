@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  IsIn,
-  MinLength,
-  MaxLength,
-} from 'class-validator';
+import { IsString, IsOptional, IsIn, MinLength, MaxLength } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateDeviceIncidentDto {
@@ -15,10 +9,7 @@ export class UpdateDeviceIncidentDto {
   @MaxLength(100)
   issueType?: string;
 
-  @ApiPropertyOptional({
-    description: 'Severity level',
-    enum: ['low', 'medium', 'high', 'critical'],
-  })
+  @ApiPropertyOptional({ description: 'Severity level', enum: ['low', 'medium', 'high', 'critical'] })
   @IsOptional()
   @IsString()
   @IsIn(['low', 'medium', 'high', 'critical'])
@@ -36,10 +27,7 @@ export class UpdateDeviceIncidentDto {
   @IsString()
   imageUrl?: string;
 
-  @ApiPropertyOptional({
-    description: 'Status',
-    enum: ['open', 'in_progress', 'resolved', 'closed'],
-  })
+  @ApiPropertyOptional({ description: 'Status', enum: ['open', 'in_progress', 'resolved', 'closed'] })
   @IsOptional()
   @IsString()
   @IsIn(['open', 'in_progress', 'resolved', 'closed'])

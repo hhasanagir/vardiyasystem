@@ -20,17 +20,9 @@ import type { EnterpriseAsset, AssetDashboard } from './models/asset.models';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
-    FormsModule,
-    RouterModule,
-    TableModule,
-    ButtonModule,
-    TagModule,
-    ToastModule,
-    ProgressSpinnerModule,
-    TooltipModule,
-    InputTextModule,
-    SelectModule,
+    CommonModule, FormsModule, RouterModule,
+    TableModule, ButtonModule, TagModule, ToastModule,
+    ProgressSpinnerModule, TooltipModule, InputTextModule, SelectModule,
     CardModule,
   ],
   providers: [MessageService],
@@ -86,32 +78,18 @@ export class AssetManagementComponent implements OnInit {
 
   loadDashboard(): void {
     this.assetService.getDashboard().subscribe({
-      error: () =>
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Hata',
-          detail: 'Dashboard yüklenemedi',
-          life: 3000,
-        }),
+      error: () => this.messageService.add({ severity: 'error', summary: 'Hata', detail: 'Dashboard yüklenemedi', life: 3000 }),
     });
   }
 
   loadAssets(): void {
-    this.assetService
-      .getAssets({
-        category: this.selectedCategory() || undefined,
-        status: this.selectedStatus() || undefined,
-        search: this.searchQuery() || undefined,
-      })
-      .subscribe({
-        error: () =>
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Hata',
-            detail: 'Varlıklar yüklenemedi',
-            life: 3000,
-          }),
-      });
+    this.assetService.getAssets({
+      category: this.selectedCategory() || undefined,
+      status: this.selectedStatus() || undefined,
+      search: this.searchQuery() || undefined,
+    }).subscribe({
+      error: () => this.messageService.add({ severity: 'error', summary: 'Hata', detail: 'Varlıklar yüklenemedi', life: 3000 }),
+    });
   }
 
   onSearch(): void {
@@ -122,30 +100,18 @@ export class AssetManagementComponent implements OnInit {
     this.loadAssets();
   }
 
-  getStatusSeverity(
-    status: string,
-  ): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
+  getStatusSeverity(status: string): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
     switch (status) {
-      case 'active':
-        return 'success';
-      case 'under_maintenance':
-        return 'warn';
-      case 'fault':
-        return 'danger';
-      case 'out_of_service':
-        return 'secondary';
-      case 'calibration_due':
-        return 'warn';
-      case 'warranty_expired':
-        return 'danger';
-      case 'inactive':
-        return 'secondary';
-      case 'stored':
-        return 'info';
-      case 'retired':
-        return 'contrast';
-      default:
-        return 'info';
+      case 'active': return 'success';
+      case 'under_maintenance': return 'warn';
+      case 'fault': return 'danger';
+      case 'out_of_service': return 'secondary';
+      case 'calibration_due': return 'warn';
+      case 'warranty_expired': return 'danger';
+      case 'inactive': return 'secondary';
+      case 'stored': return 'info';
+      case 'retired': return 'contrast';
+      default: return 'info';
     }
   }
 
@@ -188,41 +154,20 @@ export class AssetManagementComponent implements OnInit {
   }
 
   onCreate(): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Bilgi',
-      detail: 'Yeni varlık oluşturma formu açılacak',
-      life: 3000,
-    });
+    this.messageService.add({ severity: 'info', summary: 'Bilgi', detail: 'Yeni varlık oluşturma formu açılacak', life: 3000 });
   }
 
   onEdit(asset: EnterpriseAsset): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Bilgi',
-      detail: `${asset.name} düzenleniyor`,
-      life: 3000,
-    });
+    this.messageService.add({ severity: 'info', summary: 'Bilgi', detail: `${asset.name} düzenleniyor`, life: 3000 });
   }
 
   onDelete(asset: EnterpriseAsset): void {
     this.assetService.deleteAsset(asset.id).subscribe({
       next: () => {
-        this.messageService.add({
-          severity: 'success',
-          summary: 'Başarılı',
-          detail: `${asset.name} silindi`,
-          life: 3000,
-        });
+        this.messageService.add({ severity: 'success', summary: 'Başarılı', detail: `${asset.name} silindi`, life: 3000 });
         this.loadAssets();
       },
-      error: () =>
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Hata',
-          detail: 'Varlık silinemedi',
-          life: 3000,
-        }),
+      error: () => this.messageService.add({ severity: 'error', summary: 'Hata', detail: 'Varlık silinemedi', life: 3000 }),
     });
   }
 }

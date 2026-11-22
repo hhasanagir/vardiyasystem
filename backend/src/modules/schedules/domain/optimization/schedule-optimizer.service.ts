@@ -1,58 +1,25 @@
-import {
-  SchedulingProblem,
-  SchedulingProblemConfig,
-} from './scheduling-problem';
-import {
-  OptimizationStrategy,
-  OptimizationContext,
-} from './optimization-strategy';
+import { SchedulingProblem, SchedulingProblemConfig } from './scheduling-problem';
+import { OptimizationStrategy, OptimizationContext } from './optimization-strategy';
 import { OptimizationResult } from './optimization-result';
 import { GreedyOptimizationStrategy } from './greedy-strategy';
-import {
-  createSchedulingStrategy,
-  ServiceLine,
-} from '../strategies/scheduling-strategy';
+import { LocalSearchOptimizationStrategy } from './local-search-strategy';
+import { createSchedulingStrategy, ServiceLine } from '../strategies/scheduling-strategy';
 
-export {
-  SchedulingProblem,
-  SchedulingProblemConfig,
-  SchedulingProblemPersonnel,
-  SchedulingProblemDevice,
-  SchedulingProblemShiftDef,
-} from './scheduling-problem';
-export {
-  CandidateSchedule,
-  CandidateAssignment,
-  createEmptyCandidate,
-} from './candidate-schedule';
-export {
-  OptimizationResult,
-  OptimizationSummary,
-  OptimizationMetadata,
-  ScoreComponent,
-  createOptimizationResult,
-} from './optimization-result';
-export {
-  OptimizationStrategy,
-  OptimizationContext,
-} from './optimization-strategy';
+export { SchedulingProblem, SchedulingProblemConfig, SchedulingProblemPersonnel, SchedulingProblemDevice, SchedulingProblemShiftDef } from './scheduling-problem';
+export { CandidateSchedule, CandidateAssignment, createEmptyCandidate } from './candidate-schedule';
+export { OptimizationResult, OptimizationSummary, OptimizationMetadata, ScoreComponent, createOptimizationResult } from './optimization-result';
+export { OptimizationStrategy, OptimizationContext } from './optimization-strategy';
 export { GreedyOptimizationStrategy } from './greedy-strategy';
-export {
-  ScoreAggregator,
-  AggregatedScore,
-  ScoreWeights,
-} from './score-aggregator';
-export {
-  CANONICAL_SCORING_WEIGHTS,
-  SOFT_CONSTRAINT_WEIGHTS,
-  validateCanonicalWeights,
-} from './canonical-scoring.config';
+export { LocalSearchOptimizationStrategy } from './local-search-strategy';
+export { ScoreAggregator, AggregatedScore, ScoreWeights } from './score-aggregator';
+export { CANONICAL_SCORING_WEIGHTS, SOFT_CONSTRAINT_WEIGHTS, validateCanonicalWeights } from './canonical-scoring.config';
 
 export class ScheduleOptimizerService {
   private readonly strategies: Map<string, OptimizationStrategy> = new Map();
 
   constructor() {
     this.registerStrategy(new GreedyOptimizationStrategy());
+    this.registerStrategy(new LocalSearchOptimizationStrategy());
   }
 
   registerStrategy(strategy: OptimizationStrategy): void {
@@ -92,9 +59,6 @@ export class ScheduleOptimizerService {
   }
 
   getAvailableStrategies(): Array<{ id: string; name: string }> {
-    return Array.from(this.strategies.values()).map((s) => ({
-      id: s.id,
-      name: s.name,
-    }));
+    return Array.from(this.strategies.values()).map(s => ({ id: s.id, name: s.name }));
   }
 }

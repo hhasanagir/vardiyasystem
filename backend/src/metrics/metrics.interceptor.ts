@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request, Response } from 'express';
@@ -28,20 +23,14 @@ export class MetricsInterceptor implements NestInterceptor {
           const duration = Date.now() - start;
           const status = String(response.statusCode);
           this.metrics.httpRequestsTotal.inc({ method, path, status });
-          this.metrics.httpRequestDuration.observe(
-            { method, path, status },
-            duration / 1000,
-          );
+          this.metrics.httpRequestDuration.observe({ method, path, status }, duration / 1000);
           this.metrics.httpInFlight.dec();
         },
         error: (error: Error) => {
           const duration = Date.now() - start;
           const status = String((error as { status?: number }).status || 500);
           this.metrics.httpRequestsTotal.inc({ method, path, status });
-          this.metrics.httpRequestDuration.observe(
-            { method, path, status },
-            duration / 1000,
-          );
+          this.metrics.httpRequestDuration.observe({ method, path, status }, duration / 1000);
           this.metrics.httpInFlight.dec();
         },
       }),
@@ -49,8 +38,7 @@ export class MetricsInterceptor implements NestInterceptor {
   }
 
   private getNormalizedPath(request: Request): string {
-    const route =
-      request.route?.path || request.path || request.url || 'unknown';
+    const route = request.route?.path || request.path || request.url || 'unknown';
     return route.replace(/\/api\/v1\//, '').replace(/\/?\d+/g, '/:id');
   }
 }

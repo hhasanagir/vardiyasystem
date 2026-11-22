@@ -7,13 +7,13 @@
 
 ## 1. Genel Durum
 
-| Alan                      | Durum                                               |
-| ------------------------- | --------------------------------------------------- |
-| Backend TypeScript        | ✅ Derleniyor (`tsc --noEmit` temiz)                |
-| Frontend TypeScript       | ✅ Derleniyor (`tsc --noEmit` temiz)                |
+| Alan | Durum |
+|------|-------|
+| Backend TypeScript | ✅ Derleniyor (`tsc --noEmit` temiz) |
+| Frontend TypeScript | ✅ Derleniyor (`tsc --noEmit` temiz) |
 | Frontend Production Build | ✅ Başarılı (`ng build --configuration=production`) |
-| Backend Testler           | ✅ **160 test, 18 dosya, tamamı geçiyor**           |
-| Frontend Testler          | ✅ 27 test geçiyor                                  |
+| Backend Testler | ✅ **160 test, 18 dosya, tamamı geçiyor** |
+| Frontend Testler | ✅ 27 test geçiyor |
 
 ---
 
@@ -23,97 +23,97 @@ Bu oturumda yapılan tüm değişiklikler, tek bir commit (`eb7a6db`) üzerine e
 
 ### 2.1. PWA Dönüşümü
 
-| Özellik                       | Detay                                                                                                                                                        |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Service Worker**            | `@angular/service-worker` v21.2.9, `ngsw-config.json` ile app-shell + 5 API grubu için caching (my-shifts → cache-first 30dk, schedules → network-first 5dk) |
-| **Manifest**                  | `public/manifest.webmanifest`, `display: standalone`, SVG ikonlar (72/192/512)                                                                               |
-| **App İkonları**              | `public/icons/icon-{72,192,512}.svg` (maskable)                                                                                                              |
-| **index.html**                | `theme-color`, `apple-mobile-web-app-capable`, `viewport-fit=cover`                                                                                          |
-| **PwaService**                | `services/pwa.service.ts` — install prompt, push notification aboneliği, online/offline durumu                                                               |
-| **PwaInstallPromptComponent** | Kurulum banner'ı + offline banner, slide-up animasyonu                                                                                                       |
-| **Mobile Layout**             | Bottom nav (5 item), sidebar overlay <769px, iOS safe-area                                                                                                   |
+| Özellik | Detay |
+|---------|-------|
+| **Service Worker** | `@angular/service-worker` v21.2.9, `ngsw-config.json` ile app-shell + 5 API grubu için caching (my-shifts → cache-first 30dk, schedules → network-first 5dk) |
+| **Manifest** | `public/manifest.webmanifest`, `display: standalone`, SVG ikonlar (72/192/512) |
+| **App İkonları** | `public/icons/icon-{72,192,512}.svg` (maskable) |
+| **index.html** | `theme-color`, `apple-mobile-web-app-capable`, `viewport-fit=cover` |
+| **PwaService** | `services/pwa.service.ts` — install prompt, push notification aboneliği, online/offline durumu |
+| **PwaInstallPromptComponent** | Kurulum banner'ı + offline banner, slide-up animasyonu |
+| **Mobile Layout** | Bottom nav (5 item), sidebar overlay <769px, iOS safe-area |
 
 ### 2.2. Push Notification Altyapısı
 
-| Özellik                  | Detay                                                            |
-| ------------------------ | ---------------------------------------------------------------- |
-| **VAPID Keys**           | Gerçek key pair oluşturuldu (`web-push` ile)                     |
-| **Backend API**          | `POST/DELETE /api/v1/push-subscriptions` (JWT korumalı)          |
-| **Backend Service**      | In-memory `Map<string, PushSubscriptionData>` (MVP için yeterli) |
-| **Frontend Entegrasyon** | `PwaService` → backend'e subscribe/unsubscribe                   |
-| **Test**                 | 9 unit test (push-subscriptions.service.spec.ts)                 |
+| Özellik | Detay |
+|---------|-------|
+| **VAPID Keys** | Gerçek key pair oluşturuldu (`web-push` ile) |
+| **Backend API** | `POST/DELETE /api/v1/push-subscriptions` (JWT korumalı) |
+| **Backend Service** | In-memory `Map<string, PushSubscriptionData>` (MVP için yeterli) |
+| **Frontend Entegrasyon** | `PwaService` → backend'e subscribe/unsubscribe |
+| **Test** | 9 unit test (push-subscriptions.service.spec.ts) |
 
 ### 2.3. Vardiya Başlat/Bitir (Clock In/Out)
 
-| Özellik                | Detay                                                                                                                             |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| **Prisma Schema**      | `AttendanceRecord` modeli (`userId` + `date` unique)                                                                              |
-| **Backend Service**    | `AttendanceService` — `getTodayStatus()`, `clockIn()`, `clockOut()`, `getMonthlyStats()`, `getHistory()`                          |
+| Özellik | Detay |
+|---------|-------|
+| **Prisma Schema** | `AttendanceRecord` modeli (`userId` + `date` unique) |
+| **Backend Service** | `AttendanceService` — `getTodayStatus()`, `clockIn()`, `clockOut()`, `getMonthlyStats()`, `getHistory()` |
 | **Backend Controller** | `GET attendance/today`, `GET attendance/history`, `GET attendance/stats`, `POST attendance/clock-in`, `POST attendance/clock-out` |
-| **WebSocket**          | `attendance:status` event → `user:<userId>` room                                                                                  |
-| **Frontend Service**   | `services/attendance.service.ts`                                                                                                  |
-| **MyDay Component**    | "Vardiya Başlat" / "Vardiyayı Bitir" butonları, canlı süre sayacı                                                                 |
-| **Test**               | 8 unit test                                                                                                                       |
+| **WebSocket** | `attendance:status` event → `user:<userId>` room |
+| **Frontend Service** | `services/attendance.service.ts` |
+| **MyDay Component** | "Vardiya Başlat" / "Vardiyayı Bitir" butonları, canlı süre sayacı |
+| **Test** | 8 unit test |
 
 ### 2.4. Hızlı Aksiyon Widget'ı
 
-| Özellik                      | Detay                                                                      |
-| ---------------------------- | -------------------------------------------------------------------------- |
-| **FloatingActionsComponent** | Sağ alt köşede FAB butonu, açılır menü                                     |
-| **Aksiyonlar**               | Vardiya başlat/bitir, arıza bildir, devir notu, vardiya değiş, izin talebi |
-| **Canlı Zamanlayıcı**        | Aktif vardiya varsa `setInterval` ile 1 saniyede bir güncellenen süre      |
-| **Konum**                    | `z-index: 9999`, `position: fixed`, bottom-right                           |
+| Özellik | Detay |
+|---------|-------|
+| **FloatingActionsComponent** | Sağ alt köşede FAB butonu, açılır menü |
+| **Aksiyonlar** | Vardiya başlat/bitir, arıza bildir, devir notu, vardiya değiş, izin talebi |
+| **Canlı Zamanlayıcı** | Aktif vardiya varsa `setInterval` ile 1 saniyede bir güncellenen süre |
+| **Konum** | `z-index: 9999`, `position: fixed`, bottom-right |
 
 ### 2.5. Profil Sayfası
 
-| Özellik              | Detay                                                                |
-| -------------------- | -------------------------------------------------------------------- |
-| **ProfileComponent** | `/app/profile` route                                                 |
-| **Avatar**           | İsim baş harflerinden oluşan avatar, sidebar footer'dan tıklanabilir |
-| **KPI Kartları**     | Toplam mesai günü/saati, günlük ortalama, zamanında başlama oranı    |
-| **Hesap Detayları**  | İsim, rol, e-posta                                                   |
+| Özellik | Detay |
+|---------|-------|
+| **ProfileComponent** | `/app/profile` route |
+| **Avatar** | İsim baş harflerinden oluşan avatar, sidebar footer'dan tıklanabilir |
+| **KPI Kartları** | Toplam mesai günü/saati, günlük ortalama, zamanında başlama oranı |
+| **Hesap Detayları** | İsim, rol, e-posta |
 
 ### 2.6. Vardiya Hatırlatıcı
 
-| Özellik                | Detay                                                         |
-| ---------------------- | ------------------------------------------------------------- |
-| **MyDay Component**    | Bugünkü veya sonraki vardiya 2 saat içindeyse banner gösterir |
-| **Otomatik Hesaplama** | Vardiya başlangıcından `Date.now()` farkını hesaplar          |
+| Özellik | Detay |
+|---------|-------|
+| **MyDay Component** | Bugünkü veya sonraki vardiya 2 saat içindeyse banner gösterir |
+| **Otomatik Hesaplama** | Vardiya başlangıcından `Date.now()` farkını hesaplar |
 
 ### 2.7. Pull-to-Refresh (Mobil)
 
-| Özellik                | Detay                                                          |
-| ---------------------- | -------------------------------------------------------------- |
+| Özellik | Detay |
+|---------|-------|
 | **MyShifts Component** | `touchstart`/`touchmove`/`touchend` ile native pull-to-refresh |
-| **Eşik**               | 60px aşağı çekme → refresh tetiklenir                          |
-| **Gösterge**           | Dönen ok ikonu + "Yenileniyor..." metni                        |
+| **Eşik** | 60px aşağı çekme → refresh tetiklenir |
+| **Gösterge** | Dönen ok ikonu + "Yenileniyor..." metni |
 
 ### 2.8. Dashboard - Aktif Arıza Widget'ı
 
-| Özellik                    | Detay                                                                           |
-| -------------------------- | ------------------------------------------------------------------------------- |
-| **5. KPI Kartı**           | "Aktif Arıza" — açık arızaların sayısı (kırmızı)                                |
+| Özellik | Detay |
+|---------|-------|
+| **5. KPI Kartı** | "Aktif Arıza" — açık arızaların sayısı (kırmızı) |
 | **Aktif Arızalar Listesi** | Alt grid'de son 5 açık arıza, severity badge'leriyle (critical/high/medium/low) |
-| **API**                    | `GET /device-incidents?status=open`                                             |
+| **API** | `GET /device-incidents?status=open` |
 
 ### 2.9. Test İyileştirmeleri
 
-| Özellik                | Detay                                                                                              |
-| ---------------------- | -------------------------------------------------------------------------------------------------- |
-| **Backend Test Fix**   | `'PrismaService'` string token → `PrismaService` class reference                                   |
-| **Mock Düzeltmeleri**  | Eksik `_count`, `schedules`, `workDays`, `mode` alanları eklendi                                   |
-| **Mock Ekleme**        | `NotificationsService`, `ScheduleGateway` mock'ları eklendi                                        |
-| **resetAllMocks**      | `clearAllMocks` → `resetAllMocks` (test izolasyonu)                                                |
-| **Yeni Backend Test**  | analytics (8), device-incidents (7), push-subscriptions (9), attendance (8)                        |
+| Özellik | Detay |
+|---------|-------|
+| **Backend Test Fix** | `'PrismaService'` string token → `PrismaService` class reference |
+| **Mock Düzeltmeleri** | Eksik `_count`, `schedules`, `workDays`, `mode` alanları eklendi |
+| **Mock Ekleme** | `NotificationsService`, `ScheduleGateway` mock'ları eklendi |
+| **resetAllMocks** | `clearAllMocks` → `resetAllMocks` (test izolasyonu) |
+| **Yeni Backend Test** | analytics (8), device-incidents (7), push-subscriptions (9), attendance (8) |
 | **Yeni Frontend Test** | pwa.service (6), device-incidents.service (10), device-incident-report (8), pwa-install-prompt (3) |
 
 ### 2.10. Bugfix'ler
 
-| Hata                                           | Çözüm                                                                    |
-| ---------------------------------------------- | ------------------------------------------------------------------------ |
+| Hata | Çözüm |
+|------|-------|
 | `handover-notes.component.ts` duplicate method | İkinci `loadDevices()` ve `ngOnDestroy()` silindi, `wsSub` alanı eklendi |
-| MainLayout template hataları                   | Kapanmayan `div`, hatalı `</a>`/`</div>` iç içelik düzeltildi            |
-| `ng build --configuration=production` hataları | Template nesting fix, `activeIncidents` tipi eklendi                     |
+| MainLayout template hataları | Kapanmayan `div`, hatalı `</a>`/`</div>` iç içelik düzeltildi |
+| `ng build --configuration=production` hataları | Template nesting fix, `activeIncidents` tipi eklendi |
 
 ---
 
@@ -181,71 +181,71 @@ frontend/src/app/
 
 ### Backend (160 test, 18 dosya)
 
-| Test Dosyası                                  | Test Sayısı |
-| --------------------------------------------- | ----------- |
-| auth/session.service                          | 21          |
-| auth/rate-limit.service                       | 15          |
-| schedules/schedules.service                   | 12          |
-| shifts/shifts.service                         | 11          |
-| swap-requests/swap-requests.service           | 11          |
-| auth/invite-code.service                      | 9           |
-| push-subscriptions/push-subscriptions.service | 9           |
-| auth/csrf.service                             | 8           |
-| attendance/attendance.service                 | 8           |
-| analytics/analytics.service                   | 8           |
-| personnel/dto/create-personnel.dto            | 8           |
-| auth/auth.service                             | 7           |
-| auth/csrf.guard                               | 7           |
-| device-incidents/device-incidents.service     | 7           |
-| auth/token-blacklist.service                  | 5           |
-| personnel/dto/personnel-query.dto             | 5           |
-| units/dto/create-unit.dto                     | 5           |
-| holidays/dto/create-holiday.dto               | 4           |
+| Test Dosyası | Test Sayısı |
+|-------------|------------|
+| auth/session.service | 21 |
+| auth/rate-limit.service | 15 |
+| schedules/schedules.service | 12 |
+| shifts/shifts.service | 11 |
+| swap-requests/swap-requests.service | 11 |
+| auth/invite-code.service | 9 |
+| push-subscriptions/push-subscriptions.service | 9 |
+| auth/csrf.service | 8 |
+| attendance/attendance.service | 8 |
+| analytics/analytics.service | 8 |
+| personnel/dto/create-personnel.dto | 8 |
+| auth/auth.service | 7 |
+| auth/csrf.guard | 7 |
+| device-incidents/device-incidents.service | 7 |
+| auth/token-blacklist.service | 5 |
+| personnel/dto/personnel-query.dto | 5 |
+| units/dto/create-unit.dto | 5 |
+| holidays/dto/create-holiday.dto | 4 |
 
 ### Frontend (27 test)
 
-| Test Dosyası                          | Test Sayısı |
-| ------------------------------------- | ----------- |
-| device-incidents.service.spec         | 10          |
-| device-incident-report.component.spec | 8           |
-| pwa.service.spec                      | 6           |
-| pwa-install-prompt.component.spec     | 3           |
+| Test Dosyası | Test Sayısı |
+|-------------|------------|
+| device-incidents.service.spec | 10 |
+| device-incident-report.component.spec | 8 |
+| pwa.service.spec | 6 |
+| pwa-install-prompt.component.spec | 3 |
 
 ---
 
 ## 5. Rotalar
 
-| Route                       | Sayfa                    | Erişim            |
-| --------------------------- | ------------------------ | ----------------- |
-| `/app/dashboard`            | Radyoloji Komuta Merkezi | Tüm roller        |
-| `/app/my-day`               | Bugünkü Vardiyam         | Tüm roller        |
-| `/app/my-shifts`            | Vardiyalarım             | Tüm roller        |
-| `/app/profile`              | Profil                   | Tüm roller (YENİ) |
-| `/app/handover-notes`       | Devir Teslim             | technician+       |
-| `/app/device-incidents`     | Arıza Bildirim           | technician+       |
-| `/app/swap-requests`        | Vardiya Değişim          | technician+       |
-| `/app/operations`           | Operasyon Merkezi        | head_technician+  |
-| `/app/management-dashboard` | Yönetim Paneli           | head_technician+  |
-| `/app/approval-center`      | Onay Merkezi             | head_technician+  |
-| `/app/employees`            | Personel                 | head_technician+  |
-| `/app/settings`             | Sistem Ayarları          | admin+            |
+| Route | Sayfa | Erişim |
+|-------|-------|--------|
+| `/app/dashboard` | Radyoloji Komuta Merkezi | Tüm roller |
+| `/app/my-day` | Bugünkü Vardiyam | Tüm roller |
+| `/app/my-shifts` | Vardiyalarım | Tüm roller |
+| `/app/profile` | Profil | Tüm roller (YENİ) |
+| `/app/handover-notes` | Devir Teslim | technician+ |
+| `/app/device-incidents` | Arıza Bildirim | technician+ |
+| `/app/swap-requests` | Vardiya Değişim | technician+ |
+| `/app/operations` | Operasyon Merkezi | head_technician+ |
+| `/app/management-dashboard` | Yönetim Paneli | head_technician+ |
+| `/app/approval-center` | Onay Merkezi | head_technician+ |
+| `/app/employees` | Personel | head_technician+ |
+| `/app/settings` | Sistem Ayarları | admin+ |
 
 ---
 
 ## 6. Teknik Detaylar
 
-| Özellik                | Değer                                                        |
-| ---------------------- | ------------------------------------------------------------ |
-| **Backend Framework**  | NestJS v10                                                   |
-| **Frontend Framework** | Angular 19.2 (standalone, OnPush, signals)                   |
-| **ORM**                | Prisma (PostgreSQL)                                          |
-| **PWA**                | `@angular/service-worker` v21.2.9                            |
-| **WebSocket**          | Socket.IO (ScheduleGateway)                                  |
-| **Auth**               | JWT + refresh token + CSRF                                   |
-| **Test (Backend)**     | Vitest v4.1.5                                                |
-| **Test (Frontend)**    | Vitest + Angular Testing Library                             |
-| **Build**              | Angular CLI production build (initial: 577kB/141kB transfer) |
-| **Mobile Breakpoint**  | 769px (sidebar → overlay drawer + bottom nav)                |
+| Özellik | Değer |
+|---------|-------|
+| **Backend Framework** | NestJS v10 |
+| **Frontend Framework** | Angular 19.2 (standalone, OnPush, signals) |
+| **ORM** | Prisma (PostgreSQL) |
+| **PWA** | `@angular/service-worker` v21.2.9 |
+| **WebSocket** | Socket.IO (ScheduleGateway) |
+| **Auth** | JWT + refresh token + CSRF |
+| **Test (Backend)** | Vitest v4.1.5 |
+| **Test (Frontend)** | Vitest + Angular Testing Library |
+| **Build** | Angular CLI production build (initial: 577kB/141kB transfer) |
+| **Mobile Breakpoint** | 769px (sidebar → overlay drawer + bottom nav) |
 
 ---
 

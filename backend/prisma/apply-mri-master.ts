@@ -17,9 +17,7 @@ async function main() {
   }
 
   const stats = await applyMrMasterConfig(prisma, org.id, mrUnit.id);
-  console.log(
-    `MRI master config applied: created=${stats.created}, updated=${stats.updated}, deactivated=${stats.deactivated}`,
-  );
+  console.log(`MRI master config applied: created=${stats.created}, updated=${stats.updated}, deactivated=${stats.deactivated}`);
 
   const devices = await prisma.device.findMany({
     where: { unitId: mrUnit.id },

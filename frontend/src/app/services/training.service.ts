@@ -55,12 +55,7 @@ export interface AssignTrainingPayload {
 export class TrainingService {
   private api = inject(ApiService);
 
-  getAll(query?: {
-    status?: string;
-    category?: string;
-    personnelId?: string;
-    search?: string;
-  }): Observable<Training[]> {
+  getAll(query?: { status?: string; category?: string; personnelId?: string; search?: string }): Observable<Training[]> {
     return this.api.get<Training[]>('/trainings', { params: query as any });
   }
 
@@ -81,9 +76,7 @@ export class TrainingService {
   }
 
   getExpiring(days = 30): Observable<PersonnelTrainingItem[]> {
-    return this.api.get<PersonnelTrainingItem[]>('/trainings/expiring', {
-      params: { days: String(days) },
-    });
+    return this.api.get<PersonnelTrainingItem[]>('/trainings/expiring', { params: { days: String(days) } });
   }
 
   assign(personnelId: string, dto: AssignTrainingPayload): Observable<PersonnelTrainingItem> {
@@ -94,10 +87,7 @@ export class TrainingService {
     return this.api.get<PersonnelTrainingItem[]>(`/trainings/personnel/${personnelId}`);
   }
 
-  updateAssignment(
-    id: string,
-    dto: Partial<AssignTrainingPayload>,
-  ): Observable<PersonnelTrainingItem> {
+  updateAssignment(id: string, dto: Partial<AssignTrainingPayload>): Observable<PersonnelTrainingItem> {
     return this.api.patch<PersonnelTrainingItem>(`/trainings/personnel-training/${id}`, dto);
   }
 

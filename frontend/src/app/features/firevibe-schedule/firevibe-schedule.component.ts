@@ -12,34 +12,23 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Subject, forkJoin, takeUntil, of, catchError, type Observable } from 'rxjs';
+import { Subject, forkJoin, takeUntil, of, catchError, finalize, type Observable } from 'rxjs';
 import type { UnitType } from '../../domain/enums';
 import type { ShiftAssignment, Employee } from '../../domain/models';
 import { AuthService } from '../../services/auth.service';
 import { hasMinRole } from '../../shared/utils/role-hierarchy';
-import {
-  ScheduleService,
-  type ScheduleResponse,
-  type ShiftDateOverride,
-} from '../../services/schedule.service';
+import { ScheduleService, type ScheduleResponse, type ShiftDateOverride } from '../../services/schedule.service';
 import { EmployeeService } from '../../services/employee.service';
 import { DeviceStatusService } from '../../services/device-status.service';
+import { NotificationService } from '../../services/notification.service';
 import { getHoliday, getHolidayCountForMonth } from '../../core/calendar/turkish-holidays';
+import { translateAssignmentErrorPayload } from '../../core/utils/assignment-errors';
+import { clampContextMenuPosition } from '../../core/utils/context-menu-position';
 
 type ZoomLevel = 'compact' | 'small' | 'medium' | 'large';
 
 interface CellWarning {
-  kind:
-    | 'double'
-    | 'double-device'
-    | 'consecutive-nights'
-    | 'rest'
-    | 'overtime'
-    | 'cert'
-    | 'leave'
-    | 'report'
-    | 'night-eligible'
-    | 'streak';
+  kind: 'double' | 'double-device' | 'consecutive-nights' | 'rest' | 'overtime' | 'cert' | 'leave' | 'report' | 'night-eligible' | 'streak';
   label: string;
   severity: 'error' | 'warning' | 'info';
 }
@@ -97,6 +86,8 @@ interface DayCellData {
   showOverride: boolean;
   overrideOn: boolean;
   isClosed: boolean;
+  isDeviceOff: boolean;
+  deviceOffReason: string | null;
   conflict: boolean;
   leave: boolean;
   warning: boolean;
@@ -177,20 +168,7 @@ const UNIT_OPTIONS: Array<{ id: UnitType; label: string; short: string }> = [
   { id: 'supervizor', label: 'Süpervizör', short: 'SÜP' },
 ];
 
-const TURKISH_MONTHS = [
-  'Ocak',
-  'Şubat',
-  'Mart',
-  'Nisan',
-  'Mayıs',
-  'Haziran',
-  'Temmuz',
-  'Ağustos',
-  'Eylül',
-  'Ekim',
-  'Kasım',
-  'Aralık',
-];
+const TURKISH_MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 const WEEKDAY_NAMES = ['Pz', 'Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct'];
 
 function initialsOf(name?: string | null): string {
@@ -198,7 +176,7 @@ function initialsOf(name?: string | null): string {
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
-    .map((n) => n[0])
+    .map(n => n[0])
     .join('')
     .toUpperCase();
 }
@@ -259,6 +237,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly employeeApi = inject(EmployeeService);
   private readonly deviceStatusApi = inject(DeviceStatusService);
+  private readonly notification = inject(NotificationService);
   private readonly destroy$ = new Subject<void>();
 
   private readonly mainScroll = viewChild<ElementRef<HTMLElement>>('mainScroll');
@@ -267,12 +246,16 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
   readonly units = UNIT_OPTIONS;
 
   isFieldSupervisor = computed(() => hasMinRole(this.auth.user()?.role ?? '', 'medical_engineer'));
+  canPublish = computed(() => hasMinRole(this.auth.user()?.role ?? '', 'imaging_director'));
 
   unit = signal<UnitType>('mr');
   month = signal(new Date().getMonth() + 1);
   year = signal(new Date().getFullYear());
 
   viewState = signal<ViewState>({ status: 'loading' });
+  createPlanInProgress = signal(false);
+
+  seedDeviceRows = signal<DeviceRow[]>([]);
   lastUpdated = signal<Date | null>(null);
 
   searchQuery = signal('');
@@ -291,14 +274,10 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
 
   dayWidth = computed(() => {
     switch (this.zoom()) {
-      case 'compact':
-        return 120;
-      case 'small':
-        return 140;
-      case 'large':
-        return 180;
-      default:
-        return 160;
+      case 'compact': return 120;
+      case 'small': return 140;
+      case 'large': return 180;
+      default: return 160;
     }
   });
 
@@ -308,6 +287,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
   overrides = signal<Map<string, ShiftDateOverride>>(new Map());
   employees = signal<Map<string, Employee>>(new Map());
   deviceStatuses = signal<Map<string, string>>(new Map());
+  deviceOffMap = signal<Map<string, { isActive: boolean; reason: string | null }>>(new Map());
 
   cellNotes = signal<Map<string, string>>(new Map());
   leaveFlags = signal<Set<string>>(new Set());
@@ -325,6 +305,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
 
   private readonly expandedBlocks = signal<string[]>([]);
   private readonly expandedDevices = signal<string[]>([]);
+  readonly publishBusy = signal(false);
 
   drawer = signal<DrawerState | null>(null);
   selectedPersonnelId = signal('');
@@ -333,7 +314,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
   private dragWasActive = false;
 
   unitLabel = computed(() => {
-    const found = UNIT_OPTIONS.find((x) => x.id === this.unit());
+    const found = UNIT_OPTIONS.find(x => x.id === this.unit());
     return found ? found.short : 'MR';
   });
 
@@ -380,8 +361,9 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     const vs = this.viewState();
     if (vs.status !== 'success') return [];
     const configs = vs.schedule.deviceShiftConfig || [];
-    return vs.schedule.devices.map((d) => {
-      const cfg = configs.find((c) => c.deviceId === d.id);
+    if (vs.schedule.devices.length === 0) return this.seedDeviceRows();
+    return vs.schedule.devices.map(d => {
+      const cfg = configs.find(c => c.deviceId === d.id);
       const shifts = cfg?.shifts || [];
       const seen = new Set<string>();
       const slots: ShiftSlot[] = [];
@@ -415,9 +397,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     });
   });
 
-  deviceOptions = computed(() =>
-    this.deviceRows().map((r) => ({ id: r.id, code: r.code, name: r.name })),
-  );
+  deviceOptions = computed(() => this.deviceRows().map(r => ({ id: r.id, code: r.code, name: r.name })));
 
   deviceWorkDaysMap = computed(() => {
     const vs = this.viewState();
@@ -433,20 +413,13 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     const map = this.deviceWorkDaysMap();
     if (map.size === 0) return new Set<number>();
     const allDows = [0, 1, 2, 3, 4, 5, 6];
-    return new Set(
-      allDows.filter((dow) => {
-        const allClosed = Array.from(map.values()).every((wd) => !wd.includes(dow));
-        return allClosed;
-      }),
-    );
+    return new Set(allDows.filter(dow => {
+      const allClosed = Array.from(map.values()).every(wd => !wd.includes(dow));
+      return allClosed;
+    }));
   });
 
-  private cellKey(
-    deviceId: string,
-    dateStr: string,
-    shiftKey: string,
-    personnelType: string | null,
-  ): string {
+  private cellKey(deviceId: string, dateStr: string, shiftKey: string, personnelType: string | null): string {
     return `${deviceId}|${dateStr}|${shiftKey}|${personnelType || '*'}`;
   }
 
@@ -455,10 +428,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     const map = new Map<string, ShiftAssignment>();
     if (vs.status !== 'success') return map;
     for (const a of vs.schedule.assignments) {
-      map.set(
-        this.cellKey(a.deviceId, a.date, this.shiftKey(a.shiftType), a.personnelType ?? null),
-        a,
-      );
+      map.set(this.cellKey(a.deviceId, a.date, this.shiftKey(a.shiftType), a.personnelType ?? null), a);
     }
     return map;
   });
@@ -514,12 +484,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     if (vs.status !== 'success') return map;
 
     const push = (a: ShiftAssignment, w: CellWarning): void => {
-      const k = this.cellKey(
-        a.deviceId,
-        a.date,
-        this.shiftKey(a.shiftType),
-        a.personnelType ?? null,
-      );
+      const k = this.cellKey(a.deviceId, a.date, this.shiftKey(a.shiftType), a.personnelType ?? null);
       const list = map.get(k) || [];
       list.push(w);
       map.set(k, list);
@@ -532,12 +497,12 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
       byPerson.set(a.personnelId, list);
     }
 
-    const devById = new Map(this.deviceRows().map((d) => [d.id, d]));
+    const devById = new Map(this.deviceRows().map(d => [d.id, d]));
     const dayMs = 86400000;
 
     for (const [pid, rawList] of byPerson) {
-      const list = [...rawList].sort(
-        (x, y) => x.date.localeCompare(y.date) || timeToMs(x.startTime) - timeToMs(y.startTime),
+      const list = [...rawList].sort((x, y) =>
+        x.date.localeCompare(y.date) || timeToMs(x.startTime) - timeToMs(y.startTime),
       );
 
       const byDate = new Map<string, ShiftAssignment[]>();
@@ -549,46 +514,27 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
 
       for (const dayList of byDate.values()) {
         if (dayList.length < 2) continue;
-        const devices = new Set(dayList.map((d) => d.deviceId));
+        const devices = new Set(dayList.map(d => d.deviceId));
         for (const a of dayList) {
-          push(a, {
-            kind: 'double',
-            label: 'Aynı gün birden fazla vardiya (çakışma)',
-            severity: 'error',
-          });
+          push(a, { kind: 'double', label: 'Aynı gün birden fazla vardiya (çakışma)', severity: 'error' });
           if (devices.size > 1) {
-            push(a, {
-              kind: 'double-device',
-              label: 'Aynı gün birden fazla cihazda görev',
-              severity: 'warning',
-            });
+            push(a, { kind: 'double-device', label: 'Aynı gün birden fazla cihazda görev', severity: 'warning' });
           }
         }
       }
 
-      const uniqDates = [...new Set(list.map((a) => a.date))].sort();
+      const uniqDates = [...new Set(list.map(a => a.date))].sort();
 
-      const nightDates = [
-        ...new Set(list.filter((a) => this.shiftKey(a.shiftType) === 'night').map((a) => a.date)),
-      ].sort();
+      const nightDates = [...new Set(list.filter(a => this.shiftKey(a.shiftType) === 'night').map(a => a.date))].sort();
       let nightRun = 1;
       for (let i = 1; i < nightDates.length; i++) {
-        const diff = Math.round(
-          (new Date(nightDates[i]).getTime() - new Date(nightDates[i - 1]).getTime()) / dayMs,
-        );
-        if (diff !== 1) {
-          nightRun = 1;
-          continue;
-        }
+        const diff = Math.round((new Date(nightDates[i]).getTime() - new Date(nightDates[i - 1]).getTime()) / dayMs);
+        if (diff !== 1) { nightRun = 1; continue; }
         nightRun++;
         if (nightRun >= 3) {
           for (const a of list) {
             if (a.date === nightDates[i] && this.shiftKey(a.shiftType) === 'night') {
-              push(a, {
-                kind: 'consecutive-nights',
-                label: `${nightRun} ardışık gece nöbeti`,
-                severity: 'warning',
-              });
+              push(a, { kind: 'consecutive-nights', label: `${nightRun} ardışık gece nöbeti`, severity: 'warning' });
             }
           }
         }
@@ -596,19 +542,13 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
 
       let streak = 1;
       for (let i = 1; i < uniqDates.length; i++) {
-        const diff = Math.round(
-          (new Date(uniqDates[i]).getTime() - new Date(uniqDates[i - 1]).getTime()) / dayMs,
-        );
+        const diff = Math.round((new Date(uniqDates[i]).getTime() - new Date(uniqDates[i - 1]).getTime()) / dayMs);
         if (diff === 1) {
           streak++;
           if (streak >= 6) {
             for (const a of list) {
               if (a.date === uniqDates[i]) {
-                push(a, {
-                  kind: 'streak',
-                  label: `${streak} ardışık çalışma günü`,
-                  severity: 'warning',
-                });
+                push(a, { kind: 'streak', label: `${streak} ardışık çalışma günü`, severity: 'warning' });
               }
             }
           }
@@ -628,44 +568,23 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
         const startMs = aDate.getTime() + timeToMs(a.startTime);
         const restH = (startMs - prevEndMs) / 3600000;
         if (restH < 0) {
-          push(a, {
-            kind: 'overtime',
-            label: 'Üst üste vardiya (dinlenme yok)',
-            severity: 'error',
-          });
+          push(a, { kind: 'overtime', label: 'Üst üste vardiya (dinlenme yok)', severity: 'error' });
         } else if (restH < 11) {
-          push(a, {
-            kind: 'rest',
-            label: `Yasal dinlenme süresi yetersiz (${restH.toFixed(1)} sa)`,
-            severity: 'warning',
-          });
+          push(a, { kind: 'rest', label: `Yasal dinlenme süresi yetersiz (${restH.toFixed(1)} sa)`, severity: 'warning' });
         }
       }
 
       for (const a of list) {
         const empE = this.emp(pid);
-        if (
-          empE &&
-          this.shiftKey(a.shiftType) === 'night' &&
-          empE.nightShiftEligible === false &&
-          empE.role !== 'assistant_technician'
-        ) {
-          push(a, {
-            kind: 'night-eligible',
-            label: 'Gece vardiyası için uygun değil',
-            severity: 'warning',
-          });
+        if (empE && this.shiftKey(a.shiftType) === 'night' && empE.nightShiftEligible === false && empE.role !== 'assistant_technician') {
+          push(a, { kind: 'night-eligible', label: 'Gece vardiyası için uygun değil', severity: 'warning' });
         }
         const dev = devById.get(a.deviceId);
         if (empE && dev && empE.deviceSkills && empE.deviceSkills.length > 0) {
           const hay = `${dev.code} ${dev.name}`.toLowerCase();
-          const matched = empE.deviceSkills.some((s) => s && hay.includes(s.toLowerCase().trim()));
+          const matched = empE.deviceSkills.some(s => s && hay.includes(s.toLowerCase().trim()));
           if (!matched) {
-            push(a, {
-              kind: 'cert',
-              label: `${dev.code} için kayıtlı yeterlilik görünmüyor`,
-              severity: 'info',
-            });
+            push(a, { kind: 'cert', label: `${dev.code} için kayıtlı yeterlilik görünmüyor`, severity: 'info' });
           }
         }
       }
@@ -698,25 +617,15 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     return this.deviceStatuses().get(deviceId) || 'active';
   };
 
-  private slotRoster(
-    deviceId: string,
-    slot: ShiftSlot,
-  ): Array<{ id: string; name: string; role: string }> {
+  private slotRoster(deviceId: string, slot: ShiftSlot): Array<{ id: string; name: string; role: string }> {
     const vs = this.viewState();
     if (vs.status !== 'success') return [];
     const k = this.shiftKey(slot.type);
     const seen = new Map<string, { id: string; name: string; role: string }>();
     for (const a of vs.schedule.assignments) {
-      if (
-        a.deviceId === deviceId &&
-        this.shiftKey(a.shiftType) === k &&
-        (!slot.personnelType || a.personnelType === slot.personnelType)
-      ) {
-        seen.set(a.personnelId, {
-          id: a.personnelId,
-          name: a.personnelName || 'Personel',
-          role: a.personnelType || 'technician',
-        });
+      if (a.deviceId === deviceId && this.shiftKey(a.shiftType) === k &&
+        (!slot.personnelType || a.personnelType === slot.personnelType)) {
+        seen.set(a.personnelId, { id: a.personnelId, name: a.personnelName || 'Personel', role: a.personnelType || 'technician' });
       }
     }
     return Array.from(seen.values());
@@ -726,10 +635,8 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     const q = this.searchQuery().trim().toLowerCase();
     if (!q) return true;
     if (!a) return false;
-    return (
-      (a.personnelName || '').toLowerCase().includes(q) ||
-      (a.personnelType || '').toLowerCase().includes(q)
-    );
+    return (a.personnelName || '').toLowerCase().includes(q)
+      || (a.personnelType || '').toLowerCase().includes(q);
   }
 
   private buildCells(deviceId: string, slot: ShiftSlot, searchActive: boolean): DayCellData[] {
@@ -741,39 +648,45 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     const warnIdx = this.warningsIndex();
     const workDaysMap = this.deviceWorkDaysMap();
     const deviceWorkDays = workDaysMap.get(deviceId) ?? [1, 2, 3, 4, 5, 6, 0];
-    return this.days().map((day) => {
+    const offMap = this.deviceOffMap();
+    return this.days().map(day => {
       const isClosed = !deviceWorkDays.includes(day.dayOfWeek);
+      const offKey = `${deviceId}:${day.dateStr}`;
+      const deviceOff = offMap.get(offKey);
+      const isDeviceOff = !isClosed && !!deviceOff?.isActive;
       let a = idx.get(this.cellKey(deviceId, day.dateStr, k, slot.personnelType)) ?? null;
       if (searchActive && a) {
         a = this.matchesSearch(a) ? a : null;
       }
-      if (a) {
-        const warnings =
-          warnIdx.get(this.cellKey(deviceId, day.dateStr, k, slot.personnelType)) ?? [];
+      if (a && !isDeviceOff) {
+        const warnings = warnIdx.get(this.cellKey(deviceId, day.dateStr, k, slot.personnelType)) ?? [];
         return {
           day,
           assignment: a,
           showOverride: false,
           overrideOn: false,
           isClosed: false,
+          isDeviceOff: false,
+          deviceOffReason: null,
           conflict: (pdc.get(`${a.personnelId}|${day.dateStr}`) || 0) > 1,
-          leave:
-            this.emp(a.personnelId)?.employmentStatus === 'on_leave' || this.leaveFlags().has(a.id),
+          leave: this.emp(a.personnelId)?.employmentStatus === 'on_leave' || this.leaveFlags().has(a.id),
           warning: (streaks.get(a.personnelId) || 0) >= 6,
           report: this.emp(a.personnelId)?.employmentStatus === 'sick',
-          overtime: warnings.some((w) => w.kind === 'overtime') || this.overtimeFlags().has(a.id),
-          cert: warnings.some((w) => w.kind === 'cert'),
+          overtime: warnings.some(w => w.kind === 'overtime') || this.overtimeFlags().has(a.id),
+          cert: warnings.some(w => w.kind === 'cert'),
           note: this.cellNotes().has(a.id),
           warnings,
         };
       }
-      if (isClosed) {
+      if (isDeviceOff) {
         return {
           day,
           assignment: null,
           showOverride: false,
           overrideOn: false,
-          isClosed: true,
+          isClosed: false,
+          isDeviceOff: true,
+          deviceOffReason: deviceOff?.reason ?? null,
           conflict: false,
           leave: false,
           warning: false,
@@ -784,8 +697,26 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
           warnings: [],
         };
       }
-      const isOptionalDay =
-        (slot.optionalOnWeekends && day.isWeekend) || (slot.optionalOnHolidays && day.isHoliday);
+      if (isClosed) {
+        return {
+          day,
+          assignment: null,
+          showOverride: false,
+          overrideOn: false,
+          isClosed: true,
+          isDeviceOff: false,
+          deviceOffReason: null,
+          conflict: false,
+          leave: false,
+          warning: false,
+          report: false,
+          overtime: false,
+          cert: false,
+          note: false,
+          warnings: [],
+        };
+      }
+      const isOptionalDay = (slot.optionalOnWeekends && day.isWeekend) || (slot.optionalOnHolidays && day.isHoliday);
       const showOverride = !!isOptionalDay && this.isFieldSupervisor();
       const overrideOn = showOverride && ovr.has(this.overrideKey(slot.id, day.dateStr));
       return {
@@ -794,6 +725,8 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
         showOverride,
         overrideOn,
         isClosed: false,
+        isDeviceOff: false,
+        deviceOffReason: null,
         conflict: false,
         leave: false,
         warning: false,
@@ -815,13 +748,12 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     const filterSh = this.filterShift();
 
     let devs = this.deviceRows();
-    if (filterDev) devs = devs.filter((r) => r.id === filterDev);
-    if (filterSh)
-      devs = devs.map((r) => ({
-        ...r,
-        slots: r.slots.filter((s) => this.shiftKey(s.type) === filterSh),
-      }));
-    devs = devs.filter((r) => r.slots.length > 0);
+    if (filterDev) devs = devs.filter(r => r.id === filterDev);
+    if (filterSh) devs = devs.map(r => ({
+      ...r,
+      slots: r.slots.filter(s => this.shiftKey(s.type) === filterSh),
+    }));
+    devs = devs.filter(r => r.slots.length > 0);
 
     const expandedBlocks = this.expandedBlocks();
     const expandedDevices = this.expandedDevices();
@@ -847,12 +779,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
       const blockOpen = !!(filterDev || filterSh || expandedBlocks.includes(bk));
       rows.push({
         kind: 'block',
-        data: {
-          key: `blk|${bk}`,
-          label: blockLabelOf(bk),
-          open: blockOpen,
-          deviceCount: groupDevs.length,
-        },
+        data: { key: `blk|${bk}`, label: blockLabelOf(bk), open: blockOpen, deviceCount: groupDevs.length },
       });
       if (!blockOpen) continue;
       for (const d of groupDevs) {
@@ -891,19 +818,15 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     }
     for (const r of rows) {
       if (r.kind === 'shift') {
-        r.data.filled = r.data.cells.filter((c) => c.assignment).length;
-        r.data.total = r.data.cells.filter((c) => !c.isClosed).length;
+        r.data.filled = r.data.cells.filter(c => c.assignment).length;
+        r.data.total = r.data.cells.filter(c => !c.isClosed && !c.isDeviceOff).length;
       }
     }
     return rows;
   });
 
   trackByRow(index: number, row: GridRow): string {
-    return row.kind === 'block'
-      ? row.data.key
-      : row.kind === 'device'
-        ? row.data.key
-        : row.data.key;
+    return row.kind === 'block' ? row.data.key : row.kind === 'device' ? row.data.key : row.data.key;
   }
 
   trackByDay(index: number, cell: DayCellData): string {
@@ -913,20 +836,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
   summary = computed<SummaryStats>(() => {
     const vs = this.viewState();
     if (vs.status !== 'success') {
-      return {
-        slots: 0,
-        assigned: 0,
-        unassigned: 0,
-        coverage: 0,
-        conflicts: 0,
-        leave: 0,
-        holiday: 0,
-        nightDuties: 0,
-        dayShifts: 0,
-        eveningShifts: 0,
-        overtime: 0,
-        report: 0,
-      };
+      return { slots: 0, assigned: 0, unassigned: 0, coverage: 0, conflicts: 0, leave: 0, holiday: 0, nightDuties: 0, dayShifts: 0, eveningShifts: 0, overtime: 0, report: 0 };
     }
     const assignments = vs.schedule.assignments;
     let total = 0;
@@ -940,10 +850,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     for (const a of assignments) {
       const key = `${a.personnelId}|${a.date}`;
       if (!seen.has(key)) seen.add(key);
-      else if (!seen.has(`c:${key}`)) {
-        conflicts++;
-        seen.add(`c:${key}`);
-      }
+      else if (!seen.has(`c:${key}`)) { conflicts++; seen.add(`c:${key}`); }
     }
 
     let leave = 0;
@@ -1001,7 +908,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     if (vs.status !== 'success') return '';
     const map: Record<string, string> = {
       draft: 'Taslak',
-      submitted: 'İncelemede',
+      under_review: 'İncelemede',
       approved: 'Onaylı',
       published: 'Yayınlandı',
       rejected: 'Reddedildi',
@@ -1010,24 +917,32 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     return map[vs.schedule.status] || vs.schedule.status;
   });
 
+  /** Published/archived plans are immutable on the frontend; the backend independently rejects mutations. */
+  readonly publishedLocked = computed(() => {
+    const s = this.schedule();
+    return s?.status === 'published' || s?.status === 'archived';
+  });
+
+  private guardLocked(): boolean {
+    if (this.publishedLocked()) {
+      this.notification.warning('Plan Kilitli', 'Yayınlanmış veya arşivlenmiş bir plan üzerinde değişiklik yapılamaz.');
+      return true;
+    }
+    return false;
+  }
+
   private shiftKey(t: string): string {
     const s = (t || '').toLowerCase();
     if (s.includes('morning')) return 'morning';
     if (s.includes('gunduz') || s.includes('sabah') || s === 'day') return 'day';
     if (s.includes('gece') || s === 'night') return 'night';
-    if (s.includes('ikindi') || s.includes('ogle') || s.includes('aksam') || s.includes('evening'))
-      return 'evening';
+    if (s.includes('ikindi') || s.includes('ogle') || s.includes('aksam') || s.includes('evening')) return 'evening';
     return s;
   }
 
   shiftKeyLabel(t: string): string {
     const k = this.shiftKey(t);
-    const map: Record<string, string> = {
-      day: 'Gündüz',
-      night: 'Gece',
-      evening: 'İkindi',
-      morning: 'Sabah',
-    };
+    const map: Record<string, string> = { day: 'Gündüz', night: 'Gece', evening: 'İkindi', morning: 'Sabah' };
     return map[k] || k;
   }
 
@@ -1057,15 +972,15 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
   toggleOverride(slot: ShiftSlot, dateStr: string): void {
     const vs = this.viewState();
     if (vs.status !== 'success' || !this.isFieldSupervisor()) return;
+    if (this.guardLocked()) return;
     const key = this.overrideKey(slot.id, dateStr);
     const next = !this.overrides().has(key);
 
-    this.scheduleApi
-      .setShiftOverride(vs.schedule.unit, slot.id, dateStr, next)
+    this.scheduleApi.setShiftOverride(vs.schedule.unit, slot.id, dateStr, next)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
-          this.overrides.update((map) => {
+          this.overrides.update(map => {
             const m = new Map(map);
             if (next) {
               m.set(key, { id: '', shiftId: slot.id, date: dateStr, isEnabled: true });
@@ -1076,22 +991,22 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
           });
         },
         error: (err: { message?: string }) => {
-          window.alert(err?.message || 'Opsiyonel vardiya ayarı güncellenemedi.');
+          this.notification.error('Hata', err?.message || 'Opsiyonel vardiya ayarı güncellenemedi.');
         },
       });
   }
 
   toggleBlock(key: string): void {
     if (this.filterDevice() || this.filterShift()) return;
-    this.expandedBlocks.update((list) =>
-      list.includes(key) ? list.filter((k) => k !== key) : [...list, key],
+    this.expandedBlocks.update(list =>
+      list.includes(key) ? list.filter(k => k !== key) : [...list, key],
     );
   }
 
   toggleDevice(id: string): void {
     if (this.filterDevice() || this.filterShift()) return;
-    this.expandedDevices.update((list) =>
-      list.includes(id) ? list.filter((d) => d !== id) : [...list, id],
+    this.expandedDevices.update(list =>
+      list.includes(id) ? list.filter(d => d !== id) : [...list, id],
     );
   }
 
@@ -1105,10 +1020,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
   prevMonth(): void {
     let m = this.month() - 1;
     let y = this.year();
-    if (m < 1) {
-      m = 12;
-      y -= 1;
-    }
+    if (m < 1) { m = 12; y -= 1; }
     this.month.set(m);
     this.year.set(y);
     this.load();
@@ -1117,10 +1029,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
   nextMonth(): void {
     let m = this.month() + 1;
     let y = this.year();
-    if (m > 12) {
-      m = 1;
-      y += 1;
-    }
+    if (m > 12) { m = 1; y += 1; }
     this.month.set(m);
     this.year.set(y);
     this.load();
@@ -1150,9 +1059,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     this.daySearch.set(null);
   }
 
-  hasActiveFilters = computed(
-    () => !!(this.searchQuery() || this.filterDevice() || this.filterShift()),
-  );
+  hasActiveFilters = computed(() => !!(this.searchQuery() || this.filterDevice() || this.filterShift()));
 
   // ---- Drawer ----
 
@@ -1182,8 +1089,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     return map;
   });
 
-  personShiftCount = (personnelId: string): number =>
-    this.personAssignments().get(personnelId)?.length || 0;
+  personShiftCount = (personnelId: string): number => this.personAssignments().get(personnelId)?.length || 0;
 
   personWeeklyLoad = (personnelId: string): Array<{ week: string; count: number }> => {
     const list = this.personAssignments().get(personnelId) || [];
@@ -1216,13 +1122,11 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
 
   personConsecutive = (personnelId: string): number => {
     const list = this.personAssignments().get(personnelId) || [];
-    const dates = [...new Set(list.map((a) => a.date))].sort((a, b) => b.localeCompare(a));
+    const dates = [...new Set(list.map(a => a.date))].sort((a, b) => b.localeCompare(a));
     if (!dates.length) return 0;
     let run = 1;
     for (let i = 1; i < dates.length; i++) {
-      const diff = Math.round(
-        (new Date(dates[i - 1]).getTime() - new Date(dates[i]).getTime()) / 86400000,
-      );
+      const diff = Math.round((new Date(dates[i - 1]).getTime() - new Date(dates[i]).getTime()) / 86400000);
       if (diff === 1) run++;
       else break;
     }
@@ -1233,41 +1137,40 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     const list = this.personAssignments().get(personnelId) || [];
     return [...list]
       .sort((a, b) => b.date.localeCompare(a.date))
-      .map((a) => ({
+      .map(a => ({
         date: a.date,
         label: `${this.shiftKeyLabel(a.shiftType)} ${a.startTime}-${a.endTime}`,
-        device: this.deviceRows().find((d) => d.id === a.deviceId)?.code || a.deviceId,
+        device: this.deviceRows().find(d => d.id === a.deviceId)?.code || a.deviceId,
       }));
   };
 
   drawerCandidates = computed(() => {
     const d = this.drawer();
     if (!d) return [];
-    const list = Array.from(this.employees().values()).filter(
-      (e) => e.employmentStatus !== 'on_leave' && e.employmentStatus !== 'terminated',
-    );
+    const list = Array.from(this.employees().values())
+      .filter(e => e.employmentStatus !== 'on_leave' && e.employmentStatus !== 'terminated');
     return list
-      .filter((e) => !e.employmentStatus || e.employmentStatus === 'active')
+      .filter(e => !e.employmentStatus || e.employmentStatus === 'active')
       .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
-      .map((e) => ({ id: e.id, name: e.name, role: roleLabelOf(e.role) }));
+      .map(e => ({ id: e.id, name: e.name, role: roleLabelOf(e.role) }));
   });
 
   dragTrayCandidates = computed(() => {
     const searchActive = this.searchQuery().trim().length > 0;
     const list = Array.from(this.employees().values())
-      .filter((e) => e.employmentStatus !== 'on_leave' && e.employmentStatus !== 'terminated')
-      .filter((e) => !e.employmentStatus || e.employmentStatus === 'active');
+      .filter(e => e.employmentStatus !== 'on_leave' && e.employmentStatus !== 'terminated')
+      .filter(e => !e.employmentStatus || e.employmentStatus === 'active');
     if (searchActive) {
       const q = this.searchQuery().trim().toLowerCase();
       return list
-        .filter((e) => e.name.toLowerCase().includes(q) || (e.role || '').toLowerCase().includes(q))
+        .filter(e => e.name.toLowerCase().includes(q) || (e.role || '').toLowerCase().includes(q))
         .slice(0, 12)
-        .map((e) => ({ id: e.id, name: e.name, role: roleLabelOf(e.role) }));
+        .map(e => ({ id: e.id, name: e.name, role: roleLabelOf(e.role) }));
     }
     return list
       .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
       .slice(0, 12)
-      .map((e) => ({ id: e.id, name: e.name, role: roleLabelOf(e.role) }));
+      .map(e => ({ id: e.id, name: e.name, role: roleLabelOf(e.role) }));
   });
 
   assignToDrawerCell(personnelId: string): void {
@@ -1279,41 +1182,39 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
   assignTo(row: ShiftRowData, cell: DayCellData, personnelId: string): void {
     const vs = this.viewState();
     if (vs.status !== 'success' || !personnelId) return;
+    if (this.guardLocked()) return;
     const slot = row.slot;
 
     const run = (): void => {
-      this.scheduleApi
-        .directAssign(vs.schedule.unit, vs.schedule.month, vs.schedule.year, {
-          personnelId,
-          deviceId: row.deviceId,
-          date: cell.day.dateStr,
-          shiftType: slot.type,
-          personnelType: slot.personnelType ?? undefined,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-        })
+      this.scheduleApi.directAssign(vs.schedule.unit, vs.schedule.month, vs.schedule.year, {
+        personnelId,
+        deviceId: row.deviceId,
+        date: cell.day.dateStr,
+        shiftType: slot.type,
+        personnelType: slot.personnelType ?? undefined,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      })
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: () => {
-            this.pushUndo({
-              kind: 'assign',
-              assignment: {
-                id: '',
-                deviceId: row.deviceId,
-                personnelId,
-                personnelName: this.emp(personnelId)?.name || 'Personel',
-                date: cell.day.dateStr,
-                shiftType: slot.type as ShiftAssignment['shiftType'],
-                startTime: slot.startTime,
-                endTime: slot.endTime,
-                isConfirmed: false,
-              },
-            });
+            this.pushUndo({ kind: 'assign', assignment: {
+              id: '',
+              deviceId: row.deviceId,
+              personnelId,
+              personnelName: this.emp(personnelId)?.name || 'Personel',
+              date: cell.day.dateStr,
+              shiftType: slot.type as ShiftAssignment['shiftType'],
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              isConfirmed: false,
+            } });
             this.drawer.set(null);
             this.load();
           },
           error: (err: { message?: string }) => {
-            window.alert(err?.message || 'Atama yapılamadı.');
+            const t = translateAssignmentErrorPayload(err);
+            this.notification.error('Atama Başarısız', t?.message || err?.message || 'Atama yapılamadı.');
           },
         });
     };
@@ -1328,16 +1229,12 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
 
   private removeAssignmentQuiet(a: ShiftAssignment, then: () => void): void {
     const vs = this.viewState();
-    if (vs.status !== 'success' || !vs.schedule.id) {
-      then();
-      return;
-    }
-    this.scheduleApi
-      .removeAssignment(vs.schedule.id, a.id, 'Plan ekranından değiştirildi')
+    if (vs.status !== 'success' || !vs.schedule.id) { then(); return; }
+    this.scheduleApi.removeAssignment(vs.schedule.id, a.id, 'Plan ekranından değiştirildi')
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => then(),
-        error: () => window.alert('Mevcut atama kaldırılamadı.'),
+        error: () => this.notification.error('Hata', 'Mevcut atama kaldırılamadı.'),
       });
   }
 
@@ -1364,29 +1261,25 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
   private applyInverse(op: HistoryOp): void {
     const vs = this.viewState();
     if (vs.status !== 'success') return;
+    if (this.guardLocked()) return;
     if (op.kind === 'assign') {
       if (op.assignment.id && vs.schedule.id) {
-        this.scheduleApi
-          .removeAssignment(vs.schedule.id, op.assignment.id, 'Geri alındı')
+        this.scheduleApi.removeAssignment(vs.schedule.id, op.assignment.id, 'Geri alındı')
           .pipe(takeUntil(this.destroy$))
-          .subscribe({
-            next: () => this.load(),
-            error: () => window.alert('Geri alma başarısız.'),
-          });
+          .subscribe({ next: () => this.load(), error: () => this.notification.error('Hata', 'Geri alma başarısız.') });
       }
     } else if (op.kind === 'remove') {
-      this.scheduleApi
-        .directAssign(vs.schedule.unit, vs.schedule.month, vs.schedule.year, {
-          personnelId: op.assignment.personnelId,
-          deviceId: op.assignment.deviceId,
-          date: op.assignment.date,
-          shiftType: op.assignment.shiftType,
-          personnelType: op.assignment.personnelType ?? undefined,
-          startTime: op.assignment.startTime,
-          endTime: op.assignment.endTime,
-        })
+      this.scheduleApi.directAssign(vs.schedule.unit, vs.schedule.month, vs.schedule.year, {
+        personnelId: op.assignment.personnelId,
+        deviceId: op.assignment.deviceId,
+        date: op.assignment.date,
+        shiftType: op.assignment.shiftType,
+        personnelType: op.assignment.personnelType ?? undefined,
+        startTime: op.assignment.startTime,
+        endTime: op.assignment.endTime,
+      })
         .pipe(takeUntil(this.destroy$))
-        .subscribe({ next: () => this.load(), error: () => window.alert('Geri alma başarısız.') });
+        .subscribe({ next: () => this.load(), error: () => this.notification.error('Hata', 'Geri alma başarısız.') });
     }
   }
 
@@ -1395,21 +1288,20 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     const vs = this.viewState();
     const a = d?.cell.assignment;
     if (!d || vs.status !== 'success' || !a || !vs.schedule.id) return;
-    if (
-      !window.confirm(`${a.personnelName || 'Personel'} için atama kaldırılacak. Devam edilsin mi?`)
-    )
-      return;
-    this.scheduleApi
-      .removeAssignment(vs.schedule.id, a.id, 'Plan ekranından kaldırıldı')
+    if (this.guardLocked()) return;
+    if (!window.confirm(`${a.personnelName || 'Personel'} için atama kaldırılacak. Devam edilsin mi?`)) return;
+    this.scheduleApi.removeAssignment(vs.schedule.id, a.id, 'Plan ekranından kaldırıldı')
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
           this.pushUndo({ kind: 'remove', assignment: a });
           this.drawer.set(null);
+          this.notification.success('Atama Kaldırıldı', 'Vardiya ataması plandan kaldırıldı.');
           this.load();
         },
         error: (err: { message?: string }) => {
-          window.alert(err?.message || 'Atama kaldırılamadı.');
+          const t = translateAssignmentErrorPayload(err);
+          this.notification.error('Atama Kaldırılamadı', t?.message || err?.message || 'Atama kaldırılamadı.');
         },
       });
   }
@@ -1417,7 +1309,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
   canRemove = computed(() => {
     const vs = this.viewState();
     const d = this.drawer();
-    return !!d?.cell.assignment && vs.status === 'success' && !!vs.schedule.id;
+    return !!d?.cell.assignment && vs.status === 'success' && !!vs.schedule.id && !this.publishedLocked();
   });
 
   drawerEmp = computed(() => {
@@ -1459,7 +1351,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
   }
 
   onCellClick(row: ShiftRowData, cell: DayCellData): void {
-    if (cell.isClosed) return;
+    if (cell.isClosed || cell.isDeviceOff) return;
     const wasDrag = this.dragWasActive;
     this.dragWasActive = false;
     if (wasDrag) return;
@@ -1471,11 +1363,72 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     if (cell.isClosed) return;
     e.preventDefault();
     this.selected.set({ row, cell });
-    this.contextMenu.set({ row, cell, x: e.clientX, y: e.clientY });
+    const pos = this.contextMenuPosition(e.clientX, e.clientY);
+    this.contextMenu.set({ row, cell, x: pos.x, y: pos.y });
+  }
+
+  contextMenuPosition(clientX: number, clientY: number): { x: number; y: number } {
+    return clampContextMenuPosition(clientX, clientY, {
+      menuWidth: 240,
+      menuHeight: 340,
+    });
   }
 
   closeContextMenu(): void {
     this.contextMenu.set(null);
+  }
+
+  isDeviceOff(deviceId: string, dateStr: string): boolean {
+    const offMap = this.deviceOffMap();
+    return offMap.get(`${deviceId}:${dateStr}`)?.isActive === true;
+  }
+
+  onToggleDeviceOff(row: ShiftRowData, cell: DayCellData): void {
+    this.contextMenu.set(null);
+    const vs = this.viewState();
+    if (vs.status !== 'success' || !vs.schedule?.id) return;
+    if (this.guardLocked()) return;
+
+    const currentlyOff = this.isDeviceOff(row.deviceId, cell.day.dateStr);
+    if (currentlyOff) {
+      this.scheduleApi.toggleDeviceOff(vs.schedule.id, row.deviceId, cell.day.dateStr, false)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            const newMap = new Map(this.deviceOffMap());
+            newMap.delete(`${row.deviceId}:${cell.day.dateStr}`);
+            this.deviceOffMap.set(newMap);
+          },
+          error: () => {},
+        });
+      return;
+    }
+
+    const reason = window.prompt('Cihaz kapatma nedeni (isteğe bağlı):') ?? undefined;
+    if (reason === undefined) return;
+
+    this.scheduleApi.toggleDeviceOff(vs.schedule.id, row.deviceId, cell.day.dateStr, true, reason || undefined)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (result) => {
+          const newMap = new Map(this.deviceOffMap());
+          newMap.set(`${row.deviceId}:${cell.day.dateStr}`, { isActive: result.isActive, reason: result.reason ?? null });
+          this.deviceOffMap.set(newMap);
+        },
+        error: (err) => {
+          const msg = err?.error?.message;
+          if (typeof msg === 'string') {
+            try {
+              const parsed = JSON.parse(msg);
+              if (parsed.code === 'DEVICE_HAS_ASSIGNMENTS') {
+                this.notification.error('Cihaz Kapatılamadı', parsed.message);
+                return;
+              }
+            } catch {}
+          }
+          this.notification.error('Hata', 'Cihaz kapatma işlemi başarısız oldu.');
+        },
+      });
   }
 
   cellTitle(row: ShiftRowData, cell: DayCellData): string {
@@ -1520,36 +1473,31 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     const vs = this.viewState();
     const a = s?.cell.assignment;
     if (!s || vs.status !== 'success' || !a || !vs.schedule.id) return;
-    if (
-      !window.confirm(`${a.personnelName || 'Personel'} için atama kaldırılacak. Devam edilsin mi?`)
-    )
-      return;
+    if (this.guardLocked()) return;
+    if (!window.confirm(`${a.personnelName || 'Personel'} için atama kaldırılacak. Devam edilsin mi?`)) return;
     this.contextMenu.set(null);
-    this.scheduleApi
-      .removeAssignment(vs.schedule.id, a.id, 'Kısayol ile kaldırıldı')
+    this.scheduleApi.removeAssignment(vs.schedule.id, a.id, 'Kısayol ile kaldırıldı')
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
           this.pushUndo({ kind: 'remove', assignment: a });
           this.drawer.set(null);
+          this.notification.success('Atama Kaldırıldı', 'Vardiya ataması plandan kaldırıldı.');
           this.load();
         },
         error: (err: { message?: string }) => {
-          window.alert(err?.message || 'Atama kaldırılamadı.');
+          this.notification.error('Atama Kaldırılamadı', err?.message || 'Atama kaldırılamadı.');
         },
       });
   }
 
   noteSelected(): void {
     const a = this.selected()?.cell.assignment;
-    if (!a) {
-      this.contextMenu.set(null);
-      return;
-    }
+    if (!a) { this.contextMenu.set(null); return; }
     const current = this.cellNotes().get(a.id) || '';
     const value = window.prompt('Hücre notu:', current);
     if (value !== null) {
-      this.cellNotes.update((m) => {
+      this.cellNotes.update(m => {
         const nm = new Map(m);
         if (value.trim()) nm.set(a.id, value.trim());
         else nm.delete(a.id);
@@ -1561,14 +1509,11 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
 
   toggleLeaveSelected(): void {
     const a = this.selected()?.cell.assignment;
-    if (!a) {
-      this.contextMenu.set(null);
-      return;
-    }
-    this.leaveFlags.update((s) => {
+    if (!a) { this.contextMenu.set(null); return; }
+    if (this.guardLocked()) return;
+    this.leaveFlags.update(s => {
       const ns = new Set(s);
-      if (ns.has(a.id)) ns.delete(a.id);
-      else ns.add(a.id);
+      if (ns.has(a.id)) ns.delete(a.id); else ns.add(a.id);
       return ns;
     });
     this.contextMenu.set(null);
@@ -1576,14 +1521,11 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
 
   toggleOvertimeSelected(): void {
     const a = this.selected()?.cell.assignment;
-    if (!a) {
-      this.contextMenu.set(null);
-      return;
-    }
-    this.overtimeFlags.update((s) => {
+    if (!a) { this.contextMenu.set(null); return; }
+    if (this.guardLocked()) return;
+    this.overtimeFlags.update(s => {
       const ns = new Set(s);
-      if (ns.has(a.id)) ns.delete(a.id);
-      else ns.add(a.id);
+      if (ns.has(a.id)) ns.delete(a.id); else ns.add(a.id);
       return ns;
     });
     this.contextMenu.set(null);
@@ -1591,7 +1533,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
 
   switchSelected(): void {
     const s = this.selected();
-    if (s) this.openDrawer(s.row, s.cell);
+    if (s && !s.cell.isDeviceOff) this.openDrawer(s.row, s.cell);
     this.contextMenu.set(null);
   }
 
@@ -1615,7 +1557,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
   }
 
   onCellDragEnter(row: ShiftRowData, cell: DayCellData): void {
-    if (cell.isClosed) return;
+    if (cell.isClosed || cell.isDeviceOff) return;
     this.dragOverKey.set(this.cellDragKey(row, cell));
   }
 
@@ -1630,7 +1572,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
 
   onCellDrop(row: ShiftRowData, cell: DayCellData): void {
     this.dragOverKey.set('');
-    if (cell.isClosed) return;
+    if (cell.isClosed || cell.isDeviceOff) return;
     const pid = this.dragPersonnelId() || '';
     this.dragPersonnelId.set('');
     if (pid) this.assignTo(row, cell, pid);
@@ -1644,10 +1586,18 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     this.scrollToDay(v);
   }
 
+  private leftContextWidth(): number {
+    const el = this.mainScroll()?.nativeElement;
+    if (!el) return 360;
+    const raw = getComputedStyle(el).getPropertyValue('--fv-left-w').trim();
+    const parsed = Number.parseFloat(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 360;
+  }
+
   scrollToDay(dayNumber: number): void {
     const el = this.mainScroll()?.nativeElement;
     if (!el) return;
-    const target = 360 + (dayNumber - 1) * this.dayWidth();
+    const target = this.leftContextWidth() + (dayNumber - 1) * this.dayWidth();
     el.scrollTo({ left: target, behavior: 'smooth' });
   }
 
@@ -1671,9 +1621,7 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     const target = e.target as HTMLElement | null;
-    const isInput =
-      !!target &&
-      (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA');
+    const isInput = !!target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA');
 
     if (e.key === 'Escape') {
       this.closeContextMenu();
@@ -1747,16 +1695,12 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     const vs = this.viewState();
     if (vs.status !== 'success') return;
     const token = this.auth.token() || '';
-    const url = this.scheduleApi.getExportExcelUrl(
-      vs.schedule.unit,
-      vs.schedule.month,
-      vs.schedule.year,
-    );
+    const url = this.scheduleApi.getExportExcelUrl(vs.schedule.unit, vs.schedule.month, vs.schedule.year);
     const a = document.createElement('a');
     a.download = `vardiya_plani_${this.unitLabel()}_${this.monthLabel().replace(' ', '_')}.xlsx`;
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.blob())
-      .then((blob) => {
+      .then(r => r.blob())
+      .then(blob => {
         const obj = URL.createObjectURL(blob);
         a.href = obj;
         a.click();
@@ -1769,16 +1713,12 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     const vs = this.viewState();
     if (vs.status !== 'success') return;
     const token = this.auth.token() || '';
-    const url = this.scheduleApi.getExportPdfUrl(
-      vs.schedule.unit,
-      vs.schedule.month,
-      vs.schedule.year,
-    );
+    const url = this.scheduleApi.getExportPdfUrl(vs.schedule.unit, vs.schedule.month, vs.schedule.year);
     const a = document.createElement('a');
     a.download = `vardiya_plani_${this.unitLabel()}_${this.monthLabel().replace(' ', '_')}.pdf`;
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.blob())
-      .then((blob) => {
+      .then(r => r.blob())
+      .then(blob => {
         const obj = URL.createObjectURL(blob);
         a.href = obj;
         a.click();
@@ -1794,21 +1734,30 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
   publish(): void {
     const vs = this.viewState();
     if (vs.status !== 'success') return;
-    if (vs.schedule.status === 'published') return;
-    if (
-      !window.confirm(
-        `${this.unitLabel()} birimi ${this.monthLabel()} planı yayınlanacak. Devam edilsin mi?`,
-      )
-    )
-      return;
-    this.scheduleApi
-      .publishUnitSchedule(this.unit(), this.month(), this.year())
+    if (this.publishedLocked()) return;
+    if (this.publishBusy()) return;
+    if (!window.confirm(`${this.unitLabel()} birimi ${this.monthLabel()} planı yayınlanacak. Devam edilsin mi?`)) return;
+    this.publishBusy.set(true);
+    this.scheduleApi.publishUnitSchedule(this.unit(), this.month(), this.year())
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: () => this.load(),
-        error: (err: { message?: string }) => {
-          window.alert(err?.message || 'Yayınlama sırasında bir hata oluştu.');
+        next: (response: any) => {
+          // Four-eyes: a draft submission is NOT a publication. Show the real
+          // state instead of falsely telling the user the plan was published.
+          if (response?.requiresApproval) {
+            this.notification.success(
+              'Onaya Gönderildi',
+              `${this.unitLabel()} ${this.monthLabel()} planı onaya gönderildi. Farklı bir yetkili tarafından onaylanmalıdır.`,
+            );
+          } else {
+            this.notification.success('Yayınlandı', `${this.unitLabel()} ${this.monthLabel()} planı yayınlandı.`);
+          }
+          this.load();
         },
+        error: (err: { message?: string }) => {
+          this.notification.error('Yayınlama Hatası', err?.message || 'Yayınlama sırasında bir hata oluştu.');
+        },
+        complete: () => this.publishBusy.set(false),
       });
   }
 
@@ -1860,60 +1809,86 @@ export class FirevibeScheduleComponent implements OnInit, OnDestroy {
     this.redoStack = [];
     forkJoin({
       schedule: this.scheduleApi.loadScheduleByUnit(this.unit(), this.month(), this.year()),
-      overrides: this.scheduleApi
-        .getShiftOverrides(this.unit(), this.month(), this.year())
+      overrides: this.scheduleApi.getShiftOverrides(this.unit(), this.month(), this.year())
         .pipe(catchError(() => of([]))),
-      employees: this.employeeApi.getAll().pipe(catchError(() => of([]))),
-      deviceStatuses: this.deviceStatusApi.getMyUnitDevices().pipe(catchError(() => of([]))),
+      employees: this.employeeApi.getAll()
+        .pipe(catchError(() => of([]))),
+      deviceStatuses: this.deviceStatusApi.getMyUnitDevices()
+        .pipe(catchError(() => of([]))),
     })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: ({ schedule, overrides, employees, deviceStatuses }) => {
           const unitType = this.unit();
-          this.employees.set(
-            new Map(
-              (employees || [])
-                .filter(
-                  (e) => e.unit?.type === unitType || e.unit?.code?.toLowerCase() === unitType,
-                )
-                .map((e) => [e.id, e]),
-            ),
-          );
+          this.employees.set(new Map(
+            (employees || [])
+              .filter(e => e.unit?.type === unitType || e.unit?.code?.toLowerCase() === unitType)
+              .map(e => [e.id, e]),
+          ));
           this.overrides.set(
-            new Map((overrides || []).map((o) => [this.overrideKey(o.shiftId, o.date), o])),
+            new Map((overrides || []).map(o => [this.overrideKey(o.shiftId, o.date), o])),
           );
-          this.deviceStatuses.set(
-            new Map(
-              (deviceStatuses || [])
-                .filter((d) => !!d?.id)
-                .map((d) => [d.id, d.currentStatus?.status || 'active']),
-            ),
-          );
+          this.deviceStatuses.set(new Map(
+            (deviceStatuses || [])
+              .filter(d => !!d?.id)
+              .map(d => [d.id, d.currentStatus?.status || 'active']),
+          ));
           if (schedule && schedule.devices && schedule.devices.length > 0) {
             this.lastUpdated.set(new Date());
             this.viewState.set({ status: 'success', schedule });
-            this.expandedBlocks.set(
-              this.deviceRows()
-                .map((r) => blockKeyOf(r.blockCode))
-                .filter((v, i, a) => a.indexOf(v) === i),
-            );
-            this.expandedDevices.set(schedule.devices.map((d) => d.id));
+            this.expandedBlocks.set(this.deviceRows().map(r => blockKeyOf(r.blockCode)).filter((v, i, a) => a.indexOf(v) === i));
+            this.expandedDevices.set(schedule.devices.map(d => d.id));
+            const offMap = new Map<string, { isActive: boolean; reason: string | null }>();
+            for (const rec of schedule.deviceOffDates || []) {
+              offMap.set(`${rec.deviceId}:${rec.date}`, { isActive: rec.isActive, reason: rec.reason ?? null });
+            }
+            this.deviceOffMap.set(offMap);
           } else {
-            this.expandedBlocks.set([]);
+const seedDevices: DeviceRow[] = (deviceStatuses || [])
+              .filter(d => !!d && !!d.id)
+              .map(d => ({
+                id: d.id,
+                code: d.code ?? d.id,
+                name: (d.name ?? d.code ?? d.id).trim() || d.id,
+                mode: (d.currentStatus?.status as string) || 'belirsiz',
+                blockCode: '',
+                isMaster: false,
+                workDays: [],
+                slots: [] as ShiftSlot[],
+              }));
+            this.seedDeviceRows.set(seedDevices);
             this.expandedDevices.set([]);
+            this.deviceOffMap.set(new Map());
             this.viewState.set({
               status: 'empty',
-              reason: `${this.unitLabel()} birimi için ${this.monthLabel()} döneminde plan bulunamadı. Ay/yıl navigasyonunu kullanarak farklı bir dönem seçin.`,
+              reason: `${this.unitLabel()} birimi için ${this.monthLabel()} döneminde henüz plan oluşturulmamış. Aşağıdaki cihazlardan birine tıklayarak veya "Bu Ay İçin Planı Oluştur" butonunu kullanarak bu ayın planını başlatabilirsiniz.`,
             });
           }
         },
         error: () => {
           this.expandedBlocks.set([]);
           this.expandedDevices.set([]);
-          this.viewState.set({
-            status: 'error',
-            message: 'Plan verileri yüklenemedi. Lütfen sayfayı yenileyip tekrar deneyin.',
-          });
+          this.viewState.set({ status: 'error', message: 'Plan verileri yüklenemedi. Lütfen sayfayı yenileyip tekrar deneyin.' });
+        },
+      });
+  }
+
+  createEmptyMonthPlan(): void {
+    if (this.createPlanInProgress()) return;
+    this.createPlanInProgress.set(true);
+    this.scheduleApi.createSchedule({
+      unit: this.unit(),
+      month: this.month(),
+      year: this.year(),
+    })
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => this.createPlanInProgress.set(false)),
+      )
+      .subscribe({
+        next: () => this.load(),
+        error: (err: { message?: string }) => {
+          this.notification.error('Oluşturma Hatası', err?.message || 'Plan oluşturulamadı. Lütfen tekrar deneyin.');
         },
       });
   }

@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { ConsentStatus } from '@prisma/client';
 
@@ -19,9 +15,7 @@ export class ConsentService {
   }
 
   async getTemplate(id: string) {
-    const template = await this.prisma.consentTemplate.findUnique({
-      where: { id },
-    });
+    const template = await this.prisma.consentTemplate.findUnique({ where: { id } });
     if (!template) throw new NotFoundException('Consent template not found');
     return template;
   }
@@ -44,18 +38,10 @@ export class ConsentService {
     });
   }
 
-  async giveConsent(
-    userId: string,
-    templateId: string,
-    ipAddress?: string,
-    userAgent?: string,
-  ) {
-    const template = await this.prisma.consentTemplate.findUnique({
-      where: { id: templateId },
-    });
+  async giveConsent(userId: string, templateId: string, ipAddress?: string, userAgent?: string) {
+    const template = await this.prisma.consentTemplate.findUnique({ where: { id: templateId } });
     if (!template) throw new NotFoundException('Consent template not found');
-    if (!template.isActive)
-      throw new BadRequestException('Consent template is no longer active');
+    if (!template.isActive) throw new BadRequestException('Consent template is no longer active');
 
     const existing = await this.prisma.consentRecord.findUnique({
       where: { userId_templateId: { userId, templateId } },
@@ -106,7 +92,10 @@ export class ConsentService {
         userId,
         template: { purpose: purpose as any, isActive: true },
         status: 'GIVEN' as ConsentStatus,
-        OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }],
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gte: new Date() } },
+        ],
       },
       include: { template: true },
     });
@@ -122,10 +111,8 @@ export class ConsentService {
       where: { userId },
     });
 
-    return templates.map((template) => {
-      const userConsent = userConsents.find(
-        (c) => c.templateId === template.id,
-      );
+    return templates.map(template => {
+      const userConsent = userConsents.find(c => c.templateId === template.id);
       return {
         templateId: template.id,
         purpose: template.purpose,
@@ -149,18 +136,10 @@ export class ConsentService {
 
     for (const template of templates) {
       const given = await this.prisma.consentRecord.count({
-        where: {
-          ...where,
-          templateId: template.id,
-          status: 'GIVEN' as ConsentStatus,
-        },
+        where: { ...where, templateId: template.id, status: 'GIVEN' as ConsentStatus },
       });
       const withdrawn = await this.prisma.consentRecord.count({
-        where: {
-          ...where,
-          templateId: template.id,
-          status: 'WITHDRAWN' as ConsentStatus,
-        },
+        where: { ...where, templateId: template.id, status: 'WITHDRAWN' as ConsentStatus },
       });
 
       stats.push({
@@ -169,8 +148,7 @@ export class ConsentService {
         givenCount: given,
         withdrawnCount: withdrawn,
         pendingCount: Math.max(0, totalUsers - given - withdrawn),
-        consentRate:
-          totalUsers > 0 ? Math.round((given / totalUsers) * 100) : 0,
+        consentRate: totalUsers > 0 ? Math.round((given / totalUsers) * 100) : 0,
       });
     }
 

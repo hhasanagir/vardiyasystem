@@ -18,20 +18,7 @@ export interface GridRow {
 }
 
 const DAY_LABELS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-const MONTH_LABELS = [
-  'Ocak',
-  'Şubat',
-  'Mart',
-  'Nisan',
-  'Mayıs',
-  'Haziran',
-  'Temmuz',
-  'Ağustos',
-  'Eylül',
-  'Ekim',
-  'Kasım',
-  'Aralık',
-];
+const MONTH_LABELS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 
 export function getDaysInMonth(year: number, month: number): GridDay[] {
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -76,20 +63,14 @@ export function buildGridRows(
     row.assignments.set(key, a);
   }
 
-  return Array.from(rowMap.values()).sort((a, b) =>
-    a.personnelName.localeCompare(b.personnelName, 'tr'),
-  );
+  return Array.from(rowMap.values()).sort((a, b) => a.personnelName.localeCompare(b.personnelName, 'tr'));
 }
 
 export function getMonthLabel(month: number): string {
   return MONTH_LABELS[month - 1] ?? '';
 }
 
-export function getAssignmentForCell(
-  row: GridRow,
-  date: string,
-  shiftType?: string,
-): AssignmentDTO | undefined {
+export function getAssignmentForCell(row: GridRow, date: string, shiftType?: string): AssignmentDTO | undefined {
   if (shiftType) {
     return row.assignments.get(`${date}-${shiftType}`);
   }

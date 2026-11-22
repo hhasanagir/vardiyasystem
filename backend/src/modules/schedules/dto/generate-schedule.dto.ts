@@ -1,19 +1,8 @@
-import {
-  IsInt,
-  IsString,
-  IsOptional,
-  IsBoolean,
-  Min,
-  Max,
-  IsIn,
-  IsArray,
-} from 'class-validator';
+import { IsInt, IsString, IsOptional, IsBoolean, Min, Max, IsIn, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class GenerateScheduleDto {
-  @ApiProperty({
-    description: 'Unit type code (mr, bt, rontgen, nukleer, onkoloji)',
-  })
+  @ApiProperty({ description: 'Unit type code (mr, bt, rontgen, nukleer, onkoloji)' })
   @IsString()
   unitType: string;
 
@@ -29,19 +18,13 @@ export class GenerateScheduleDto {
   @Max(2030)
   year: number;
 
-  @ApiPropertyOptional({
-    description: 'Fairness mode: balanced | seniority | skill',
-    default: 'balanced',
-  })
+  @ApiPropertyOptional({ description: 'Fairness mode: balanced | seniority | skill', default: 'balanced' })
   @IsOptional()
   @IsString()
   @IsIn(['balanced', 'seniority', 'skill'])
   fairnessMode?: string;
 
-  @ApiPropertyOptional({
-    description: 'Max overtime hours per person per month',
-    default: 20,
-  })
+  @ApiPropertyOptional({ description: 'Max overtime hours per person per month', default: 20 })
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -58,10 +41,7 @@ export class GenerateScheduleDto {
   @IsBoolean()
   includeNightShifts?: boolean;
 
-  @ApiPropertyOptional({
-    description: 'Min rest hours between shifts',
-    default: 11,
-  })
+  @ApiPropertyOptional({ description: 'Min rest hours between shifts', default: 11 })
   @IsOptional()
   @IsInt()
   @Min(8)
@@ -75,10 +55,7 @@ export class GenerateScheduleDto {
   @Max(14)
   maxConsecutiveDays?: number;
 
-  @ApiPropertyOptional({
-    description: 'Max consecutive night shifts',
-    default: 3,
-  })
+  @ApiPropertyOptional({ description: 'Max consecutive night shifts', default: 3 })
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -86,12 +63,18 @@ export class GenerateScheduleDto {
   maxConsecutiveNights?: number;
 }
 
-export class PreviewScheduleDto extends GenerateScheduleDto {}
-
 export class ApplyGeneratedScheduleDto {
   @ApiProperty({ description: 'Schedule ID to apply to' })
   @IsString()
   scheduleId: string;
+
+  @ApiPropertyOptional({
+    description: 'Expected schedule version (optimistic lock). When provided the apply is refused if the row was modified concurrently.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  expectedVersion?: number;
 
   @ApiProperty({ description: 'Array of generated assignments' })
   @IsArray()

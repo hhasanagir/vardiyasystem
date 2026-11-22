@@ -20,9 +20,7 @@ interface DeviceSummary {
         <div class="device-card">
           <div class="card-header">
             <span class="card-name">{{ d.deviceCode }}</span>
-            <span class="card-meta"
-              >{{ d.totalAssignments }} atama, {{ d.personnel.size }} personel</span
-            >
+            <span class="card-meta">{{ d.totalAssignments }} atama, {{ d.personnel.size }} personel</span>
           </div>
           <div class="shift-bar">
             @for (entry of getShiftEntries(d); track entry[0]) {
@@ -45,65 +43,21 @@ interface DeviceSummary {
       }
     </div>
   `,
-  styles: [
-    `
-      .device-view {
-        padding: 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-      .device-card {
-        padding: 12px 16px;
-        background: var(--surface-card, #fff);
-        border-radius: 8px;
-        border: 1px solid var(--surface-border, #e2e8f0);
-      }
-      .card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-      }
-      .card-name {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--color-text, #1e293b);
-      }
-      .card-meta {
-        font-size: 11px;
-        color: var(--color-text-muted, #94a3b8);
-      }
-      .shift-bar {
-        display: flex;
-        height: 8px;
-        border-radius: 4px;
-        overflow: hidden;
-        gap: 1px;
-      }
-      .shift-segment {
-        min-width: 2px;
-      }
-      .shift-legend {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 6px;
-      }
-      .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 10px;
-        color: var(--color-text-secondary, #64748b);
-      }
-      .legend-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-      }
-    `,
-  ],
+  styles: [`
+    .device-view { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .device-card {
+      padding: 12px 16px; background: var(--surface-card, #fff);
+      border-radius: 8px; border: 1px solid var(--surface-border, #e2e8f0);
+    }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .card-name { font-size: 13px; font-weight: 600; color: var(--color-text, #1e293b); }
+    .card-meta { font-size: 11px; color: var(--color-text-muted, #94a3b8); }
+    .shift-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 1px; }
+    .shift-segment { min-width: 2px; }
+    .shift-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--color-text-secondary, #64748b); }
+    .legend-dot { width: 6px; height: 6px; border-radius: 50%; }
+  `],
 })
 export class DeviceViewComponent {
   private readonly store = inject(ScheduleStore);
@@ -136,10 +90,6 @@ export class DeviceViewComponent {
     return Object.entries(d.shifts).sort((a, b) => b[1] - a[1]);
   }
 
-  getLabel(type: string): string {
-    return SHIFT_TYPE_LABELS[type] ?? type;
-  }
-  getColor(type: string): string {
-    return SHIFT_TYPE_COLORS[type] ?? '#94a3b8';
-  }
+  getLabel(type: string): string { return SHIFT_TYPE_LABELS[type] ?? type; }
+  getColor(type: string): string { return SHIFT_TYPE_COLORS[type] ?? '#94a3b8'; }
 }

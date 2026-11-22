@@ -59,17 +59,12 @@ export class EmailSenderService {
         subject: payload.subject,
         text: payload.body,
         html,
-        from: this.configService.get<string>(
-          'SMTP_FROM',
-          'noreply@vardiyaos.com',
-        ),
+        from: this.configService.get<string>('SMTP_FROM', 'noreply@vardiyaos.com'),
       });
 
       return true;
     } catch (err) {
-      this.logger.error(
-        `Email send failed for user ${userId}: ${(err as Error).message}`,
-      );
+      this.logger.error(`Email send failed for user ${userId}: ${(err as Error).message}`);
       return false;
     }
   }

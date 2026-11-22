@@ -40,15 +40,15 @@
 
 ### Key Design Decisions
 
-| Decision        | Choice                                   | Rationale                                                                                                                                                        |
-| --------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Navigation**  | Custom Angular-driven (no Ionic)         | Existing routes, guard system, and animations would require full rewrite with Ionic. Custom implementation gives full control and avoids 500KB+ bundle overhead. |
-| **Bottom Tabs** | Capacitor Tabs plugin + Angular routing  | Native tab bar (not CSS) for true native feel. Each tab is a separate WKWebView/WebView for instant switching.                                                   |
-| **Drawer**      | Native drawer plugin                     | Native slide-in menu with proper gesture handling, not a CSS overlay.                                                                                            |
-| **Local DB**    | SQLite via `@capacitor-community/sqlite` | Replaces IndexedDB for true native persistence. Supports complex queries, migrations, encryption.                                                                |
-| **Sync**        | CRDT-based conflict resolution           | Last-write-wins is insufficient for hospital scheduling. CRDT merges ensure no data loss.                                                                        |
-| **Forms**       | Keep Angular forms                       | Hospital workflow forms are complex; native form frameworks don't support multi-step validation.                                                                 |
-| **Navigation**  | URL-based routing (same as web)          | Deep links, universal links, and push notification deep linking all resolve to URLs. Single source of truth.                                                     |
+| Decision | Choice | Rationale |
+|---|---|---|
+| **Navigation** | Custom Angular-driven (no Ionic) | Existing routes, guard system, and animations would require full rewrite with Ionic. Custom implementation gives full control and avoids 500KB+ bundle overhead. |
+| **Bottom Tabs** | Capacitor Tabs plugin + Angular routing | Native tab bar (not CSS) for true native feel. Each tab is a separate WKWebView/WebView for instant switching. |
+| **Drawer** | Native drawer plugin | Native slide-in menu with proper gesture handling, not a CSS overlay. |
+| **Local DB** | SQLite via `@capacitor-community/sqlite` | Replaces IndexedDB for true native persistence. Supports complex queries, migrations, encryption. |
+| **Sync** | CRDT-based conflict resolution | Last-write-wins is insufficient for hospital scheduling. CRDT merges ensure no data loss. |
+| **Forms** | Keep Angular forms | Hospital workflow forms are complex; native form frameworks don't support multi-step validation. |
+| **Navigation** | URL-based routing (same as web) | Deep links, universal links, and push notification deep linking all resolve to URLs. Single source of truth. |
 
 ---
 
@@ -57,7 +57,6 @@
 ### 1.1 Firebase Cloud Messaging Setup
 
 **Files to create:**
-
 ```
 frontend/
 ├── android/app/google-services.json        # From Firebase Console
@@ -66,7 +65,6 @@ frontend/
 ```
 
 **Implementation:**
-
 ```gradle
 // android/app/build.gradle additions
 plugins {
@@ -79,7 +77,6 @@ dependencies {
 ```
 
 **iOS:**
-
 ```swift
 // AppDelegate.swift additions
 import Firebase
@@ -90,9 +87,7 @@ FirebaseApp.configure()
 ### 1.2 Missing Services (4 files)
 
 #### `core/services/mobile.service.ts`
-
 Native platform abstraction layer. Handles:
-
 - `isNative()` / `isWeb()` / `isIOS()` / `isAndroid()` detection
 - `isTablet()` based on Device plugin info
 - `getDeviceInfo()` returning platform, OS version, model
@@ -102,9 +97,7 @@ Native platform abstraction layer. Handles:
 - Screen orientation lock/unlock
 
 #### `services/push-notification.service.ts`
-
 Handles:
-
 - FCM registration via Capacitor PushNotifications plugin
 - Token management (store, refresh, send to backend)
 - Permission request flow (with rationale dialog)
@@ -114,9 +107,7 @@ Handles:
 - `notifications$` observable for in-app handling
 
 #### `services/camera.service.ts`
-
 Wraps @capacitor/camera for:
-
 - `takePhoto()` → returns base64 or file URI
 - `pickFromGallery()` → returns base64 or file URI
 - Automatic thumbnail generation
@@ -125,9 +116,7 @@ Wraps @capacitor/camera for:
 - Max file size enforcement (10MB for upload)
 
 #### `services/deep-link.service.ts`
-
 Handles:
-
 - Universal Link / App Link parsing via @capacitor/app `appUrlOpen`
 - Custom URL scheme (`vardiya://`) handling
 - Route resolution from URL path
@@ -137,37 +126,36 @@ Handles:
 ### 1.3 App Lifecycle Integration
 
 **Files to modify:**
-
 - `src/app/app.component.ts` — add Capacitor app lifecycle listeners
 - `src/app/app.config.ts` — register deep link handler
 
 ```typescript
 // app.component.ts additions
-import { App } from "@capacitor/app";
-import { StatusBar } from "@capacitor/status-bar";
-import { Keyboard } from "@capacitor/keyboard";
+import { App } from '@capacitor/app';
+import { StatusBar } from '@capacitor/status-bar';
+import { Keyboard } from '@capacitor/keyboard';
 
 @Component({
   // ...
 })
 export class AppComponent {
   constructor(private mobile: MobileService) {
-    App.addListener("appStateChange", ({ isActive }) => {
+    App.addListener('appStateChange', ({ isActive }) => {
       if (!isActive) this.mobile.onPause();
       else this.mobile.onResume();
     });
 
-    App.addListener("backButton", ({ canGoBack }) => {
+    App.addListener('backButton', ({ canGoBack }) => {
       if (!canGoBack) App.exitApp();
       else history.back();
     });
 
-    Keyboard.addListener("keyboardWillShow", (info) => {
-      document.body.classList.add("keyboard-open");
+    Keyboard.addListener('keyboardWillShow', (info) => {
+      document.body.classList.add('keyboard-open');
     });
 
-    Keyboard.addListener("keyboardWillHide", () => {
-      document.body.classList.remove("keyboard-open");
+    Keyboard.addListener('keyboardWillHide', () => {
+      document.body.classList.remove('keyboard-open');
     });
   }
 }
@@ -211,7 +199,6 @@ src/app/
 ### 2.2 Native Drawer
 
 Drawer contains secondary navigation items:
-
 - Vardiya Planları (MR, BT, Röntgen, Nükleer, Onkoloji)
 - Onay Merkezi
 - Yetkinlik Matrisi
@@ -227,7 +214,6 @@ On tablets: drawer is persistent side panel (like sidebar).
 ### 2.3 Tablet Layouts (Split View)
 
 Tablets (iPad, large Android tablets) get:
-
 - **Master-detail:** Left panel (300-400px) shows list/nav, right panel shows detail
 - **Grid view:** Schedule overview with month calendar + personnel side-by-side
 - **Drag-and-drop:** Personnel assignment across split panel
@@ -235,7 +221,6 @@ Tablets (iPad, large Android tablets) get:
 - **Multi-window support** on iPadOS (SceneDelegate)
 
 Breakpoints:
-
 - `< 400px`: Phone portrait (bottom tabs + full-screen routes)
 - `400-768px`: Phone landscape (tabs + wider content)
 - `768-1024px`: Tablet portrait (drawer persistent + stacked nav)
@@ -256,13 +241,11 @@ Breakpoints:
 ### 2.5 Adaptive Icons & Native Splash
 
 **Icons:**
-
 - Android: Adaptive icon (foreground + background layers) in `android/app/src/main/res/`
 - iOS: All icon sizes in `ios/App/App/Assets.xcassets/AppIcon.appiconset/`
 
 **Splash:**
-
-- Animated splash using Lottie
+- Animated splash using Lottie 
 - Branded background with pulsing logo
 - Auto-dismiss after 1.5s or when app ready
 
@@ -275,7 +258,6 @@ Breakpoints:
 **Install:** `npm install @capacitor-community/sqlite`
 
 **Schema (mirrors backend):**
-
 ```sql
 -- Schedules, cached for offline browsing
 CREATE TABLE schedules (
@@ -334,28 +316,19 @@ CREATE TABLE conflict_log (
 ### 3.2 SQLite Service (`core/services/sqlite.service.ts`)
 
 ```typescript
-@Injectable({ providedIn: "root" })
+@Injectable({ providedIn: 'root' })
 export class SqliteService {
   private db!: SQLiteDBConnection;
 
   async initialize(): Promise<void> {
     const sqlite = CapacitorSQLite;
-    const ret = await sqlite.createConnection(
-      "vardiyaos",
-      false,
-      "no-encryption",
-      1,
-      false,
-    );
+    const ret = await sqlite.createConnection('vardiyaos', false, 'no-encryption', 1, false);
     this.db = ret.connection!;
     await this.db.open();
     await this.migrate();
   }
 
-  async execute(
-    sql: string,
-    params?: any[],
-  ): Promise<SQLiteDBConnectionResult> {
+  async execute(sql: string, params?: any[]): Promise<SQLiteDBConnectionResult> {
     return this.db.run(sql, params);
   }
 
@@ -365,18 +338,10 @@ export class SqliteService {
   }
 
   // CRUD helpers
-  async upsert(table: string, data: Record<string, any>): Promise<void> {
-    /* ... */
-  }
-  async delete(table: string, id: string): Promise<void> {
-    /* ... */
-  }
-  async getById<T>(table: string, id: string): Promise<T | null> {
-    /* ... */
-  }
-  async getAll<T>(table: string, orderBy?: string): Promise<T[]> {
-    /* ... */
-  }
+  async upsert(table: string, data: Record<string, any>): Promise<void> { /* ... */ }
+  async delete(table: string, id: string): Promise<void> { /* ... */ }
+  async getById<T>(table: string, id: string): Promise<T | null> { /* ... */ }
+  async getAll<T>(table: string, orderBy?: string): Promise<T[]> { /* ... */ }
 }
 ```
 
@@ -396,14 +361,14 @@ Replaces `offline-sync.service.ts`. New capabilities:
 
 CRDT-based resolution engine for conflicting edits:
 
-| Entity                   | Conflict Strategy | Details                                              |
-| ------------------------ | ----------------- | ---------------------------------------------------- |
-| **Attendance**           | Last-write-wins   | Clock-in/out can't be merged. Server timestamp wins. |
-| **Handover notes**       | Last-write-wins   | Single author. Server version wins.                  |
-| **Device incidents**     | Last-write-wins   | Single reporter. Server version wins.                |
-| **Schedule assignments** | **CRDT merge**    | Both edits preserved. Admin resolves UI conflicts.   |
-| **Swap requests**        | Three-way merge   | If both parties edited, merge with status 'pending'. |
-| **Profile edits**        | Last-write-wins   | Manager overrides.                                   |
+| Entity | Conflict Strategy | Details |
+|---|---|---|
+| **Attendance** | Last-write-wins | Clock-in/out can't be merged. Server timestamp wins. |
+| **Handover notes** | Last-write-wins | Single author. Server version wins. |
+| **Device incidents** | Last-write-wins | Single reporter. Server version wins. |
+| **Schedule assignments** | **CRDT merge** | Both edits preserved. Admin resolves UI conflicts. |
+| **Swap requests** | Three-way merge | If both parties edited, merge with status 'pending'. |
+| **Profile edits** | Last-write-wins | Manager overrides. |
 
 ### 3.5 Offline Queue Enhancement
 
@@ -440,10 +405,9 @@ Current IndexedDB queue → SQLite queue. Enhance with:
 | Room/location | Scan room QR → view unit schedule |
 
 **Implementation:**
-
 ```typescript
 // services/qr-scanner.service.ts
-@Injectable({ providedIn: "root" })
+@Injectable({ providedIn: 'root' })
 export class QrScannerService {
   async scan(): Promise<string> {
     // Open camera in scanner mode
@@ -482,7 +446,6 @@ export class QrScannerService {
 ### 4.4 Native Camera Integration
 
 Camera is used in these flows:
-
 1. **Incident reporting:** Photo of broken device
 2. **Handover notes:** Photo of whiteboard/notes
 3. **Personnel profile:** Profile photo
@@ -497,17 +460,14 @@ Flow: `CameraService.takePhoto()` → compress to 1080px max → store in SQLite
 ### 5.1 Universal Links (iOS)
 
 Configure `apple-app-site-association` file on backend at `/.well-known/apple-app-site-association`:
-
 ```json
 {
   "applinks": {
     "apps": [],
-    "details": [
-      {
-        "appID": "TEAMID.com.hospital.vardiya",
-        "paths": ["/app/*", "/login/*"]
-      }
-    ]
+    "details": [{
+      "appID": "TEAMID.com.hospital.vardiya",
+      "paths": ["/app/*", "/login/*"]
+    }]
   }
 }
 ```
@@ -517,22 +477,18 @@ Configure iOS entitlement in Xcode: `Associated Domains: applinks:app.vardiya.co
 ### 5.2 Android App Links
 
 Configure assetlinks.json on backend at `/.well-known/assetlinks.json`:
-
 ```json
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "com.hospital.vardiya",
-      "sha256_cert_fingerprints": ["..."]
-    }
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.hospital.vardiya",
+    "sha256_cert_fingerprints": ["..."]
   }
-]
+}]
 ```
 
 Configure Android manifest:
-
 ```xml
 <intent-filter android:autoVerify="true">
   <action android:name="android.intent.action.VIEW" />
@@ -546,27 +502,27 @@ Configure Android manifest:
 
 ```typescript
 const DEEP_LINK_ROUTES: Record<string, string> = {
-  dashboard: "/app/dashboard",
-  "my-day": "/app/my-day",
-  "my-shifts": "/app/my-shifts",
-  employees: "/app/employees",
-  "employees/:id": "/app/employees/", // append id
-  "mr-plan": "/app/mr-plan",
-  "bt-plan": "/app/bt-plan",
-  "rontgen-plan": "/app/rontgen-plan",
-  "incident/:id": "/app/device-incidents", // navigate + open detail
-  "handover/:id": "/app/handover-notes",
-  notifications: "/app/notifications",
-  profile: "/app/profile",
-  settings: "/app/settings",
-  "swap-requests": "/app/swap-requests",
-  "leave-management": "/app/leave-management",
+  'dashboard': '/app/dashboard',
+  'my-day': '/app/my-day',
+  'my-shifts': '/app/my-shifts',
+  'employees': '/app/employees',
+  'employees/:id': '/app/employees/',  // append id
+  'mr-plan': '/app/mr-plan',
+  'bt-plan': '/app/bt-plan',
+  'rontgen-plan': '/app/rontgen-plan',
+  'incident/:id': '/app/device-incidents',  // navigate + open detail
+  'handover/:id': '/app/handover-notes',
+  'notifications': '/app/notifications',
+  'profile': '/app/profile',
+  'settings': '/app/settings',
+  'swap-requests': '/app/swap-requests',
+  'leave-management': '/app/leave-management',
 };
 
 function resolveDeepLink(url: string): string {
-  const path = url.replace(/^(vardiya:\/\/|https:\/\/app\.vardiya\.com\/)/, "");
+  const path = url.replace(/^(vardiya:\/\/|https:\/\/app\.vardiya\.com\/)/, '');
   // Match to route map
-  return DEEP_LINK_ROUTES[path] || "/app/dashboard";
+  return DEEP_LINK_ROUTES[path] || '/app/dashboard';
 }
 ```
 
@@ -588,7 +544,6 @@ function resolveDeepLink(url: string): string {
 ### 6.3 QR-Based Device Identification
 
 Scan QR on device → auto-fill device ID, unit, location → show:
-
 - Current schedule for this device
 - Active incidents
 - Maintenance history
@@ -597,7 +552,6 @@ Scan QR on device → auto-fill device ID, unit, location → show:
 ### 6.4 Handover Note Quick Create
 
 End-of-shift flow:
-
 1. Tap "Devir Teslim" on My Day screen
 2. See checklist of incomplete tasks
 3. Add notes via voice-to-text or keyboard
@@ -608,7 +562,6 @@ End-of-shift flow:
 ### 6.5 Offline Shift Viewing
 
 All current and upcoming shifts cached in SQLite:
-
 - Browse without network
 - See full schedule details
 - Make swap requests (queued)
@@ -635,44 +588,44 @@ All current and upcoming shifts cached in SQLite:
 
 ### 7.1 Native Feel Audit Checklist
 
-| Criterion              | Target         | How                                                   |
-| ---------------------- | -------------- | ----------------------------------------------------- |
-| App startup            | < 2s           | Native splash + lazy load                             |
-| Navigation transitions | 300ms spring   | Native tab switching                                  |
-| Scrolling              | 60fps          | Virtual scroll + GPU acceleration                     |
-| Tap response           | < 100ms        | Touch events, not click events                        |
-| Haptic feedback        | ✓              | All interactions have haptics                         |
-| Safe areas             | ✓              | Proper insets on all devices                          |
-| Keyboard handling      | ✓              | Content adjusts, scrolls into view                    |
-| Dark mode              | ✓              | Follows system + manual toggle                        |
-| Accessibility          | WCAG AA        | VoiceOver, TalkBack, dynamic type                     |
-| Orientation            | Portrait-first | Lock to portrait on phones, allow rotation on tablets |
-| App icon               | ✓              | Adaptive icons all sizes                              |
-| Splash screen          | ✓              | Branded, animated                                     |
+| Criterion | Target | How |
+|---|---|---|
+| App startup | < 2s | Native splash + lazy load |
+| Navigation transitions | 300ms spring | Native tab switching |
+| Scrolling | 60fps | Virtual scroll + GPU acceleration |
+| Tap response | < 100ms | Touch events, not click events |
+| Haptic feedback | ✓ | All interactions have haptics |
+| Safe areas | ✓ | Proper insets on all devices |
+| Keyboard handling | ✓ | Content adjusts, scrolls into view |
+| Dark mode | ✓ | Follows system + manual toggle |
+| Accessibility | WCAG AA | VoiceOver, TalkBack, dynamic type |
+| Orientation | Portrait-first | Lock to portrait on phones, allow rotation on tablets |
+| App icon | ✓ | Adaptive icons all sizes |
+| Splash screen | ✓ | Branded, animated |
 
 ### 7.2 Performance Targets
 
-| Metric                 | Current | Target            |
-| ---------------------- | ------- | ----------------- |
-| First meaningful paint | ~1.5s   | < 1s (cached)     |
-| Time to interactive    | ~3s     | < 1.5s            |
-| JS bundle size         | ~350KB  | < 300KB           |
-| Offline schedule load  | ~2s     | < 200ms (SQLite)  |
-| Sync latency (1 item)  | ~5s     | < 2s              |
-| Photo upload           | ~10s    | < 5s (compressed) |
+| Metric | Current | Target |
+|---|---|---|
+| First meaningful paint | ~1.5s | < 1s (cached) |
+| Time to interactive | ~3s | < 1.5s |
+| JS bundle size | ~350KB | < 300KB |
+| Offline schedule load | ~2s | < 200ms (SQLite) |
+| Sync latency (1 item) | ~5s | < 2s |
+| Photo upload | ~10s | < 5s (compressed) |
 
 ### 7.3 Testing Matrix
 
-| Device                | OS            | Test                      |
-| --------------------- | ------------- | ------------------------- |
-| iPhone 16 Pro         | iOS 18        | All features              |
-| iPhone SE (3rd gen)   | iOS 17        | Small screen, one-handed  |
-| iPad Pro 12.9"        | iPadOS 18     | Tablet layout, split view |
-| Samsung Galaxy S24    | Android 14    | All features              |
-| Samsung Galaxy Tab S9 | Android 14    | Tablet layout             |
-| Xiaomi Redmi Note 13  | Android 14    | Budget device             |
-| Offline mode          | iOS + Android | Full offline workflow     |
-| Network degradation   | iOS + Android | 3G simulation             |
+| Device | OS | Test |
+|---|---|---|
+| iPhone 16 Pro | iOS 18 | All features |
+| iPhone SE (3rd gen) | iOS 17 | Small screen, one-handed |
+| iPad Pro 12.9" | iPadOS 18 | Tablet layout, split view |
+| Samsung Galaxy S24 | Android 14 | All features |
+| Samsung Galaxy Tab S9 | Android 14 | Tablet layout |
+| Xiaomi Redmi Note 13 | Android 14 | Budget device |
+| Offline mode | iOS + Android | Full offline workflow |
+| Network degradation | iOS + Android | 3G simulation |
 
 ---
 
@@ -853,13 +806,13 @@ Week 10:   Phase 7  Polish & QA
 
 ## Risk Register
 
-| Risk                                                    | Impact | Likelihood | Mitigation                                                    |
-| ------------------------------------------------------- | ------ | ---------- | ------------------------------------------------------------- |
-| Apple App Store review rejects push notification usage  | High   | Low        | Document all notification use cases, get explicit consent     |
-| Android OEMs (Xiaomi, Huawei) have custom FCM behavior  | Medium | Medium     | Test on top 5 OEMs, implement fallback polling                |
-| SQLite encryption requires Capacitor Enterprise license | Medium | Low        | Use `no-encryption` mode, rely on OS-level encryption         |
-| Capacitor plugin API changes during v8 beta             | Medium | Medium     | Lock plugin versions, test after each plugin update           |
-| iPad split view requires significant routing refactor   | High   | Medium     | Build tablet layout as separate route tree                    |
-| Offline CRDT merge complexity                           | High   | Medium     | Start with last-write-wins, add CRDT only for schedule        |
-| Biometric auth flakiness on Android                     | Medium | Low        | Implement biometric + PIN fallback                            |
-| Deep link conflicts with existing PWA service worker    | Low    | Low        | Service worker intercepts only same-origin, not custom scheme |
+| Risk | Impact | Likelihood | Mitigation |
+|---|---|---|---|
+| Apple App Store review rejects push notification usage | High | Low | Document all notification use cases, get explicit consent |
+| Android OEMs (Xiaomi, Huawei) have custom FCM behavior | Medium | Medium | Test on top 5 OEMs, implement fallback polling |
+| SQLite encryption requires Capacitor Enterprise license | Medium | Low | Use `no-encryption` mode, rely on OS-level encryption |
+| Capacitor plugin API changes during v8 beta | Medium | Medium | Lock plugin versions, test after each plugin update |
+| iPad split view requires significant routing refactor | High | Medium | Build tablet layout as separate route tree |
+| Offline CRDT merge complexity | High | Medium | Start with last-write-wins, add CRDT only for schedule |
+| Biometric auth flakiness on Android | Medium | Low | Implement biometric + PIN fallback |
+| Deep link conflicts with existing PWA service worker | Low | Low | Service worker intercepts only same-origin, not custom scheme |

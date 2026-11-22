@@ -12,95 +12,28 @@ import { winstonLogger } from '../logger/winston-logger';
 import { ErrorCode } from './error-codes';
 import { StaleVersionError } from '../modules/schedules/domain/errors/schedule-errors';
 
-const PRISMA_ERROR_MAP: Record<
-  string,
-  { status: number; code: ErrorCode; message: string }
-> = {
-  P2000: {
-    status: HttpStatus.BAD_REQUEST,
-    code: ErrorCode.INPUT_TOO_LONG,
-    message: 'Sağlanan değer çok uzun',
-  },
-  P2001: {
-    status: HttpStatus.NOT_FOUND,
-    code: ErrorCode.NOT_FOUND,
-    message: 'Kayıt bulunamadı',
-  },
-  P2002: {
-    status: HttpStatus.CONFLICT,
-    code: ErrorCode.ALREADY_EXISTS,
-    message: 'Bu kayıt zaten mevcut',
-  },
-  P2003: {
-    status: HttpStatus.BAD_REQUEST,
-    code: ErrorCode.VALIDATION_FAILED,
-    message: 'İlişkili kayıt bulunamadı',
-  },
-  P2004: {
-    status: HttpStatus.CONFLICT,
-    code: ErrorCode.CONFLICT,
-    message: 'Veritabanı kısıtlaması ihlal edildi',
-  },
-  P2011: {
-    status: HttpStatus.BAD_REQUEST,
-    code: ErrorCode.REQUIRED_FIELD_MISSING,
-    message: 'Null kısıtlaması ihlal edildi',
-  },
-  P2012: {
-    status: HttpStatus.BAD_REQUEST,
-    code: ErrorCode.VALIDATION_FAILED,
-    message: 'Unique kısıtlaması ihlal edildi',
-  },
-  P2014: {
-    status: HttpStatus.BAD_REQUEST,
-    code: ErrorCode.CONFLICT,
-    message: 'İlişkili kayıt değişikliği reddedildi',
-  },
-  P2015: {
-    status: HttpStatus.NOT_FOUND,
-    code: ErrorCode.NOT_FOUND,
-    message: 'İlişkili kayıt bulunamadı',
-  },
-  P2025: {
-    status: HttpStatus.NOT_FOUND,
-    code: ErrorCode.NOT_FOUND,
-    message: 'Güncellenecek kayıt bulunamadı',
-  },
+const PRISMA_ERROR_MAP: Record<string, { status: number; code: ErrorCode; message: string }> = {
+  P2000: { status: HttpStatus.BAD_REQUEST, code: ErrorCode.INPUT_TOO_LONG, message: 'Sağlanan değer çok uzun' },
+  P2001: { status: HttpStatus.NOT_FOUND, code: ErrorCode.NOT_FOUND, message: 'Kayıt bulunamadı' },
+  P2002: { status: HttpStatus.CONFLICT, code: ErrorCode.ALREADY_EXISTS, message: 'Bu kayıt zaten mevcut' },
+  P2003: { status: HttpStatus.BAD_REQUEST, code: ErrorCode.VALIDATION_FAILED, message: 'İlişkili kayıt bulunamadı' },
+  P2004: { status: HttpStatus.CONFLICT, code: ErrorCode.CONFLICT, message: 'Veritabanı kısıtlaması ihlal edildi' },
+  P2011: { status: HttpStatus.BAD_REQUEST, code: ErrorCode.REQUIRED_FIELD_MISSING, message: 'Null kısıtlaması ihlal edildi' },
+  P2012: { status: HttpStatus.BAD_REQUEST, code: ErrorCode.VALIDATION_FAILED, message: 'Unique kısıtlaması ihlal edildi' },
+  P2014: { status: HttpStatus.BAD_REQUEST, code: ErrorCode.CONFLICT, message: 'İlişkili kayıt değişikliği reddedildi' },
+  P2015: { status: HttpStatus.NOT_FOUND, code: ErrorCode.NOT_FOUND, message: 'İlişkili kayıt bulunamadı' },
+  P2025: { status: HttpStatus.NOT_FOUND, code: ErrorCode.NOT_FOUND, message: 'Güncellenecek kayıt bulunamadı' },
 };
 
 const DOMAIN_ERROR_MAP: Record<string, { status: number; code: ErrorCode }> = {
-  StaleVersionError: {
-    status: HttpStatus.CONFLICT,
-    code: ErrorCode.SCHEDULE_VERSION_CONFLICT,
-  },
-  ScheduleLockError: {
-    status: HttpStatus.CONFLICT,
-    code: ErrorCode.SCHEDULE_LOCKED,
-  },
-  ScheduleAlreadyPublishedError: {
-    status: HttpStatus.CONFLICT,
-    code: ErrorCode.SCHEDULE_ALREADY_PUBLISHED,
-  },
-  InvalidScheduleStateError: {
-    status: HttpStatus.CONFLICT,
-    code: ErrorCode.SCHEDULE_STATE_CONFLICT,
-  },
-  AssignmentConflictError: {
-    status: HttpStatus.CONFLICT,
-    code: ErrorCode.ASSIGNMENT_CONFLICT,
-  },
-  InsufficientRestError: {
-    status: HttpStatus.CONFLICT,
-    code: ErrorCode.INSUFFICIENT_REST,
-  },
-  QualificationRequiredError: {
-    status: HttpStatus.FORBIDDEN,
-    code: ErrorCode.QUALIFICATION_REQUIRED,
-  },
-  MasterDataMutationNotAllowedError: {
-    status: HttpStatus.FORBIDDEN,
-    code: ErrorCode.MASTER_DATA_IMMUTABLE,
-  },
+  StaleVersionError: { status: HttpStatus.CONFLICT, code: ErrorCode.SCHEDULE_VERSION_CONFLICT },
+  ScheduleLockError: { status: HttpStatus.CONFLICT, code: ErrorCode.SCHEDULE_LOCKED },
+  ScheduleAlreadyPublishedError: { status: HttpStatus.CONFLICT, code: ErrorCode.SCHEDULE_ALREADY_PUBLISHED },
+  InvalidScheduleStateError: { status: HttpStatus.CONFLICT, code: ErrorCode.SCHEDULE_STATE_CONFLICT },
+  AssignmentConflictError: { status: HttpStatus.CONFLICT, code: ErrorCode.ASSIGNMENT_CONFLICT },
+  InsufficientRestError: { status: HttpStatus.CONFLICT, code: ErrorCode.INSUFFICIENT_REST },
+  QualificationRequiredError: { status: HttpStatus.FORBIDDEN, code: ErrorCode.QUALIFICATION_REQUIRED },
+  MasterDataMutationNotAllowedError: { status: HttpStatus.FORBIDDEN, code: ErrorCode.MASTER_DATA_IMMUTABLE },
 };
 
 @Catch()
@@ -116,16 +49,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let message = 'Sunucuda bir hata oluştu';
     let errors: string[] | undefined;
     let details: Record<string, unknown> | undefined;
+    let violations: unknown[] | undefined;
+    let hasBlocking: boolean | undefined;
+    let canOverride: boolean | undefined;
+    let serverVersion: number | undefined;
+    let localVersion: number | undefined;
+    let scheduleId: string | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exResponse = exception.getResponse();
       if (typeof exResponse === 'string') {
         message = exResponse;
-        code =
-          status >= 500
-            ? ErrorCode.INTERNAL_ERROR
-            : ErrorCode.VALIDATION_FAILED;
+        code = status >= 500 ? ErrorCode.INTERNAL_ERROR : ErrorCode.VALIDATION_FAILED;
       } else if (typeof exResponse === 'object' && exResponse !== null) {
         const body = exResponse as Record<string, unknown>;
         if (Array.isArray(body.message)) {
@@ -139,13 +75,34 @@ export class AllExceptionsFilter implements ExceptionFilter {
         } else if (typeof body.error === 'string') {
           code = body.error as ErrorCode;
         }
+        if (Array.isArray(body.violations)) {
+          violations = body.violations;
+        }
+        if (typeof body.hasBlocking === 'boolean') {
+          hasBlocking = body.hasBlocking;
+        }
+        if (typeof body.canOverride === 'boolean') {
+          canOverride = body.canOverride;
+        }
+        if (typeof body.serverVersion === 'number') {
+          serverVersion = body.serverVersion;
+        }
+        if (typeof body.localVersion === 'number') {
+          localVersion = body.localVersion;
+        }
+        if (typeof body.scheduleId === 'string') {
+          scheduleId = body.scheduleId;
+        }
       }
     } else if (exception instanceof StaleVersionError) {
       status = HttpStatus.CONFLICT;
       code = ErrorCode.SCHEDULE_VERSION_CONFLICT;
-      message =
-        'Schedule has been modified by another user. Please refresh and try again.';
-      details = { expectedVersion: undefined, actualVersion: undefined };
+      message = 'Schedule has been modified by another user. Please refresh and try again.';
+      const vMatch = /expected version (\d+) but found (\d+)/.exec(exception.message);
+      if (vMatch) {
+        localVersion = Number(vMatch[1]);
+        serverVersion = Number(vMatch[2]);
+      }
     } else if (exception instanceof Error && DOMAIN_ERROR_MAP[exception.name]) {
       const mapping = DOMAIN_ERROR_MAP[exception.name];
       status = mapping.status;
@@ -175,8 +132,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         url: request.url,
         status,
         code,
-        exception:
-          exception instanceof Error ? exception.message : 'Unknown error',
+        exception: exception instanceof Error ? exception.message : 'Unknown error',
         stack: exception instanceof Error ? exception.stack : undefined,
       });
     } else if (status >= 400) {
@@ -205,6 +161,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
     if (details) {
       responseBody.details = details;
+    }
+    if (violations && violations.length > 0) {
+      responseBody.violations = violations;
+    }
+    if (typeof hasBlocking === 'boolean') {
+      responseBody.hasBlocking = hasBlocking;
+    }
+    if (typeof canOverride === 'boolean') {
+      responseBody.canOverride = canOverride;
+    }
+    if (typeof serverVersion === 'number') {
+      responseBody.serverVersion = serverVersion;
+    }
+    if (typeof localVersion === 'number') {
+      responseBody.localVersion = localVersion;
+    }
+    if (typeof scheduleId === 'string') {
+      responseBody.scheduleId = scheduleId;
     }
 
     response.status(status).json(responseBody);

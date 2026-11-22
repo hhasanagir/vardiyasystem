@@ -16,15 +16,9 @@ import { ProcurementService } from './services/procurement.service';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
-    FormsModule,
-    TabsModule,
-    TableModule,
-    ButtonModule,
-    TagModule,
-    ToastModule,
-    ProgressSpinnerModule,
-    TooltipModule,
+    CommonModule, FormsModule,
+    TabsModule, TableModule, ButtonModule, TagModule,
+    ToastModule, ProgressSpinnerModule, TooltipModule,
   ],
   providers: [MessageService],
   templateUrl: './procurement.component.html',
@@ -47,64 +41,33 @@ export class ProcurementComponent implements OnInit {
 
   loadRequests(): void {
     this.procurementService.getRequests().subscribe({
-      error: () =>
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Hata',
-          detail: 'Talepler yüklenemedi',
-          life: 3000,
-        }),
+      error: () => this.messageService.add({ severity: 'error', summary: 'Hata', detail: 'Talepler yüklenemedi', life: 3000 }),
     });
   }
 
   loadOrders(): void {
     this.procurementService.getOrders().subscribe({
-      error: () =>
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Hata',
-          detail: 'Siparişler yüklenemedi',
-          life: 3000,
-        }),
+      error: () => this.messageService.add({ severity: 'error', summary: 'Hata', detail: 'Siparişler yüklenemedi', life: 3000 }),
     });
   }
 
-  getStatusSeverity(
-    status: string,
-  ): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
+  getStatusSeverity(status: string): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
     switch (status) {
-      case 'pending':
-        return 'warn';
-      case 'approved':
-        return 'info';
-      case 'ordered':
-        return 'info';
-      case 'delivered':
-        return 'success';
-      case 'rejected':
-        return 'danger';
-      case 'cancelled':
-        return 'secondary';
-      default:
-        return 'info';
+      case 'pending': return 'warn';
+      case 'approved': return 'info';
+      case 'ordered': return 'info';
+      case 'delivered': return 'success';
+      case 'rejected': return 'danger';
+      case 'cancelled': return 'secondary';
+      default: return 'info';
     }
   }
 
   onCreateRequest(): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Bilgi',
-      detail: 'Yeni talep oluşturulacak',
-      life: 3000,
-    });
+    this.messageService.add({ severity: 'info', summary: 'Bilgi', detail: 'Yeni talep oluşturulacak', life: 3000 });
   }
 
   onCreateOrder(): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Bilgi',
-      detail: 'Yeni sipariş oluşturulacak',
-      life: 3000,
-    });
+    this.messageService.add({ severity: 'info', summary: 'Bilgi', detail: 'Yeni sipariş oluşturulacak', life: 3000 });
   }
 }

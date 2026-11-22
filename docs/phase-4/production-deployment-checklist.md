@@ -7,14 +7,14 @@
 
 ## 0. Release Identification
 
-| Field                          | Value                   |
-| ------------------------------ | ----------------------- |
-| Release version                | `<semver>`              |
-| Git commit SHA                 | `<sha>`                 |
-| Deploy date / window           | `<YYYY-MM-DD HH:MM TZ>` |
-| Deploy lead                    | `<name>`                |
-| Second operator (verification) | `<name>`                |
-| Change ticket / approval ref   | `<id>`                  |
+| Field | Value |
+|---|---|
+| Release version | `<semver>` |
+| Git commit SHA | `<sha>` |
+| Deploy date / window | `<YYYY-MM-DD HH:MM TZ>` |
+| Deploy lead | `<name>` |
+| Second operator (verification) | `<name>` |
+| Change ticket / approval ref | `<id>` |
 
 ---
 
@@ -28,7 +28,7 @@
 - [ ] No `CHANGE_ME` placeholders remain in `.env`: `grep -rn "CHANGE_ME" .env` returns nothing
 - [ ] `.env` is not committed to git; `.gitignore` covers it; gitleaks pre-commit hook active
 - [ ] Secrets delivered via Docker secrets (`/run/secrets/...`) or Vault AppRole — not plaintext env in compose files where avoidable
-- [ ] `SEED_ADMIN_PASSWORD` / `SEED_TECHNICIAN_PASSWORD` set to strong random values for the one-time `npm run seed` (rotation planned post-deploy; the app itself ignores them in production)
+- [ ] `SEED_ADMIN_PASSWORD` / `SEED_TECHNICIAN_PASSWORD` set to strong random values (rotation planned post-deploy)
 - [ ] VAPID keys generated in production (`npx web-push generate-vapid-keys`) and configured
 - [ ] `SLACK_WEBHOOK_URL` points to the production alerting channel
 - [ ] Feature flags reviewed against the rollout matrix (`production-configuration.md §12`) — only intended flags enabled
@@ -105,8 +105,7 @@
 
 ### 2.3 Seed (first deploy only)
 
-- [ ] `npm run seed` executed once in `backend/` (first deploy only): initial admin/technician accounts created
-- [ ] Seeding done via the explicit `npm run seed` command — NOT by app startup: the app skips user seeding when `NODE_ENV=production` (`SeedService` guard), so a plain restart never creates or resets seed accounts
+- [ ] Seed executed once: initial admin/technician accounts created
 - [ ] Seed passwords rotated immediately after first login
 - [ ] Seed accounts' roles verified as least-privilege-correct
 - [ ] Invite-code bootstrap path tested (admin can mint invite codes)
@@ -175,7 +174,6 @@
 ## 4. Rollback Procedure
 
 Trigger conditions (any one):
-
 - Readiness failing > 5 minutes post-deploy with no quick fix
 - Critical regression in auth, data integrity, or tenant isolation
 - Error rate > 5% sustained for 10 minutes

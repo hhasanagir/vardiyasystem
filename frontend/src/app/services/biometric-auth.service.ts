@@ -74,7 +74,7 @@ export class BiometricAuthService {
         server: 'vardiya.app.biometric',
       });
       await Preferences.set({ key: BIOMETRIC_ENABLED_KEY, value: 'true' });
-      this.state.update((s) => ({ ...s, enabled: true }));
+      this.state.update(s => ({ ...s, enabled: true }));
       return true;
     } catch {
       return false;
@@ -85,7 +85,7 @@ export class BiometricAuthService {
     try {
       await NativeBiometric.deleteCredentials({ server: 'vardiya.app.biometric' });
       await Preferences.remove({ key: BIOMETRIC_ENABLED_KEY });
-      this.state.update((s) => ({ ...s, enabled: false }));
+      this.state.update(s => ({ ...s, enabled: false }));
     } catch {}
   }
 

@@ -20,8 +20,8 @@ export class SuppliersService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<Supplier[]>('/suppliers').pipe(
-      tap((d) => this._suppliers.set(d)),
-      catchError((err) => {
+      tap(d => this._suppliers.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Tedarikçiler yüklenemedi');
         return throwError(() => err);
       }),
@@ -33,8 +33,8 @@ export class SuppliersService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<Supplier>(`/suppliers/${id}`).pipe(
-      tap((d) => this._selectedSupplier.set(d)),
-      catchError((err) => {
+      tap(d => this._selectedSupplier.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Tedarikçi yüklenemedi');
         return throwError(() => err);
       }),
@@ -46,7 +46,7 @@ export class SuppliersService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.post<Supplier>('/suppliers', data).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Tedarikçi oluşturulamadı');
         return throwError(() => err);
       }),
@@ -58,7 +58,7 @@ export class SuppliersService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.put<Supplier>(`/suppliers/${id}`, data).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Tedarikçi güncellenemedi');
         return throwError(() => err);
       }),

@@ -12,11 +12,7 @@ export class UpdateAssignmentDto {
   @IsString()
   deviceId?: string;
 
-  @ApiPropertyOptional({
-    enum: ['device', 'person'],
-    description:
-      'device = cihaz bazlı vardiya, person = cihaz dışı personel nöbeti',
-  })
+  @ApiPropertyOptional({ enum: ['device', 'person'], description: 'device = cihaz bazlı vardiya, person = cihaz dışı personel nöbeti' })
   @IsOptional()
   @IsIn(['device', 'person'])
   kind?: 'device' | 'person';

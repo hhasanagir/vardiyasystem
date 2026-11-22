@@ -1,22 +1,7 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-  Query,
-  UseGuards,
-  Request,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { DutyRosterService } from '../duty-roster.service';
-import {
-  CreateDutyRosterEntryDto,
-  UpdateDutyRosterEntryDto,
-  DutyRosterFilterDto,
-} from './duty-roster.dto';
+import { CreateDutyRosterEntryDto, UpdateDutyRosterEntryDto, DutyRosterFilterDto } from './duty-roster.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
@@ -35,26 +20,14 @@ export class DutyRosterController {
   @Post()
   @Roles('hospital_admin', 'system_admin', 'supervisor', 'senior_technician')
   @ApiOperation({ summary: 'Create a duty roster entry' })
-  create(
-    @Body() dto: CreateDutyRosterEntryDto,
-    @Request() req: RequestWithUser,
-  ) {
-    return this.dutyRosterService.create({
-      ...dto,
-      organizationId: req.user.organizationId!,
-    });
+  create(@Body() dto: CreateDutyRosterEntryDto, @Request() req: RequestWithUser) {
+    return this.dutyRosterService.create({ ...dto, organizationId: req.user.organizationId! });
   }
 
   @Get()
   @ApiOperation({ summary: 'List duty roster entries with filters' })
-  findAll(
-    @Query() filter: DutyRosterFilterDto,
-    @Request() req: RequestWithUser,
-  ) {
-    return this.dutyRosterService.findAll({
-      ...filter,
-      organizationId: req.user.organizationId!,
-    });
+  findAll(@Query() filter: DutyRosterFilterDto, @Request() req: RequestWithUser) {
+    return this.dutyRosterService.findAll({ ...filter, organizationId: req.user.organizationId! });
   }
 
   @Get('calendar')
@@ -64,11 +37,7 @@ export class DutyRosterController {
     @Query('year') year: number,
     @Request() req: RequestWithUser,
   ) {
-    return this.dutyRosterService.getCalendar(
-      req.user.organizationId!,
-      +month,
-      +year,
-    );
+    return this.dutyRosterService.getCalendar(req.user.organizationId!, +month, +year);
   }
 
   @Get(':id')

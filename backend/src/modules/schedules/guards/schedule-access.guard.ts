@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma.service';
 
 /**
@@ -58,9 +52,7 @@ export class ScheduleAccessGuard implements CanActivate {
 
     if (user.organizationId && schedule.organizationId) {
       if (schedule.organizationId !== user.organizationId) {
-        throw new ForbiddenException(
-          'Access denied: schedule belongs to another organization',
-        );
+        throw new ForbiddenException('Access denied: schedule belongs to another organization');
       }
       return true;
     }
@@ -72,23 +64,15 @@ export class ScheduleAccessGuard implements CanActivate {
           select: { organizationId: true },
         });
 
-        if (
-          unit?.organizationId &&
-          user.organizationId &&
-          unit.organizationId !== user.organizationId
-        ) {
-          throw new ForbiddenException(
-            'Access denied: schedule belongs to another organization',
-          );
+        if (unit?.organizationId && user.organizationId && unit.organizationId !== user.organizationId) {
+          throw new ForbiddenException('Access denied: schedule belongs to another organization');
         }
       }
       return true;
     }
 
     if (user.organizationId && !schedule.organizationId) {
-      throw new ForbiddenException(
-        'Access denied: schedule has no organization context',
-      );
+      throw new ForbiddenException('Access denied: schedule has no organization context');
     }
 
     throw new ForbiddenException('Access denied: insufficient tenant context');

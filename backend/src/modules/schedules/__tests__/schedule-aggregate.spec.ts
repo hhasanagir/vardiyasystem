@@ -1,20 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import {
-  Schedule,
-  ScheduleStatus,
-} from '../domain/aggregates/schedule.aggregate';
-import {
-  Assignment,
-  AssignmentSource,
-} from '../domain/entities/assignment.entity';
+import { Schedule, ScheduleStatus } from '../domain/aggregates/schedule.aggregate';
+import { Assignment, AssignmentSource } from '../domain/entities/assignment.entity';
 import { AssignmentCollection } from '../domain/entities/assignment-collection';
 import { AssignmentDate } from '../domain/value-objects/assignment-date.value-object';
 import { PersonnelId } from '../domain/value-objects/personnel-id.value-object';
 
 describe('Schedule Aggregate', () => {
-  function createSchedule(
-    overrides?: Partial<{ unitId: string; month: number; year: number }>,
-  ): Schedule {
+  function createSchedule(overrides?: Partial<{ unitId: string; month: number; year: number }>): Schedule {
     return Schedule.create({
       unitId: overrides?.unitId || 'unit-1',
       month: overrides?.month || 8,
@@ -78,48 +70,39 @@ describe('Schedule Aggregate', () => {
 
   it('adds assignment', () => {
     const s = createSchedule();
-    const a = s.addAssignment(
-      {
-        personnelId: 'p-1',
-        date: '2026-08-15',
-        shiftType: 'morning',
-        startTime: '08:00',
-        endTime: '16:00',
-      },
-      'user-1',
-    );
+    const a = s.addAssignment({
+      personnelId: 'p-1',
+      date: '2026-08-15',
+      shiftType: 'morning',
+      startTime: '08:00',
+      endTime: '16:00',
+    }, 'user-1');
     expect(a).toBeDefined();
     expect(a.personnelId.value).toBe('p-1');
   });
 
   it('removes assignment', () => {
     const s = createSchedule();
-    const a = s.addAssignment(
-      {
-        personnelId: 'p-1',
-        date: '2026-08-15',
-        shiftType: 'morning',
-        startTime: '08:00',
-        endTime: '16:00',
-      },
-      'user-1',
-    );
+    const a = s.addAssignment({
+      personnelId: 'p-1',
+      date: '2026-08-15',
+      shiftType: 'morning',
+      startTime: '08:00',
+      endTime: '16:00',
+    }, 'user-1');
     const removed = s.removeAssignment(a.id, 'user-1');
     expect(removed).toBeDefined();
   });
 
   it('creates schedule snapshot', () => {
     const s = createSchedule();
-    s.addAssignment(
-      {
-        personnelId: 'p-1',
-        date: '2026-08-15',
-        shiftType: 'morning',
-        startTime: '08:00',
-        endTime: '16:00',
-      },
-      'user-1',
-    );
+    s.addAssignment({
+      personnelId: 'p-1',
+      date: '2026-08-15',
+      shiftType: 'morning',
+      startTime: '08:00',
+      endTime: '16:00',
+    }, 'user-1');
     const snapshot = s.toSnapshot();
     expect(snapshot.assignments).toHaveLength(1);
   });
@@ -196,22 +179,8 @@ describe('Assignment Entity', () => {
 describe('AssignmentCollection', () => {
   it('filters by date', () => {
     const col = new AssignmentCollection([
-      Assignment.create({
-        scheduleId: 's-1',
-        personnelId: 'p-1',
-        date: '2026-08-15',
-        shiftType: 'morning',
-        startTime: '08:00',
-        endTime: '16:00',
-      }),
-      Assignment.create({
-        scheduleId: 's-1',
-        personnelId: 'p-2',
-        date: '2026-08-16',
-        shiftType: 'morning',
-        startTime: '08:00',
-        endTime: '16:00',
-      }),
+      Assignment.create({ scheduleId: 's-1', personnelId: 'p-1', date: '2026-08-15', shiftType: 'morning', startTime: '08:00', endTime: '16:00' }),
+      Assignment.create({ scheduleId: 's-1', personnelId: 'p-2', date: '2026-08-16', shiftType: 'morning', startTime: '08:00', endTime: '16:00' }),
     ]);
     const byDate = col.findByDate(AssignmentDate.create('2026-08-15'));
     expect(byDate).toHaveLength(1);
@@ -219,44 +188,16 @@ describe('AssignmentCollection', () => {
 
   it('filters by personnel', () => {
     const col = new AssignmentCollection([
-      Assignment.create({
-        scheduleId: 's-1',
-        personnelId: 'p-1',
-        date: '2026-08-15',
-        shiftType: 'morning',
-        startTime: '08:00',
-        endTime: '16:00',
-      }),
-      Assignment.create({
-        scheduleId: 's-1',
-        personnelId: 'p-2',
-        date: '2026-08-15',
-        shiftType: 'morning',
-        startTime: '08:00',
-        endTime: '16:00',
-      }),
+      Assignment.create({ scheduleId: 's-1', personnelId: 'p-1', date: '2026-08-15', shiftType: 'morning', startTime: '08:00', endTime: '16:00' }),
+      Assignment.create({ scheduleId: 's-1', personnelId: 'p-2', date: '2026-08-15', shiftType: 'morning', startTime: '08:00', endTime: '16:00' }),
     ]);
     const byPerson = col.findByPersonnel(PersonnelId.create('p-1'));
     expect(byPerson).toHaveLength(1);
   });
 
   it('detects overlap', () => {
-    const a1 = Assignment.create({
-      scheduleId: 's-1',
-      personnelId: 'p-1',
-      date: '2026-08-15',
-      shiftType: 'morning',
-      startTime: '08:00',
-      endTime: '16:00',
-    });
-    const a2 = Assignment.create({
-      scheduleId: 's-1',
-      personnelId: 'p-1',
-      date: '2026-08-15',
-      shiftType: 'morning',
-      startTime: '08:00',
-      endTime: '16:00',
-    });
+    const a1 = Assignment.create({ scheduleId: 's-1', personnelId: 'p-1', date: '2026-08-15', shiftType: 'morning', startTime: '08:00', endTime: '16:00' });
+    const a2 = Assignment.create({ scheduleId: 's-1', personnelId: 'p-1', date: '2026-08-15', shiftType: 'morning', startTime: '08:00', endTime: '16:00' });
     expect(a1.isSameSlot(a2)).toBe(true);
   });
 });

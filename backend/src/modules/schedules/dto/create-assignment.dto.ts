@@ -6,20 +6,12 @@ export class CreateAssignmentDto {
   @IsString()
   personnelId: string;
 
-  @ApiPropertyOptional({
-    description:
-      'Cihaz kimliği. Personel bazlı nöbet (kind=person) için boş bırakılır.',
-  })
+  @ApiPropertyOptional({ description: 'Cihaz kimliği. Personel bazlı nöbet (kind=person) için boş bırakılır.' })
   @IsOptional()
   @IsString()
   deviceId?: string;
 
-  @ApiPropertyOptional({
-    enum: ['device', 'person'],
-    default: 'device',
-    description:
-      'device = cihaz bazlı vardiya, person = cihaz dışı personel nöbeti',
-  })
+  @ApiPropertyOptional({ enum: ['device', 'person'], default: 'device', description: 'device = cihaz bazlı vardiya, person = cihaz dışı personel nöbeti' })
   @IsOptional()
   @IsIn(['device', 'person'])
   kind?: 'device' | 'person';
@@ -55,10 +47,7 @@ export class CreateAssignmentDto {
   @IsString()
   endTime: string;
 
-  @ApiPropertyOptional({
-    description:
-      'Slot personnelType discriminator (e.g. medical_physicist_2, planning)',
-  })
+  @ApiPropertyOptional({ description: 'Slot personnelType discriminator (e.g. medical_physicist_2, planning)' })
   @IsOptional()
   @IsString()
   personnelType?: string;

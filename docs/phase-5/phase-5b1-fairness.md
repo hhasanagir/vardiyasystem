@@ -39,11 +39,11 @@ overallScore = nightScore * 0.25
 ## Canonical Weights
 
 | Dimension | Backend (Canonical) | Frontend |
-| --------- | ------------------- | -------- |
-| Night     | 0.25                | 0.30     |
-| Weekend   | 0.20                | 0.25     |
-| Holiday   | 0.15                | 0.20     |
-| Workload  | 0.40                | 0.25     |
+|---|---|---|
+| Night | 0.25 | 0.30 |
+| Weekend | 0.20 | 0.25 |
+| Holiday | 0.15 | 0.20 |
+| Workload | 0.40 | 0.25 |
 
 **Note:** Frontend uses different weights. Backend is canonical. Frontend will consume backend result in future phases.
 
@@ -70,7 +70,7 @@ interface FairnessInput {
 
 ```typescript
 interface FairnessResult {
-  overallScore: number; // 0..100
+  overallScore: number;  // 0..100
   nightScore: number;
   weekendScore: number;
   holidayScore: number;

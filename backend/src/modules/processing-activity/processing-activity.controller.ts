@@ -1,18 +1,13 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Param,
-  Body,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { MinRole } from '../../guards/min-role';
 import { ProcessingActivityService } from './processing-activity.service';
 
 @Controller('processing-activities')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(MinRole.SYSTEM_ADMIN)
 export class ProcessingActivityController {
   constructor(private service: ProcessingActivityService) {}
 
@@ -47,10 +42,7 @@ export class ProcessingActivityController {
   }
 
   @Post('dpia/:dpiaId/approve')
-  async approveDpia(
-    @Param('dpiaId') dpiaId: string,
-    @Body('approvedBy') approvedBy: string,
-  ) {
+  async approveDpia(@Param('dpiaId') dpiaId: string, @Body('approvedBy') approvedBy: string) {
     return this.service.approveDpia(dpiaId, approvedBy);
   }
 

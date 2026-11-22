@@ -131,11 +131,11 @@ kubectl apply -f infra/service-mesh/istio/gateway.yaml
 
 ## Troubleshooting
 
-| Issue                          | Check                                                          | Fix                          |
-| ------------------------------ | -------------------------------------------------------------- | ---------------------------- |
-| Pods stuck in CrashLoopBackOff | `kubectl logs -n vardiya <pod>`                                | Check ConfigMap/Secret refs  |
-| TLS certificate not issued     | `kubectl describe certificate -n vardiya vardiya-tls`          | Verify DNS and ClusterIssuer |
-| ArgoCD sync failing            | `argocd app get vardiya-platform`                              | Check Helm values syntax     |
-| Rollout stuck                  | `kubectl argo rollouts get rollout vardiya-backend -n vardiya` | Promote or abort             |
-| High latency                   | `istioctl dashboard kiali -n istio-system`                     | Check traffic routing        |
-| OOMKilled                      | `kubectl top pod -n vardiya`                                   | Adjust resources in values   |
+| Issue | Check | Fix |
+|-------|-------|-----|
+| Pods stuck in CrashLoopBackOff | `kubectl logs -n vardiya <pod>` | Check ConfigMap/Secret refs |
+| TLS certificate not issued | `kubectl describe certificate -n vardiya vardiya-tls` | Verify DNS and ClusterIssuer |
+| ArgoCD sync failing | `argocd app get vardiya-platform` | Check Helm values syntax |
+| Rollout stuck | `kubectl argo rollouts get rollout vardiya-backend -n vardiya` | Promote or abort |
+| High latency | `istioctl dashboard kiali -n istio-system` | Check traffic routing |
+| OOMKilled | `kubectl top pod -n vardiya` | Adjust resources in values |

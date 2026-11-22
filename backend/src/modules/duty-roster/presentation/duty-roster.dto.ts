@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsBoolean,
-  IsDateString,
-} from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsBoolean, IsDateString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { DutyRosterRole } from '../domain/duty-roster.types';
 
@@ -14,22 +8,15 @@ export class CreateDutyRosterEntryDto {
   @ApiPropertyOptional() @IsOptional() @IsString() deviceId?: string;
   @ApiProperty() @IsString() personnelId: string;
   @ApiProperty() @IsDateString() date: string;
-  @ApiProperty({ enum: ['day', 'evening', 'night'] })
-  @IsString()
-  shiftType: string;
-  @ApiProperty({ enum: DutyRosterRole })
-  @IsEnum(DutyRosterRole)
-  role: DutyRosterRole;
+  @ApiProperty({ enum: ['day', 'evening', 'night'] }) @IsString() shiftType: string;
+  @ApiProperty({ enum: DutyRosterRole }) @IsEnum(DutyRosterRole) role: DutyRosterRole;
   @ApiProperty() @IsString() startTime: string;
   @ApiProperty() @IsString() endTime: string;
   @ApiPropertyOptional() @IsOptional() @IsString() notes?: string;
 }
 
 export class UpdateDutyRosterEntryDto {
-  @ApiPropertyOptional({ enum: DutyRosterRole })
-  @IsOptional()
-  @IsEnum(DutyRosterRole)
-  role?: DutyRosterRole;
+  @ApiPropertyOptional({ enum: DutyRosterRole }) @IsOptional() @IsEnum(DutyRosterRole) role?: DutyRosterRole;
   @ApiPropertyOptional() @IsOptional() @IsString() startTime?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() endTime?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() notes?: string;
@@ -45,9 +32,6 @@ export class DutyRosterFilterDto {
   @ApiPropertyOptional() @IsOptional() @IsString() deviceId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() personnelId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() shiftType?: string;
-  @ApiPropertyOptional({ enum: DutyRosterRole })
-  @IsOptional()
-  @IsEnum(DutyRosterRole)
-  role?: DutyRosterRole;
+  @ApiPropertyOptional({ enum: DutyRosterRole }) @IsOptional() @IsEnum(DutyRosterRole) role?: DutyRosterRole;
   @ApiPropertyOptional() @IsOptional() @IsString() search?: string;
 }

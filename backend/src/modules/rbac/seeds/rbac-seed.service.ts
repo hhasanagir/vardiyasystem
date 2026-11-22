@@ -1,10 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../prisma.service';
-import {
-  RbacRolesSeed,
-  RbacPermissionsSeed,
-  RbacRolePermissionSeed,
-} from './rbac-seed.data';
+import { RbacRolesSeed, RbacPermissionsSeed, RbacRolePermissionSeed } from './rbac-seed.data';
 
 @Injectable()
 export class RbacSeedService {
@@ -25,79 +21,69 @@ export class RbacSeedService {
     }
 
     this.logger.log('Seeding RBAC roles and permissions...');
-    const roles = await this.prisma.$transaction(
-      async (tx: any) => {
-        const createdRoles: Record<string, string> = {};
-        for (const roleData of RbacRolesSeed) {
-          const role = await tx.role.create({
-            data: {
-              name: roleData.name as any,
-              label: roleData.label,
-              description: roleData.description,
-              level: roleData.level,
-              isSystem: roleData.isSystem,
-            },
+    const roles = await this.prisma.$transaction(async (tx: any) => {
+      const createdRoles: Record<string, string> = {};
+      for (const roleData of RbacRolesSeed) {
+        const role = await tx.role.create({
+          data: {
+            name: roleData.name as any,
+            label: roleData.label,
+            description: roleData.description,
+            level: roleData.level,
+            isSystem: roleData.isSystem,
+          },
+        });
+        createdRoles[roleData.name] = role.id;
+      }
+
+      for (const roleData of RbacRolesSeed) {
+        if (roleData.parentName && createdRoles[roleData.parentName]) {
+          await tx.role.update({
+            where: { id: createdRoles[roleData.name] },
+            data: { parentId: createdRoles[roleData.parentName] },
           });
-          createdRoles[roleData.name] = role.id;
         }
+      }
 
-        for (const roleData of RbacRolesSeed) {
-          if (roleData.parentName && createdRoles[roleData.parentName]) {
-            await tx.role.update({
-              where: { id: createdRoles[roleData.name] },
-              data: { parentId: createdRoles[roleData.parentName] },
-            });
-          }
+      const permissionIds: Record<string, string> = {};
+      for (const permData of RbacPermissionsSeed) {
+        const perm = await tx.permission.upsert({
+          where: { name: permData.name },
+          create: {
+            name: permData.name,
+            label: permData.label,
+            module: permData.module,
+            action: permData.action,
+          },
+          update: {
+            label: permData.label,
+            module: permData.module,
+            action: permData.action,
+          },
+        });
+        permissionIds[permData.name] = perm.id;
+      }
+
+      for (const [roleName, permNames] of Object.entries(RbacRolePermissionSeed)) {
+        const roleId = createdRoles[roleName];
+        if (!roleId) continue;
+
+        const rpData = permNames
+          .filter((pn) => permissionIds[pn])
+          .map((pn) => ({
+            roleId,
+            permissionId: permissionIds[pn],
+          }));
+
+        if (rpData.length > 0) {
+          await tx.rolePermission.createMany({ data: rpData, skipDuplicates: true });
         }
+      }
 
-        const permissionIds: Record<string, string> = {};
-        for (const permData of RbacPermissionsSeed) {
-          const perm = await tx.permission.upsert({
-            where: { name: permData.name },
-            create: {
-              name: permData.name,
-              label: permData.label,
-              module: permData.module,
-              action: permData.action,
-            },
-            update: {
-              label: permData.label,
-              module: permData.module,
-              action: permData.action,
-            },
-          });
-          permissionIds[permData.name] = perm.id;
-        }
+      return createdRoles;
+    }, { timeout: 60000 });
 
-        for (const [roleName, permNames] of Object.entries(
-          RbacRolePermissionSeed,
-        )) {
-          const roleId = createdRoles[roleName];
-          if (!roleId) continue;
-
-          const rpData = permNames
-            .filter((pn) => permissionIds[pn])
-            .map((pn) => ({
-              roleId,
-              permissionId: permissionIds[pn],
-            }));
-
-          if (rpData.length > 0) {
-            await tx.rolePermission.createMany({
-              data: rpData,
-              skipDuplicates: true,
-            });
-          }
-        }
-
-        return createdRoles;
-      },
-      { timeout: 60000 },
-    );
-
-    this.logger.log(
-      `Seeded ${Object.keys(roles).length} roles with ${RbacPermissionsSeed.length} permissions`,
-    );
+    this.logger.log(`Seeded ${Object.keys(roles).length} roles with ${RbacPermissionsSeed.length} permissions`);
 
     await this.computeRolePaths();
   }
@@ -120,9 +106,7 @@ export class RbacSeedService {
       );
       this.logger.log('Computed ltree paths for roles');
     } catch (err) {
-      this.logger.warn(
-        'Failed to compute role paths (ltree may not be available)',
-      );
+      this.logger.warn('Failed to compute role paths (ltree may not be available)');
     }
   }
 }

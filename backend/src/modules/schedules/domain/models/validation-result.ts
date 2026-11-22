@@ -123,10 +123,7 @@ export function createEmptyValidationResult(): ValidationResult {
   };
 }
 
-export function addHardViolation(
-  result: ValidationResult,
-  conflict: Conflict,
-): void {
+export function addHardViolation(result: ValidationResult, conflict: Conflict): void {
   result.hardViolations.total++;
   result.hardViolations.conflicts.push(conflict);
   const count = result.hardViolations.byCode[conflict.code] || 0;
@@ -134,10 +131,7 @@ export function addHardViolation(
   result.valid = false;
 }
 
-export function addSoftViolation(
-  result: ValidationResult,
-  conflict: Conflict,
-): void {
+export function addSoftViolation(result: ValidationResult, conflict: Conflict): void {
   result.softViolations.total++;
   result.softViolations.warnings.push(conflict);
   const count = result.softViolations.byCode[conflict.code] || 0;

@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request, Response } from 'express';
@@ -25,19 +19,11 @@ export class LoggingInterceptor implements NestInterceptor {
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const request = context
-      .switchToHttp()
-      .getRequest<
-        Request & {
-          correlationId?: string;
-          user?: { id?: string; organizationId?: string };
-        }
-      >();
+    const request = context.switchToHttp().getRequest<Request & { correlationId?: string; user?: { id?: string; organizationId?: string } }>();
     const response = context.switchToHttp().getResponse<Response>();
 
-    const correlationId =
-      (request.headers[CORRELATION_ID_HEADER.toLowerCase()] as string) ||
-      crypto.randomUUID().slice(0, 8);
+    const correlationId = (request.headers[CORRELATION_ID_HEADER.toLowerCase()] as string)
+      || crypto.randomUUID().slice(0, 8);
     request.correlationId = correlationId;
     response.setHeader(CORRELATION_ID_HEADER, correlationId);
 
@@ -46,59 +32,22 @@ export class LoggingInterceptor implements NestInterceptor {
     const userId = request.user?.id || 'anonymous';
     const organizationId = request.user?.organizationId || '';
 
-    this.correlationService.run(
-      { correlationId, userId, organizationId },
-      () => {
-        winstonLogger.info('request_start', {
-          correlationId,
-          method,
-          url,
-          userId,
-          organizationId,
-        });
-      },
-    );
+    this.correlationService.run({ correlationId, userId, organizationId }, () => {
+      winstonLogger.info('request_start', { correlationId, method, url, userId, organizationId });
+    });
 
     return next.handle().pipe(
       tap({
         next: () => {
           const duration = Date.now() - start;
-          winstonLogger.info('request_end', {
-            correlationId,
-            method,
-            url,
-            userId,
-            organizationId,
-            duration,
-            status: response.statusCode,
-          });
-          this.healthMonitor.recordSuccess(
-            method,
-            url.split('?')[0],
-            response.statusCode,
-            duration,
-          );
+          winstonLogger.info('request_end', { correlationId, method, url, userId, organizationId, duration, status: response.statusCode });
+          this.healthMonitor.recordSuccess(method, url.split('?')[0], response.statusCode, duration);
         },
         error: (error: Error) => {
           const duration = Date.now() - start;
           const status = (error as { status?: number }).status || 500;
-          winstonLogger.error('request_error', {
-            correlationId,
-            method,
-            url,
-            userId,
-            organizationId,
-            duration,
-            status,
-            error: error.message,
-          });
-          this.healthMonitor.recordError(
-            method,
-            url.split('?')[0],
-            status,
-            duration,
-            error.message,
-          );
+          winstonLogger.error('request_error', { correlationId, method, url, userId, organizationId, duration, status, error: error.message });
+          this.healthMonitor.recordError(method, url.split('?')[0], status, duration, error.message);
         },
       }),
     );

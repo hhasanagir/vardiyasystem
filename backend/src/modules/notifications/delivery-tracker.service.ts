@@ -22,28 +22,15 @@ export class DeliveryTrackerService {
       if (endDate) where.createdAt.lte = endDate;
     }
 
-    const [total, sent, delivered, read, clicked, failed, pending] =
-      await Promise.all([
-        this.prisma.notificationDelivery.count({ where }),
-        this.prisma.notificationDelivery.count({
-          where: { ...where, status: 'SENT' },
-        }),
-        this.prisma.notificationDelivery.count({
-          where: { ...where, status: 'DELIVERED' },
-        }),
-        this.prisma.notificationDelivery.count({
-          where: { ...where, status: 'READ' },
-        }),
-        this.prisma.notificationDelivery.count({
-          where: { ...where, status: 'CLICKED' },
-        }),
-        this.prisma.notificationDelivery.count({
-          where: { ...where, status: 'FAILED' },
-        }),
-        this.prisma.notificationDelivery.count({
-          where: { ...where, status: 'PENDING' },
-        }),
-      ]);
+    const [total, sent, delivered, read, clicked, failed, pending] = await Promise.all([
+      this.prisma.notificationDelivery.count({ where }),
+      this.prisma.notificationDelivery.count({ where: { ...where, status: 'SENT' } }),
+      this.prisma.notificationDelivery.count({ where: { ...where, status: 'DELIVERED' } }),
+      this.prisma.notificationDelivery.count({ where: { ...where, status: 'READ' } }),
+      this.prisma.notificationDelivery.count({ where: { ...where, status: 'CLICKED' } }),
+      this.prisma.notificationDelivery.count({ where: { ...where, status: 'FAILED' } }),
+      this.prisma.notificationDelivery.count({ where: { ...where, status: 'PENDING' } }),
+    ]);
 
     const nonPending = total - pending;
     return {
@@ -54,9 +41,8 @@ export class DeliveryTrackerService {
       clicked,
       failed,
       pending,
-      deliveryRate:
-        nonPending > 0 ? ((sent + delivered) / nonPending) * 100 : 0,
-      readRate: sent + delivered > 0 ? (read / (sent + delivered)) * 100 : 0,
+      deliveryRate: nonPending > 0 ? ((sent + delivered) / nonPending) * 100 : 0,
+      readRate: (sent + delivered) > 0 ? (read / (sent + delivered)) * 100 : 0,
     };
   }
 
@@ -69,13 +55,7 @@ export class DeliveryTrackerService {
         skip: offset,
         include: {
           notification: {
-            select: {
-              id: true,
-              title: true,
-              type: true,
-              priority: true,
-              organizationId: true,
-            },
+            select: { id: true, title: true, type: true, priority: true, organizationId: true },
           },
         },
       }),
@@ -90,10 +70,7 @@ export class DeliveryTrackerService {
       include: { notification: true },
     });
     if (!delivery || delivery.status !== 'FAILED') {
-      return {
-        success: false,
-        message: 'Delivery not found or not in failed state',
-      };
+      return { success: false, message: 'Delivery not found or not in failed state' };
     }
     await this.prisma.notificationDelivery.update({
       where: { id: deliveryId },
@@ -121,14 +98,10 @@ export class DeliveryTrackerService {
       select: { status: true, createdAt: true, channel: true },
     });
 
-    const trend: Record<
-      string,
-      { sent: number; delivered: number; read: number; failed: number }
-    > = {};
+    const trend: Record<string, { sent: number; delivered: number; read: number; failed: number }> = {};
     for (const d of deliveries) {
       const day = d.createdAt.toISOString().split('T')[0];
-      if (!trend[day])
-        trend[day] = { sent: 0, delivered: 0, read: 0, failed: 0 };
+      if (!trend[day]) trend[day] = { sent: 0, delivered: 0, read: 0, failed: 0 };
       if (d.status === 'SENT') trend[day].sent++;
       else if (d.status === 'DELIVERED') trend[day].delivered++;
       else if (d.status === 'READ') trend[day].read++;

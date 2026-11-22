@@ -57,17 +57,14 @@ describe('ShiftsService', () => {
       mockPrisma.shifts.findFirst.mockResolvedValue(null);
       mockPrisma.shifts.create.mockResolvedValue(sampleShift);
 
-      const result = await service.create(
-        {
-          name: 'Gündüz Vardiyası',
-          type: ShiftType.day,
-          startTime: '08:00',
-          endTime: '16:00',
-          durationHours: 8,
-          organizationId: orgId,
-        },
-        userId,
-      );
+      const result = await service.create({
+        name: 'Gündüz Vardiyası',
+        type: ShiftType.day,
+        startTime: '08:00',
+        endTime: '16:00',
+        durationHours: 8,
+        organizationId: orgId,
+      }, userId);
 
       expect(result.id).toBe('shift-1');
       expect(result.name).toBe('Gündüz Vardiyası');
@@ -89,19 +86,14 @@ describe('ShiftsService', () => {
     it('should throw ConflictException if name already exists in organization', async () => {
       mockPrisma.shifts.findFirst.mockResolvedValue(sampleShift);
 
-      await expect(
-        service.create(
-          {
-            name: 'Gündüz Vardiyası',
-            type: ShiftType.day,
-            startTime: '08:00',
-            endTime: '16:00',
-            durationHours: 8,
-            organizationId: orgId,
-          },
-          userId,
-        ),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.create({
+        name: 'Gündüz Vardiyası',
+        type: ShiftType.day,
+        startTime: '08:00',
+        endTime: '16:00',
+        durationHours: 8,
+        organizationId: orgId,
+      }, userId)).rejects.toThrow(ConflictException);
     });
   });
 
@@ -149,9 +141,7 @@ describe('ShiftsService', () => {
     it('should throw NotFoundException if shift not found', async () => {
       mockPrisma.shifts.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOne('nonexistent', orgId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('nonexistent', orgId)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -162,11 +152,7 @@ describe('ShiftsService', () => {
       const updated = { ...sampleShift, name: 'Gece Vardiyası' };
       mockPrisma.shifts.update.mockResolvedValue(updated);
 
-      const result = await service.update(
-        'shift-1',
-        { name: 'Gece Vardiyası' },
-        userId,
-      );
+      const result = await service.update('shift-1', { name: 'Gece Vardiyası' }, userId);
 
       expect(result.name).toBe('Gece Vardiyası');
       expect(mockPrisma.shifts.update).toHaveBeenCalledWith({
@@ -178,22 +164,14 @@ describe('ShiftsService', () => {
     it('should throw if shift does not exist', async () => {
       mockPrisma.shifts.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.update('nonexistent', { name: 'New' }, userId),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update('nonexistent', { name: 'New' }, userId)).rejects.toThrow(NotFoundException);
     });
 
     it('should throw ConflictException on duplicate name in same unit', async () => {
       mockPrisma.shifts.findUnique.mockResolvedValue(sampleShift);
-      mockPrisma.shifts.findFirst.mockResolvedValue({
-        id: 'other',
-        name: 'Gündüz Vardiyası',
-        unitId: null,
-      });
+      mockPrisma.shifts.findFirst.mockResolvedValue({ id: 'other', name: 'Gündüz Vardiyası', unitId: null });
 
-      await expect(
-        service.update('shift-1', { name: 'Gündüz Vardiyası' }, userId),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.update('shift-1', { name: 'Gündüz Vardiyası' }, userId)).rejects.toThrow(ConflictException);
     });
   });
 
@@ -204,17 +182,13 @@ describe('ShiftsService', () => {
 
       await service.remove('shift-1', orgId);
 
-      expect(mockPrisma.shifts.delete).toHaveBeenCalledWith({
-        where: { id: 'shift-1' },
-      });
+      expect(mockPrisma.shifts.delete).toHaveBeenCalledWith({ where: { id: 'shift-1' } });
     });
 
     it('should throw if shift not found in organization', async () => {
       mockPrisma.shifts.findFirst.mockResolvedValue(null);
 
-      await expect(service.remove('nonexistent', orgId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.remove('nonexistent', orgId)).rejects.toThrow(NotFoundException);
     });
   });
 });

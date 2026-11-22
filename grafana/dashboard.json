@@ -11,13 +11,11 @@
       "title": "API Request Rate",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
-      "targets": [
-        {
-          "expr": "rate(vardiya_http_requests_total[5m])",
-          "legendFormat": "{{method}} {{path}}",
-          "interval": "15s"
-        }
-      ],
+      "targets": [{
+        "expr": "rate(vardiya_http_requests_total[5m])",
+        "legendFormat": "{{method}} {{path}}",
+        "interval": "15s"
+      }],
       "fieldConfig": {
         "defaults": {
           "unit": "rps",
@@ -30,18 +28,9 @@
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
       "targets": [
-        {
-          "expr": "histogram_quantile(0.50, rate(vardiya_http_request_duration_seconds_bucket[5m]))",
-          "legendFormat": "p50"
-        },
-        {
-          "expr": "histogram_quantile(0.95, rate(vardiya_http_request_duration_seconds_bucket[5m]))",
-          "legendFormat": "p95"
-        },
-        {
-          "expr": "histogram_quantile(0.99, rate(vardiya_http_request_duration_seconds_bucket[5m]))",
-          "legendFormat": "p99"
-        }
+        { "expr": "histogram_quantile(0.50, rate(vardiya_http_request_duration_seconds_bucket[5m]))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, rate(vardiya_http_request_duration_seconds_bucket[5m]))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, rate(vardiya_http_request_duration_seconds_bucket[5m]))", "legendFormat": "p99" }
       ],
       "fieldConfig": {
         "defaults": { "unit": "s" }
@@ -52,14 +41,8 @@
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
       "targets": [
-        {
-          "expr": "sum(rate(vardiya_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(vardiya_http_requests_total[5m])) * 100",
-          "legendFormat": "5xx %"
-        },
-        {
-          "expr": "sum(rate(vardiya_http_requests_total{status=~\"4..\"}[5m])) / sum(rate(vardiya_http_requests_total[5m])) * 100",
-          "legendFormat": "4xx %"
-        }
+        { "expr": "sum(rate(vardiya_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(vardiya_http_requests_total[5m])) * 100", "legendFormat": "5xx %" },
+        { "expr": "sum(rate(vardiya_http_requests_total{status=~\"4..\"}[5m])) / sum(rate(vardiya_http_requests_total[5m])) * 100", "legendFormat": "4xx %" }
       ],
       "fieldConfig": {
         "defaults": { "unit": "percent" }
@@ -69,12 +52,10 @@
       "title": "In-Flight Requests",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
-      "targets": [
-        {
-          "expr": "vardiya_http_in_flight_requests",
-          "legendFormat": "in-flight"
-        }
-      ],
+      "targets": [{
+        "expr": "vardiya_http_in_flight_requests",
+        "legendFormat": "in-flight"
+      }],
       "fieldConfig": {
         "defaults": { "unit": "short" }
       }
@@ -83,23 +64,19 @@
       "title": "Auth Login Rate",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
-      "targets": [
-        {
-          "expr": "rate(vardiya_auth_login_total[5m])",
-          "legendFormat": "{{status}}"
-        }
-      ]
+      "targets": [{
+        "expr": "rate(vardiya_auth_login_total[5m])",
+        "legendFormat": "{{status}}"
+      }]
     },
     {
       "title": "Auth Login Duration",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.95, rate(vardiya_auth_login_duration_seconds_bucket[5m]))",
-          "legendFormat": "p95"
-        }
-      ],
+      "targets": [{
+        "expr": "histogram_quantile(0.95, rate(vardiya_auth_login_duration_seconds_bucket[5m]))",
+        "legendFormat": "p95"
+      }],
       "fieldConfig": {
         "defaults": { "unit": "s" }
       }
@@ -108,12 +85,10 @@
       "title": "Shifts Created",
       "type": "stat",
       "gridPos": { "h": 6, "w": 4, "x": 0, "y": 16 },
-      "targets": [
-        {
-          "expr": "rate(vardiya_shift_created_total[24h])",
-          "legendFormat": "shifts/day"
-        }
-      ],
+      "targets": [{
+        "expr": "rate(vardiya_shift_created_total[24h])",
+        "legendFormat": "shifts/day"
+      }],
       "fieldConfig": {
         "defaults": { "unit": "short" }
       }
@@ -122,12 +97,10 @@
       "title": "Swap Requests",
       "type": "stat",
       "gridPos": { "h": 6, "w": 4, "x": 4, "y": 16 },
-      "targets": [
-        {
-          "expr": "rate(vardiya_swap_request_total[24h])",
-          "legendFormat": "swaps/day"
-        }
-      ],
+      "targets": [{
+        "expr": "rate(vardiya_swap_request_total[24h])",
+        "legendFormat": "swaps/day"
+      }],
       "fieldConfig": {
         "defaults": { "unit": "short" }
       }
@@ -136,28 +109,21 @@
       "title": "Notifications Delivered",
       "type": "timeseries",
       "gridPos": { "h": 6, "w": 8, "x": 8, "y": 16 },
-      "targets": [
-        {
-          "expr": "rate(vardiya_notification_delivered_total[5m])",
-          "legendFormat": "{{type}}"
-        }
-      ]
+      "targets": [{
+        "expr": "rate(vardiya_notification_delivered_total[5m])",
+        "legendFormat": "{{type}}"
+      }]
     },
     {
       "title": "Notification Failures",
       "type": "timeseries",
       "gridPos": { "h": 6, "w": 8, "x": 16, "y": 16 },
-      "targets": [
-        {
-          "expr": "rate(vardiya_notification_failed_total[5m])",
-          "legendFormat": "{{type}}"
-        }
-      ],
+      "targets": [{
+        "expr": "rate(vardiya_notification_failed_total[5m])",
+        "legendFormat": "{{type}}"
+      }],
       "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "fixed" },
-          "custom": { "fillOpacity": 80 }
-        }
+        "defaults": { "color": { "mode": "fixed" }, "custom": { "fillOpacity": 80 } }
       }
     },
     {
@@ -165,18 +131,9 @@
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
       "targets": [
-        {
-          "expr": "histogram_quantile(0.50, rate(vardiya_db_query_duration_seconds_bucket[5m]))",
-          "legendFormat": "p50"
-        },
-        {
-          "expr": "histogram_quantile(0.95, rate(vardiya_db_query_duration_seconds_bucket[5m]))",
-          "legendFormat": "p95"
-        },
-        {
-          "expr": "histogram_quantile(0.99, rate(vardiya_db_query_duration_seconds_bucket[5m]))",
-          "legendFormat": "p99"
-        }
+        { "expr": "histogram_quantile(0.50, rate(vardiya_db_query_duration_seconds_bucket[5m]))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, rate(vardiya_db_query_duration_seconds_bucket[5m]))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, rate(vardiya_db_query_duration_seconds_bucket[5m]))", "legendFormat": "p99" }
       ],
       "fieldConfig": {
         "defaults": { "unit": "s" }
@@ -186,40 +143,31 @@
       "title": "DB Query Rate by Model",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
-      "targets": [
-        {
-          "expr": "topk(10, rate(vardiya_db_queries_total[5m]))",
-          "legendFormat": "{{model}}"
-        }
-      ]
+      "targets": [{
+        "expr": "topk(10, rate(vardiya_db_queries_total[5m]))",
+        "legendFormat": "{{model}}"
+      }]
     },
     {
       "title": "Slow DB Queries",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
-      "targets": [
-        {
-          "expr": "rate(vardiya_db_slow_queries_total[5m])",
-          "legendFormat": "{{model}} {{action}}"
-        }
-      ],
+      "targets": [{
+        "expr": "rate(vardiya_db_slow_queries_total[5m])",
+        "legendFormat": "{{model}} {{action}}"
+      }],
       "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "fixed" },
-          "custom": { "fillOpacity": 80 }
-        }
+        "defaults": { "color": { "mode": "fixed" }, "custom": { "fillOpacity": 80 } }
       }
     },
     {
       "title": "WebSocket Connections",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 12, "y": 30 },
-      "targets": [
-        {
-          "expr": "vardiya_ws_connections",
-          "legendFormat": "active"
-        }
-      ],
+      "targets": [{
+        "expr": "vardiya_ws_connections",
+        "legendFormat": "active"
+      }],
       "fieldConfig": {
         "defaults": { "unit": "short" }
       }
@@ -228,44 +176,35 @@
       "title": "WebSocket Events",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 38 },
-      "targets": [
-        {
-          "expr": "rate(vardiya_ws_events_total[5m])",
-          "legendFormat": "{{event}}"
-        }
-      ]
+      "targets": [{
+        "expr": "rate(vardiya_ws_events_total[5m])",
+        "legendFormat": "{{event}}"
+      }]
     },
     {
       "title": "WebSocket Errors",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 38 },
-      "targets": [
-        {
-          "expr": "rate(vardiya_ws_errors_total[5m])",
-          "legendFormat": "{{type}}"
-        }
-      ]
+      "targets": [{
+        "expr": "rate(vardiya_ws_errors_total[5m])",
+        "legendFormat": "{{type}}"
+      }]
     },
     {
       "title": "Device Incidents by Severity",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 38 },
-      "targets": [
-        {
-          "expr": "rate(vardiya_incident_created_total[5m])",
-          "legendFormat": "{{severity}}"
-        }
-      ]
+      "targets": [{
+        "expr": "rate(vardiya_incident_created_total[5m])",
+        "legendFormat": "{{severity}}"
+      }]
     },
     {
       "title": "Node.js Heap Usage",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 46 },
       "targets": [
-        {
-          "expr": "nodejs_heap_size_used_bytes / nodejs_heap_size_total_bytes * 100",
-          "legendFormat": "heap %"
-        },
+        { "expr": "nodejs_heap_size_used_bytes / nodejs_heap_size_total_bytes * 100", "legendFormat": "heap %" },
         { "expr": "nodejs_external_memory_bytes", "legendFormat": "external" }
       ],
       "fieldConfig": {
@@ -276,12 +215,10 @@
       "title": "Event Processing Latency (Health Check)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 46 },
-      "targets": [
-        {
-          "expr": "rate(vardiya_http_request_duration_seconds_sum{path=~\"health.*\"}[5m]) / rate(vardiya_http_request_duration_seconds_count{path=~\"health.*\"}[5m])",
-          "legendFormat": "avg latency"
-        }
-      ],
+      "targets": [{
+        "expr": "rate(vardiya_http_request_duration_seconds_sum{path=~\"health.*\"}[5m]) / rate(vardiya_http_request_duration_seconds_count{path=~\"health.*\"}[5m])",
+        "legendFormat": "avg latency"
+      }],
       "fieldConfig": {
         "defaults": { "unit": "s" }
       }
@@ -315,15 +252,7 @@
     ]
   },
   "links": [
-    {
-      "title": "API Docs",
-      "url": "https://vardiya.example.com/api/docs",
-      "targetBlank": true
-    },
-    {
-      "title": "Runbook",
-      "url": "https://github.com/anomalyco/vardiyasystem/docs/devops",
-      "targetBlank": true
-    }
+    { "title": "API Docs", "url": "https://vardiya.example.com/api/docs", "targetBlank": true },
+    { "title": "Runbook", "url": "https://github.com/anomalyco/vardiyasystem/docs/devops", "targetBlank": true }
   ]
 }

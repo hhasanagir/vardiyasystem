@@ -3,10 +3,9 @@ import { AggregateRoot, EntityId, RepositoryPort } from '../../ddd';
 import { DomainEvent } from '../../ddd/domain-event.base';
 import { Logger } from '@nestjs/common';
 
-export abstract class BaseRepository<
-  TAggregate extends AggregateRoot<unknown>,
-  TPrismaModel = Record<string, unknown>,
-> implements RepositoryPort<TAggregate> {
+export abstract class BaseRepository<TAggregate extends AggregateRoot<unknown>, TPrismaModel = Record<string, unknown>>
+  implements RepositoryPort<TAggregate>
+{
   protected readonly logger: Logger;
 
   constructor(
@@ -79,9 +78,7 @@ export abstract class BaseRepository<
         }
       }
     } catch (error) {
-      this.logger.error(
-        `Failed to publish domain events: ${(error as Error).message}`,
-      );
+      this.logger.error(`Failed to publish domain events: ${(error as Error).message}`);
     }
   }
 }

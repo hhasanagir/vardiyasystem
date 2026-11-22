@@ -1,6 +1,5 @@
 import { Assignment } from '../entities/assignment.entity';
 import { AssignmentCollection } from '../entities/assignment-collection';
-import { PersonnelId } from '../value-objects/personnel-id.value-object';
 
 export interface FairnessInput {
   assignments: AssignmentCollection;
@@ -46,7 +45,7 @@ export class FairnessEngine {
         weekendScore: 100,
         holidayScore: 100,
         workloadScore: 100,
-        details: personnel.map((p) => ({
+        details: personnel.map(p => ({
           personnelId: p.id,
           personnelName: p.name,
           nightCount: 0,
@@ -58,20 +57,25 @@ export class FairnessEngine {
       };
     }
 
-    const details: FairnessDetail[] = personnel.map((p) => {
-      const pid = PersonnelId.create(p.id);
-      const personAssignments = assignments.findByPersonnel(pid);
-      const nightCount = personAssignments.filter(
-        (a) => a.shiftType.isNightShift,
-      ).length;
-      const weekendCount = personAssignments.filter(
-        (a) => a.date.isWeekend && a.shiftType.isWorking,
-      ).length;
-      const holidayCount = personAssignments.filter(
-        (a) => holidays.has(a.date.value) && a.shiftType.isWorking,
-      ).length;
+    // P2-02 (performance) — build one personnel→assignments index instead of
+    // filtering the whole collection for every roster member. With the real
+    // roster this was O(personnel × assignments) on every scoring pass; the
+    // counts below are identical, only the lookup is now O(personnel + assignments).
+    const byPersonnel = new Map<string, Assignment[]>();
+    for (const assignment of assignments.all) {
+      const id = assignment.personnelId.value;
+      const owned = byPersonnel.get(id);
+      if (owned) owned.push(assignment);
+      else byPersonnel.set(id, [assignment]);
+    }
+
+    const details: FairnessDetail[] = personnel.map(p => {
+      const personAssignments = byPersonnel.get(p.id) ?? [];
+      const nightCount = personAssignments.filter(a => a.shiftType.isNightShift).length;
+      const weekendCount = personAssignments.filter(a => a.date.isWeekend && a.shiftType.isWorking).length;
+      const holidayCount = personAssignments.filter(a => holidays.has(a.date.value) && a.shiftType.isWorking).length;
       const totalHours = personAssignments
-        .filter((a) => a.shiftType.isWorking)
+        .filter(a => a.shiftType.isWorking)
         .reduce((sum, a) => sum + a.durationHours, 0);
 
       return {
@@ -85,30 +89,16 @@ export class FairnessEngine {
       };
     });
 
-    const nightScore = this.calculateDimensionScore(
-      details.map((d) => d.nightCount),
-    );
-    const weekendScore = this.calculateDimensionScore(
-      details.map((d) => d.weekendCount),
-    );
-    const holidayScore = this.calculateDimensionScore(
-      details.map((d) => d.holidayCount),
-    );
+    const nightScore = this.calculateDimensionScore(details.map(d => d.nightCount));
+    const weekendScore = this.calculateDimensionScore(details.map(d => d.weekendCount));
+    const holidayScore = this.calculateDimensionScore(details.map(d => d.holidayCount));
     const workloadScore = this.calculateWorkloadScore(details);
 
     for (const d of details) {
-      d.score =
-        nightScore * 0.25 +
-        weekendScore * 0.2 +
-        holidayScore * 0.15 +
-        workloadScore * 0.4;
+      d.score = (nightScore * 0.25 + weekendScore * 0.2 + holidayScore * 0.15 + workloadScore * 0.4);
     }
 
-    const overallScore =
-      nightScore * 0.25 +
-      weekendScore * 0.2 +
-      holidayScore * 0.15 +
-      workloadScore * 0.4;
+    const overallScore = (nightScore * 0.25 + weekendScore * 0.2 + holidayScore * 0.15 + workloadScore * 0.4);
 
     return {
       overallScore: Math.round(overallScore * 10) / 10,
@@ -126,8 +116,7 @@ export class FairnessEngine {
     const avg = values.reduce((s, v) => s + v, 0) / values.length;
     if (avg === 0) return 100;
 
-    const variance =
-      values.reduce((s, v) => s + Math.pow(v - avg, 2), 0) / values.length;
+    const variance = values.reduce((s, v) => s + Math.pow(v - avg, 2), 0) / values.length;
     const stdDev = Math.sqrt(variance);
     const cv = avg > 0 ? stdDev / avg : 0;
 
@@ -138,12 +127,11 @@ export class FairnessEngine {
   private calculateWorkloadScore(details: FairnessDetail[]): number {
     if (details.length === 0) return 100;
 
-    const hours = details.map((d) => d.totalHours);
+    const hours = details.map(d => d.totalHours);
     const avg = hours.reduce((s, v) => s + v, 0) / hours.length;
     if (avg === 0) return 100;
 
-    const variance =
-      hours.reduce((s, v) => s + Math.pow(v - avg, 2), 0) / hours.length;
+    const variance = hours.reduce((s, v) => s + Math.pow(v - avg, 2), 0) / hours.length;
     const stdDev = Math.sqrt(variance);
     const cv = avg > 0 ? stdDev / avg : 0;
 

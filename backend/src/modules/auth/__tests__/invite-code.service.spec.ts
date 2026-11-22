@@ -64,10 +64,7 @@ describe('InviteCodeService', () => {
     it('should create with custom maxUses and expiration', async () => {
       mockPrisma.inviteCode.create.mockResolvedValue(activeInvite);
 
-      await service.create('org-1', 'user-1', {
-        maxUses: 5,
-        expiresInHours: 48,
-      });
+      await service.create('org-1', 'user-1', { maxUses: 5, expiresInHours: 48 });
 
       expect(mockPrisma.inviteCode.create).toHaveBeenCalledWith({
         data: {
@@ -96,20 +93,13 @@ describe('InviteCodeService', () => {
     it('should throw NotFoundException for unknown code', async () => {
       mockPrisma.inviteCode.findUnique.mockResolvedValue(null);
 
-      await expect(service.validate('UNKNOWN')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.validate('UNKNOWN')).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException for inactive code', async () => {
-      mockPrisma.inviteCode.findUnique.mockResolvedValue({
-        ...activeInvite,
-        isActive: false,
-      });
+      mockPrisma.inviteCode.findUnique.mockResolvedValue({ ...activeInvite, isActive: false });
 
-      await expect(service.validate('INACTIVE')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.validate('INACTIVE')).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException for expired code', async () => {
@@ -118,9 +108,7 @@ describe('InviteCodeService', () => {
         expiresAt: new Date(Date.now() - 3600000),
       });
 
-      await expect(service.validate('EXPIRED')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.validate('EXPIRED')).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException for maxed-out code', async () => {
@@ -130,9 +118,7 @@ describe('InviteCodeService', () => {
         useCount: 1,
       });
 
-      await expect(service.validate('MAXED')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.validate('MAXED')).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -151,10 +137,7 @@ describe('InviteCodeService', () => {
 
   describe('deactivate', () => {
     it('should deactivate an invite code', async () => {
-      mockPrisma.inviteCode.update.mockResolvedValue({
-        ...activeInvite,
-        isActive: false,
-      });
+      mockPrisma.inviteCode.update.mockResolvedValue({ ...activeInvite, isActive: false });
 
       await service.deactivate('inv-1');
 

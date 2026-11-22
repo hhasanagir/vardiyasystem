@@ -1,25 +1,7 @@
-import {
-  Component,
-  Input,
-  Output,
-  EventEmitter,
-  ChangeDetectionStrategy,
-  computed,
-  inject,
-  signal,
-  HostListener,
-  ElementRef,
-} from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, computed, inject, signal, HostListener, ElementRef } from '@angular/core';
 import type { AssignmentDTO } from '../../models';
 import { ScheduleStore } from '../../store/schedule.store';
-import {
-  getDaysInMonth,
-  buildGridRows,
-  SHIFT_TYPE_LABELS,
-  SHIFT_TYPE_COLORS,
-  type GridDay,
-  type GridRow,
-} from '../../utils/grid-utils';
+import { getDaysInMonth, buildGridRows, SHIFT_TYPE_LABELS, SHIFT_TYPE_COLORS, type GridDay, type GridRow } from '../../utils/grid-utils';
 
 @Component({
   selector: 'app-schedule-grid',
@@ -29,21 +11,14 @@ import {
     <div
       class="grid-container"
       role="grid"
-      [attr.aria-label]="
-        'Vardiya planı tablosu, ' + gridRows().length + ' personel, ' + days().length + ' gün'
-      "
+      [attr.aria-label]="'Vardiya planı tablosu, ' + gridRows().length + ' personel, ' + days().length + ' gün'"
       tabindex="0"
       (keydown)="onKeyDown($event)"
     >
       <table class="schedule-grid" role="grid">
         <thead>
           <tr class="header-row" role="row">
-            <th
-              class="sticky-col name-col"
-              role="columnheader"
-              scope="col"
-              aria-label="Personel adı"
-            >
+            <th class="sticky-col name-col" role="columnheader" scope="col" aria-label="Personel adı">
               Personel
             </th>
             @for (day of days(); track day.date) {
@@ -63,16 +38,8 @@ import {
         </thead>
         <tbody>
           @for (row of gridRows(); track row.personnelId; let rowIdx = $index) {
-            <tr
-              class="personnel-row"
-              role="row"
-              [attr.aria-label]="row.personnelName + ' vardiyası'"
-            >
-              <td
-                class="sticky-col name-cell"
-                role="gridcell"
-                [attr.aria-label]="row.personnelName"
-              >
+            <tr class="personnel-row" role="row" [attr.aria-label]="row.personnelName + ' vardiyası'">
+              <td class="sticky-col name-cell" role="gridcell" [attr.aria-label]="row.personnelName">
                 <div class="personnel-name">{{ row.personnelName }}</div>
                 @if (row.groupName) {
                   <div class="personnel-group">{{ row.groupName }}</div>
@@ -105,9 +72,7 @@ import {
                         <div class="chip-device">{{ assignment.deviceCode }}</div>
                       }
                       @if (assignment.startTime && assignment.endTime) {
-                        <div class="chip-time">
-                          {{ assignment.startTime }}-{{ assignment.endTime }}
-                        </div>
+                        <div class="chip-time">{{ assignment.startTime }}-{{ assignment.endTime }}</div>
                       }
                     </div>
                   }
@@ -125,179 +90,147 @@ import {
       }
     </div>
   `,
-  styles: [
-    `
-      .grid-container {
-        overflow: auto;
-        height: 100%;
-        outline: none;
-      }
-      .grid-container:focus-visible {
-        outline: 2px solid var(--color-primary, #6366f1);
-        outline-offset: -2px;
-      }
-      .schedule-grid {
-        border-collapse: collapse;
-        font-size: 12px;
-        table-layout: fixed;
-      }
-      .header-row {
-        position: sticky;
-        top: 0;
-        z-index: 2;
-      }
-      .sticky-col {
-        position: sticky;
-        z-index: 1;
-        background: var(--surface-card, #fff);
-      }
-      .name-col {
-        left: 0;
-        width: 180px;
-        min-width: 180px;
-        text-align: left;
-        padding: 8px 12px;
-        font-weight: 600;
-        font-size: 12px;
-        color: var(--text-color-secondary, #64748b);
-        border-bottom: 2px solid var(--surface-border, #e2e8f0);
-        border-right: 1px solid var(--surface-border, #e2e8f0);
-      }
-      .day-col {
-        width: 72px;
-        min-width: 72px;
-        text-align: center;
-        padding: 6px 4px;
-        border-bottom: 2px solid var(--surface-border, #e2e8f0);
-        border-right: 1px solid var(--surface-border, #f1f5f9);
-        background: var(--surface-card, #fff);
-      }
-      .day-col.weekend {
-        background: var(--color-inactive-surface, #f8fafc);
-      }
-      .day-col.today {
-        background: var(--color-info-surface, #eff6ff);
-      }
-      .day-number {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--text-color, #1e293b);
-      }
-      .day-col.weekend .day-number {
-        color: var(--color-text-secondary, #64748b);
-      }
-      .day-col.today .day-number {
-        color: var(--color-info, #3b82f6);
-      }
-      .day-label {
-        font-size: 10px;
-        color: var(--text-color-secondary, #94a3b8);
-        margin-top: 1px;
-      }
-      .personnel-row {
-        height: 52px;
-      }
-      .name-cell {
-        left: 0;
-        padding: 6px 12px;
-        border-bottom: 1px solid var(--surface-border, #f1f5f9);
-        border-right: 1px solid var(--surface-border, #e2e8f0);
-      }
-      .personnel-name {
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--text-color, #1e293b);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 160px;
-      }
-      .personnel-group {
-        font-size: 10px;
-        color: var(--text-color-secondary, #94a3b8);
-      }
-      .day-cell {
-        padding: 4px 3px;
-        border-bottom: 1px solid var(--surface-border, #f1f5f9);
-        border-right: 1px solid var(--surface-border, #f8fafc);
-        vertical-align: middle;
-        text-align: center;
-        cursor: pointer;
-        transition: background 0.1s;
-      }
-      .day-cell:hover {
-        background: var(--surface-hover, #f1f5f9);
-      }
-      .day-cell.weekend {
-        background: #fafbfc;
-      }
-      .day-cell.weekend:hover {
-        background: #f1f5f9;
-      }
-      .day-cell.today {
-        background: #f0f7ff;
-      }
-      .day-cell.today:hover {
-        background: #e0eeff;
-      }
-      .day-cell.focused {
-        outline: 2px solid var(--color-primary, #6366f1);
-        outline-offset: -2px;
-      }
-      .assignment-chip {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 3px 4px;
-        border-radius: 4px;
-        color: white;
-        font-size: 10px;
-        line-height: 1.2;
-        cursor: pointer;
-        transition:
-          transform 0.1s,
-          box-shadow 0.1s;
-        min-height: 36px;
-        justify-content: center;
-      }
-      .assignment-chip:hover {
-        transform: scale(1.05);
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-        z-index: 1;
-      }
-      .assignment-chip:focus-visible {
-        outline: 2px solid white;
-        outline-offset: 2px;
-        transform: scale(1.05);
-      }
-      .assignment-chip.selected {
-        outline: 2px solid var(--primary-color, #6366f1);
-        outline-offset: 1px;
-      }
-      .assignment-chip.conflict {
-        box-shadow: inset 0 0 0 2px var(--color-critical, #ef4444);
-      }
-      .chip-shift {
-        font-weight: 600;
-      }
-      .chip-device {
-        opacity: 0.85;
-        font-size: 9px;
-      }
-      .chip-time {
-        opacity: 0.75;
-        font-size: 8px;
-      }
-      .empty-grid {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 200px;
-        color: var(--text-color-secondary, #94a3b8);
-        font-size: 14px;
-      }
-    `,
-  ],
+  styles: [`
+    .grid-container {
+      overflow: auto;
+      height: 100%;
+      outline: none;
+    }
+    .grid-container:focus-visible {
+      outline: 2px solid var(--color-primary, #6366f1);
+      outline-offset: -2px;
+    }
+    .schedule-grid {
+      border-collapse: collapse;
+      font-size: 12px;
+      table-layout: fixed;
+    }
+    .header-row {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .sticky-col {
+      position: sticky;
+      z-index: 1;
+      background: var(--surface-card, #fff);
+    }
+    .name-col {
+      left: 0;
+      width: 180px;
+      min-width: 180px;
+      text-align: left;
+      padding: 8px 12px;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--text-color-secondary, #64748b);
+      border-bottom: 2px solid var(--surface-border, #e2e8f0);
+      border-right: 1px solid var(--surface-border, #e2e8f0);
+    }
+    .day-col {
+      width: 72px;
+      min-width: 72px;
+      text-align: center;
+      padding: 6px 4px;
+      border-bottom: 2px solid var(--surface-border, #e2e8f0);
+      border-right: 1px solid var(--surface-border, #f1f5f9);
+      background: var(--surface-card, #fff);
+    }
+    .day-col.weekend { background: var(--color-inactive-surface, #f8fafc); }
+    .day-col.today { background: var(--color-info-surface, #eff6ff); }
+    .day-number {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-color, #1e293b);
+    }
+    .day-col.weekend .day-number { color: var(--color-text-secondary, #64748b); }
+    .day-col.today .day-number { color: var(--color-info, #3b82f6); }
+    .day-label {
+      font-size: 10px;
+      color: var(--text-color-secondary, #94a3b8);
+      margin-top: 1px;
+    }
+    .personnel-row { height: 52px; }
+    .name-cell {
+      left: 0;
+      padding: 6px 12px;
+      border-bottom: 1px solid var(--surface-border, #f1f5f9);
+      border-right: 1px solid var(--surface-border, #e2e8f0);
+    }
+    .personnel-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-color, #1e293b);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 160px;
+    }
+    .personnel-group {
+      font-size: 10px;
+      color: var(--text-color-secondary, #94a3b8);
+    }
+    .day-cell {
+      padding: 4px 3px;
+      border-bottom: 1px solid var(--surface-border, #f1f5f9);
+      border-right: 1px solid var(--surface-border, #f8fafc);
+      vertical-align: middle;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .day-cell:hover { background: var(--surface-hover, #f1f5f9); }
+    .day-cell.weekend { background: #fafbfc; }
+    .day-cell.weekend:hover { background: #f1f5f9; }
+    .day-cell.today { background: #f0f7ff; }
+    .day-cell.today:hover { background: #e0eeff; }
+    .day-cell.focused {
+      outline: 2px solid var(--color-primary, #6366f1);
+      outline-offset: -2px;
+    }
+    .assignment-chip {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3px 4px;
+      border-radius: 4px;
+      color: white;
+      font-size: 10px;
+      line-height: 1.2;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      min-height: 36px;
+      justify-content: center;
+    }
+    .assignment-chip:hover {
+      transform: scale(1.05);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      z-index: 1;
+    }
+    .assignment-chip:focus-visible {
+      outline: 2px solid white;
+      outline-offset: 2px;
+      transform: scale(1.05);
+    }
+    .assignment-chip.selected {
+      outline: 2px solid var(--primary-color, #6366f1);
+      outline-offset: 1px;
+    }
+    .assignment-chip.conflict {
+      box-shadow: inset 0 0 0 2px var(--color-critical, #ef4444);
+    }
+    .chip-shift { font-weight: 600; }
+    .chip-device { opacity: 0.85; font-size: 9px; }
+    .chip-time { opacity: 0.75; font-size: 8px; }
+    .empty-grid {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      color: var(--text-color-secondary, #94a3b8);
+      font-size: 14px;
+    }
+  `],
 })
 export class ScheduleGridComponent {
   private readonly store = inject(ScheduleStore);
@@ -416,8 +349,7 @@ export class ScheduleGridComponent {
   getAssignmentAriaLabel(assignment: AssignmentDTO): string {
     const parts = [this.getShiftLabel(assignment.shiftType)];
     if (assignment.deviceCode) parts.push(assignment.deviceCode);
-    if (assignment.startTime && assignment.endTime)
-      parts.push(`${assignment.startTime}-${assignment.endTime}`);
+    if (assignment.startTime && assignment.endTime) parts.push(`${assignment.startTime}-${assignment.endTime}`);
     return parts.join(', ');
   }
 

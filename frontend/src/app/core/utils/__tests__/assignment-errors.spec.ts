@@ -5,6 +5,7 @@ import {
   normalizeShift,
   shiftsMatch,
   translateAssignmentError,
+  translateAssignmentErrorPayload,
   conflictMessageFor,
   deviceBookedMessageFor,
 } from '../assignment-errors';
@@ -83,6 +84,74 @@ describe('assignment-errors utils', () => {
       expect(translateAssignmentError('Beklenmeyen hata')).toBeNull();
       expect(translateAssignmentError('')).toBeNull();
       expect(translateAssignmentError(null)).toBeNull();
+    });
+
+    it('should translate UNIT_CLOSED (Turkish legacy message)', () => {
+      const result = translateAssignmentError('RONK-1 2026-08-15 tarihinde kapalı (Cumartesi)');
+      expect(result?.title).toBe('Birim Kapalı');
+      expect(result?.message).toContain('kapalı');
+    });
+
+    it('should translate UNIT_CLOSED (DDD English message)', () => {
+      const result = translateAssignmentError('RONK-1 (RONK-1) is closed on Saturday');
+      expect(result?.title).toBe('Birim Kapalı');
+      expect(result?.message).toContain('closed on Saturday');
+    });
+
+    it('should translate DEVICE_OFF_DATE (Turkish legacy message)', () => {
+      const result = translateAssignmentError('RONK-1 2026-08-15 tarihinde kapalı (cihaz devre dışı)');
+      expect(result?.title).toBe('Cihaz Kapalı');
+      expect(result?.message).toContain('devre dışı');
+    });
+
+    it('should translate DEVICE_OFF_DATE (DDD English message)', () => {
+      const result = translateAssignmentError('Device is off on 2026-08-15');
+      expect(result?.title).toBe('Cihaz Kapalı');
+      expect(result?.message).toContain('Device is off');
+    });
+  });
+
+  describe('translateAssignmentErrorPayload', () => {
+    it('should surface the first BLOCKING violation message', () => {
+      const result = translateAssignmentErrorPayload({
+        message: 'Atama doğrulama hatası',
+        hasBlocking: true,
+        violations: [
+          { rule: 'UNIT_CLOSED', message: 'RONK-1 2026-08-15 tarihinde kapalı (Cumartesi)', severity: 'BLOCKING' },
+        ],
+      });
+      expect(result?.title).toBe('Birim Kapalı');
+      expect(result?.message).toContain('kapalı');
+    });
+
+    it('should surface DEVICE_OFF_DATE violation message even without hasBlocking', () => {
+      const result = translateAssignmentErrorPayload({
+        message: 'Atama doğrulama hatası',
+        violations: [
+          { rule: 'DEVICE_OFF_DATE', message: 'RONK-1 2026-08-15 tarihinde kapalı (cihaz devre dışı)', severity: 'BLOCKING' },
+        ],
+      });
+      expect(result?.title).toBe('Cihaz Kapalı');
+    });
+
+    it('should return a titled fallback for unknown violation messages', () => {
+      const result = translateAssignmentErrorPayload({
+        message: 'Atama doğrulama hatası',
+        violations: [{ rule: 'ANY_RULE', message: 'Özel kural ihlali', severity: 'BLOCKING' }],
+      });
+      expect(result?.title).toBe('Atama Engellendi');
+      expect(result?.message).toBe('Özel kural ihlali');
+    });
+
+    it('should translate the top-level message when no violations', () => {
+      const result = translateAssignmentErrorPayload({ message: 'Personnel is inactive' });
+      expect(result?.title).toBe('Atama Engellendi');
+    });
+
+    it('should return null for null/undefined payload', () => {
+      expect(translateAssignmentErrorPayload(null)).toBeNull();
+      expect(translateAssignmentErrorPayload(undefined)).toBeNull();
+      expect(translateAssignmentErrorPayload({})).toBeNull();
     });
   });
 

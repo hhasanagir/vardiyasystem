@@ -1,10 +1,6 @@
 import { AggregateRoot } from '../../../../ddd/aggregate-root.base';
-import { DomainEvent } from '../../../../ddd/domain-event.base';
-import {
-  Assignment,
-  AssignmentKind,
-  AssignmentSource,
-} from '../entities/assignment.entity';
+import { SCHEDULE_APPROVER_ROLES, SCHEDULE_SUBMIT_ROLES, canApprove, canSubmitForReview } from '../../../../models/schedule-status';
+import { Assignment, AssignmentKind, AssignmentSource } from '../entities/assignment.entity';
 import { AssignmentCollection } from '../entities/assignment-collection';
 import { ScheduleCreatedEvent } from '../events/schedule-created.event';
 import { AssignmentAddedEvent } from '../events/assignment-added.event';
@@ -32,35 +28,22 @@ const VALID_TRANSITIONS: Record<ScheduleStatus, ScheduleStatus[]> = {
   rejected: ['draft'],
 };
 
-const TRANSITION_ALLOWED_ROLES: Record<string, ScheduleStatus[]> = {
-  imaging_director: [
-    'under_review',
-    'approved',
-    'rejected',
-    'published',
-    'archived',
-    'draft',
-  ],
-  supervisor: ['under_review', 'approved', 'rejected', 'draft'],
-  medical_engineer: ['under_review', 'draft'],
-  senior_technician: ['under_review', 'draft'],
-  system_admin: [
-    'under_review',
-    'approved',
-    'rejected',
-    'published',
-    'archived',
-    'draft',
-  ],
-  hospital_admin: [
-    'under_review',
-    'approved',
-    'rejected',
-    'published',
-    'archived',
-    'draft',
-  ],
-};
+/**
+ * P2-04 — derived from the canonical strictest role sets in
+ * `models/schedule-status.ts` so the DDD aggregate and the legacy state
+ * machine cannot drift again. Approvers inherit submit/revert rights;
+ * submit-only roles may only submit or re-open a rejected draft.
+ */
+const TRANSITION_ALLOWED_ROLES: Record<string, ScheduleStatus[]> = Object.fromEntries(
+  [...new Set([...SCHEDULE_SUBMIT_ROLES, ...SCHEDULE_APPROVER_ROLES])].map(role => {
+    const allowed: ScheduleStatus[] = canApprove(role)
+      ? ['under_review', 'approved', 'rejected', 'published', 'archived', 'draft']
+      : canSubmitForReview(role)
+        ? ['under_review', 'draft']
+        : [];
+    return [role, allowed];
+  }),
+);
 
 export interface ScheduleProps {
   unitId: string;
@@ -140,45 +123,23 @@ export class Schedule extends AggregateRoot<ScheduleProps> {
     return new Schedule(props, id);
   }
 
-  get unitId(): string {
-    return this.props.unitId;
-  }
-  get month(): number {
-    return this.props.month;
-  }
-  get year(): number {
-    return this.props.year;
-  }
-  get status(): ScheduleStatus {
-    return this.props.status;
-  }
-  get scheduleVersion(): number {
-    return this.props.version;
-  }
-  get createdById(): string | null {
-    return this.props.createdById;
-  }
-  get publishedAt(): Date | null {
-    return this.props.publishedAt;
-  }
-  get assignments(): AssignmentCollection {
-    return this.props.assignments;
-  }
-  get approvalData(): ApprovalData | null {
-    return this.props.approvalData;
-  }
-  get expectedVersion(): number | null {
-    return this._expectedVersion;
-  }
+  get unitId(): string { return this.props.unitId; }
+  get month(): number { return this.props.month; }
+  get year(): number { return this.props.year; }
+  get status(): ScheduleStatus { return this.props.status; }
+  get scheduleVersion(): number { return this.props.version; }
+  get createdById(): string | null { return this.props.createdById; }
+  get publishedAt(): Date | null { return this.props.publishedAt; }
+  get assignments(): AssignmentCollection { return this.props.assignments; }
+  get approvalData(): ApprovalData | null { return this.props.approvalData; }
+  get expectedVersion(): number | null { return this._expectedVersion; }
 
   get isEditable(): boolean {
     return this.props.status === 'draft' || this.props.status === 'rejected';
   }
 
   get isPublished(): boolean {
-    return (
-      this.props.status === 'published' || this.props.status === 'archived'
-    );
+    return this.props.status === 'published' || this.props.status === 'archived';
   }
 
   get totalAssignments(): number {
@@ -220,118 +181,67 @@ export class Schedule extends AggregateRoot<ScheduleProps> {
     }
   }
 
-  submitForReview(
-    userId: string,
-    userName: string,
-    userRole: string,
-    comment?: string,
-  ): void {
+  submitForReview(userId: string, userName: string, userRole: string, comment?: string): void {
     if (!this.canRoleTransition('under_review', userRole)) {
-      throw new Error(
-        `Cannot submit schedule from ${this.props.status} with role ${userRole}`,
-      );
+      throw new Error(`Cannot submit schedule from ${this.props.status} with role ${userRole}`);
     }
     const prev = this.props.status;
     this.transitionTo('under_review');
-    this.upsertApproval({
-      submittedBy: userId,
-      submittedAt: new Date().toISOString(),
-      submittedComment: comment || null,
-    });
+    this.upsertApproval({ submittedBy: userId, submittedAt: new Date().toISOString(), submittedComment: comment || null });
     this.emitStatusChange(prev, userId, userName, userRole, comment);
   }
 
-  approve(
-    userId: string,
-    userName: string,
-    userRole: string,
-    comment?: string,
-  ): void {
+  approve(userId: string, userName: string, userRole: string, comment?: string): void {
     if (!this.canRoleTransition('approved', userRole)) {
-      throw new Error(
-        `Cannot approve schedule from ${this.props.status} with role ${userRole}`,
-      );
+      throw new Error(`Cannot approve schedule from ${this.props.status} with role ${userRole}`);
     }
     const prev = this.props.status;
     this.transitionTo('approved');
-    this.upsertApproval({
-      approvedBy: userId,
-      approvedAt: new Date().toISOString(),
-      approvalComment: comment || null,
-    });
+    this.upsertApproval({ approvedBy: userId, approvedAt: new Date().toISOString(), approvalComment: comment || null });
     this.emitStatusChange(prev, userId, userName, userRole, comment);
   }
 
-  reject(
-    userId: string,
-    userName: string,
-    userRole: string,
-    reason: string,
-  ): void {
+  reject(userId: string, userName: string, userRole: string, reason: string): void {
     if (!this.canRoleTransition('rejected', userRole)) {
-      throw new Error(
-        `Cannot reject schedule from ${this.props.status} with role ${userRole}`,
-      );
+      throw new Error(`Cannot reject schedule from ${this.props.status} with role ${userRole}`);
     }
     if (!reason || reason.trim().length === 0) {
       throw new Error('Rejection reason is required');
     }
     const prev = this.props.status;
     this.transitionTo('rejected');
-    this.upsertApproval({
-      rejectedBy: userId,
-      rejectedAt: new Date().toISOString(),
-      rejectionReason: reason,
-    });
+    this.upsertApproval({ rejectedBy: userId, rejectedAt: new Date().toISOString(), rejectionReason: reason });
     this.emitStatusChange(prev, userId, userName, userRole, reason);
   }
 
   publish(userId: string, userName: string, userRole: string): void {
     if (!this.canRoleTransition('published', userRole)) {
-      throw new Error(
-        `Cannot publish schedule from ${this.props.status} with role ${userRole}`,
-      );
+      throw new Error(`Cannot publish schedule from ${this.props.status} with role ${userRole}`);
     }
     const prev = this.props.status;
     this.transitionTo('published');
     this.props.publishedAt = new Date();
-    this.upsertApproval({
-      publishedBy: userId,
-      publishedAt: new Date().toISOString(),
-    });
+    this.upsertApproval({ publishedBy: userId, publishedAt: new Date().toISOString() });
     this.emitStatusChange(prev, userId, userName, userRole);
   }
 
   archive(userId: string, userName: string, userRole: string): void {
     if (!this.canRoleTransition('archived', userRole)) {
-      throw new Error(
-        `Cannot archive schedule from ${this.props.status} with role ${userRole}`,
-      );
+      throw new Error(`Cannot archive schedule from ${this.props.status} with role ${userRole}`);
     }
     const prev = this.props.status;
     this.transitionTo('archived');
-    this.upsertApproval({
-      archivedBy: userId,
-      archivedAt: new Date().toISOString(),
-    });
+    this.upsertApproval({ archivedBy: userId, archivedAt: new Date().toISOString() });
     this.emitStatusChange(prev, userId, userName, userRole);
   }
 
   revertToDraft(userId: string, userName: string, userRole: string): void {
     if (!this.canRoleTransition('draft', userRole)) {
-      throw new Error(
-        `Cannot revert schedule from ${this.props.status} with role ${userRole}`,
-      );
+      throw new Error(`Cannot revert schedule from ${this.props.status} with role ${userRole}`);
     }
     const prev = this.props.status;
     this.transitionTo('draft');
-    this.emitStatusChange(
-      prev,
-      userId,
-      userName,
-      userRole,
-      'Reverted to draft',
-    );
+    this.emitStatusChange(prev, userId, userName, userRole, 'Reverted to draft');
   }
 
   rollback(
@@ -343,12 +253,10 @@ export class Schedule extends AggregateRoot<ScheduleProps> {
     reason: string,
   ): void {
     if (this.props.version <= targetVersion) {
-      throw new Error(
-        `Cannot rollback to version ${targetVersion}: current version is ${this.props.version}`,
-      );
+      throw new Error(`Cannot rollback to version ${targetVersion}: current version is ${this.props.version}`);
     }
 
-    const restoredAssignments = snapshotAssignments.map((s) =>
+    const restoredAssignments = snapshotAssignments.map(s =>
       Assignment.create({
         id: `restored-${s.personnelId}-${s.date}-${s.shiftType}-${Date.now()}`,
         scheduleId: this.id,
@@ -383,13 +291,7 @@ export class Schedule extends AggregateRoot<ScheduleProps> {
       }),
     );
 
-    this.emitStatusChange(
-      'published' as ScheduleStatus,
-      userId,
-      userName,
-      userRole,
-      `Rolled back from v${fromVersion} to v${this.props.version}: ${reason}`,
-    );
+    this.emitStatusChange('published' as ScheduleStatus, userId, userName, userRole, `Rolled back from v${fromVersion} to v${this.props.version}: ${reason}`);
   }
 
   addAssignment(
@@ -410,10 +312,8 @@ export class Schedule extends AggregateRoot<ScheduleProps> {
     },
     userId: string,
   ): Assignment {
-    if (!this.isEditable && this.props.status !== 'published') {
-      throw new Error(
-        `Cannot add assignment to schedule in ${this.props.status} status`,
-      );
+    if (!this.isEditable) {
+      throw new Error(`Cannot add assignment to schedule in ${this.props.status} status`);
     }
 
     const assignment = Assignment.create({
@@ -460,10 +360,7 @@ export class Schedule extends AggregateRoot<ScheduleProps> {
     overrideReason: string,
     violatedRules: string[],
   ): Assignment {
-    const assignment = this.addAssignment(
-      { ...params, source: 'override' },
-      userId,
-    );
+    const assignment = this.addAssignment({ ...params, source: 'override' }, userId);
 
     this.addDomainEvent(
       new AssignmentOverriddenEvent(this.id, {
@@ -499,28 +396,16 @@ export class Schedule extends AggregateRoot<ScheduleProps> {
 
     const changedFields: string[] = [];
 
-    if (
-      changes.deviceId !== undefined &&
-      changes.deviceId !== (assignment.deviceId?.value ?? null)
-    ) {
+    if (changes.deviceId !== undefined && changes.deviceId !== (assignment.deviceId?.value ?? null)) {
       changedFields.push('deviceId');
     }
-    if (
-      changes.shiftType !== undefined &&
-      changes.shiftType !== assignment.shiftType.value
-    ) {
+    if (changes.shiftType !== undefined && changes.shiftType !== assignment.shiftType.value) {
       changedFields.push('shiftType');
     }
-    if (
-      changes.startTime !== undefined &&
-      changes.startTime !== assignment.startTime
-    ) {
+    if (changes.startTime !== undefined && changes.startTime !== assignment.startTime) {
       changedFields.push('startTime');
     }
-    if (
-      changes.endTime !== undefined &&
-      changes.endTime !== assignment.endTime
-    ) {
+    if (changes.endTime !== undefined && changes.endTime !== assignment.endTime) {
       changedFields.push('endTime');
     }
 
@@ -532,19 +417,10 @@ export class Schedule extends AggregateRoot<ScheduleProps> {
       id: assignmentId,
       scheduleId: this.id,
       personnelId: assignment.personnelId.value,
-      deviceId:
-        changes.deviceId !== undefined
-          ? changes.deviceId
-          : (assignment.deviceId?.value ?? null),
+      deviceId: changes.deviceId !== undefined ? changes.deviceId : assignment.deviceId?.value ?? null,
       unitId: assignment.unitId,
-      personnelGroupId:
-        changes.personnelGroupId !== undefined
-          ? changes.personnelGroupId
-          : assignment.personnelGroupId,
-      shiftTemplateId:
-        changes.shiftTemplateId !== undefined
-          ? changes.shiftTemplateId
-          : assignment.shiftTemplateId,
+      personnelGroupId: changes.personnelGroupId !== undefined ? changes.personnelGroupId : assignment.personnelGroupId,
+      shiftTemplateId: changes.shiftTemplateId !== undefined ? changes.shiftTemplateId : assignment.shiftTemplateId,
       kind: changes.kind || assignment.kind,
       source: 'manual',
       date: assignment.date.value,
@@ -588,14 +464,9 @@ export class Schedule extends AggregateRoot<ScheduleProps> {
     return updated;
   }
 
-  removeAssignment(
-    assignmentId: string,
-    userId: string,
-  ): Assignment | undefined {
-    if (!this.isEditable && this.props.status !== 'published') {
-      throw new Error(
-        `Cannot remove assignment from schedule in ${this.props.status} status`,
-      );
+  removeAssignment(assignmentId: string, userId: string): Assignment | undefined {
+    if (!this.isEditable) {
+      throw new Error(`Cannot remove assignment from schedule in ${this.props.status} status`);
     }
 
     const assignment = this.props.assignments.remove(assignmentId);
@@ -628,27 +499,16 @@ export class Schedule extends AggregateRoot<ScheduleProps> {
     };
   }
 
-  protected applyEvent(event: DomainEvent): void {
-    switch (event.eventName) {
-      case 'ScheduleCreatedEvent':
-        break;
-      case 'AssignmentAddedEvent':
-        break;
-      case 'AssignmentRemovedEvent':
-        break;
-      case 'AssignmentOverriddenEvent':
-        break;
-      case 'AssignmentChangedEvent':
-        break;
-      case 'ScheduleStatusChangedEvent':
-        break;
-      case 'ScheduleRolledBackEvent':
-        break;
-      case 'ScheduleGeneratedEvent':
-        break;
-      case 'ScheduleValidatedEvent':
-        break;
-    }
+  /**
+   * The base implementation only advances the in-memory `Entity._version`
+   * counter, which is never persisted. The schedule version is the value stored
+   * in the `Schedule.version` column, returned by the API and used as the
+   * `If-Match` / compare-and-swap predicate, so it must be advanced as well —
+   * otherwise the version stays frozen and concurrent edits are never detected.
+   */
+  protected override incrementVersion(): void {
+    super.incrementVersion();
+    this.props.version += 1;
   }
 
   private transitionTo(newStatus: ScheduleStatus): void {

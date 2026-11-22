@@ -34,17 +34,14 @@ export class PresenceService {
   private presenceMap = new Map<string, UserPresence>();
   private scheduleViewers = new Map<string, Set<string>>();
 
-  setOnline(
-    userId: string,
-    data: {
-      socketId: string;
-      userName: string;
-      role: string;
-      organizationId: string;
-      unitId?: string;
-      lastActivity: Date;
-    },
-  ): void {
+  setOnline(userId: string, data: {
+    socketId: string;
+    userName: string;
+    role: string;
+    organizationId: string;
+    unitId?: string;
+    lastActivity: Date;
+  }): void {
     const presence: UserPresence = {
       userId,
       userName: data.userName,
@@ -67,7 +64,7 @@ export class PresenceService {
       presence.socketId = '';
       presence.currentScheduleId = undefined;
     }
-
+    
     for (const [scheduleId, viewers] of this.scheduleViewers) {
       viewers.delete(userId);
     }
@@ -102,7 +99,7 @@ export class PresenceService {
       this.scheduleViewers.set(scheduleId, new Set());
     }
     this.scheduleViewers.get(scheduleId)!.add(userId);
-
+    
     const presence = this.presenceMap.get(userId);
     if (presence) {
       presence.currentScheduleId = scheduleId;
@@ -114,7 +111,7 @@ export class PresenceService {
     if (viewers) {
       viewers.delete(userId);
     }
-
+    
     const presence = this.presenceMap.get(userId);
     if (presence?.currentScheduleId === scheduleId) {
       presence.currentScheduleId = undefined;
@@ -130,17 +127,16 @@ export class PresenceService {
   }
 
   getOrganizationUsers(organizationId: string): UserPresence[] {
-    return Array.from(this.presenceMap.values()).filter(
-      (p) => p.organizationId === organizationId && p.isOnline,
-    );
+    return Array.from(this.presenceMap.values())
+      .filter(p => p.organizationId === organizationId && p.isOnline);
   }
 
   getScheduleViewers(scheduleId: string): UserPresence[] {
     const userIds = this.scheduleViewers.get(scheduleId);
     if (!userIds) return [];
-
+    
     return Array.from(userIds)
-      .map((id) => this.presenceMap.get(id))
+      .map(id => this.presenceMap.get(id))
       .filter((p): p is UserPresence => p !== undefined && p.isOnline);
   }
 
@@ -157,8 +153,7 @@ export class PresenceService {
     if (organizationId) {
       return this.getOrganizationUsers(organizationId).length;
     }
-    return Array.from(this.presenceMap.values()).filter((p) => p.isOnline)
-      .length;
+    return Array.from(this.presenceMap.values()).filter(p => p.isOnline).length;
   }
 
   isUserOnline(userId: string): boolean {
@@ -168,8 +163,7 @@ export class PresenceService {
 
   getStaleUsers(thresholdMs: number): UserPresence[] {
     const now = Date.now();
-    return Array.from(this.presenceMap.values()).filter(
-      (p) => p.isOnline && now - p.lastActivity.getTime() > thresholdMs,
-    );
+    return Array.from(this.presenceMap.values())
+      .filter(p => p.isOnline && (now - p.lastActivity.getTime()) > thresholdMs);
   }
 }

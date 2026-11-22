@@ -22,9 +22,6 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: vardiya-postgres
-    # pg_stat_statements is created by a migration (20260714000001) but only
-    # records anything when it is preloaded at server start (defect D22).
-    command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -50,7 +47,8 @@ services:
       - ./backend/.env
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/vardiyasystem?schema=public&connection_limit=5}
-      DATABASE_DIRECT_URL: ${DATABASE_DIRECT_URL:-postgresql://postgres:postgres@postgres:5432/vardiyasystem?schema=public}
+      JWT_ACCESS_TOKEN_SECRET: ${JWT_ACCESS_TOKEN_SECRET:-}
+      JWT_REFRESH_TOKEN_SECRET: ${JWT_REFRESH_TOKEN_SECRET:-}
       PORT: ${PORT:-3000}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
       NODE_ENV: ${NODE_ENV:-development}
@@ -69,19 +67,17 @@ services:
       - jwt_secret
     volumes:
       - vardiya_logs:/var/log/vardiya
-    command: sh -c "npx prisma migrate deploy && node dist/src/main"
+    command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run start:prod"
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: vardiya-frontend
-    restart: unless-stopped
     ports:
       - "4200:80"
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
 
 volumes:
   postgres_data:

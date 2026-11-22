@@ -2,7 +2,40 @@ import { Prisma } from '@prisma/client';
 
 type PrismaModel = { name: string } & Record<string, unknown>;
 
-const SOFT_DELETABLE_MODELS = new Set(['NotificationRecipient']);
+const SOFT_DELETABLE_MODELS = new Set([
+  'NotificationRecipient',
+]);
+
+/**
+ * Models that soft-delete but have no `updatedAt` column. Injecting one produced
+ * a PrismaClientValidationError, so every delete/deleteMany against such a model
+ * failed. The set is derived from the generated DMMF so it stays correct when the
+ * schema changes.
+ */
+function withoutUpdatedAt(models: ReadonlySet<string>): ReadonlySet<string> {
+  try {
+    const datamodel = Prisma.dmmf.datamodel;
+    if (ArrayModelGuard(datamodel)) {
+      return new Set(
+        [...models].filter((name) => {
+          const model = datamodel.models.find((m) => m.name === name);
+          return Boolean(model) && !model!.fields.some((f) => f.name === 'updatedAt');
+        }),
+      );
+    }
+  } catch {
+    // Fall back to the empty set: never inject a column we cannot verify.
+  }
+  return new Set<string>();
+}
+
+function ArrayModelGuard(datamodel: unknown): datamodel is { models: Array<{ name: string; fields: Array<{ name: string }> }> } {
+  return typeof datamodel === 'object'
+    && datamodel !== null
+    && Array.isArray((datamodel as { models?: unknown }).models);
+}
+
+const MODELS_WITHOUT_UPDATED_AT = withoutUpdatedAt(SOFT_DELETABLE_MODELS);
 
 export function createSoftDeleteMiddleware(): Prisma.Middleware {
   return async (
@@ -13,6 +46,12 @@ export function createSoftDeleteMiddleware(): Prisma.Middleware {
     if (!modelName || !SOFT_DELETABLE_MODELS.has(modelName)) {
       return next(params);
     }
+
+    const softDeleteData = () => (
+      MODELS_WITHOUT_UPDATED_AT.has(modelName)
+        ? { deletedAt: new Date() }
+        : { deletedAt: new Date(), updatedAt: new Date() }
+    );
 
     if (params.action === 'findUnique') {
       params.action = 'findFirst';
@@ -42,7 +81,7 @@ export function createSoftDeleteMiddleware(): Prisma.Middleware {
       params.action = 'update';
       params.args = {
         ...params.args,
-        data: { deletedAt: new Date(), updatedAt: new Date() },
+        data: { ...(params.args?.data as object | undefined), ...softDeleteData() },
       };
     }
 
@@ -50,7 +89,7 @@ export function createSoftDeleteMiddleware(): Prisma.Middleware {
       params.action = 'updateMany';
       params.args = {
         ...params.args,
-        data: { deletedAt: new Date(), updatedAt: new Date() },
+        data: softDeleteData(),
       };
     }
 

@@ -44,15 +44,7 @@ export class AssignmentDate extends ValueObject<string> {
   }
 
   get dayName(): string {
-    const names = [
-      'Sunday',
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-    ];
+    const names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     return names[this.dayOfWeek];
   }
 

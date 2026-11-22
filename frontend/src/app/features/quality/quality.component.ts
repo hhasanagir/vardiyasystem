@@ -17,15 +17,9 @@ import type { QualityRecord } from './models/quality.models';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
-    FormsModule,
-    TableModule,
-    ButtonModule,
-    TagModule,
-    ToastModule,
-    CardModule,
-    ProgressSpinnerModule,
-    TooltipModule,
+    CommonModule, FormsModule,
+    TableModule, ButtonModule, TagModule, ToastModule, CardModule,
+    ProgressSpinnerModule, TooltipModule,
   ],
   providers: [MessageService],
   templateUrl: './quality.component.html',
@@ -38,11 +32,9 @@ export class QualityComponent implements OnInit {
   readonly records = this.qualityService.records;
   readonly isLoading = this.qualityService.isLoading;
 
-  readonly openCount = computed(() => this.records().filter((r) => r.status === 'open').length);
-  readonly inProgressCount = computed(
-    () => this.records().filter((r) => r.status === 'in_progress').length,
-  );
-  readonly closedCount = computed(() => this.records().filter((r) => r.status === 'closed').length);
+  readonly openCount = computed(() => this.records().filter(r => r.status === 'open').length);
+  readonly inProgressCount = computed(() => this.records().filter(r => r.status === 'in_progress').length);
+  readonly closedCount = computed(() => this.records().filter(r => r.status === 'closed').length);
 
   ngOnInit(): void {
     this.loadRecords();
@@ -50,65 +42,35 @@ export class QualityComponent implements OnInit {
 
   loadRecords(): void {
     this.qualityService.getRecords().subscribe({
-      error: () =>
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Hata',
-          detail: 'Kalite kayıtları yüklenemedi',
-          life: 3000,
-        }),
+      error: () => this.messageService.add({ severity: 'error', summary: 'Hata', detail: 'Kalite kayıtları yüklenemedi', life: 3000 }),
     });
   }
 
-  getStatusSeverity(
-    status: string,
-  ): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
+  getStatusSeverity(status: string): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
     switch (status) {
-      case 'open':
-        return 'warn';
-      case 'in_progress':
-        return 'info';
-      case 'closed':
-        return 'success';
-      case 'cancelled':
-        return 'secondary';
-      default:
-        return 'info';
+      case 'open': return 'warn';
+      case 'in_progress': return 'info';
+      case 'closed': return 'success';
+      case 'cancelled': return 'secondary';
+      default: return 'info';
     }
   }
 
-  getSeveritySeverity(
-    severity: string,
-  ): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
+  getSeveritySeverity(severity: string): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
     switch (severity) {
-      case 'critical':
-        return 'danger';
-      case 'high':
-        return 'warn';
-      case 'medium':
-        return 'info';
-      case 'low':
-        return 'success';
-      default:
-        return 'info';
+      case 'critical': return 'danger';
+      case 'high': return 'warn';
+      case 'medium': return 'info';
+      case 'low': return 'success';
+      default: return 'info';
     }
   }
 
   onCreate(): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Bilgi',
-      detail: 'Yeni kalite kaydı oluşturulacak',
-      life: 3000,
-    });
+    this.messageService.add({ severity: 'info', summary: 'Bilgi', detail: 'Yeni kalite kaydı oluşturulacak', life: 3000 });
   }
 
   onEdit(record: QualityRecord): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Bilgi',
-      detail: `${record.title} düzenleniyor`,
-      life: 3000,
-    });
+    this.messageService.add({ severity: 'info', summary: 'Bilgi', detail: `${record.title} düzenleniyor`, life: 3000 });
   }
 }

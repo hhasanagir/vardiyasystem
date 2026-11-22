@@ -3,7 +3,7 @@
 > **Status:** Planning  
 > **Target:** Native-quality Android + iOS healthcare app for 5000 employees  
 > **Stack:** Angular 21 + Capacitor 8 + PrimeNG + NestJS + PostgreSQL  
-> **Principle:** Zero regression on existing web app — all changes additive via responsive engine + feature flags
+> **Principle:** Zero regression on existing web app — all changes additive via responsive engine + feature flags  
 
 ---
 
@@ -22,12 +22,10 @@
 
 ---
 
-## PHASE 1 — Mobile UX Audit
-
+## PHASE 1 — Mobile UX Audit  
 **Goal:** Document every screen, every component, every interaction against mobile UX heuristics.
 
 ### Actions
-
 - [ ] Audit all 35+ route components against mobile criteria
 - [ ] Identify desktop-first layouts, fixed widths, overflowing tables
 - [ ] Document touch target violations (<44px)
@@ -38,18 +36,15 @@
 - [ ] Produce `docs/mobile/mobile-audit.md` with per-component findings
 
 ### Output
-
 - `docs/mobile/mobile-audit.md` — per-component audit with severity ratings (P0-P3)
 - `docs/mobile/mobile-audit.ts` — machine-readable audit JSON
 
 ---
 
-## PHASE 2 — Native Navigation
-
+## PHASE 2 — Native Navigation  
 **Goal:** Mobile navigation that feels native — bottom tabs, gesture drawer, back button, deep links.
 
 ### Actions
-
 - [ ] Upgrade bottom nav to 5-tab persistent shell with animated transitions
 - [ ] Implement swipe-to-open drawer (left edge gesture)
 - [ ] Add `@capacitor/app` back button listener (Android hardware back)
@@ -61,26 +56,22 @@
 - [ ] Implement FAB as primary action entry point per role
 
 ### Files to Create
-
 - `src/app/core/services/navigation.service.ts` — unified nav state
 - `src/app/core/services/deep-link.service.ts` — deep link router
 - `src/app/shared/mobile-drawer/mobile-drawer.component.ts`
 - `src/app/shared/mobile-tab-bar/mobile-tab-bar.component.ts`
 
 ### Files to Modify
-
 - `capacitor.config.ts` — add URL scheme, deep link config
 - `src/app/app.routes.ts` — add deep link resolvers
 - `src/app/layouts/main-layout/main-layout.component.ts` — replace sidebar on mobile
 
 ---
 
-## PHASE 3 — Responsive Layout Engine
-
+## PHASE 3 — Responsive Layout Engine  
 **Goal:** Every page looks perfect on phone (320px) through ultra-wide (2560px).
 
 ### Actions
-
 - [ ] Create `BreakpointService` with reactive `isPhone`, `isTablet`, `isDesktop`, `isLandscape` signals
 - [ ] Build CSS grid utility classes: `.grid-phone-1`, `.grid-tablet-2`, `.grid-desktop-3`, `.grid-wide-4`
 - [ ] Implement responsive container system: `.container-phone`, `.container-tablet`, `.container-desktop`
@@ -93,26 +84,22 @@
 - [ ] Add orientation change detection + graceful layout adjustment
 
 ### Files to Create
-
 - `src/app/core/services/breakpoint.service.ts`
 - `src/styles/_responsive.scss` — responsive grid + typography
 - `src/app/shared/responsive-container/responsive-container.component.ts`
 - `src/app/shared/data-list/data-list.component.ts` — mobile-friendly list view for table data
 
 ### Files to Modify
-
 - `src/styles/_layout.scss` — convert `page` class to responsive
 - `src/styles/_mobile.scss` — enhance breakpoints
 - `src/app/layouts/main-layout/main-layout.component.ts` — responsive sidebar
 
 ---
 
-## PHASE 4 — Native Components
-
+## PHASE 4 — Native Components  
 **Goal:** Replace web-native PrimeNG components with mobile-native equivalents on device.
 
 ### Actions
-
 - [ ] Build `MobileDatePickerComponent` — uses `@capacitor/dialog` date picker or native `<input type="date">`
 - [ ] Build `MobileTimePickerComponent` — native time input
 - [ ] Build `MobileSelectComponent` — action sheet style selector
@@ -125,7 +112,6 @@
 - [ ] Add `MobileService.light()` / `.heavy()` / `.selection()` to key interactions
 
 ### Files to Create
-
 - `src/app/shared/mobile-date-picker/mobile-date-picker.component.ts`
 - `src/app/shared/mobile-time-picker/mobile-time-picker.component.ts`
 - `src/app/shared/mobile-select/mobile-select.component.ts`
@@ -137,18 +123,15 @@
 - `src/app/core/directives/infinite-scroll.directive.ts`
 
 ### Capacitor Plugins Required
-
 - `@capacitor/dialog` — native dialogs
 - `@capacitor/haptics` — haptic feedback (already installed)
 
 ---
 
-## PHASE 5 — Offline First
-
+## PHASE 5 — Offline First  
 **Goal:** Full offline support — schedules, personnel, attendance work without internet.
 
 ### Actions
-
 - [ ] Replace IndexedDB queue with SQLite via `@capacitor-community/sqlite` or `@op-engineering/op-sqlite`
 - [ ] Build `OfflineStorageService` — generic key-value + query storage on top of SQLite
 - [ ] Cache all critical API responses: schedules, personnel, devices, units, shift definitions, notifications
@@ -164,7 +147,6 @@
 - [ ] Wire `offline.interceptor.ts` to serve cached responses
 
 ### Files to Create
-
 - `src/app/core/services/offline-storage.service.ts` — SQLite-based storage
 - `src/app/core/services/cache.service.ts` — response caching layer
 - `src/app/core/services/conflict-resolver.service.ts` — version vector conflict resolution
@@ -172,29 +154,24 @@
 - `src/app/shared/offline-badge/offline-badge.component.ts`
 
 ### Files to Modify
-
 - `src/app/services/offline-queue.service.ts` — upgrade to SQLite
 - `src/app/services/offline-sync.service.ts` — add background sync + conflict handling
 - `src/app/interceptors/offline.interceptor.ts` — serve cache when offline
 
 ### Capacitor Plugins Required
-
 - `@capacitor-community/sqlite` — local SQLite database
 
 ### Backend Changes
-
 - Add `if-match`/`if-none-match` header support for optimistic concurrency
 - Add `X-Sync-Version` header support
 - Add batch sync endpoint: `POST /sync/batch`
 
 ---
 
-## PHASE 6 — Push Notifications
-
+## PHASE 6 — Push Notifications  
 **Goal:** Deeply integrate existing backend notification system with mobile push.
 
 ### Actions
-
 - [ ] Register for FCM push tokens via `@capacitor/push-notifications`
 - [ ] Send FCM token to backend `POST /push-tokens/register`
 - [ ] Handle foreground push: display in-app notification
@@ -212,20 +189,17 @@
 - [ ] Implement delivery tracking: mark as delivered, read, actioned
 
 ### Files to Create
-
 - `src/app/core/services/push-notification.service.ts` — FCM registration + handling
 - `src/app/core/services/local-notification.service.ts` — scheduled local notifications
 - `src/app/core/services/notification-scheduler.service.ts` — background notification scheduling
 
 ### Files to Modify
-
 - `src/app/services/pwa.service.ts` — add FCM push handling
 - `src/app/services/notification-center.service.ts` — integrate push
 - `src/app/app.config.ts` — register push handlers
 - `capacitor.config.ts` — update PushNotifications config
 
 ### Backend — Already Done
-
 - `fcm-sender.service.ts` — FCM push sender
 - `push-tokens.controller.ts` — token registration
 - `notification-orchestrator.service.ts` — multi-channel dispatch
@@ -233,12 +207,10 @@
 
 ---
 
-## PHASE 7 — Authentication
-
+## PHASE 7 — Authentication  
 **Goal:** Biometric + PIN + seamless session restore — login once, use for weeks.
 
 ### Actions
-
 - [ ] Implement PIN login as fallback when biometric unavailable
 - [ ] Implement secure credential storage via Capacitor Preferences (encrypted)
 - [ ] Implement auto-login on app cold start (check stored credentials → biometric verify → login)
@@ -251,30 +223,25 @@
 - [ ] Implement device-specific session binding (optional, enhanced security)
 
 ### Files to Create
-
 - `src/app/features/auth/pin-login.component.ts` — PIN entry screen
 - `src/app/features/auth/pin-setup.component.ts` — PIN creation flow
 - `src/app/features/auth/biometric-enrollment.component.ts` — biometric setup flow
 
 ### Files to Modify
-
 - `src/app/services/biometric-auth.service.ts` — add PIN fallback
 - `src/app/services/auth.service.ts` — add auto-login, session restore
 - `src/app/components/login/login.component.ts` — add biometric prompt after login
 
 ### Capacitor Plugins Required
-
 - `@capgo/capacitor-native-biometric` — already installed
 - `@capacitor/preferences` — already installed
 
 ---
 
-## PHASE 8 — Native Device Features
-
+## PHASE 8 — Native Device Features  
 **Goal:** Full device API integration — camera, file picker, QR scanner, contacts, etc.
 
 ### Actions
-
 - [ ] Camera: capture incident photos, profile photos, equipment documentation
 - [ ] Gallery: pick images for incident reports
 - [ ] File picker: upload documents (PDFs, reports)
@@ -287,19 +254,16 @@
 - [ ] Integrate with existing `CameraService`, `DeepLinkService`
 
 ### Files to Create
-
 - `src/app/core/services/qr-scanner.service.ts`
 - `src/app/core/services/file-picker.service.ts`
 - `src/app/core/services/location.service.ts`
 - `src/app/core/services/calendar.service.ts`
 
 ### Files to Modify
-
 - `src/app/services/camera.service.ts` — enhance with gallery, file picker
 - `src/app/components/device-incidents/` — add camera/QR for incident reporting
 
 ### Capacitor Plugins Required
-
 - `@capacitor/camera` — already installed
 - `@capacitor/filesystem` — file storage
 - `@capacitor/share` — share sheet
@@ -311,12 +275,10 @@
 
 ---
 
-## PHASE 9 — Healthcare UX Optimizations
-
+## PHASE 9 — Healthcare UX Optimizations  
 **Goal:** UI optimized for hospital environment — gloved hands, night shifts, emergency access.
 
 ### Actions
-
 - [ ] Increase all touch targets to minimum 48px (WCAG 2.5.5 exceeds 44px)
 - [ ] Implement glove-friendly hit areas (larger padding, 16px minimum around interactive elements)
 - [ ] Build high-contrast theme (WCAG AAA) — toggle in settings
@@ -331,7 +293,6 @@
 - [ ] Add "Do Not Disturb" mode for off-duty personnel
 
 ### Files to Create
-
 - `src/app/core/services/theme.service.ts` — high-contrast, night mode, accessibility themes
 - `src/app/shared/emergency-button/emergency-button.component.ts`
 - `src/app/shared/emergency-alert/emergency-alert.component.ts`
@@ -339,19 +300,16 @@
 - `src/styles/_healthcare.scss` — healthcare-specific overrides
 
 ### Files to Modify
-
 - `src/styles/_tokens.scss` — add high-contrast, night-mode tokens
 - `src/app/app.config.ts` — register theme service
 - `src/app/layouts/main-layout/` — add emergency quick-access
 
 ---
 
-## PHASE 10 — Performance
-
+## PHASE 10 — Performance  
 **Goal:** Cold start <2s, 60fps scrolling, native-feel responsiveness.
 
 ### Actions
-
 - [ ] Analyze bundle with `ng build --stats-json` + `esbuild-visualizer`
 - [ ] Implement route-level lazy loading (already partially done)
 - [ ] Implement image lazy loading via `loading="lazy"` attribute
@@ -369,30 +327,25 @@
 - [ ] Implement component-level suspense/placeholder loading
 
 ### Files to Create
-
 - `src/app/core/services/performance-monitor.service.ts`
 - `src/app/shared/virtual-scroll/virtual-scroll.directive.ts`
 - `src/styles/_performance.scss` — `content-visibility: auto`, `contain: strict` classes
 
 ### Files to Modify
-
 - `src/app/app.config.ts` — add preloading strategy (already `PreloadAllModules`)
 - `angular.json` — update budgets after optimization
 - `ngsw-config.json` — update caching strategy
 
 ### Build Tooling
-
 - `esbuild` (already default in Angular 21) — fine-tune config
 - `light-house-ci` — add to CI pipeline
 
 ---
 
-## PHASE 11 — Animations
-
+## PHASE 11 — Animations  
 **Goal:** Subtle, purposeful animations that feel native — never gratuitous.
 
 ### Actions
-
 - [ ] Implement native page transitions: slide left/right for push/pop navigation
 - [ ] Add hero animations: list item → detail page (shared element transition)
 - [ ] Add ripple effect on all touchable elements (PrimeNG ripple already enabled)
@@ -409,26 +362,22 @@
 - [ ] Add orientation change animation
 
 ### Files to Create
-
 - `src/app/shared/page-transition/page-transition.directive.ts`
 - `src/app/shared/hero-animation/hero-animation.directive.ts`
 - `src/app/shared/swipe-action/swipe-action.directive.ts`
 - `src/styles/_animations.scss` (already exists — enhance with spring curves)
 
 ### Angular Animations
-
 - Use Angular Animation Builder for route transitions
 - Use `RouterOutlet` animation events
 - Keep animation duration under 300ms for mobile
 
 ---
 
-## PHASE 12 — Security
-
+## PHASE 12 — Security  
 **Goal:** OWASP MASVS L2 compliance — enterprise-grade mobile security.
 
 ### Actions
-
 - [ ] Implement certificate pinning via `@capacitor/network` or manual `HttpClient` interceptor
 - [ ] Implement encrypted local storage (SQLite + encryption or `capacitor-secure-storage-plugin`)
 - [ ] Implement root/jailbreak detection — show warning, optionally block access
@@ -443,7 +392,6 @@
 - [ ] Implement screen recording detection
 
 ### Files to Create
-
 - `src/app/core/services/certificate-pinning.service.ts`
 - `src/app/core/services/secure-storage.service.ts`
 - `src/app/core/services/device-integrity.service.ts` — root/jailbreak/tamper detection
@@ -451,31 +399,26 @@
 - `src/app/core/guards/device-integrity.guard.ts`
 
 ### Files to Modify
-
 - `src/app/interceptors/auth.interceptor.ts` — add certificate pinning
 - `src/app/services/auth.service.ts` — add device binding
 - `src/app/app.config.ts` — register security services
 
 ### Capacitor Plugins Required
-
 - `@aparajita/capacitor-secure-storage` or `capacitor-secure-storage-plugin`
 - `@capacitor/device` — already installed
 - `@capacitor/app` — already installed
 
 ### Backend Changes
-
 - Add device attestation endpoint: `POST /auth/attest`
 - Add device fingerprint to JWT payload
 - Add device revocation endpoint
 
 ---
 
-## PHASE 13 — Accessibility
-
+## PHASE 13 — Accessibility  
 **Goal:** WCAG AA minimum, WCAG AAA preferred — inclusive design for all personnel.
 
 ### Actions
-
 - [ ] Implement large font mode (up to 200% scale)
 - [ ] Ensure all interactive elements have focus indicators
 - [ ] Add proper ARIA labels to all components
@@ -493,25 +436,21 @@
 - [ ] Test with actual assistive technology
 
 ### Files to Create
-
 - `src/app/core/services/accessibility.service.ts`
 - `src/app/shared/skip-link/skip-link.component.ts`
 - `src/app/shared/live-region/live-region.directive.ts`
 - `src/styles/_accessibility.scss`
 
 ### Files to Modify
-
 - `src/styles/_tokens.scss` — add accessible color palette
 - All component templates — add ARIA attributes
 
 ---
 
-## PHASE 14 — Role-Based UX
-
+## PHASE 14 — Role-Based UX  
 **Goal:** Every role sees exactly what they need — no noise, no clutter.
 
 ### Actions
-
 - [ ] Design and implement RoleHomeService — returns home screen config per role
 - [ ] **Technician Home**: Today's shift, Quick clock-in/out, Tasks, Next shift, Notifications, Emergency alert
 - [ ] **Supervisor Home**: Unit coverage status, Pending approvals, Live staff tracking, Device alerts, Attendance exceptions
@@ -525,7 +464,6 @@
 - [ ] Implement role-based notification filtering
 
 ### Files to Create
-
 - `src/app/core/services/role-home.service.ts` — home config per role
 - `src/app/core/services/widget-registry.service.ts` — dashboard widget system
 - `src/app/shared/role-home/technician-home.component.ts`
@@ -534,21 +472,18 @@
 - `src/app/shared/role-home/admin-home.component.ts`
 
 ### Files to Modify
-
 - `src/app/layouts/main-layout/main-layout.component.ts` — role-based navigation
 - `src/app/features/dashboard/dashboard.component.ts` — role-based widgets
 - `src/app/components/floating-actions/floating-actions.component.ts` — role-based FAB
 
 ---
 
-## PHASE 15 — Mobile Dashboard
-
+## PHASE 15 — Mobile Dashboard  
 **Goal:** A dedicated mobile-first dashboard that replaces the desktop dashboard on phone.
 
 ### Actions
-
 - [ ] Build `MobileDashboardComponent` — completely separate from desktop dashboard
-- [ ] **Technician Dashboard**:
+- [ ] **Technician Dashboard**: 
   - Active shift card with large clock-in/out button
   - Remaining hours countdown
   - Task completion progress
@@ -572,7 +507,6 @@
 - [ ] Implement dashboard widget drag-to-reorder (persisted)
 
 ### Files to Create
-
 - `src/app/features/technician-dashboard/technician-dashboard.component.ts`
 - `src/app/features/supervisor-dashboard/supervisor-dashboard.component.ts`
 - `src/app/features/manager-dashboard/manager-dashboard.component.ts`
@@ -581,18 +515,15 @@
 - `src/app/shared/staff-coverage-card/staff-coverage-card.component.ts`
 
 ### Files to Modify
-
 - `src/app/app.routes.ts` — add role-specific dashboard routes
 - `src/app/layouts/main-layout/` — role-based default redirect
 
 ---
 
-## PHASE 16 — Mobile Forms
-
+## PHASE 16 — Mobile Forms  
 **Goal:** Every form is mobile-optimized — large inputs, numeric keyboards, auto-save, stepper.
 
 ### Actions
-
 - [ ] Build `MobileFormComponent` — stepper-based multi-step form wrapper
 - [ ] Build `MobileFormFieldComponent` — large touch-friendly input with floating label
 - [ ] Build `MobileNumericInputComponent` — numeric keyboard, large target
@@ -610,7 +541,6 @@
 - [ ] Add form progress indicator (step X of Y)
 
 ### Files to Create
-
 - `src/app/shared/mobile-form/mobile-form.component.ts`
 - `src/app/shared/mobile-form/mobile-form-field.component.ts`
 - `src/app/shared/mobile-form/mobile-numeric-input.component.ts`
@@ -619,7 +549,6 @@
 - `src/app/shared/mobile-form/auto-save.directive.ts`
 
 ### Files to Modify
-
 - `src/app/components/leave-management/leave-management.component.ts` — mobile form
 - `src/app/components/subswap-requests/subswap-requests.component.ts` — mobile form
 - `src/app/components/device-incidents/device-incident-report.component.ts` — mobile form
@@ -627,12 +556,10 @@
 
 ---
 
-## PHASE 17 — Production Readiness
-
+## PHASE 17 — Production Readiness  
 **Goal:** App store submission ready — builds, signing, compliance.
 
 ### Actions
-
 - [ ] Configure Android build: APK + AAB with proper signing
 - [ ] Configure iOS build: IPA with App Store distribution
 - [ ] Implement Android App Signing by Google Play
@@ -649,7 +576,6 @@
 - [ ] Set up monitoring: crash-free rate, ANR rate, startup time
 
 ### Files to Create
-
 - `fastlane/Fastfile`
 - `fastlane/Appfile`
 - `fastlane/Matchfile`
@@ -657,24 +583,20 @@
 - `.github/workflows/ios-build.yml`
 
 ### Files to Modify
-
 - `capacitor.config.ts` — final app ID, name, version
 - `android/app/build.gradle` — signing config
 - `ios/App/App.xcodeproj` — code signing
 
 ### Capacitor Plugins Required
-
 - `@capacitor/app-launcher` — app review
 - `@capacitor/filesystem` — file management
 
 ---
 
-## PHASE 18 — Store Assets
-
+## PHASE 18 — Store Assets  
 **Goal:** Professional store listing that drives downloads and meets editorial guidelines.
 
 ### Actions
-
 - [ ] Generate adaptive icons: Android (various densities), iOS (various sizes)
 - [ ] Generate splash screens: Android (9-patch), iOS (storyboard)
 - [ ] Design feature graphic (Google Play: 1024x500)
@@ -692,26 +614,22 @@
 - [ ] Set up app versioning strategy (semver + build number)
 
 ### Files to Create
-
 - `docs/mobile/store-assets/android/` — adaptive icons, feature graphic, screenshots
 - `docs/mobile/store-assets/ios/` — app icons, screenshots
 - `docs/mobile/store-assets/description.md`
 - `docs/mobile/store-assets/privacy-policy.md`
 
 ### Files to Modify
-
 - `capacitor.config.ts` — finalize version, app name
 - `android/app/src/main/res/` — icon resources
 - `ios/App/App/Assets.xcassets/` — icon assets
 
 ---
 
-## PHASE 19 — Testing
-
+## PHASE 19 — Testing  
 **Goal:** Comprehensive automated testing for all mobile features.
 
 ### Actions
-
 - [ ] Unit tests for all mobile services (push, biometric, offline, navigation, cache)
 - [ ] Unit tests for all mobile components (bottom sheet, action sheet, dialog)
 - [ ] E2E tests for mobile flows (login, clock-in, view schedule, submit leave)
@@ -726,25 +644,21 @@
 - [ ] Multi-window tests (Android 7+ / iPadOS)
 
 ### Files to Create
-
 - `e2e/mobile/` — mobile-specific E2E tests
 - `src/app/core/services/__tests__/` — service tests
 - `src/app/shared/__tests__/` — component tests
 
 ### Test Framework
-
 - Unit: Vitest (existing) + Angular TestBed for component tests
 - E2E: Playwright (existing) + `@capacitor/test` or Appium
 - Performance: Lighthouse CI + Web Vitals
 
 ---
 
-## PHASE 20 — Final Audit
-
+## PHASE 20 — Final Audit  
 **Goal:** Score 10/10 across all categories — fix any gap automatically.
 
 ### Actions
-
 - [ ] Score each category with detailed rubric
 - [ ] **Native Feel (10/10)**: Bottom nav, gesture drawer, page transitions, haptic feedback, native pickers, swipe actions, pull-to-refresh
 - [ ] **UX (10/10)**: Role-based home, large touch targets, mobile-first forms, dashboard widgets, one-handed operation
@@ -759,7 +673,6 @@
 - [ ] Any score below 10/10 triggers automated remediation loop
 
 ### Output
-
 - `docs/mobile/final-audit.md` — comprehensive 10/10 scorecard with evidence for each criterion
 
 ---
@@ -784,12 +697,12 @@ Week 12:   Phase 19 (Testing) + Phase 20 (Final Audit)
 
 ## Backward Compatibility Guarantee
 
-| Layer          | Strategy                                                                   |
-| -------------- | -------------------------------------------------------------------------- |
-| Routes         | Web routes unchanged. Mobile routes added under `/app/mobile/` prefix      |
-| Components     | Mobile components are new. Web components unchanged                        |
-| CSS            | All mobile styles scoped under `.is-mobile` body class or `@media` queries |
-| State          | Shared signals/computed — mobile and web read from same source             |
-| Backend        | Zero changes to existing endpoints. New mobile-specific endpoints optional |
-| Build          | Single `ng build` produces both web and mobile experience                  |
-| Service Worker | Existing PWA caching unchanged. Mobile adds SQLite layer                   |
+| Layer | Strategy |
+|-------|----------|
+| Routes | Web routes unchanged. Mobile routes added under `/app/mobile/` prefix |
+| Components | Mobile components are new. Web components unchanged |
+| CSS | All mobile styles scoped under `.is-mobile` body class or `@media` queries |
+| State | Shared signals/computed — mobile and web read from same source |
+| Backend | Zero changes to existing endpoints. New mobile-specific endpoints optional |
+| Build | Single `ng build` produces both web and mobile experience |
+| Service Worker | Existing PWA caching unchanged. Mobile adds SQLite layer |

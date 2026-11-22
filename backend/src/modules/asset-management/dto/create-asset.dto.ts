@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  IsNumber,
-  IsBoolean,
-  IsEnum,
-} from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsBoolean, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateAssetDto {

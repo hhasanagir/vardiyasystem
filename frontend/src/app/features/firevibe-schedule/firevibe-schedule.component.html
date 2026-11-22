@@ -1,4 +1,5 @@
 <div class="fv-screen">
+
   <header class="fv-header">
     <div class="fv-header-top">
       <div class="fv-brand">
@@ -20,15 +21,7 @@
 
       <div class="fv-header-actions">
         <div class="fv-search">
-          <svg
-            class="fv-search-icon"
-            viewBox="0 0 24 24"
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
+          <svg class="fv-search-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="7"></circle>
             <path d="M20 20l-3.5-3.5"></path>
           </svg>
@@ -43,26 +36,14 @@
           />
         </div>
 
-        <select
-          name="fvFilterDevice"
-          class="fv-filter"
-          [ngModel]="filterDevice()"
-          (ngModelChange)="filterDevice.set($event)"
-          aria-label="Cihaz filtresi"
-        >
+        <select name="fvFilterDevice" class="fv-filter" [ngModel]="filterDevice()" (ngModelChange)="filterDevice.set($event)" aria-label="Cihaz filtresi">
           <option value="">Tüm Cihazlar</option>
           @for (d of deviceOptions(); track d.id) {
             <option [value]="d.id">{{ d.code }} — {{ d.name }}</option>
           }
         </select>
 
-        <select
-          name="fvFilterShift"
-          class="fv-filter"
-          [ngModel]="filterShift()"
-          (ngModelChange)="filterShift.set($event)"
-          aria-label="Vardiya filtresi"
-        >
+        <select name="fvFilterShift" class="fv-filter" [ngModel]="filterShift()" (ngModelChange)="filterShift.set($event)" aria-label="Vardiya filtresi">
           <option value="">Tüm Vardiyalar</option>
           <option value="morning">Sabah</option>
           <option value="day">Gündüz</option>
@@ -79,68 +60,27 @@
     <div class="fv-header-bottom">
       <div class="fv-month-nav">
         <button class="fv-icon-btn" (click)="prevMonth()" title="Önceki ay" aria-label="Önceki ay">
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-          >
-            <path d="M15 6l-6 6 6 6"></path>
-          </svg>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 6l-6 6 6 6"></path></svg>
         </button>
 
-        <select
-          name="fvMonth"
-          class="fv-month-select"
-          [ngModel]="month()"
-          (ngModelChange)="onMonthChange($event)"
-          aria-label="Ay"
-        >
-          @for (m of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; track m) {
+        <select name="fvMonth" class="fv-month-select" [ngModel]="month()" (ngModelChange)="onMonthChange($event)" aria-label="Ay">
+          @for (m of [1,2,3,4,5,6,7,8,9,10,11,12]; track m) {
             <option [value]="m">{{ TURKISH_MONTH(m) }}</option>
           }
         </select>
 
-        <select
-          name="fvYear"
-          class="fv-month-select fv-year-select"
-          [ngModel]="year()"
-          (ngModelChange)="onYearChange($event)"
-          aria-label="Yıl"
-        >
+        <select name="fvYear" class="fv-month-select fv-year-select" [ngModel]="year()" (ngModelChange)="onYearChange($event)" aria-label="Yıl">
           @for (y of yearsForSelect(); track y) {
             <option [value]="y">{{ y }}</option>
           }
         </select>
 
-        <button
-          class="fv-icon-btn"
-          (click)="nextMonth()"
-          title="Sonraki ay"
-          aria-label="Sonraki ay"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-          >
-            <path d="M9 6l6 6-6 6"></path>
-          </svg>
+        <button class="fv-icon-btn" (click)="nextMonth()" title="Sonraki ay" aria-label="Sonraki ay">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6l6 6-6 6"></path></svg>
         </button>
 
         <button class="fv-btn fv-btn-today" (click)="goToToday()">Bugün</button>
-        <button
-          class="fv-btn fv-btn-tool"
-          (click)="scrollToTodayColumn()"
-          title="Bugünün sütununa kaydır"
-        >
-          Güne Git
-        </button>
+        <button class="fv-btn fv-btn-tool" (click)="scrollToTodayColumn()" title="Bugünün sütununa kaydır">Güne Git</button>
         <span class="fv-month-caption">{{ monthLabel() }}</span>
       </div>
 
@@ -158,64 +98,23 @@
             placeholder="Gün"
             aria-label="Gün ara"
           />
-          <button
-            class="fv-icon-btn fv-icon-btn-sm"
-            (click)="goToDay()"
-            title="Güne git"
-            aria-label="Güne git"
-          >
-            →
-          </button>
+          <button class="fv-icon-btn fv-icon-btn-sm" (click)="goToDay()" title="Güne git" aria-label="Güne git">→</button>
         </label>
 
         <label class="fv-zoom">
           <span>Görünüm</span>
-          <select
-            name="fvZoom"
-            class="fv-filter"
-            [ngModel]="zoom()"
-            (ngModelChange)="setZoom($event)"
-            aria-label="Yakınlaştırma"
-          >
+          <select name="fvZoom" class="fv-filter" [ngModel]="zoom()" (ngModelChange)="setZoom($event)" aria-label="Yakınlaştırma">
             @for (z of zoomOptions; track z.id) {
               <option [value]="z.id">{{ z.label }}</option>
             }
           </select>
         </label>
 
-        <button
-          class="fv-icon-btn"
-          (click)="scrollDaysBy(-1)"
-          title="Sola kaydır"
-          aria-label="Sola kaydır"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-          >
-            <path d="M15 6l-6 6 6 6"></path>
-          </svg>
+        <button class="fv-icon-btn" (click)="scrollDaysBy(-1)" title="Sola kaydır" aria-label="Sola kaydır">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 6l-6 6 6 6"></path></svg>
         </button>
-        <button
-          class="fv-icon-btn"
-          (click)="scrollDaysBy(1)"
-          title="Sağa kaydır"
-          aria-label="Sağa kaydır"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-          >
-            <path d="M9 6l6 6-6 6"></path>
-          </svg>
+        <button class="fv-icon-btn" (click)="scrollDaysBy(1)" title="Sağa kaydır" aria-label="Sağa kaydır">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6l6 6-6 6"></path></svg>
         </button>
       </div>
 
@@ -225,13 +124,11 @@
             {{ scheduleStatusLabel() }}
           </span>
         }
-        <button class="fv-btn fv-btn-tool" (click)="exportExcel()" title="Excel dışa aktar">
-          Excel
-        </button>
+        <button class="fv-btn fv-btn-tool" (click)="exportExcel()" title="Excel dışa aktar">Excel</button>
         <button class="fv-btn fv-btn-tool" (click)="exportPdf()" title="PDF dışa aktar">PDF</button>
         <button class="fv-btn fv-btn-tool" (click)="printRoster()" title="Yazdır">Yazdır</button>
-        @if (viewState().status === 'success' && schedule()?.status !== 'published') {
-          <button class="fv-btn fv-btn-primary" (click)="publish()">Yayınla</button>
+        @if (viewState().status === 'success' && schedule()?.status !== 'published' && canPublish()) {
+          <button class="fv-btn fv-btn-primary" (click)="publish()" [disabled]="publishBusy()">Yayınla</button>
         }
       </div>
     </div>
@@ -295,7 +192,10 @@
     </div>
   }
 
-  <main class="fv-scheduler">
+  <main
+    class="fv-scheduler"
+  >
+
     @switch (viewState().status) {
       @case ('loading') {
         <div class="fv-state">
@@ -306,14 +206,7 @@
       @case ('empty') {
         <div class="fv-state">
           <div class="fv-state-icon">
-            <svg
-              viewBox="0 0 24 24"
-              width="28"
-              height="28"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.6"
-            >
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6">
               <rect x="4" y="5" width="16" height="16" rx="2"></rect>
               <path d="M8 3v4M16 3v4M4 10h16"></path>
             </svg>
@@ -321,7 +214,13 @@
           <h3>{{ stateTitle() }}</h3>
           <p>{{ stateDesc() }}</p>
           <div class="fv-state-actions">
-            <button class="fv-btn fv-btn-primary" (click)="goToInsights()">Raporlar</button>
+            <button class="fv-btn fv-btn-primary"
+                    [disabled]="viewState().status !== 'empty' || createPlanInProgress()"
+                    (click)="createEmptyMonthPlan()">
+              @if (createPlanInProgress()) { Plan oluşturuluyor... }
+              @else { Bu Ay İçin Planı Oluştur }
+            </button>
+            <button class="fv-btn fv-btn-ghost" (click)="goToInsights()">Raporlar</button>
             <button class="fv-btn fv-btn-ghost" (click)="prevMonth()">Önceki Ay</button>
           </div>
         </div>
@@ -329,14 +228,7 @@
       @case ('error') {
         <div class="fv-state">
           <div class="fv-state-icon">
-            <svg
-              viewBox="0 0 24 24"
-              width="28"
-              height="28"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-            >
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8">
               <circle cx="12" cy="12" r="9"></circle>
               <path d="M12 8v5M12 16.5v.01"></path>
             </svg>
@@ -350,28 +242,24 @@
         <div class="fv-drag-tray">
           <span class="fv-drag-tray-label">Sürükle & Bırak:</span>
           @for (p of dragTrayCandidates(); track p.id) {
-            <span
-              class="fv-drag-chip"
-              draggable="true"
-              (dragstart)="onPersonDragStart($event, p.id)"
-              (dragend)="onPersonDragEnd()"
-              [title]="p.name + ' — ' + p.role"
-            >
+            <span class="fv-drag-chip" draggable="true"
+                  (dragstart)="onPersonDragStart($event, p.id)"
+                  (dragend)="onPersonDragEnd()"
+                  [title]="p.name + ' — ' + p.role">
               <span class="fv-avatar">{{ initials(p.name) }}</span>
               <span class="fv-drag-chip-name">{{ p.name }}</span>
             </span>
           }
         </div>
 
-        <div
-          class="fv-scroll"
-          #mainScroll
-          (pointerdown)="onGridPointerDown($event)"
-          (pointermove)="onGridPointerMove($event)"
-          (pointerup)="onGridPointerUp()"
-          (pointerleave)="onGridPointerUp()"
-          (wheel)="onGridWheel($event)"
-        >
+        <div class="fv-scroll"
+             #mainScroll
+             (pointerdown)="onGridPointerDown($event)"
+             (pointermove)="onGridPointerMove($event)"
+             (pointerup)="onGridPointerUp()"
+             (pointerleave)="onGridPointerUp()"
+             (wheel)="onGridWheel($event)">
+
           <table class="fv-table" [style.--fv-day-w.px]="dayWidth()">
             <thead class="fv-thead">
               <tr class="fv-head-row">
@@ -384,25 +272,14 @@
                   </div>
                 </th>
                 @for (day of days(); track day.dateStr) {
-                  <th
-                    class="fv-day-col"
-                    [class.weekend]="day.isWeekend"
-                    [class.today]="day.isToday"
-                    [class.holiday]="day.isHoliday"
-                    [attr.title]="
-                      day.holidayName
-                        ? day.dayNumber + ' ' + monthLabel() + ' - ' + day.holidayName
-                        : day.dayNumber + ' ' + monthLabel()
-                    "
-                  >
+                  <th class="fv-day-col" [class.weekend]="day.isWeekend" [class.today]="day.isToday" [class.holiday]="day.isHoliday"
+                      [attr.title]="day.holidayName ? (day.dayNumber + ' ' + monthLabel() + ' - ' + day.holidayName) : (day.dayNumber + ' ' + monthLabel())">
                     <span class="fv-day-name">{{ day.dayName }}</span>
                     <span class="fv-day-num">{{ day.dayNumber }}</span>
                     @if (unitClosedDays().has(day.dayOfWeek)) {
                       <span class="fv-day-closed-mark">KAPALI</span>
                     }
-                    @if (day.isHoliday) {
-                      <span class="fv-day-holiday-mark"></span>
-                    }
+                    @if (day.isHoliday) { <span class="fv-day-holiday-mark"></span> }
                   </th>
                 }
               </tr>
@@ -412,12 +289,8 @@
                 @if (row.kind === 'block') {
                   <tr class="fv-tr-block">
                     <td class="fv-label-cell">
-                      <div
-                        class="fv-side-block"
-                        [class.collapsed]="!row.data.open"
-                        (click)="toggleBlock(row.data.key)"
-                        [title]="row.data.open ? 'Bloğu daralt' : 'Bloğu genişlet'"
-                      >
+                      <div class="fv-side-block" [class.collapsed]="!row.data.open" (click)="toggleBlock(row.data.key)"
+                           [title]="row.data.open ? 'Bloğu daralt' : 'Bloğu genişlet'">
                         <span class="fv-chevron" [class.rotated]="row.data.open"></span>
                         <span class="fv-block-label">{{ row.data.label }}</span>
                         <span class="fv-block-count">{{ row.data.deviceCount }} cihaz</span>
@@ -428,22 +301,16 @@
                 } @else if (row.kind === 'device') {
                   <tr class="fv-tr-device">
                     <td class="fv-label-cell">
-                      <div
-                        class="fv-side-device"
-                        [class.collapsed]="!row.data.open"
-                        (click)="toggleDevice(row.data.id)"
-                        [title]="row.data.open ? 'Cihazı daralt' : 'Cihazı genişlet'"
-                      >
+                      <div class="fv-side-device" [class.collapsed]="!row.data.open" (click)="toggleDevice(row.data.id)"
+                           [title]="row.data.open ? 'Cihazı daralt' : 'Cihazı genişlet'">
                         <span class="fv-chevron" [class.rotated]="row.data.open"></span>
                         <span class="fv-dev-code">{{ row.data.code }}</span>
                         <span class="fv-dev-name">{{ row.data.name }}</span>
-                        <span
-                          class="fv-dev-status"
-                          [class.st-active]="deviceStatusClass(row.data.id) === 'active'"
-                          [class.st-maintenance]="deviceStatusClass(row.data.id) === 'maintenance'"
-                          [class.st-fault]="deviceStatusClass(row.data.id) === 'fault'"
-                          [class.st-out]="deviceStatusClass(row.data.id) === 'out_of_service'"
-                        >
+                        <span class="fv-dev-status"
+                              [class.st-active]="deviceStatusClass(row.data.id) === 'active'"
+                              [class.st-maintenance]="deviceStatusClass(row.data.id) === 'maintenance'"
+                              [class.st-fault]="deviceStatusClass(row.data.id) === 'fault'"
+                              [class.st-out]="deviceStatusClass(row.data.id) === 'out_of_service'">
                           {{ deviceStatusLabel(row.data.id) }}
                         </span>
                       </div>
@@ -455,12 +322,10 @@
                     <td class="fv-label-cell">
                       <div class="fv-side-shift">
                         <div class="fv-shift-left">
-                          <span
-                            class="fv-shift-chip"
-                            [class.shift-night]="slotKind(row.data.slot) === 'night'"
-                            [class.shift-evening]="slotKind(row.data.slot) === 'evening'"
-                            [class.shift-assistant]="isAssistantSlot(row.data.slot)"
-                          >
+                          <span class="fv-shift-chip"
+                                [class.shift-night]="slotKind(row.data.slot) === 'night'"
+                                [class.shift-evening]="slotKind(row.data.slot) === 'evening'"
+                                [class.shift-assistant]="isAssistantSlot(row.data.slot)">
                             {{ shiftKeyLabel(row.data.slot.type) }}
                           </span>
                           <span class="fv-shift-time">{{ slotTimeRange(row.data.slot) }}</span>
@@ -471,118 +336,79 @@
                         <div class="fv-shift-person">
                           @for (p of row.data.roster; track p.id) {
                             @if ($index < 3) {
-                              <span
-                                class="fv-avatar fv-avatar-drag"
-                                draggable="true"
-                                (dragstart)="onPersonDragStart($event, p.id)"
-                                (dragend)="onPersonDragEnd()"
-                                [title]="
-                                  p.name + ' — ' + roleLabel(p.role) + ' (sürükleyip atayın)'
-                                "
-                                >{{ initials(p.name) }}</span
-                              >
+                              <span class="fv-avatar fv-avatar-drag" draggable="true"
+                                    (dragstart)="onPersonDragStart($event, p.id)"
+                                    (dragend)="onPersonDragEnd()"
+                                    [title]="p.name + ' — ' + roleLabel(p.role) + ' (sürükleyip atayın)'">{{ initials(p.name) }}</span>
                             }
                           }
                           @if (row.data.roster.length > 3) {
-                            <span class="fv-avatar fv-avatar-more" title="Diğer personel"
-                              >+{{ row.data.roster.length - 3 }}</span
-                            >
+                            <span class="fv-avatar fv-avatar-more" title="Diğer personel">+{{ row.data.roster.length - 3 }}</span>
                           }
                           @if (row.data.roster.length === 0) {
                             <span class="fv-no-person">—</span>
                           }
                         </div>
                         <div class="fv-shift-status">
-                          <span
-                            class="fv-coverage-badge"
-                            [class.ok]="coverageClass(row.data) === 'ok'"
-                            [class.warn]="coverageClass(row.data) === 'warn'"
-                            [class.low]="coverageClass(row.data) === 'low'"
-                          >
+                          <span class="fv-coverage-badge" [class.ok]="coverageClass(row.data) === 'ok'"
+                                [class.warn]="coverageClass(row.data) === 'warn'"
+                                [class.low]="coverageClass(row.data) === 'low'">
                             {{ row.data.filled }}/{{ row.data.total }}
                           </span>
                         </div>
                       </div>
                     </td>
                     @for (cell of row.data.cells; track trackByDay($index, cell)) {
-                      <td
-                        class="fv-cell"
-                        [class.weekend]="cell.day.isWeekend"
-                        [class.today]="cell.day.isToday"
-                        [class.holiday]="cell.day.isHoliday"
-                        [class.closed]="cell.isClosed"
-                        [class.drag-over]="
-                          !cell.isClosed && dragOverKey() === cellDragKey(row.data, cell)
-                        "
-                        (dragover)="onCellDragOver($event)"
-                        (dragenter)="onCellDragEnter(row.data, cell)"
-                        (dragleave)="onCellDragLeave()"
-                        (drop)="onCellDrop(row.data, cell)"
-                        (contextmenu)="onCellContextMenu($event, row.data, cell)"
-                      >
-                        @if (cell.isClosed) {
+                      <td class="fv-cell" [class.weekend]="cell.day.isWeekend" [class.today]="cell.day.isToday"
+                          [class.holiday]="cell.day.isHoliday"
+                          [class.closed]="cell.isClosed"
+                          [class.device-off]="cell.isDeviceOff"
+                          [class.drag-over]="!cell.isClosed && !cell.isDeviceOff && dragOverKey() === cellDragKey(row.data, cell)"
+                          (dragover)="onCellDragOver($event)"
+                          (dragenter)="onCellDragEnter(row.data, cell)"
+                          (dragleave)="onCellDragLeave()"
+                          (drop)="onCellDrop(row.data, cell)"
+                          (contextmenu)="onCellContextMenu($event, row.data, cell)">
+                        @if (cell.isDeviceOff) {
+                          <div class="fv-cell-device-off" (click)="onToggleDeviceOff(row.data, cell)" title="Cihazı aç">
+                            <span class="fv-device-off-label">CİHAZ KAPALI</span>
+                            @if (cell.deviceOffReason) {
+                              <span class="fv-device-off-reason">{{ cell.deviceOffReason }}</span>
+                            }
+                          </div>
+                        } @else if (cell.isClosed) {
                           <div class="fv-cell-closed">
                             <span class="fv-closed-label">KAPALI</span>
                             @if (cell.assignment) {
-                              <span class="fv-closed-warning" title="Bu tarihte mevcut atama var"
-                                >⚠ Mevcut atama</span
-                              >
+                              <span class="fv-closed-warning" title="Bu tarihte mevcut atama var">⚠ Mevcut atama</span>
                             }
                           </div>
                         } @else if (cell.assignment; as a) {
-                          <button
-                            class="fv-cell-btn"
-                            [class.cell-day]="cellColor(row.data.slot) === 'day'"
-                            [class.cell-night]="cellColor(row.data.slot) === 'night'"
-                            [class.cell-evening]="cellColor(row.data.slot) === 'evening'"
-                            [class.cell-assistant]="cellColor(row.data.slot) === 'assistant'"
-                            (click)="onCellClick(row.data, cell)"
-                            [title]="cellTitle(row.data, cell)"
-                          >
+                          <button class="fv-cell-btn"
+                                  [class.cell-day]="cellColor(row.data.slot) === 'day'"
+                                  [class.cell-night]="cellColor(row.data.slot) === 'night'"
+                                  [class.cell-evening]="cellColor(row.data.slot) === 'evening'"
+                                  [class.cell-assistant]="cellColor(row.data.slot) === 'assistant'"
+                                  (click)="onCellClick(row.data, cell)"
+                                  [title]="cellTitle(row.data, cell)">
                             <span class="fv-cell-initials">{{ initials(a.personnelName) }}</span>
-                            @if (cell.leave) {
-                              <span class="fv-cell-badge fv-badge-leave">İZ</span>
-                            } @else if (cell.report) {
-                              <span class="fv-cell-badge fv-badge-report">RP</span>
-                            }
-                            @if (cell.conflict) {
-                              <span class="fv-cell-badge fv-badge-conflict">ÇK</span>
-                            }
-                            @if (cell.overtime) {
-                              <span class="fv-cell-badge fv-badge-overtime">MZ</span>
-                            }
-                            @if (cell.cert) {
-                              <span class="fv-cell-badge fv-badge-cert">S</span>
-                            }
-                            @if (cell.warning) {
-                              <span class="fv-cell-badge fv-badge-warn">!</span>
-                            }
-                            @if (cell.note) {
-                              <span class="fv-cell-badge fv-badge-note">N</span>
-                            }
+                            @if (cell.leave) { <span class="fv-cell-badge fv-badge-leave">İZ</span> }
+                            @else if (cell.report) { <span class="fv-cell-badge fv-badge-report">RP</span> }
+                            @if (cell.conflict) { <span class="fv-cell-badge fv-badge-conflict">ÇK</span> }
+                            @if (cell.overtime) { <span class="fv-cell-badge fv-badge-overtime">MZ</span> }
+                            @if (cell.cert) { <span class="fv-cell-badge fv-badge-cert">S</span> }
+                            @if (cell.warning) { <span class="fv-cell-badge fv-badge-warn">!</span> }
+                            @if (cell.note) { <span class="fv-cell-badge fv-badge-note">N</span> }
                           </button>
                         } @else if (cell.showOverride) {
-                          <button
-                            class="fv-cell-override"
-                            [class.on]="cell.overrideOn"
-                            (click)="toggleOverride(row.data.slot, cell.day.dateStr)"
-                            [title]="'Opsiyonel vardiya: ' + (cell.overrideOn ? 'Açık' : 'Kapalı')"
-                          >
+                          <button class="fv-cell-override" [class.on]="cell.overrideOn"
+                                  (click)="toggleOverride(row.data.slot, cell.day.dateStr)"
+                                  [title]="'Opsiyonel vardiya: ' + (cell.overrideOn ? 'Açık' : 'Kapalı')">
                             {{ cell.overrideOn ? 'AÇIK' : 'KAPALI' }}
                           </button>
                         } @else {
-                          <button
-                            class="fv-cell-add"
-                            (click)="onCellClick(row.data, cell)"
-                            [title]="
-                              'Atama ekle — ' +
-                              row.data.deviceName +
-                              ' ' +
-                              cell.day.dayNumber +
-                              ' ' +
-                              monthLabel()
-                            "
-                          >
+                          <button class="fv-cell-add" (click)="onCellClick(row.data, cell)"
+                                  [title]="'Atama ekle — ' + row.data.deviceName + ' ' + cell.day.dayNumber + ' ' + monthLabel()">
                             +
                           </button>
                         }
@@ -596,22 +422,18 @@
         </div>
 
         <div class="fv-statusbar">
-          <span>{{ gridRows().filter((r) => r.kind === 'shift').length }} vardiya satırı</span>
+          <span>{{ gridRows().filter(r => r.kind === 'shift').length }} vardiya satırı</span>
           <span class="fv-statusbar-sep">·</span>
           <span>{{ summary().assigned }} atama</span>
           @if (hasActiveFilters()) {
-            <button class="fv-btn fv-btn-ghost fv-statusbar-clear" (click)="resetFilters()">
-              Filtreleri temizle
-            </button>
+            <button class="fv-btn fv-btn-ghost fv-statusbar-clear" (click)="resetFilters()">Filtreleri temizle</button>
           }
           <span class="fv-statusbar-right">
             @if (lastUpdated()) {
               Son güncelleme: {{ formatTime(lastUpdated()) }}
             }
             <span class="fv-statusbar-sep">·</span>
-            <span title="Kısayollar"
-              >Ctrl+C kopyala · Ctrl+V yapıştır · Delete sil · Ctrl+Z geri · Ctrl+F ara</span
-            >
+            <span title="Kısayollar">Ctrl+C kopyala · Ctrl+V yapıştır · Delete sil · Ctrl+Z geri · Ctrl+F ara</span>
           </span>
         </div>
       }
@@ -625,14 +447,16 @@
         <div class="fv-drawer-head-text">
           <div class="fv-drawer-title">{{ d.row.deviceName }}</div>
           <div class="fv-drawer-sub">
-            {{ d.cell.day.dayNumber }} {{ monthLabel() }} · {{ d.cell.day.dayName }} ·
-            {{ shiftKeyLabel(d.row.slot.type) }} {{ slotTimeRange(d.row.slot) }}
+            {{ d.cell.day.dayNumber }} {{ monthLabel() }} · {{ d.cell.day.dayName }}
+            · {{ shiftKeyLabel(d.row.slot.type) }} {{ slotTimeRange(d.row.slot) }}
           </div>
         </div>
-        <button class="fv-icon-btn" (click)="closeDrawer()" aria-label="Kapat" title="Kapat">
-          ×
-        </button>
+        <button class="fv-icon-btn" (click)="closeDrawer()" aria-label="Kapat" title="Kapat">×</button>
       </header>
+
+      @if (publishedLocked()) {
+        <div class="fv-locked-note" role="status">Plan yayınlanmış veya arşivlenmiş — değişiklik kilitli.</div>
+      }
 
       <div class="fv-drawer-body">
         @if (drawerAssignment(); as a) {
@@ -642,67 +466,37 @@
                 <span class="fv-avatar fv-avatar-lg">{{ initials(emp.name) }}</span>
                 <div class="fv-drawer-person-info">
                   <div class="fv-drawer-person-name">{{ emp.name }}</div>
-                  <div class="fv-drawer-person-role">
-                    {{ roleLabel(emp.role) }}
-                    @if (emp.employeeNo) {
-                      · {{ emp.employeeNo }}
-                    }
+                  <div class="fv-drawer-person-role">{{ roleLabel(emp.role) }}
+                    @if (emp.employeeNo) { · {{ emp.employeeNo }} }
                   </div>
                   @if (emp.phone || emp.email) {
                     <div class="fv-drawer-person-contact">
-                      @if (emp.phone) {
-                        <span>{{ emp.phone }}</span>
-                      }
-                      @if (emp.email) {
-                        <span>{{ emp.email }}</span>
-                      }
+                      @if (emp.phone) { <span>{{ emp.phone }}</span> }
+                      @if (emp.email) { <span>{{ emp.email }}</span> }
                     </div>
                   }
                 </div>
               </div>
 
               <div class="fv-drawer-tags">
-                <span
-                  class="fv-tag"
-                  [class.tag-active]="emp.employmentStatus === 'active'"
-                  [class.tag-leave]="emp.employmentStatus === 'on_leave'"
-                >
-                  {{
-                    emp.employmentStatus === 'active'
-                      ? 'Aktif'
-                      : emp.employmentStatus === 'on_leave'
-                        ? 'İzinli'
-                        : emp.employmentStatus === 'sick'
-                          ? 'Raporlu'
-                          : emp.employmentStatus || 'Durum bilinmiyor'
-                  }}
+                <span class="fv-tag" [class.tag-active]="emp.employmentStatus === 'active'"
+                      [class.tag-leave]="emp.employmentStatus === 'on_leave'">
+                  {{ emp.employmentStatus === 'active' ? 'Aktif' : emp.employmentStatus === 'on_leave' ? 'İzinli' : emp.employmentStatus === 'sick' ? 'Raporlu' : (emp.employmentStatus || 'Durum bilinmiyor') }}
                 </span>
-                @if (emp.nightShiftEligible) {
-                  <span class="fv-tag tag-night">Gece Uygun</span>
-                }
-                @if (!emp.nightShiftEligible && emp.role !== 'assistant_technician') {
-                  <span class="fv-tag tag-muted">Gece Uygun Değil</span>
-                }
+                @if (emp.nightShiftEligible) { <span class="fv-tag tag-night">Gece Uygun</span> }
+                @if (!emp.nightShiftEligible && emp.role !== 'assistant_technician') { <span class="fv-tag tag-muted">Gece Uygun Değil</span> }
               </div>
 
               @if (emp.specialization || emp.experienceYears || emp.startDate) {
                 <div class="fv-drawer-qual">
                   @if (emp.specialization) {
-                    <div>
-                      <span class="fv-qual-label">Uzmanlık</span
-                      ><span>{{ emp.specialization }}</span>
-                    </div>
+                    <div><span class="fv-qual-label">Uzmanlık</span><span>{{ emp.specialization }}</span></div>
                   }
                   @if (emp.experienceYears) {
-                    <div>
-                      <span class="fv-qual-label">Deneyim</span
-                      ><span>{{ emp.experienceYears }} yıl</span>
-                    </div>
+                    <div><span class="fv-qual-label">Deneyim</span><span>{{ emp.experienceYears }} yıl</span></div>
                   }
                   @if (emp.startDate) {
-                    <div>
-                      <span class="fv-qual-label">İşe Başlama</span><span>{{ emp.startDate }}</span>
-                    </div>
+                    <div><span class="fv-qual-label">İşe Başlama</span><span>{{ emp.startDate }}</span></div>
                   }
                 </div>
               }
@@ -735,20 +529,14 @@
             <h4 class="fv-drawer-h">Uyarılar & Çakışmalar</h4>
             <ul class="fv-warn-list">
               @for (w of d.cell.warnings; track w.kind) {
-                <li
-                  class="fv-warn"
-                  [class.fv-warn-conflict]="w.severity === 'error'"
-                  [class.fv-warn-warn]="w.severity === 'warning'"
-                  [class.fv-warn-holiday]="w.severity === 'info'"
-                >
+                <li class="fv-warn"
+                    [class.fv-warn-conflict]="w.severity === 'error'"
+                    [class.fv-warn-warn]="w.severity === 'warning'"
+                    [class.fv-warn-holiday]="w.severity === 'info'">
                   {{ w.label }}
                 </li>
               }
-              @if (d.cell.day.isHoliday) {
-                <li class="fv-warn fv-warn-holiday">
-                  Resmî tatil günü: {{ d.cell.day.holidayName }}.
-                </li>
-              }
+              @if (d.cell.day.isHoliday) { <li class="fv-warn fv-warn-holiday">Resmî tatil günü: {{ d.cell.day.holidayName }}.</li> }
               @if (d.cell.warnings.length === 0 && !d.cell.day.isHoliday) {
                 <li class="fv-warn fv-warn-ok">Önemli bir uyarı yok.</li>
               }
@@ -758,79 +546,48 @@
           <section class="fv-drawer-section">
             <h4 class="fv-drawer-h">Atama Bilgisi</h4>
             <dl class="fv-detail-list">
-              <div>
-                <dt>Cihaz</dt>
-                <dd>{{ d.row.deviceCode }} — {{ d.row.deviceName }}</dd>
-              </div>
-              <div>
-                <dt>Vardiya</dt>
-                <dd>{{ shiftKeyLabel(d.row.slot.type) }} ({{ slotTimeRange(d.row.slot) }})</dd>
-              </div>
-              <div>
-                <dt>Tarih</dt>
-                <dd>{{ d.cell.day.dayNumber }} {{ monthLabel() }} · {{ d.cell.day.dayName }}</dd>
-              </div>
-              <div>
-                <dt>Atama No</dt>
-                <dd>{{ a.id }}</dd>
-              </div>
+              <div><dt>Cihaz</dt><dd>{{ d.row.deviceCode }} — {{ d.row.deviceName }}</dd></div>
+              <div><dt>Vardiya</dt><dd>{{ shiftKeyLabel(d.row.slot.type) }} ({{ slotTimeRange(d.row.slot) }})</dd></div>
+              <div><dt>Tarih</dt><dd>{{ d.cell.day.dayNumber }} {{ monthLabel() }} · {{ d.cell.day.dayName }}</dd></div>
+              <div><dt>Atama No</dt><dd>{{ a.id }}</dd></div>
             </dl>
           </section>
 
           @if (canRemove()) {
             <section class="fv-drawer-section">
-              <button class="fv-btn fv-btn-danger fv-btn-block" (click)="removeFromDrawerCell()">
-                Atamayı Kaldır
-              </button>
+              <button class="fv-btn fv-btn-danger fv-btn-block" (click)="removeFromDrawerCell()">Atamayı Kaldır</button>
             </section>
           }
         } @else {
           <section class="fv-drawer-section fv-drawer-empty">
             <p>Bu hücre için atama yok.</p>
-            <p class="fv-drawer-empty-sub">
-              Aşağıdan bir personel seçerek atama oluşturabilirsiniz.
-            </p>
+            <p class="fv-drawer-empty-sub">Aşağıdan bir personel seçerek atama oluşturabilirsiniz.</p>
           </section>
         }
 
-        <section class="fv-drawer-section fv-drawer-assign">
-          <h4 class="fv-drawer-h">Personel Ata</h4>
-          <select
-            name="fvDrawerPersonnel"
-            class="fv-select"
-            [(ngModel)]="selectedPersonnelId"
-            aria-label="Personel seçin"
-          >
-            <option value="">Personel seçin...</option>
-            @for (c of drawerCandidates(); track c.id) {
-              <option [value]="c.id">{{ c.name }} — {{ c.role }}</option>
-            }
-          </select>
-          <button
-            class="fv-btn fv-btn-primary fv-btn-block"
-            [disabled]="!selectedPersonnelId()"
-            (click)="assignToDrawerCell(selectedPersonnelId())"
-          >
-            Ata
-          </button>
-        </section>
+        @if (!publishedLocked()) {
+          <section class="fv-drawer-section fv-drawer-assign">
+            <h4 class="fv-drawer-h">Personel Ata</h4>
+            <select name="fvDrawerPersonnel" class="fv-select" [(ngModel)]="selectedPersonnelId" aria-label="Personel seçin">
+              <option value="">Personel seçin...</option>
+              @for (c of drawerCandidates(); track c.id) {
+                <option [value]="c.id">{{ c.name }} — {{ c.role }}</option>
+              }
+            </select>
+            <button class="fv-btn fv-btn-primary fv-btn-block" [disabled]="!selectedPersonnelId()"
+                    (click)="assignToDrawerCell(selectedPersonnelId())">
+              Ata
+            </button>
+          </section>
+        }
 
         @if (drawerAssignment(); as a) {
           <section class="fv-drawer-section">
             <h4 class="fv-drawer-h">Yük & Geçmiş</h4>
             <dl class="fv-detail-list">
-              <div>
-                <dt>Toplam Vardiya</dt>
-                <dd>{{ personShiftCount(a.personnelId) }}</dd>
-              </div>
-              <div>
-                <dt>Son Görev</dt>
-                <dd>{{ personLastShiftLabel(a.personnelId) }}</dd>
-              </div>
-              <div>
-                <dt>Ardışık Gün</dt>
-                <dd>{{ personConsecutive(a.personnelId) }}</dd>
-              </div>
+              <div><dt>Toplam Vardiya</dt><dd>{{ personShiftCount(a.personnelId) }}</dd></div>
+              <div><dt>Son Görev</dt><dd>{{ personLastShiftLabel(a.personnelId) }}</dd></div>
+              <div><dt>Ardışık Gün</dt><dd>{{ personConsecutive(a.personnelId) }}</dd></div>
             </dl>
             @if (personWeeklyLoad(a.personnelId).length) {
               <div class="fv-weekly">
@@ -863,18 +620,9 @@
           <section class="fv-drawer-section fv-drawer-meta">
             <h4 class="fv-drawer-h">Plan Durumu</h4>
             <dl class="fv-detail-list">
-              <div>
-                <dt>Durum</dt>
-                <dd>{{ scheduleStatusLabel() }}</dd>
-              </div>
-              <div>
-                <dt>Dönem</dt>
-                <dd>{{ monthLabel() }}</dd>
-              </div>
-              <div>
-                <dt>Birim</dt>
-                <dd>{{ schedule()?.unit }}</dd>
-              </div>
+              <div><dt>Durum</dt><dd>{{ scheduleStatusLabel() }}</dd></div>
+              <div><dt>Dönem</dt><dd>{{ monthLabel() }}</dd></div>
+              <div><dt>Birim</dt><dd>{{ schedule()?.unit }}</dd></div>
             </dl>
           </section>
         }
@@ -883,54 +631,50 @@
   }
 
   @if (contextMenu(); as cm) {
-    <div
-      class="fv-menu-backdrop"
-      (click)="closeContextMenu()"
-      (contextmenu)="closeContextMenu()"
-    ></div>
+    <div class="fv-menu-backdrop" (click)="closeContextMenu()" (contextmenu)="closeContextMenu()"></div>
     <div class="fv-context-menu" [style.left.px]="cm.x" [style.top.px]="cm.y" role="menu">
       <div class="fv-context-head">
-        <span class="fv-context-title">{{
-          cm.cell.assignment ? cm.cell.assignment.personnelName : 'Boş hücre'
-        }}</span>
-        <span class="fv-context-sub"
-          >{{ cm.row.deviceCode }} · {{ cm.cell.day.dayNumber }} {{ monthLabel() }} ·
-          {{ shiftKeyLabel(cm.row.slot.type) }}</span
-        >
+        <span class="fv-context-title">{{ cm.cell.isDeviceOff ? 'Cihaz Kapalı' : (cm.cell.assignment ? cm.cell.assignment.personnelName : 'Boş hücre') }}</span>
+        <span class="fv-context-sub">{{ cm.row.deviceCode }} · {{ cm.cell.day.dayNumber }} {{ monthLabel() }} · {{ shiftKeyLabel(cm.row.slot.type) }}</span>
       </div>
-      <button class="fv-context-item" (click)="switchSelected()">
-        <span class="fv-context-ico">⌕</span> Ata / Detay
-      </button>
-      <button class="fv-context-item" (click)="copySelected()" [disabled]="!cm.cell.assignment">
-        <span class="fv-context-ico">⧉</span> Kopyala <kbd>Ctrl+C</kbd>
-      </button>
-      <button class="fv-context-item" (click)="pasteIntoSelected()" [disabled]="!clipboard()">
-        <span class="fv-context-ico">⤓</span> Yapıştır <kbd>Ctrl+V</kbd>
-      </button>
-      <button
-        class="fv-context-item fv-context-danger"
-        (click)="deleteSelected()"
-        [disabled]="!cm.cell.assignment"
-      >
-        <span class="fv-context-ico">✕</span> Atamayı Sil <kbd>Del</kbd>
-      </button>
-      <button class="fv-context-item" (click)="noteSelected()" [disabled]="!cm.cell.assignment">
-        <span class="fv-context-ico">✎</span> Not Ekle
-      </button>
-      <button
-        class="fv-context-item"
-        (click)="toggleLeaveSelected()"
-        [disabled]="!cm.cell.assignment"
-      >
-        <span class="fv-context-ico">☰</span> İzin İşaretle
-      </button>
-      <button
-        class="fv-context-item"
-        (click)="toggleOvertimeSelected()"
-        [disabled]="!cm.cell.assignment"
-      >
-        <span class="fv-context-ico">⏱</span> Fazla Mesai İşaretle
-      </button>
+      @if (publishedLocked()) {
+        <div class="fv-context-item fv-context-disabled">Plan yayınlanmış/arşivlenmiş — düzenleme kilitli</div>
+      } @else {
+        @if (!cm.cell.isDeviceOff) {
+        <button class="fv-context-item" (click)="switchSelected()">
+          <span class="fv-context-ico">⌕</span> Ata / Detay
+        </button>
+        <button class="fv-context-item" (click)="copySelected()" [disabled]="!cm.cell.assignment">
+          <span class="fv-context-ico">⧉</span> Kopyala <kbd>Ctrl+C</kbd>
+        </button>
+        <button class="fv-context-item" (click)="pasteIntoSelected()" [disabled]="!clipboard()">
+          <span class="fv-context-ico">⤓</span> Yapıştır <kbd>Ctrl+V</kbd>
+        </button>
+        <button class="fv-context-item fv-context-danger" (click)="deleteSelected()" [disabled]="!cm.cell.assignment">
+          <span class="fv-context-ico">✕</span> Atamayı Sil <kbd>Del</kbd>
+        </button>
+        <button class="fv-context-item" (click)="noteSelected()" [disabled]="!cm.cell.assignment">
+          <span class="fv-context-ico">✎</span> Not Ekle
+        </button>
+        <button class="fv-context-item" (click)="toggleLeaveSelected()" [disabled]="!cm.cell.assignment">
+          <span class="fv-context-ico">☰</span> İzin İşaretle
+        </button>
+        <button class="fv-context-item" (click)="toggleOvertimeSelected()" [disabled]="!cm.cell.assignment">
+          <span class="fv-context-ico">⏱</span> Fazla Mesai İşaretle
+        </button>
+      }
+      @if (cm.cell.isDeviceOff) {
+        <div class="fv-context-divider"></div>
+        <button class="fv-context-item" (click)="onToggleDeviceOff(cm.row, cm.cell)">
+          <span class="fv-context-ico">⚡</span> Cihazı Aç
+        </button>
+      } @else {
+        <div class="fv-context-divider"></div>
+        <button class="fv-context-item" (click)="onToggleDeviceOff(cm.row, cm.cell)">
+          <span class="fv-context-ico">⏻</span> Cihaz Kapalı
+        </button>
+      }
+      }
     </div>
   }
 </div>

@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { DevicesService } from './devices.service';
 import { DevicesController } from './devices.controller';
+import { DevicesService } from './devices.service';
 import { UnitsModule } from '../units/units.module';
+import { RbacModule } from '../rbac/rbac.module';
 
 @Module({
-  imports: [UnitsModule],
+  imports: [UnitsModule, RbacModule],
   controllers: [DevicesController],
   providers: [DevicesService],
-  exports: [DevicesService],
 })
 export class DevicesModule {}

@@ -2,12 +2,12 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 
 const DEFAULT_TASKS: { taskType: string; label: string }[] = [
-  { taskType: 'device_startup', label: 'Cihaz Açılış Kontrolü' },
-  { taskType: 'calibration', label: 'Kalibrasyon Kontrolü' },
-  { taskType: 'room_prep', label: 'Oda Hazırlığı' },
-  { taskType: 'portable_imaging', label: 'Portable Görüntüleme' },
-  { taskType: 'shutdown', label: 'Kapatma Kontrolü' },
-  { taskType: 'handover', label: 'Devir Teslim Notu' },
+  { taskType: 'device_startup',    label: 'Cihaz Açılış Kontrolü' },
+  { taskType: 'calibration',       label: 'Kalibrasyon Kontrolü' },
+  { taskType: 'room_prep',         label: 'Oda Hazırlığı' },
+  { taskType: 'portable_imaging',  label: 'Portable Görüntüleme' },
+  { taskType: 'shutdown',          label: 'Kapatma Kontrolü' },
+  { taskType: 'handover',          label: 'Devir Teslim Notu' },
 ];
 
 @Injectable()
@@ -17,9 +17,7 @@ export class ShiftTasksService {
   async getDefaultTasks(userId: string, date: string) {
     for (const task of DEFAULT_TASKS) {
       await this.prisma.shiftTask.upsert({
-        where: {
-          userId_date_taskType: { userId, date, taskType: task.taskType },
-        },
+        where: { userId_date_taskType: { userId, date, taskType: task.taskType } },
         update: { label: task.label },
         create: {
           userId,
@@ -42,9 +40,7 @@ export class ShiftTasksService {
     taskId: string,
     status: 'pending' | 'completed' | 'skipped',
   ) {
-    const existing = await this.prisma.shiftTask.findUnique({
-      where: { id: taskId },
-    });
+    const existing = await this.prisma.shiftTask.findUnique({ where: { id: taskId } });
     if (!existing) throw new NotFoundException('Görev bulunamadı');
     return this.prisma.shiftTask.update({
       where: { id: taskId, userId },
@@ -61,7 +57,7 @@ export class ShiftTasksService {
     });
 
     const total = all.length;
-    const completed = all.filter((t) => t.status === 'completed').length;
+    const completed = all.filter(t => t.status === 'completed').length;
 
     return {
       completed,
@@ -81,18 +77,15 @@ export class ShiftTasksService {
       orderBy: { taskType: 'asc' },
     });
 
-    const progress =
-      tasks.length > 0
-        ? {
-            completed: tasks.filter((t) => t.status === 'completed').length,
-            total: tasks.length,
-            percentage: Math.round(
-              (tasks.filter((t) => t.status === 'completed').length /
-                tasks.length) *
-                100,
-            ),
-          }
-        : { completed: 0, total: 0, percentage: 0 };
+    const progress = tasks.length > 0
+      ? {
+          completed: tasks.filter(t => t.status === 'completed').length,
+          total: tasks.length,
+          percentage: Math.round(
+            (tasks.filter(t => t.status === 'completed').length / tasks.length) * 100,
+          ),
+        }
+      : { completed: 0, total: 0, percentage: 0 };
 
     return { tasks, progress };
   }

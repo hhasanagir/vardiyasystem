@@ -1,6 +1,8 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 
-const VERSIONED_MODELS = new Set(['Schedule', 'Assignment', 'Personnel']);
+const VERSIONED_MODELS = new Set([
+  'Schedule', 'Assignment', 'Personnel',
+]);
 
 interface VersionedRecord {
   version: number;

@@ -1,20 +1,9 @@
-import {
-  Component,
-  signal,
-  computed,
-  inject,
-  OnInit,
-  ChangeDetectionStrategy,
-} from '@angular/core';
+import { Component, signal, computed, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PageHeaderComponent } from '../../shared/page-header/page-header.component';
 import { PageContext } from '../../shared/page-header/page-header.types';
-import {
-  DutyRosterService,
-  DutyRosterEntry,
-  DutyRosterCalendarDay,
-} from './services/duty-roster.service';
+import { DutyRosterService, DutyRosterEntry, DutyRosterCalendarDay } from './services/duty-roster.service';
 
 @Component({
   selector: 'app-duty-roster',
@@ -30,7 +19,10 @@ export class DutyRosterComponent implements OnInit {
   readonly pageContext = signal<PageContext>({
     title: 'Nöbetçi Listesi',
     subtitle: 'Günlük, haftalık ve aylık nöbet çizelgesi yönetimi',
-    breadcrumbs: [{ label: 'Ana Sayfa', path: '/app/dashboard' }, { label: 'Nöbetçi Listesi' }],
+    breadcrumbs: [
+      { label: 'Ana Sayfa', path: '/app/dashboard' },
+      { label: 'Nöbetçi Listesi' },
+    ],
   });
 
   readonly entries = signal<DutyRosterEntry[]>([]);
@@ -42,21 +34,13 @@ export class DutyRosterComponent implements OnInit {
   readonly currentMonth = signal(new Date().getMonth() + 1);
   readonly currentYear = signal(new Date().getFullYear());
 
-  readonly totalEntries = computed(() =>
-    this.calendarDays().reduce((acc, d) => acc + d.entries.length, 0),
-  );
-  readonly totalDayShifts = computed(() =>
-    this.calendarDays().reduce((acc, d) => acc + d.shiftSummary.day, 0),
-  );
-  readonly totalEveningShifts = computed(() =>
-    this.calendarDays().reduce((acc, d) => acc + d.shiftSummary.evening, 0),
-  );
-  readonly totalNightShifts = computed(() =>
-    this.calendarDays().reduce((acc, d) => acc + d.shiftSummary.night, 0),
-  );
+  readonly totalEntries = computed(() => this.calendarDays().reduce((acc, d) => acc + d.entries.length, 0));
+  readonly totalDayShifts = computed(() => this.calendarDays().reduce((acc, d) => acc + d.shiftSummary.day, 0));
+  readonly totalEveningShifts = computed(() => this.calendarDays().reduce((acc, d) => acc + d.shiftSummary.evening, 0));
+  readonly totalNightShifts = computed(() => this.calendarDays().reduce((acc, d) => acc + d.shiftSummary.night, 0));
 
   readonly dailyEntries = computed(() =>
-    this.entries().filter((e) => e.date === this.selectedDate()),
+    this.entries().filter(e => e.date === this.selectedDate())
   );
 
   ngOnInit() {
@@ -66,18 +50,20 @@ export class DutyRosterComponent implements OnInit {
 
   loadCalendar() {
     this.loading.set(true);
-    this.dutyRosterService.getCalendar(this.currentMonth(), this.currentYear()).subscribe({
-      next: (days) => this.calendarDays.set(days),
-      error: () => this.loading.set(false),
-      complete: () => this.loading.set(false),
-    });
+    this.dutyRosterService.getCalendar(this.currentMonth(), this.currentYear())
+      .subscribe({
+        next: (days) => this.calendarDays.set(days),
+        error: () => this.loading.set(false),
+        complete: () => this.loading.set(false),
+      });
   }
 
   loadEntries() {
-    this.dutyRosterService.findAll({ date: this.selectedDate() }).subscribe({
-      next: (entries) => this.entries.set(entries),
-      error: () => {},
-    });
+    this.dutyRosterService.findAll({ date: this.selectedDate() })
+      .subscribe({
+        next: (entries) => this.entries.set(entries),
+        error: () => {},
+      });
   }
 
   prevMonth() {

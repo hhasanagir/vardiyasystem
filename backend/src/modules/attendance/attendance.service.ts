@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { ScheduleGateway } from '../websocket/schedule.gateway';
 import { NotificationEventService } from '../notifications/notification-event.service';
@@ -39,16 +35,15 @@ export class AttendanceService {
       take: limit,
       include: { assignment: { include: { device: true } } },
     });
-    return records.map((r) => ({
+    return records.map(r => ({
       id: r.id,
       date: r.date,
       status: r.status,
       clockIn: r.clockIn,
       clockOut: r.clockOut,
-      duration:
-        r.clockIn && r.clockOut
-          ? Math.round((r.clockOut.getTime() - r.clockIn.getTime()) / 60000)
-          : null,
+      duration: r.clockIn && r.clockOut
+        ? Math.round((r.clockOut.getTime() - r.clockIn.getTime()) / 60000)
+        : null,
       deviceName: r.assignment?.device?.name || null,
     }));
   }
@@ -82,21 +77,10 @@ export class AttendanceService {
     });
     this.gateway.broadcastDeviceIncident({
       unitId: 'system',
-      incident: {
-        id: record.id,
-        issueType: 'attendance',
-        severity: 'info',
-        deviceName: null,
-      },
+      incident: { id: record.id, issueType: 'attendance', severity: 'info', deviceName: null },
     });
 
-    this.notificationEvent.clockedIn(userId, '', {
-      date: today,
-      time: new Date().toLocaleTimeString('tr-TR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-    });
+    this.notificationEvent.clockedIn(userId, '', { date: today, time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) });
 
     return record;
   }
@@ -126,13 +110,7 @@ export class AttendanceService {
       },
     });
 
-    this.notificationEvent.clockedOut(userId, '', {
-      date: today,
-      time: now.toLocaleTimeString('tr-TR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-    });
+    this.notificationEvent.clockedOut(userId, '', { date: today, time: now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) });
 
     return record;
   }
@@ -154,7 +132,7 @@ export class AttendanceService {
       }
       return sum;
     }, 0);
-    const earlyCount = records.filter((r) => {
+    const earlyCount = records.filter(r => {
       if (!r.clockIn) return false;
       const h = r.clockIn.getHours();
       const m = r.clockIn.getMinutes();
@@ -176,48 +154,38 @@ export class AttendanceService {
       }
       return sum;
     }, 0);
-    const overtimeMinutes = Math.max(
-      0,
-      totalMinutesYtd - allYearRecords.length * 480,
-    );
+    const overtimeMinutes = Math.max(0, totalMinutesYtd - allYearRecords.length * 480);
 
-    const nightShiftCount = allYearRecords.filter((r) => {
+    const nightShiftCount = allYearRecords.filter(r => {
       if (!r.clockIn) return false;
       const h = r.clockIn.getHours();
       return h >= 22 || h < 6;
     }).length;
 
-    const weekendCount = allYearRecords.filter((r) => {
+    const weekendCount = allYearRecords.filter(r => {
       const d = new Date(r.date + 'T00:00:00');
       const day = d.getDay();
       return day === 0 || day === 6;
     }).length;
 
     const deviceCounts: Record<string, { name: string; count: number }> = {};
-    allYearRecords.forEach((r) => {
+    allYearRecords.forEach(r => {
       if (r.assignment?.device) {
         const id = r.assignment.device.id;
-        if (!deviceCounts[id])
-          deviceCounts[id] = { name: r.assignment.device.name, count: 0 };
+        if (!deviceCounts[id]) deviceCounts[id] = { name: r.assignment.device.name, count: 0 };
         deviceCounts[id].count++;
       }
     });
-    const mostUsedDevice =
-      Object.values(deviceCounts).sort((a, b) => b.count - a.count)[0]?.name ||
-      null;
+    const mostUsedDevice = Object.values(deviceCounts).sort((a, b) => b.count - a.count)[0]?.name || null;
 
     const completedShifts = allYearRecords.length;
 
     return {
       totalDays,
-      totalHours: Math.round((totalMinutes / 60) * 10) / 10,
-      avgHoursPerDay:
-        totalDays > 0
-          ? Math.round((totalMinutes / totalDays / 60) * 10) / 10
-          : 0,
-      onTimeRate:
-        totalDays > 0 ? Math.round((earlyCount / totalDays) * 100) : 0,
-      overtimeHours: Math.round((overtimeMinutes / 60) * 10) / 10,
+      totalHours: Math.round(totalMinutes / 60 * 10) / 10,
+      avgHoursPerDay: totalDays > 0 ? Math.round(totalMinutes / totalDays / 60 * 10) / 10 : 0,
+      onTimeRate: totalDays > 0 ? Math.round((earlyCount / totalDays) * 100) : 0,
+      overtimeHours: Math.round(overtimeMinutes / 60 * 10) / 10,
       nightShifts: nightShiftCount,
       weekendShifts: weekendCount,
       completedShifts,

@@ -1,17 +1,10 @@
-import {
-  IsString,
-  IsInt,
-  IsOptional,
-  IsBoolean,
-  Min,
-  Max,
-  IsIn,
-  IsEnum,
-} from 'class-validator';
+import { IsString, IsInt, IsOptional, IsBoolean, Min, Max, IsIn, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum OptimizationStrategyId {
   GREEDY = 'greedy',
+  /** P2-02 — the optimizer already registers `local-search`; the DTO must allow it. */
+  LOCAL_SEARCH = 'local-search',
 }
 
 export class DryRunOptimizationDto {
@@ -35,10 +28,7 @@ export class DryRunOptimizationDto {
   @Max(12)
   month: number;
 
-  @ApiPropertyOptional({
-    enum: OptimizationStrategyId,
-    default: OptimizationStrategyId.GREEDY,
-  })
+  @ApiPropertyOptional({ enum: OptimizationStrategyId, default: OptimizationStrategyId.GREEDY })
   @IsOptional()
   @IsEnum(OptimizationStrategyId)
   strategy?: OptimizationStrategyId;

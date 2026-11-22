@@ -1,18 +1,5 @@
-import {
-  Controller,
-  Get,
-  Query,
-  UseGuards,
-  Request,
-  Res,
-  Header,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { Controller, Get, Query, UseGuards, Request, Res, Header } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -46,23 +33,21 @@ export class MeController {
 
   @Get('my-day')
   @Roles(MinRole.VIEWER)
-  @ApiOperation({
-    summary: 'Get aggregated technician dashboard data (my-day)',
-  })
+  @ApiOperation({ summary: 'Get aggregated technician dashboard data (my-day)' })
   getMyDay(@Request() req: RequestWithUser) {
     return this.meDayService.getMyDay(req.user.email);
   }
 
   @Get('today')
   @Roles(MinRole.VIEWER)
-  @ApiOperation({ summary: "Get today's shift for the current user" })
+  @ApiOperation({ summary: 'Get today\'s shift for the current user' })
   getToday(@Request() req: RequestWithUser) {
     return this.meDayService.getToday(req.user.email);
   }
 
   @Get('week')
   @Roles(MinRole.VIEWER)
-  @ApiOperation({ summary: "Get this week's schedule for the current user" })
+  @ApiOperation({ summary: 'Get this week\'s schedule for the current user' })
   getWeek(@Request() req: RequestWithUser) {
     return this.meDayService.getWeek(req.user.email);
   }
@@ -82,9 +67,7 @@ export class MeController {
 
   @Get('summary')
   @Roles(MinRole.VIEWER)
-  @ApiOperation({
-    summary: 'Get my shift summary (today, week, upcoming, totals)',
-  })
+  @ApiOperation({ summary: 'Get my shift summary (today, week, upcoming, totals)' })
   getMySummary(@Request() req: RequestWithUser) {
     return this.schedulesService.getMySummary(req.user.email);
   }
@@ -93,10 +76,7 @@ export class MeController {
   @Roles(MinRole.VIEWER)
   @Header('Content-Type', 'text/calendar; charset=utf-8')
   @Header('Content-Disposition', 'attachment; filename="vardiyalarim.ics"')
-  @ApiOperation({
-    summary:
-      'Export my shifts as iCal file (Google Calendar, Outlook, Apple Calendar)',
-  })
+  @ApiOperation({ summary: 'Export my shifts as iCal file (Google Calendar, Outlook, Apple Calendar)' })
   async exportIcs(@Request() req: RequestWithUser) {
     return this.meExportService.exportIcs(req.user.email);
   }

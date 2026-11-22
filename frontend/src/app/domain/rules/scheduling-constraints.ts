@@ -1,4 +1,4 @@
-import type { UnitType } from '../enums';
+﻿import type { UnitType } from '../enums';
 
 export const CONSTRAINT_RULES = {
   WORK_LAW: {
@@ -183,7 +183,7 @@ export const CONSTRAINT_RULES = {
     NUC001: {
       id: 'NUC001',
       name: 'Ardışık Çalışma Gün Limiti',
-      description: "Nükleer Tıp'ta maksimum 5 ardışık gün çalışma",
+      description: 'Nükleer Tıp\'ta maksimum 5 ardışık gün çalışma',
       maxConsecutiveDays: 5,
       type: 'hard' as const,
       priority: 2,
@@ -202,7 +202,7 @@ export const CONSTRAINT_RULES = {
     NUC003: {
       id: 'NUC003',
       name: 'Gece Vardiyası Yok',
-      description: "Nükleer Tıp'ta gece vardiyası bulunmaz",
+      description: 'Nükleer Tıp\'ta gece vardiyası bulunmaz',
       nightShiftAllowed: false,
       type: 'hard' as const,
       priority: 1,
@@ -278,48 +278,15 @@ export const CONSTRAINT_RULES = {
 } as const;
 
 export const SCHEDULING_PRIORITY_MATRIX = [
-  {
-    priority: 1,
-    category: 'Yasal Uygunluk',
-    rules: [
-      'WRK001',
-      'WRK002',
-      'WRK003',
-      'WRK004',
-      'WRK005',
-      'NUC003',
-      'NUC004',
-      'PROT001',
-      'PROT002',
-    ],
-  },
-  {
-    priority: 2,
-    category: 'Radyasyon Güvenliği',
-    rules: [
-      'SHIFT001',
-      'SHIFT002',
-      'RAD001',
-      'RAD002',
-      'RAD003',
-      'RAD004',
-      'RAD005',
-      'NUC001',
-      'NUC005',
-      'NUC006',
-      'PROT003',
-    ],
-  },
+  { priority: 1, category: 'Yasal Uygunluk', rules: ['WRK001', 'WRK002', 'WRK003', 'WRK004', 'WRK005', 'NUC003', 'NUC004', 'PROT001', 'PROT002'] },
+  { priority: 2, category: 'Radyasyon Güvenliği', rules: ['SHIFT001', 'SHIFT002', 'RAD001', 'RAD002', 'RAD003', 'RAD004', 'RAD005', 'NUC001', 'NUC005', 'NUC006', 'PROT003'] },
   { priority: 3, category: 'Dinlenme Süresi', rules: ['SHIFT003', 'MR001', 'MR002', 'RAD006'] },
   { priority: 4, category: 'Yetkinlik', rules: ['PROT004', 'MR004'] },
   { priority: 5, category: 'Adalet Dağılımı', rules: ['MR003'] },
   { priority: 6, category: 'Personel Tercihi', rules: [] },
 ] as const;
 
-export const SHIFT_CONSECUTIVE_NIGHT_LIMITS: Record<
-  UnitType,
-  { max: number; recommended: number }
-> = {
+export const SHIFT_CONSECUTIVE_NIGHT_LIMITS: Record<UnitType, { max: number; recommended: number }> = {
   mr: { max: 2, recommended: 1 },
   bt: { max: 3, recommended: 2 },
   rontgen: { max: 3, recommended: 2 },
@@ -339,8 +306,8 @@ export const FATIGUE_COEFFICIENTS = {
   consecutiveNightPenalty: 0.15,
   weekendShiftPenalty: 0.08,
   holidayShiftPenalty: 0.12,
-  shortRestPenalty: 0.2,
-  overtimePenalty: 0.1,
+  shortRestPenalty: 0.20,
+  overtimePenalty: 0.10,
   consecutiveDaysPenalty: 0.05,
 } as const;
 

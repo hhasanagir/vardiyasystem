@@ -8,10 +8,7 @@ export class UpdatePersonnelDto extends PartialType(CreatePersonnelDto) {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({
-    description: 'Version for optimistic locking',
-    default: 1,
-  })
+  @ApiPropertyOptional({ description: 'Version for optimistic locking', default: 1 })
   @IsOptional()
   @IsInt()
   @Min(1)

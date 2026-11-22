@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-11-22T17:32:49.709Z",
+  "scenario": "k6/scenarios/smoke-test.js",
+  "profile": {
+    "vus": 5,
+    "duration": "30s",
+    "k6Image": "grafana/k6:0.54.0"
+  },
+  "note": "Captured from a real run against a locally migrated + seeded stack (Postgres + Redis). Absolute SLOs stay in the k6 thresholds imported from helpers.js; this file only detects drift beyond the agreed tolerance.",
+  "tolerance": {
+    "latencyMultiplier": 1.25,
+    "latencyAbsoluteMs": 100,
+    "errorRateAbsolute": 0,
+    "minChecksRate": 1,
+    "minRequestCount": 100
+  },
+  "thresholds": {
+    "checks": [
+      "rate==1"
+    ],
+    "http_req_failed": [
+      "rate<0.01"
+    ],
+    "http_req_duration": [
+      "avg<500",
+      "p(95)<2000",
+      "p(99)<5000"
+    ],
+    "auth_profile_ms": [
+      "p(95)<500",
+      "p(99)<1000"
+    ],
+    "schedules_list_ms": [
+      "p(95)<2000",
+      "p(99)<4000"
+    ],
+    "schedules_myshifts_ms": [
+      "p(95)<2000",
+      "p(99)<4000"
+    ],
+    "personnel_list_ms": [
+      "p(95)<1500",
+      "p(99)<3000"
+    ],
+    "devices_list_ms": [
+      "p(95)<1000",
+      "p(99)<2000"
+    ],
+    "health_live_ms": [
+      "p(95)<200",
+      "p(99)<500"
+    ],
+    "health_ready_ms": [
+      "p(95)<500",
+      "p(99)<1000"
+    ]
+  },
+  "metrics": {
+    "http_req_failed": {
+      "rate": 0
+    },
+    "checks": {
+      "rate": 1
+    },
+    "http_reqs": {
+      "count": 869
+    },
+    "http_req_duration": {
+      "avg": 35,
+      "p(95)": 108,
+      "p(99)": 192
+    },
+    "auth_profile_ms": {
+      "avg": 20,
+      "p(95)": 50,
+      "p(99)": 72
+    },
+    "schedules_list_ms": {
+      "avg": 26,
+      "p(95)": 70,
+      "p(99)": 81
+    },
+    "schedules_myshifts_ms": {
+      "avg": 25,
+      "p(95)": 67,
+      "p(99)": 71
+    },
+    "personnel_list_ms": {
+      "avg": 106,
+      "p(95)": 195,
+      "p(99)": 437
+    },
+    "devices_list_ms": {
+      "avg": 33,
+      "p(95)": 64,
+      "p(99)": 144
+    },
+    "health_live_ms": {
+      "avg": 14,
+      "p(95)": 31,
+      "p(99)": 54
+    },
+    "health_ready_ms": {
+      "avg": 20,
+      "p(95)": 64,
+      "p(99)": 81
+    }
+  }
+}

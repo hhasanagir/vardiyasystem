@@ -9,9 +9,7 @@ export class DataRetentionService {
   constructor(private prisma: PrismaService) {}
 
   async getPolicies() {
-    return this.prisma.dataRetentionPolicy.findMany({
-      orderBy: { entityType: 'asc' },
-    });
+    return this.prisma.dataRetentionPolicy.findMany({ orderBy: { entityType: 'asc' } });
   }
 
   async upsertPolicy(data: {
@@ -28,12 +26,7 @@ export class DataRetentionService {
     });
   }
 
-  private async runRetentionForEntity(policy: {
-    id: string;
-    entityType: string;
-    retentionDays: number;
-    purgeAfterDays: number | null;
-  }) {
+  private async runRetentionForEntity(policy: { id: string; entityType: string; retentionDays: number; purgeAfterDays: number | null }) {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - policy.retentionDays);
 
@@ -109,9 +102,7 @@ export class DataRetentionService {
         },
       });
 
-      this.logger.log(
-        `Retention job completed for ${policy.entityType}: ${recordsAffected} records affected`,
-      );
+      this.logger.log(`Retention job completed for ${policy.entityType}: ${recordsAffected} records affected`);
     } catch (error) {
       await this.prisma.dataRetentionJob.update({
         where: { id: job.id },
@@ -121,16 +112,12 @@ export class DataRetentionService {
           completedAt: new Date(),
         },
       });
-      this.logger.error(
-        `Retention job failed for ${policy.entityType}: ${(error as Error).message}`,
-      );
+      this.logger.error(`Retention job failed for ${policy.entityType}: ${(error as Error).message}`);
     }
   }
 
   async runAllRetention() {
-    const policies = await this.prisma.dataRetentionPolicy.findMany({
-      where: { isActive: true },
-    });
+    const policies = await this.prisma.dataRetentionPolicy.findMany({ where: { isActive: true } });
     for (const policy of policies) {
       await this.runRetentionForEntity(policy);
     }

@@ -22,8 +22,8 @@ export class BiomedicalService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<MaintenanceRecord[]>('/biomedical/maintenance').pipe(
-      tap((d) => this._records.set(d)),
-      catchError((err) => {
+      tap(d => this._records.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Bakım kayıtları yüklenemedi');
         return throwError(() => err);
       }),
@@ -35,8 +35,8 @@ export class BiomedicalService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<MaintenanceRecord>(`/biomedical/maintenance/${id}`).pipe(
-      tap((d) => this._selectedRecord.set(d)),
-      catchError((err) => {
+      tap(d => this._selectedRecord.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Bakım kaydı yüklenemedi');
         return throwError(() => err);
       }),
@@ -48,7 +48,7 @@ export class BiomedicalService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.post<MaintenanceRecord>('/biomedical/maintenance', data).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Bakım kaydı oluşturulamadı');
         return throwError(() => err);
       }),
@@ -60,7 +60,7 @@ export class BiomedicalService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.put<MaintenanceRecord>(`/biomedical/maintenance/${id}`, data).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Bakım kaydı güncellenemedi');
         return throwError(() => err);
       }),

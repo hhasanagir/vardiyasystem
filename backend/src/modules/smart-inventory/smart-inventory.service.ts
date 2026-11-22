@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma.service';
 
@@ -74,9 +70,7 @@ export class SmartInventoryService {
   }
 
   async approveTransfer(id: string, approvedById: string) {
-    const transfer = await this.prisma.inventoryTransfer.findUnique({
-      where: { id },
-    });
+    const transfer = await this.prisma.inventoryTransfer.findUnique({ where: { id } });
     if (!transfer) throw new NotFoundException('Transfer not found');
 
     return this.prisma.inventoryTransfer.update({
@@ -95,9 +89,7 @@ export class SmartInventoryService {
   }
 
   async completeTransfer(id: string, completedById: string) {
-    const transfer = await this.prisma.inventoryTransfer.findUnique({
-      where: { id },
-    });
+    const transfer = await this.prisma.inventoryTransfer.findUnique({ where: { id } });
     if (!transfer) throw new NotFoundException('Transfer not found');
 
     const updated = await this.prisma.inventoryTransfer.update({
@@ -123,12 +115,10 @@ export class SmartInventoryService {
           },
         },
       });
-      if (!fromStock)
-        throw new BadRequestException('Source warehouse stock not found');
+      if (!fromStock) throw new BadRequestException('Source warehouse stock not found');
 
       const newFromQty = fromStock.currentStock - transfer.quantity;
-      if (newFromQty < 0)
-        throw new BadRequestException('Insufficient stock in source warehouse');
+      if (newFromQty < 0) throw new BadRequestException('Insufficient stock in source warehouse');
 
       await this.prisma.consumableStock.update({
         where: {
@@ -176,9 +166,7 @@ export class SmartInventoryService {
   }
 
   async cancelTransfer(id: string) {
-    const transfer = await this.prisma.inventoryTransfer.findUnique({
-      where: { id },
-    });
+    const transfer = await this.prisma.inventoryTransfer.findUnique({ where: { id } });
     if (!transfer) throw new NotFoundException('Transfer not found');
 
     return this.prisma.inventoryTransfer.update({
@@ -192,12 +180,7 @@ export class SmartInventoryService {
     });
   }
 
-  async listConsumptions(
-    catalogId?: string,
-    assetId?: string,
-    from?: string,
-    to?: string,
-  ) {
+  async listConsumptions(catalogId?: string, assetId?: string, from?: string, to?: string) {
     const where: Prisma.ConsumptionRecordWhereInput = {};
     if (catalogId) where.catalogId = catalogId;
     if (assetId) where.assetId = assetId;
@@ -277,8 +260,7 @@ export class SmartInventoryService {
   }) {
     const countNumber = `IC-${Date.now()}`;
     const difference = data.actualQty - data.expectedQty;
-    const totalDifference =
-      data.unitCost != null ? difference * data.unitCost : undefined;
+    const totalDifference = data.unitCost != null ? difference * data.unitCost : undefined;
 
     return this.prisma.inventoryCount.create({
       data: {
@@ -302,9 +284,7 @@ export class SmartInventoryService {
   }
 
   async approveCount(id: string, approvedById: string) {
-    const count = await this.prisma.inventoryCount.findUnique({
-      where: { id },
-    });
+    const count = await this.prisma.inventoryCount.findUnique({ where: { id } });
     if (!count) throw new NotFoundException('Inventory count not found');
 
     const updated = await this.prisma.inventoryCount.update({
@@ -536,8 +516,7 @@ export class SmartInventoryService {
       if (!batch.expirationDate) continue;
 
       const isExpired = batch.expirationDate < now;
-      const isExpiringSoon =
-        batch.expirationDate <= thirtyDaysFromNow && batch.expirationDate > now;
+      const isExpiringSoon = batch.expirationDate <= thirtyDaysFromNow && batch.expirationDate > now;
 
       if (isExpired) {
         const existingAlert = await this.prisma.stockAlert.findFirst({
@@ -590,10 +569,6 @@ export class SmartInventoryService {
       }
     }
 
-    return {
-      createdAlerts,
-      checkedStocks: stocks.length,
-      checkedBatches: batches.length,
-    };
+    return { createdAlerts, checkedStocks: stocks.length, checkedBatches: batches.length };
   }
 }

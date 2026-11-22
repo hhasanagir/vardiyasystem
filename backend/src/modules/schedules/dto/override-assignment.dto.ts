@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsArray,
-  IsBoolean,
-  IsNotEmpty,
-  ValidateNested,
-} from 'class-validator';
+import { IsString, IsArray, IsBoolean, IsNotEmpty, ValidateNested } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { CreateAssignmentDto } from './create-assignment.dto';
@@ -20,10 +14,7 @@ export class OverrideAssignmentDto extends CreateAssignmentDto {
   @IsString({ each: true })
   violatedRules: string[];
 
-  @ApiProperty({
-    description: 'Kullanıcının ihlalleri kabul ettiğini onaylaması',
-    example: true,
-  })
+  @ApiProperty({ description: 'Kullanıcının ihlalleri kabul ettiğini onaylaması', example: true })
   @IsBoolean()
   confirmedByUser: boolean;
 }

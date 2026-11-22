@@ -3,7 +3,6 @@
 ## Status: ✅ PHASE 5B.4 READY
 
 ## Quality Gate Summary
-
 - **61 quality gate tests:** All pass ✅
 - **117+ pre-existing tests:** All pass ✅
 - **Data integrity:** 11/626 unchanged ✅
@@ -11,7 +10,6 @@
 - **Performance:** All under targets ✅
 
 ## What Phase 5B.3 Proved
-
 1. ✅ Greedy optimizer produces valid candidates for simple problems
 2. ✅ Hard constraints enforce all 12 rules correctly
 3. ✅ Soft constraints score fairness, workload, fatigue correctly
@@ -24,7 +22,6 @@
 10. ✅ Golden test cases pass
 
 ## What Phase 5B.4 Should Address
-
 1. **Multi-candidate generation** — Generate N candidates and pick best
 2. **Existing assignment pre-seeding** — Fix greedy to respect existing schedules
 3. **Weight alignment** — Align ScoreAggregator with ScoringModel
@@ -34,7 +31,6 @@
 7. **Regression vs current system** — Compare optimizer output with existing auto-generator
 
 ## Recommended Phase 5B.4 Scope
-
 - Enhance greedy with multi-candidate + comparison
 - Add local search perturbation
 - Add coverage metrics

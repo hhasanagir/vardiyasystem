@@ -79,17 +79,11 @@ export function createConflict(params: {
 }
 
 export function isHardConflict(conflict: Conflict): boolean {
-  return (
-    conflict.severity === ConflictSeverity.ERROR ||
-    conflict.severity === ConflictSeverity.CRITICAL
-  );
+  return conflict.severity === ConflictSeverity.ERROR || conflict.severity === ConflictSeverity.CRITICAL;
 }
 
 export function isSoftConflict(conflict: Conflict): boolean {
-  return (
-    conflict.severity === ConflictSeverity.WARNING ||
-    conflict.severity === ConflictSeverity.INFO
-  );
+  return conflict.severity === ConflictSeverity.WARNING || conflict.severity === ConflictSeverity.INFO;
 }
 
 export function conflictSeverityWeight(severity: ConflictSeverity): number {

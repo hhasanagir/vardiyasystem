@@ -4,11 +4,7 @@ import { CsrfGuard, CSRF_COOKIE, CSRF_HEADER } from '../csrf/csrf.guard';
 import { CsrfService } from '../csrf/csrf.service';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
-function createMockContext(
-  method: string,
-  headers: Record<string, string>,
-  cookies: Record<string, string>,
-) {
+function createMockContext(method: string, headers: Record<string, string>, cookies: Record<string, string>) {
   const response: any = {
     cookie: vi.fn(),
   };
@@ -35,7 +31,11 @@ describe('CsrfGuard', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [CsrfGuard, CsrfService, Reflector],
+      providers: [
+        CsrfGuard,
+        CsrfService,
+        Reflector,
+      ],
     }).compile();
 
     guard = module.get<CsrfGuard>(CsrfGuard);
@@ -77,22 +77,14 @@ describe('CsrfGuard', () => {
     it('should block POST with mismatched CSRF tokens', () => {
       const token1 = csrfService.generateToken();
       const token2 = csrfService.generateToken();
-      const context = createMockContext(
-        'POST',
-        { [CSRF_HEADER]: token1 },
-        { [CSRF_COOKIE]: token2 },
-      );
+      const context = createMockContext('POST', { [CSRF_HEADER]: token1 }, { [CSRF_COOKIE]: token2 });
       const result = guard.canActivate(context);
       expect(result).toBe(false);
     });
 
     it('should allow POST with matching CSRF tokens', () => {
       const token = csrfService.generateToken();
-      const context = createMockContext(
-        'POST',
-        { [CSRF_HEADER]: token },
-        { [CSRF_COOKIE]: token },
-      );
+      const context = createMockContext('POST', { [CSRF_HEADER]: token }, { [CSRF_COOKIE]: token });
       const result = guard.canActivate(context);
       expect(result).toBe(true);
     });

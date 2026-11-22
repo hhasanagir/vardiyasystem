@@ -50,13 +50,8 @@ describe('AttendanceService', () => {
 
     it('should return active status when clocked in', async () => {
       mockPrisma.attendanceRecord.findUnique.mockResolvedValue({
-        id: 'rec-1',
-        userId: 'user-1',
-        date: new Date().toISOString().split('T')[0],
-        status: 'active',
-        clockIn: new Date(),
-        clockOut: null,
-        assignment: null,
+        id: 'rec-1', userId: 'user-1', date: new Date().toISOString().split('T')[0],
+        status: 'active', clockIn: new Date(), clockOut: null, assignment: null,
       });
       const result = await service.getTodayStatus('user-1');
       expect(result.status).toBe('active');
@@ -68,15 +63,9 @@ describe('AttendanceService', () => {
     it('should create attendance record on first clock-in', async () => {
       mockPrisma.attendanceRecord.findUnique.mockResolvedValue(null);
       mockPrisma.attendanceRecord.upsert.mockResolvedValue({
-        id: 'rec-1',
-        userId: 'user-1',
-        date: new Date().toISOString().split('T')[0],
-        status: 'active',
-        clockIn: new Date(),
-        clockOut: null,
-        assignmentId: null,
-        notes: null,
-        ipAddress: null,
+        id: 'rec-1', userId: 'user-1', date: new Date().toISOString().split('T')[0],
+        status: 'active', clockIn: new Date(), clockOut: null,
+        assignmentId: null, notes: null, ipAddress: null,
       });
       const result = await service.clockIn('user-1', {});
       expect(result.status).toBe('active');
@@ -85,37 +74,21 @@ describe('AttendanceService', () => {
 
     it('should throw when already clocked in', async () => {
       mockPrisma.attendanceRecord.findUnique.mockResolvedValue({
-        id: 'rec-1',
-        userId: 'user-1',
-        date: new Date().toISOString().split('T')[0],
-        status: 'active',
-        clockIn: new Date(),
-        clockOut: null,
-        assignment: null,
+        id: 'rec-1', userId: 'user-1', date: new Date().toISOString().split('T')[0],
+        status: 'active', clockIn: new Date(), clockOut: null, assignment: null,
       });
-      await expect(service.clockIn('user-1', {})).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(service.clockIn('user-1', {})).rejects.toThrow(ConflictException);
     });
   });
 
   describe('clockOut', () => {
     it('should complete attendance on clock-out', async () => {
       mockPrisma.attendanceRecord.findUnique.mockResolvedValue({
-        id: 'rec-1',
-        userId: 'user-1',
-        date: new Date().toISOString().split('T')[0],
-        status: 'active',
-        clockIn: new Date(),
-        clockOut: null,
-        notes: null,
+        id: 'rec-1', userId: 'user-1', date: new Date().toISOString().split('T')[0],
+        status: 'active', clockIn: new Date(), clockOut: null, notes: null,
       });
       mockPrisma.attendanceRecord.update.mockResolvedValue({
-        id: 'rec-1',
-        status: 'completed',
-        clockIn: new Date(),
-        clockOut: new Date(),
-        notes: null,
+        id: 'rec-1', status: 'completed', clockIn: new Date(), clockOut: new Date(), notes: null,
       });
       const result = await service.clockOut('user-1', {});
       expect(result.status).toBe('completed');
@@ -123,22 +96,14 @@ describe('AttendanceService', () => {
 
     it('should throw when no clock-in record', async () => {
       mockPrisma.attendanceRecord.findUnique.mockResolvedValue(null);
-      await expect(service.clockOut('user-1', {})).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.clockOut('user-1', {})).rejects.toThrow(NotFoundException);
     });
 
     it('should throw when already clocked out', async () => {
       mockPrisma.attendanceRecord.findUnique.mockResolvedValue({
-        id: 'rec-1',
-        status: 'completed',
-        clockIn: new Date(),
-        clockOut: new Date(),
-        notes: null,
+        id: 'rec-1', status: 'completed', clockIn: new Date(), clockOut: new Date(), notes: null,
       });
-      await expect(service.clockOut('user-1', {})).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(service.clockOut('user-1', {})).rejects.toThrow(ConflictException);
     });
   });
 

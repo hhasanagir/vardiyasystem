@@ -1,11 +1,4 @@
-import {
-  Component,
-  OnInit,
-  OnDestroy,
-  signal,
-  inject,
-  ChangeDetectionStrategy,
-} from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastModule } from 'primeng/toast';
@@ -25,8 +18,7 @@ interface PersonnelCard extends Employee {
   availability: 'available' | 'busy' | 'on-leave' | 'overloaded';
   department: string;
   deviceSkills: string[];
-}
-interface WizardData {
+}interface WizardData {
   name: string;
   employeeNo: string;
   email: string;
@@ -49,7 +41,12 @@ interface WizardData {
   selector: 'app-employees',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule, ToastModule, ConfirmDialogModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ToastModule,
+    ConfirmDialogModule
+  ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './employees.component.html',
   styleUrls: ['./employees.component.scss'],
@@ -71,18 +68,10 @@ export class EmployeesComponent implements OnInit, OnDestroy {
   selectedMonth = signal<number>(new Date().getMonth() + 1);
   selectedYear = signal<number>(new Date().getFullYear());
   months = [
-    { value: 1, label: 'Ocak' },
-    { value: 2, label: 'Şubat' },
-    { value: 3, label: 'Mart' },
-    { value: 4, label: 'Nisan' },
-    { value: 5, label: 'Mayıs' },
-    { value: 6, label: 'Haziran' },
-    { value: 7, label: 'Temmuz' },
-    { value: 8, label: 'Ağustos' },
-    { value: 9, label: 'Eylül' },
-    { value: 10, label: 'Ekim' },
-    { value: 11, label: 'Kasım' },
-    { value: 12, label: 'Aralık' },
+    { value: 1, label: 'Ocak' }, { value: 2, label: 'Şubat' }, { value: 3, label: 'Mart' },
+    { value: 4, label: 'Nisan' }, { value: 5, label: 'Mayıs' }, { value: 6, label: 'Haziran' },
+    { value: 7, label: 'Temmuz' }, { value: 8, label: 'Ağustos' }, { value: 9, label: 'Eylül' },
+    { value: 10, label: 'Ekim' }, { value: 11, label: 'Kasım' }, { value: 12, label: 'Aralık' }
   ];
   years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
 
@@ -98,7 +87,7 @@ export class EmployeesComponent implements OnInit, OnDestroy {
     { index: 1, label: 'Kimlik', desc: 'Kişisel bilgiler' },
     { index: 2, label: 'Mesleki', desc: 'Rol ve uzmanlık' },
     { index: 3, label: 'Operasyonel', desc: 'Vardiya ayarları' },
-    { index: 4, label: 'Durum', desc: 'Onay ve özet' },
+    { index: 4, label: 'Durum', desc: 'Onay ve özet' }
   ];
 
   roles = [
@@ -116,7 +105,7 @@ export class EmployeesComponent implements OnInit, OnDestroy {
     { label: 'BT', value: 'bt' },
     { label: 'Röntgen', value: 'rontgen' },
     { label: 'Nükleer Tıp', value: 'nukleer' },
-    { label: 'RONK', value: 'onkoloji' },
+    { label: 'RONK', value: 'onkoloji' }
   ];
 
   departments = this.departmentFilters;
@@ -128,19 +117,10 @@ export class EmployeesComponent implements OnInit, OnDestroy {
     { name: 'Çarşamba', value: 3 },
     { name: 'Perşembe', value: 4 },
     { name: 'Cuma', value: 5 },
-    { name: 'Cumartesi', value: 6 },
+    { name: 'Cumartesi', value: 6 }
   ];
 
-  deviceSkillOptions = [
-    'MR',
-    'BT',
-    'Röntgen',
-    'Nükleer Tıp',
-    'Anjiyo',
-    'Ultrason',
-    'Mamografi',
-    'Kemik Dansitometri',
-  ];
+  deviceSkillOptions = ['MR', 'BT', 'Röntgen', 'Nükleer Tıp', 'Anjiyo', 'Ultrason', 'Mamografi', 'Kemik Dansitometri'];
 
   ngOnInit(): void {
     this.loadPersonnel();
@@ -151,32 +131,27 @@ export class EmployeesComponent implements OnInit, OnDestroy {
   }
 
   loadPersonnel(): void {
-    this.employeeService
-      .getAll(this.selectedMonth(), this.selectedYear())
-      .pipe(
-        takeUntil(this.destroy$),
-        finalize(() => {
-          /* loading done handled by service */
-        }),
-      )
-      .subscribe({
-        next: (data) => {
-          const cards: PersonnelCard[] = data.map((emp) => ({
-            ...emp,
-            initials: this.getInitials(emp.name),
-            stats: this.toStats(emp.stats),
-            fatigueLevel: this.toFatigue(emp.stats),
-            availability: this.toAvailability(emp.stats, emp.isActive, emp.employmentStatus),
-            department: this.getDepartment(emp),
-            deviceSkills: emp.deviceSkills || [],
-          }));
-          this.personnel.set(cards);
-          this.applyFilters();
-        },
-        error: () => {
-          this.personnel.set([]);
-        },
-      });
+    this.employeeService.getAll(this.selectedMonth(), this.selectedYear()).pipe(
+      takeUntil(this.destroy$),
+      finalize(() => { /* loading done handled by service */ })
+    ).subscribe({
+      next: (data) => {
+        const cards: PersonnelCard[] = data.map(emp => ({
+          ...emp,
+          initials: this.getInitials(emp.name),
+          stats: this.toStats(emp.stats),
+          fatigueLevel: this.toFatigue(emp.stats),
+          availability: this.toAvailability(emp.stats, emp.isActive, emp.employmentStatus),
+          department: this.getDepartment(emp),
+          deviceSkills: emp.deviceSkills || []
+        }));
+        this.personnel.set(cards);
+        this.applyFilters();
+      },
+      error: () => {
+        this.personnel.set([]);
+      }
+    });
   }
 
   changeMonth(month: number): void {
@@ -190,21 +165,19 @@ export class EmployeesComponent implements OnInit, OnDestroy {
   }
 
   toStats(stats?: PersonnelStats): PersonnelStats {
-    return (
-      stats ?? {
-        personnelId: '',
-        selectedMonth: this.selectedMonth(),
-        totalShifts: 0,
-        dayShifts: 0,
-        nightShifts: 0,
-        totalHours: 0,
-        weeklyHours: 0,
-        workloadPercentage: 0,
-        riskLevel: 'low',
-        critical: false,
-        conflicts: 0,
-      }
-    );
+    return stats ?? {
+      personnelId: '',
+      selectedMonth: this.selectedMonth(),
+      totalShifts: 0,
+      dayShifts: 0,
+      nightShifts: 0,
+      totalHours: 0,
+      weeklyHours: 0,
+      workloadPercentage: 0,
+      riskLevel: 'low',
+      critical: false,
+      conflicts: 0,
+    };
   }
 
   toFatigue(stats?: PersonnelStats): 'low' | 'moderate' | 'high' | 'critical' {
@@ -212,13 +185,8 @@ export class EmployeesComponent implements OnInit, OnDestroy {
     return stats.riskLevel;
   }
 
-  toAvailability(
-    stats?: PersonnelStats,
-    isActive?: boolean,
-    employmentStatus?: string,
-  ): 'available' | 'busy' | 'on-leave' | 'overloaded' {
-    if (isActive === false || employmentStatus === 'inactive' || employmentStatus === 'leave')
-      return 'on-leave';
+  toAvailability(stats?: PersonnelStats, isActive?: boolean, employmentStatus?: string): 'available' | 'busy' | 'on-leave' | 'overloaded' {
+    if (isActive === false || employmentStatus === 'inactive' || employmentStatus === 'leave') return 'on-leave';
     if (!stats) return 'available';
     if (stats.workloadPercentage > 90) return 'overloaded';
     if (stats.workloadPercentage > 70) return 'busy';
@@ -226,19 +194,11 @@ export class EmployeesComponent implements OnInit, OnDestroy {
   }
 
   getInitials(name: string): string {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase();
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   }
 
   getDepartment(employee: Employee): string {
-    if (
-      employee.unit?.type &&
-      ['mr', 'bt', 'rontgen', 'nukleer', 'onkoloji'].includes(employee.unit.type)
-    ) {
+    if (employee.unit?.type && ['mr', 'bt', 'rontgen', 'nukleer', 'onkoloji'].includes(employee.unit.type)) {
       return employee.unit.type;
     }
     if (employee.unit?.code) {
@@ -247,23 +207,14 @@ export class EmployeesComponent implements OnInit, OnDestroy {
         return code;
       }
     }
-    if (
-      employee.unitId &&
-      ['mr', 'bt', 'rontgen', 'nukleer', 'onkoloji'].includes(employee.unitId)
-    ) {
+    if (employee.unitId && ['mr', 'bt', 'rontgen', 'nukleer', 'onkoloji'].includes(employee.unitId)) {
       return employee.unitId;
     }
     return 'mr';
   }
 
   getDepartmentLabel(dept: string): string {
-    const labels: Record<string, string> = {
-      mr: 'MR',
-      bt: 'BT',
-      rontgen: 'Röntgen',
-      nukleer: 'Nükleer Tıp',
-      onkoloji: 'RONK',
-    };
+    const labels: Record<string, string> = { mr: 'MR', bt: 'BT', rontgen: 'Röntgen', nukleer: 'Nükleer Tıp', onkoloji: 'RONK' };
     return labels[dept] || dept.toUpperCase();
   }
 
@@ -273,7 +224,7 @@ export class EmployeesComponent implements OnInit, OnDestroy {
       bt: 'linear-gradient(135deg, #14b8a6, #0d9488)',
       rontgen: 'linear-gradient(135deg, #f59e0b, #d97706)',
       nukleer: 'linear-gradient(135deg, #10b981, #059669)',
-      onkoloji: 'linear-gradient(135deg, #ec4899, #db2777)',
+      onkoloji: 'linear-gradient(135deg, #ec4899, #db2777)'
     };
     return gradients[dept] || gradients['mr'];
   }
@@ -285,43 +236,26 @@ export class EmployeesComponent implements OnInit, OnDestroy {
   }
 
   getFatigueLabel(level: string): string {
-    const labels: Record<string, string> = {
-      low: 'Düşük',
-      moderate: 'Orta',
-      high: 'Yüksek',
-      critical: 'Kritik',
-    };
+    const labels: Record<string, string> = { low: 'Düşük', moderate: 'Orta', high: 'Yüksek', critical: 'Kritik' };
     return labels[level] || level;
   }
 
   getRoleLabel(role: string): string {
     const roles: Record<string, string> = {
-      technician: 'Tekniker',
-      assistant_technician: 'Yardımcı Tekniker',
-      senior_technician: 'Sorumlu Tekniker',
-      supervisor: 'Süpervizör',
-      medical_engineer: 'Medikal Mühendis',
-      imaging_director: 'Görüntüleme Hiz. Müdürü',
-      secretary: 'Sekreter',
-      system_admin: 'Sistem Yöneticisi',
-      hospital_admin: 'Hastane Yöneticisi',
-      guest: 'Misafir',
+      technician: 'Tekniker', assistant_technician: 'Yardımcı Tekniker', senior_technician: 'Sorumlu Tekniker',
+      supervisor: 'Süpervizör', medical_engineer: 'Medikal Mühendis', imaging_director: 'Görüntüleme Hiz. Müdürü',
+      secretary: 'Sekreter', system_admin: 'Sistem Yöneticisi', hospital_admin: 'Hastane Yöneticisi', guest: 'Misafir',
     };
     return roles[role] || role;
   }
 
   getDayName(value: number): string {
-    const day = this.weekDays.find((d) => d.value === value);
+    const day = this.weekDays.find(d => d.value === value);
     return day ? day.name : '';
   }
 
   getStatusLabel(status: string): string {
-    const labels: Record<string, string> = {
-      active: 'Aktif',
-      probation: 'Deneme Sürecinde',
-      leave: 'İzinli',
-      inactive: 'Pasif',
-    };
+    const labels: Record<string, string> = { active: 'Aktif', probation: 'Deneme Sürecinde', leave: 'İzinli', inactive: 'Pasif' };
     return labels[status] || status;
   }
 
@@ -343,17 +277,16 @@ export class EmployeesComponent implements OnInit, OnDestroy {
   applyFilters(): void {
     let filtered = this.personnel();
     if (this.departmentFilter() !== 'all') {
-      filtered = filtered.filter((p) => p.department === this.departmentFilter());
+      filtered = filtered.filter(p => p.department === this.departmentFilter());
     }
     if (this.statusFilter() !== 'all') {
-      filtered = filtered.filter((p) => p.availability === this.statusFilter());
+      filtered = filtered.filter(p => p.availability === this.statusFilter());
     }
     if (this.searchTerm) {
       const term = this.searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (p) =>
-          p.name.toLowerCase().includes(term) ||
-          this.getRoleLabel(p.role).toLowerCase().includes(term),
+      filtered = filtered.filter(p =>
+        p.name.toLowerCase().includes(term) ||
+        this.getRoleLabel(p.role).toLowerCase().includes(term)
       );
     }
     this.filteredPersonnel.set(filtered);
@@ -362,50 +295,29 @@ export class EmployeesComponent implements OnInit, OnDestroy {
   private scopedPersonnel(): PersonnelCard[] {
     let scoped = this.personnel();
     if (this.departmentFilter() !== 'all') {
-      scoped = scoped.filter((p) => p.department === this.departmentFilter());
+      scoped = scoped.filter(p => p.department === this.departmentFilter());
     }
     if (this.searchTerm) {
       const term = this.searchTerm.toLowerCase();
-      scoped = scoped.filter(
-        (p) =>
-          p.name.toLowerCase().includes(term) ||
-          this.getRoleLabel(p.role).toLowerCase().includes(term),
+      scoped = scoped.filter(p =>
+        p.name.toLowerCase().includes(term) ||
+        this.getRoleLabel(p.role).toLowerCase().includes(term)
       );
     }
     return scoped;
   }
 
-  getAvailableCount(): number {
-    return this.scopedPersonnel().filter((p) => p.availability === 'available').length;
-  }
-  getBusyCount(): number {
-    return this.scopedPersonnel().filter((p) => p.availability === 'busy').length;
-  }
-  getLeaveCount(): number {
-    return this.scopedPersonnel().filter((p) => p.availability === 'on-leave').length;
-  }
-  getOverloadedCount(): number {
-    return this.scopedPersonnel().filter((p) => p.availability === 'overloaded').length;
-  }
+  getAvailableCount(): number { return this.scopedPersonnel().filter(p => p.availability === 'available').length; }
+  getBusyCount(): number { return this.scopedPersonnel().filter(p => p.availability === 'busy').length; }
+  getLeaveCount(): number { return this.scopedPersonnel().filter(p => p.availability === 'on-leave').length; }
+  getOverloadedCount(): number { return this.scopedPersonnel().filter(p => p.availability === 'overloaded').length; }
 
   private emptyWizardData(): WizardData {
     return {
-      name: '',
-      employeeNo: '',
-      email: '',
-      phone: '',
-      role: 'technician',
-      department: 'mr',
-      specialization: '',
-      experienceYears: 0,
-      offDays: [],
-      maxWeeklyHours: 40,
-      deviceSkills: [],
-      nightShiftEligible: true,
-      isActive: true,
-      employmentStatus: 'active',
-      startDate: '',
-      notes: '',
+      name: '', employeeNo: '', email: '', phone: '', role: 'technician', department: 'mr',
+      specialization: '', experienceYears: 0, offDays: [], maxWeeklyHours: 40,
+      deviceSkills: [], nightShiftEligible: true, isActive: true,
+      employmentStatus: 'active', startDate: '', notes: ''
     };
   }
 
@@ -431,7 +343,7 @@ export class EmployeesComponent implements OnInit, OnDestroy {
         isActive: person.isActive ?? true,
         employmentStatus: person.employmentStatus || 'active',
         startDate: person.startDate ? person.startDate.split('T')[0] : '',
-        notes: person.notes || '',
+        notes: person.notes || ''
       };
       this.validateStep(1);
     } else {
@@ -457,24 +369,24 @@ export class EmployeesComponent implements OnInit, OnDestroy {
     } else {
       this.stepValid.set(
         this.wizardData.name.trim().length > 0 &&
-          this.wizardData.role.trim().length > 0 &&
-          this.wizardData.department.trim().length > 0 &&
-          this.wizardData.experienceYears >= 0 &&
-          this.wizardData.employmentStatus.trim().length > 0,
+        this.wizardData.role.trim().length > 0 &&
+        this.wizardData.department.trim().length > 0 &&
+        this.wizardData.experienceYears >= 0 &&
+        this.wizardData.employmentStatus.trim().length > 0
       );
     }
   }
 
   nextStep(): void {
     if (this.wizardStep() < 4) {
-      this.wizardStep.update((s) => s + 1);
+      this.wizardStep.update(s => s + 1);
       this.validateStep(this.wizardStep());
     }
   }
 
   prevStep(): void {
     if (this.wizardStep() > 1) {
-      this.wizardStep.update((s) => s - 1);
+      this.wizardStep.update(s => s - 1);
       this.validateStep(this.wizardStep());
     }
   }
@@ -503,11 +415,7 @@ export class EmployeesComponent implements OnInit, OnDestroy {
 
   saveWizard(): void {
     if (!this.wizardData.name) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Uyarı',
-        detail: 'Ad soyad zorunludur',
-      });
+      this.messageService.add({ severity: 'warn', summary: 'Uyarı', detail: 'Ad soyad zorunludur' });
       return;
     }
     this.saving.set(true);
@@ -530,72 +438,62 @@ export class EmployeesComponent implements OnInit, OnDestroy {
       offDays: this.wizardData.offDays || [],
       maxWeeklyHours: this.wizardData.maxWeeklyHours || 40,
       isActive: this.wizardData.employmentStatus !== 'inactive',
-      unitId: this.wizardData.department,
+      unitId: this.wizardData.department
     };
 
-    const existingPerson = this.personnel().find((p) => p.id === editId);
-
     if (editId) {
-      const employeeData = this.sanitizeUpdatePayload(baseData);
+      const existingPerson = this.personnel().find(p => p.id === editId);
+      const employeeData = this.sanitizeUpdatePayload({
+        ...baseData,
+        version: existingPerson?.version,
+      });
 
-      this.employeeService
-        .update(editId, employeeData)
-        .pipe(
-          takeUntil(this.destroy$),
-          finalize(() => this.saving.set(false)),
-        )
-        .subscribe({
-          next: (updated) => {
-            this.messageService.add({
-              severity: 'success',
-              summary: 'Başarılı',
-              detail: 'Personel güncellendi',
-            });
-            if (updated) {
-              const cards = this.personnel().map((p) =>
-                p.id === editId ? this.toPersonnelCard(updated) : p,
-              );
-              this.personnel.set(cards);
-              this.applyFilters();
-            }
-            this.closeWizard();
-          },
-          error: (err) => {
-            this.messageService.add({
-              severity: 'error',
-              summary: 'Güncelleme Hatası',
-              detail: err?.message || 'Personel güncellenemedi',
-            });
-          },
-        });
+      this.employeeService.update(editId, employeeData).pipe(
+        takeUntil(this.destroy$),
+        finalize(() => this.saving.set(false))
+      ).subscribe({
+        next: (updated) => {
+          this.messageService.add({ severity: 'success', summary: 'Başarılı', detail: 'Personel güncellendi' });
+          if (updated) {
+            const cards = this.personnel().map(p => p.id === editId
+              ? this.toPersonnelCard(updated)
+              : p
+            );
+            this.personnel.set(cards);
+            this.applyFilters();
+          }
+          this.closeWizard();
+        },
+        error: (err) => {
+          const status = (err as { originalError?: { status?: number } }).originalError?.status;
+          const isConflict = status === 409 || (err as { code?: unknown }).code === 'Conflict';
+          this.messageService.add({
+            severity: isConflict ? 'warn' : 'error',
+            summary: isConflict ? 'Çakışma' : 'Güncelleme Hatası',
+            detail: isConflict
+              ? 'Bu personel başka bir kullanıcı tarafından güncellenmiş. Personel listesi yenilendi, lütfen tekrar deneyin.'
+              : err?.message || 'Personel güncellenemedi'
+          });
+          this.loadPersonnel();
+        }
+      });
     } else {
-      this.employeeService
-        .create(baseData)
-        .pipe(
-          takeUntil(this.destroy$),
-          finalize(() => this.saving.set(false)),
-        )
-        .subscribe({
-          next: (created) => {
-            this.messageService.add({
-              severity: 'success',
-              summary: 'Başarılı',
-              detail: 'Personel eklendi',
-            });
-            if (created) {
-              this.personnel.update((list) => [...list, this.toPersonnelCard(created)]);
-              this.applyFilters();
-            }
-            this.closeWizard();
-          },
-          error: (err) => {
-            this.messageService.add({
-              severity: 'error',
-              summary: 'Kayıt Hatası',
-              detail: err?.message || 'Personel eklenemedi',
-            });
-          },
-        });
+      this.employeeService.create(baseData).pipe(
+        takeUntil(this.destroy$),
+        finalize(() => this.saving.set(false))
+      ).subscribe({
+        next: (created) => {
+          this.messageService.add({ severity: 'success', summary: 'Başarılı', detail: 'Personel eklendi' });
+          if (created) {
+            this.personnel.update(list => [...list, this.toPersonnelCard(created)]);
+            this.applyFilters();
+          }
+          this.closeWizard();
+        },
+        error: (err) => {
+          this.messageService.add({ severity: 'error', summary: 'Kayıt Hatası', detail: err?.message || 'Personel eklenemedi' });
+        }
+      });
     }
   }
 
@@ -617,7 +515,7 @@ export class EmployeesComponent implements OnInit, OnDestroy {
       fatigueLevel: this.toFatigue(emp.stats),
       availability: this.toAvailability(emp.stats, emp.isActive, emp.employmentStatus),
       department: this.getDepartment(emp),
-      deviceSkills: emp.deviceSkills || [],
+      deviceSkills: emp.deviceSkills || []
     };
   }
 
@@ -627,54 +525,31 @@ export class EmployeesComponent implements OnInit, OnDestroy {
       header: 'Silme Onayı',
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
-        this.employeeService
-          .delete(person.id)
-          .pipe(takeUntil(this.destroy$))
-          .subscribe({
-            next: () => {
-              this.messageService.add({
-                severity: 'success',
-                summary: 'Başarılı',
-                detail: 'Personel silindi',
-              });
-              this.personnel.update((list) => list.filter((p) => p.id !== person.id));
-              this.applyFilters();
-            },
-          });
-      },
+        this.employeeService.delete(person.id).pipe(takeUntil(this.destroy$)).subscribe({
+          next: () => {
+            this.messageService.add({ severity: 'success', summary: 'Başarılı', detail: 'Personel silindi' });
+            this.personnel.update(list => list.filter(p => p.id !== person.id));
+            this.applyFilters();
+          }
+        });
+      }
     });
   }
 
   assignShift(person: PersonnelCard): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Vardiya Atama',
-      detail: `${person.name} için vardiya atama ekranı açılıyor...`,
-    });
+    this.messageService.add({ severity: 'info', summary: 'Vardiya Atama', detail: `${person.name} için vardiya atama ekranı açılıyor...` });
   }
 
   viewDetails(person: PersonnelCard): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Personel Detay',
-      detail: `${person.name} detayları gösteriliyor...`,
-    });
+    this.messageService.add({ severity: 'info', summary: 'Personel Detay', detail: `${person.name} detayları gösteriliyor...` });
   }
 
   requestLeave(person: PersonnelCard): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'İzin Tanımla',
-      detail: `${person.name} için izin tanımlama ekranı açılıyor...`,
-    });
+    this.messageService.add({ severity: 'info', summary: 'İzin Tanımla', detail: `${person.name} için izin tanımlama ekranı açılıyor...` });
   }
 
   requestChange(person: PersonnelCard): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Değişiklik Talebi',
-      detail: `${person.name} için değişiklik talebi oluşturuluyor...`,
-    });
+    this.messageService.add({ severity: 'info', summary: 'Değişiklik Talebi', detail: `${person.name} için değişiklik talebi oluşturuluyor...` });
   }
 
   ngOnDestroy(): void {

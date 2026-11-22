@@ -1,11 +1,37 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma.service';
 import * as crypto from 'crypto';
+import { UnitScopeService } from '../rbac/services/unit-scope.service';
 
 @Injectable()
 export class AssetManagementService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private unitScopeService: UnitScopeService,
+  ) {}
+
+  private async assertAssetAccess(assetId: string, user: any) {
+    const asset = await this.prisma.enterpriseAsset.findUnique({
+      where: { id: assetId },
+      select: { id: true, unitId: true, organizationId: true },
+    });
+    if (!asset) throw new NotFoundException('Asset not found');
+    const allowed = await this.unitScopeService.canAccessUnit(user, asset.unitId, asset.organizationId);
+    if (!allowed) throw new ForbiddenException('Bu birime erişim yetkiniz yok');
+    return asset;
+  }
+
+  private async scopeFilter(user: any): Promise<Prisma.EnterpriseAssetWhereInput> {
+    const scope = await this.unitScopeService.resolveScope(user);
+    if (scope.strictUnitId) {
+      return { unitId: scope.strictUnitId };
+    }
+    if (!scope.organizationId) {
+      throw new ForbiddenException('Kuruluş atanmamış kullanıcı varlık listeleyemez');
+    }
+    return { organizationId: scope.organizationId };
+  }
 
   async findAll(filters?: {
     category?: string;
@@ -16,7 +42,7 @@ export class AssetManagementService {
     supplierId?: string;
     isActive?: boolean;
     search?: string;
-  }) {
+  }, user?: any) {
     const where: Prisma.EnterpriseAssetWhereInput = {};
 
     if (filters?.category) where.category = filters.category as any;
@@ -38,6 +64,11 @@ export class AssetManagementService {
       ];
     }
 
+    if (user) {
+      const scopeFilt = await this.scopeFilter(user);
+      where.AND = Array.isArray(where.AND) ? [...where.AND, scopeFilt] : [scopeFilt];
+    }
+
     return this.prisma.enterpriseAsset.findMany({
       where,
       include: {
@@ -50,7 +81,8 @@ export class AssetManagementService {
     });
   }
 
-  async findById(id: string) {
+  async findById(id: string, user?: any) {
+    if (user) await this.assertAssetAccess(id, user);
     const asset = await this.prisma.enterpriseAsset.findUnique({
       where: { id },
       include: {
@@ -71,7 +103,8 @@ export class AssetManagementService {
     return asset;
   }
 
-  async getFullDetail(id: string) {
+  async getFullDetail(id: string, user?: any) {
+    if (user) await this.assertAssetAccess(id, user);
     const asset = await this.prisma.enterpriseAsset.findUnique({
       where: { id },
       include: {
@@ -106,7 +139,14 @@ export class AssetManagementService {
     return asset;
   }
 
-  async getDashboard() {
+  async getDashboard(user?: any) {
+    const baseWhere: Prisma.EnterpriseAssetWhereInput = {};
+    if (user) {
+      const scope = await this.unitScopeService.resolveScope(user);
+      if (scope.strictUnitId) baseWhere.unitId = scope.strictUnitId;
+      else if (scope.organizationId) baseWhere.organizationId = scope.organizationId;
+    }
+
     const [
       totalAssets,
       activeCount,
@@ -119,28 +159,27 @@ export class AssetManagementService {
       assetsExpiringWarranty,
       assetsWithNoQR,
     ] = await Promise.all([
-      this.prisma.enterpriseAsset.count(),
-      this.prisma.enterpriseAsset.count({ where: { status: 'active' } }),
-      this.prisma.enterpriseAsset.count({
-        where: { status: 'under_maintenance' },
-      }),
-      this.prisma.enterpriseAsset.count({ where: { status: 'fault' } }),
-      this.prisma.enterpriseAsset.count({
-        where: { status: 'out_of_service' },
-      }),
+      this.prisma.enterpriseAsset.count({ where: baseWhere }),
+      this.prisma.enterpriseAsset.count({ where: { ...baseWhere, status: 'active' } }),
+      this.prisma.enterpriseAsset.count({ where: { ...baseWhere, status: 'under_maintenance' } }),
+      this.prisma.enterpriseAsset.count({ where: { ...baseWhere, status: 'fault' } }),
+      this.prisma.enterpriseAsset.count({ where: { ...baseWhere, status: 'out_of_service' } }),
       this.prisma.enterpriseAsset.groupBy({
         by: ['category'],
         _count: true,
+        ...(baseWhere.unitId ? { where: baseWhere } : baseWhere.organizationId ? { where: baseWhere } : {}),
       }),
       this.prisma.enterpriseAsset.groupBy({
         by: ['status'],
         _count: true,
+        ...(baseWhere.unitId ? { where: baseWhere } : baseWhere.organizationId ? { where: baseWhere } : {}),
       }),
       this.prisma.enterpriseAsset.count({
-        where: { warrantyEnd: { not: null } },
+        where: { ...baseWhere, warrantyEnd: { not: null } },
       }),
       this.prisma.enterpriseAsset.count({
         where: {
+          ...baseWhere,
           warrantyEnd: {
             not: null,
             lte: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
@@ -148,7 +187,7 @@ export class AssetManagementService {
         },
       }),
       this.prisma.enterpriseAsset.count({
-        where: { qrCode: null },
+        where: { ...baseWhere, qrCode: null },
       }),
     ]);
 
@@ -166,7 +205,8 @@ export class AssetManagementService {
     };
   }
 
-  async generateQR(assetId: string) {
+  async generateQR(assetId: string, user?: any) {
+    if (user) await this.assertAssetAccess(assetId, user);
     const asset = await this.prisma.enterpriseAsset.findUnique({
       where: { id: assetId },
       select: { id: true, name: true, assetNumber: true, qrCode: true },
@@ -178,11 +218,7 @@ export class AssetManagementService {
       assetNumber: asset.assetNumber,
       name: asset.name,
     });
-    const qrHash = crypto
-      .createHash('sha256')
-      .update(qrPayload)
-      .digest('hex')
-      .slice(0, 16);
+    const qrHash = crypto.createHash('sha256').update(qrPayload).digest('hex').slice(0, 16);
     const qrValue = `vardiya://asset/${asset.assetNumber}?v=${qrHash}`;
 
     await this.prisma.enterpriseAsset.update({
@@ -198,7 +234,26 @@ export class AssetManagementService {
     };
   }
 
-  async create(data: any) {
+  async create(data: any, user?: any) {
+    if (user) {
+      const scope = await this.unitScopeService.resolveScope(user);
+      if (!scope.strictUnitId && !scope.organizationId) {
+        throw new ForbiddenException('Varlık ekleme işlemi için kuruluş atanmamış');
+      }
+      if (scope.strictUnitId) {
+        if (data.unitId && data.unitId !== scope.strictUnitId) {
+          throw new ForbiddenException('Saha sorumlusu sadece kendi birimine varlık ekleyebilir');
+        }
+        data.unitId = scope.strictUnitId;
+        data.organizationId = scope.organizationId;
+      } else if (scope.organizationId) {
+        if (data.organizationId && data.organizationId !== scope.organizationId) {
+          throw new ForbiddenException('Başka kuruluşa varlık oluşturulamaz');
+        }
+        data.organizationId = scope.organizationId;
+      }
+    }
+
     if (!data.assetNumber) {
       const count = await this.prisma.enterpriseAsset.count();
       data.assetNumber = `VAR-${String(count + 1).padStart(6, '0')}`;
@@ -218,18 +273,10 @@ export class AssetManagementService {
         serialNumber: data.serialNumber,
         brand: data.brand,
         yearOfManufacture: data.yearOfManufacture,
-        installationDate: data.installationDate
-          ? new Date(data.installationDate)
-          : undefined,
-        acceptanceDate: data.acceptanceDate
-          ? new Date(data.acceptanceDate)
-          : undefined,
-        commissioningDate: data.commissioningDate
-          ? new Date(data.commissioningDate)
-          : undefined,
-        warrantyStart: data.warrantyStart
-          ? new Date(data.warrantyStart)
-          : undefined,
+        installationDate: data.installationDate ? new Date(data.installationDate) : undefined,
+        acceptanceDate: data.acceptanceDate ? new Date(data.acceptanceDate) : undefined,
+        commissioningDate: data.commissioningDate ? new Date(data.commissioningDate) : undefined,
+        warrantyStart: data.warrantyStart ? new Date(data.warrantyStart) : undefined,
         warrantyEnd: data.warrantyEnd ? new Date(data.warrantyEnd) : undefined,
         expectedLifetimeYears: data.expectedLifetimeYears,
         purchaseCost: data.purchaseCost,
@@ -258,69 +305,49 @@ export class AssetManagementService {
     });
   }
 
-  async update(id: string, data: any) {
-    const existing = await this.prisma.enterpriseAsset.findUnique({
-      where: { id },
-    });
+  async update(id: string, data: any, user?: any) {
+    if (user) await this.assertAssetAccess(id, user);
+    const existing = await this.prisma.enterpriseAsset.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Asset not found');
     }
 
     const updateData: Prisma.EnterpriseAssetUncheckedUpdateInput = {};
 
-    if (data.assetNumber !== undefined)
-      updateData.assetNumber = data.assetNumber;
+    if (data.assetNumber !== undefined) updateData.assetNumber = data.assetNumber;
     if (data.barcode !== undefined) updateData.barcode = data.barcode;
     if (data.qrCode !== undefined) updateData.qrCode = data.qrCode;
     if (data.rfidTag !== undefined) updateData.rfidTag = data.rfidTag;
     if (data.name !== undefined) updateData.name = data.name;
     if (data.category !== undefined) updateData.category = data.category;
     if (data.status !== undefined) updateData.status = data.status;
-    if (data.manufacturer !== undefined)
-      updateData.manufacturer = data.manufacturer;
+    if (data.manufacturer !== undefined) updateData.manufacturer = data.manufacturer;
     if (data.model !== undefined) updateData.model = data.model;
-    if (data.serialNumber !== undefined)
-      updateData.serialNumber = data.serialNumber;
+    if (data.serialNumber !== undefined) updateData.serialNumber = data.serialNumber;
     if (data.brand !== undefined) updateData.brand = data.brand;
-    if (data.yearOfManufacture !== undefined)
-      updateData.yearOfManufacture = data.yearOfManufacture;
-    if (data.installationDate !== undefined)
-      updateData.installationDate = new Date(data.installationDate);
-    if (data.acceptanceDate !== undefined)
-      updateData.acceptanceDate = new Date(data.acceptanceDate);
-    if (data.commissioningDate !== undefined)
-      updateData.commissioningDate = new Date(data.commissioningDate);
-    if (data.warrantyStart !== undefined)
-      updateData.warrantyStart = new Date(data.warrantyStart);
-    if (data.warrantyEnd !== undefined)
-      updateData.warrantyEnd = new Date(data.warrantyEnd);
-    if (data.expectedLifetimeYears !== undefined)
-      updateData.expectedLifetimeYears = data.expectedLifetimeYears;
-    if (data.purchaseCost !== undefined)
-      updateData.purchaseCost = data.purchaseCost;
-    if (data.currentValue !== undefined)
-      updateData.currentValue = data.currentValue;
+    if (data.yearOfManufacture !== undefined) updateData.yearOfManufacture = data.yearOfManufacture;
+    if (data.installationDate !== undefined) updateData.installationDate = new Date(data.installationDate);
+    if (data.acceptanceDate !== undefined) updateData.acceptanceDate = new Date(data.acceptanceDate);
+    if (data.commissioningDate !== undefined) updateData.commissioningDate = new Date(data.commissioningDate);
+    if (data.warrantyStart !== undefined) updateData.warrantyStart = new Date(data.warrantyStart);
+    if (data.warrantyEnd !== undefined) updateData.warrantyEnd = new Date(data.warrantyEnd);
+    if (data.expectedLifetimeYears !== undefined) updateData.expectedLifetimeYears = data.expectedLifetimeYears;
+    if (data.purchaseCost !== undefined) updateData.purchaseCost = data.purchaseCost;
+    if (data.currentValue !== undefined) updateData.currentValue = data.currentValue;
     if (data.supplierId !== undefined) updateData.supplierId = data.supplierId;
-    if (data.contractNumber !== undefined)
-      updateData.contractNumber = data.contractNumber;
-    if (data.invoiceNumber !== undefined)
-      updateData.invoiceNumber = data.invoiceNumber;
-    if (data.purchaseOrderNumber !== undefined)
-      updateData.purchaseOrderNumber = data.purchaseOrderNumber;
+    if (data.contractNumber !== undefined) updateData.contractNumber = data.contractNumber;
+    if (data.invoiceNumber !== undefined) updateData.invoiceNumber = data.invoiceNumber;
+    if (data.purchaseOrderNumber !== undefined) updateData.purchaseOrderNumber = data.purchaseOrderNumber;
     if (data.notes !== undefined) updateData.notes = data.notes;
-    if (data.departmentId !== undefined)
-      updateData.departmentId = data.departmentId;
+    if (data.departmentId !== undefined) updateData.departmentId = data.departmentId;
     if (data.block !== undefined) updateData.block = data.block;
     if (data.floor !== undefined) updateData.floor = data.floor;
     if (data.roomId !== undefined) updateData.roomId = data.roomId;
     if (data.unitId !== undefined) updateData.unitId = data.unitId;
     if (data.hospitalId !== undefined) updateData.hospitalId = data.hospitalId;
-    if (data.ownerDepartmentId !== undefined)
-      updateData.ownerDepartmentId = data.ownerDepartmentId;
-    if (data.responsibleEngineerId !== undefined)
-      updateData.responsibleEngineerId = data.responsibleEngineerId;
-    if (data.organizationId !== undefined)
-      updateData.organizationId = data.organizationId;
+    if (data.ownerDepartmentId !== undefined) updateData.ownerDepartmentId = data.ownerDepartmentId;
+    if (data.responsibleEngineerId !== undefined) updateData.responsibleEngineerId = data.responsibleEngineerId;
+    if (data.organizationId !== undefined) updateData.organizationId = data.organizationId;
     if (data.deviceId !== undefined) updateData.deviceId = data.deviceId;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
 
@@ -334,10 +361,9 @@ export class AssetManagementService {
     });
   }
 
-  async remove(id: string) {
-    const existing = await this.prisma.enterpriseAsset.findUnique({
-      where: { id },
-    });
+  async remove(id: string, user?: any) {
+    if (user) await this.assertAssetAccess(id, user);
+    const existing = await this.prisma.enterpriseAsset.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Asset not found');
     }
@@ -346,10 +372,9 @@ export class AssetManagementService {
     return { success: true };
   }
 
-  async getDocuments(assetId: string) {
-    const asset = await this.prisma.enterpriseAsset.findUnique({
-      where: { id: assetId },
-    });
+  async getDocuments(assetId: string, user?: any) {
+    if (user) await this.assertAssetAccess(assetId, user);
+    const asset = await this.prisma.enterpriseAsset.findUnique({ where: { id: assetId } });
     if (!asset) {
       throw new NotFoundException('Asset not found');
     }
@@ -360,10 +385,9 @@ export class AssetManagementService {
     });
   }
 
-  async getMovements(assetId: string) {
-    const asset = await this.prisma.enterpriseAsset.findUnique({
-      where: { id: assetId },
-    });
+  async getMovements(assetId: string, user?: any) {
+    if (user) await this.assertAssetAccess(assetId, user);
+    const asset = await this.prisma.enterpriseAsset.findUnique({ where: { id: assetId } });
     if (!asset) {
       throw new NotFoundException('Asset not found');
     }
@@ -374,7 +398,8 @@ export class AssetManagementService {
     });
   }
 
-  async getDeviceCompatibleConsumables(assetId: string) {
+  async getDeviceCompatibleConsumables(assetId: string, user?: any) {
+    if (user) await this.assertAssetAccess(assetId, user);
     const asset = await this.prisma.enterpriseAsset.findUnique({
       where: { id: assetId },
       select: { id: true, category: true, model: true },
@@ -394,25 +419,31 @@ export class AssetManagementService {
     });
   }
 
-  async getWarrantyStatus() {
+  async getWarrantyStatus(user?: any) {
     const now = new Date();
     const in90Days = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
-    const [active, expiringSoon, expired, noWarranty, byMonth] =
-      await Promise.all([
-        this.prisma.enterpriseAsset.count({
-          where: { warrantyEnd: { gte: in90Days } },
-        }),
-        this.prisma.enterpriseAsset.count({
-          where: { warrantyEnd: { gte: now, lte: in90Days } },
-        }),
-        this.prisma.enterpriseAsset.count({
-          where: { warrantyEnd: { lt: now } },
-        }),
-        this.prisma.enterpriseAsset.count({
-          where: { warrantyEnd: null },
-        }),
-        this.prisma.$queryRaw`
+    const baseWhere: Prisma.EnterpriseAssetWhereInput = {};
+    if (user) {
+      const scope = await this.unitScopeService.resolveScope(user);
+      if (scope.strictUnitId) baseWhere.unitId = scope.strictUnitId;
+      else if (scope.organizationId) baseWhere.organizationId = scope.organizationId;
+    }
+
+    const [active, expiringSoon, expired, noWarranty, byMonth] = await Promise.all([
+      this.prisma.enterpriseAsset.count({
+        where: { ...baseWhere, warrantyEnd: { gte: in90Days } },
+      }),
+      this.prisma.enterpriseAsset.count({
+        where: { ...baseWhere, warrantyEnd: { gte: now, lte: in90Days } },
+      }),
+      this.prisma.enterpriseAsset.count({
+        where: { ...baseWhere, warrantyEnd: { lt: now } },
+      }),
+      this.prisma.enterpriseAsset.count({
+        where: { ...baseWhere, warrantyEnd: null },
+      }),
+      this.prisma.$queryRaw<any[]>`
         SELECT
           DATE_TRUNC('month', "warrantyEnd")::date AS month,
           COUNT(*)::int AS count
@@ -420,10 +451,15 @@ export class AssetManagementService {
         WHERE "warrantyEnd" IS NOT NULL
           AND "warrantyEnd" >= NOW()
           AND "warrantyEnd" <= NOW() + INTERVAL '12 months'
+          ${baseWhere.unitId
+            ? Prisma.sql`AND "unitId" = ${baseWhere.unitId}`
+            : baseWhere.organizationId
+            ? Prisma.sql`AND "organizationId" = ${baseWhere.organizationId}`
+            : Prisma.empty}
         GROUP BY DATE_TRUNC('month', "warrantyEnd")
         ORDER BY month ASC
       `,
-      ]);
+    ]);
 
     return { active, expiringSoon, expired, noWarranty, byMonth };
   }

@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma.service';
 
@@ -47,20 +43,14 @@ export class InventoryService {
     return this.prisma.consumableStock.findMany({
       where,
       include: {
-        catalog: {
-          select: { id: true, code: true, name: true, category: true },
-        },
+        catalog: { select: { id: true, code: true, name: true, category: true } },
         warehouse: { select: { id: true, code: true, name: true } },
       },
       orderBy: { updatedAt: 'desc' },
     });
   }
 
-  async getTransactions(filters?: {
-    warehouseId?: string;
-    catalogId?: string;
-    type?: string;
-  }) {
+  async getTransactions(filters?: { warehouseId?: string; catalogId?: string; type?: string }) {
     const where: Prisma.ConsumableTransactionWhereInput = {};
 
     if (filters?.warehouseId) where.warehouseId = filters.warehouseId;
@@ -100,9 +90,7 @@ export class InventoryService {
     });
 
     if (!stock) {
-      throw new NotFoundException(
-        'Stock record not found for this catalog and warehouse combination',
-      );
+      throw new NotFoundException('Stock record not found for this catalog and warehouse combination');
     }
 
     const newStock =
@@ -114,9 +102,7 @@ export class InventoryService {
       throw new BadRequestException('Insufficient stock for this operation');
     }
 
-    const totalCost = data.unitCost
-      ? data.unitCost * Math.abs(data.quantity)
-      : undefined;
+    const totalCost = data.unitCost ? data.unitCost * Math.abs(data.quantity) : undefined;
 
     await this.prisma.consumableStock.update({
       where: {

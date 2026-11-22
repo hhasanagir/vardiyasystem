@@ -11,9 +11,7 @@ export class CreateActionDto {
   @IsString()
   actionType: string;
 
-  @ApiProperty({
-    example: 'Recalibrate equipment and update calibration schedule',
-  })
+  @ApiProperty({ example: 'Recalibrate equipment and update calibration schedule' })
   @IsString()
   description: string;
 

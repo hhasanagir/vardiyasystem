@@ -149,19 +149,13 @@ export class AuditLogService {
     return createHash('sha256').update(value).digest('hex').slice(0, 16);
   }
 
-  async log(data: LogEntryInput) {
+  async log(data: LogEntryInput, tx?: Prisma.TransactionClient) {
     const ctx = this.correlationService?.getContext();
 
-    const oldVal = (data.oldValue ?? data.before) as
-      | Record<string, unknown>
-      | null
-      | undefined;
-    const newVal = (data.newValue ?? data.after) as
-      | Record<string, unknown>
-      | null
-      | undefined;
+    const oldVal = (data.oldValue ?? data.before) as Record<string, unknown> | null | undefined;
+    const newVal = (data.newValue ?? data.after) as Record<string, unknown> | null | undefined;
 
-    return this.prisma.auditLog.create({
+    return (tx ?? this.prisma).auditLog.create({
       data: {
         requestId: ctx?.correlationId,
         userId: data.userId,
@@ -189,7 +183,7 @@ export class AuditLogService {
     const requestId = ctx?.correlationId;
 
     return this.prisma.auditLog.createMany({
-      data: entries.map((entry) => ({
+      data: entries.map(entry => ({
         requestId,
         userId: entry.userId,
         userName: entry.userName,
@@ -200,12 +194,8 @@ export class AuditLogService {
         actionType: entry.action,
         entityType: entry.entityType,
         entityId: entry.entityId,
-        oldValue: (entry.oldValue ?? entry.before ?? undefined) as
-          | Prisma.InputJsonValue
-          | undefined,
-        newValue: (entry.newValue ?? entry.after ?? undefined) as
-          | Prisma.InputJsonValue
-          | undefined,
+        oldValue: ((entry.oldValue ?? entry.before) ?? undefined) as Prisma.InputJsonValue | undefined,
+        newValue: ((entry.newValue ?? entry.after) ?? undefined) as Prisma.InputJsonValue | undefined,
         description: entry.description || entry.reason || entry.comment,
         ipAddress: entry.ipAddress ? this.hashField(entry.ipAddress) : null,
         userAgent: entry.userAgent ? this.hashField(entry.userAgent) : null,
@@ -245,8 +235,7 @@ export class AuditLogService {
     if (filters?.startDate || filters?.endDate) {
       where.createdAt = {};
       if (filters.startDate) where.createdAt.gte = new Date(filters.startDate);
-      if (filters.endDate)
-        where.createdAt.lte = new Date(filters.endDate + 'T23:59:59.999Z');
+      if (filters.endDate) where.createdAt.lte = new Date(filters.endDate + 'T23:59:59.999Z');
     }
 
     if (filters?.search) {
@@ -283,9 +272,7 @@ export class AuditLogService {
       this.prisma.auditLog.count({ where }),
     ]);
 
-    const data = logs.map((log) =>
-      this.formatAuditLogEntry(log as unknown as AuditLogRecord),
-    );
+    const data = logs.map(log => this.formatAuditLogEntry(log as unknown as AuditLogRecord));
 
     return {
       data,
@@ -308,24 +295,22 @@ export class AuditLogService {
     return this.formatAuditLogEntry(log as unknown as AuditLogRecord);
   }
 
-  async findByUser(
-    userId: string,
-    filters?: {
-      limit?: number;
-      offset?: number;
-      startDate?: string;
-      endDate?: string;
-    },
-  ) {
+  async findByUser(userId: string, filters?: {
+    limit?: number;
+    offset?: number;
+    startDate?: string;
+    endDate?: string;
+  }, scopeOrganizationId?: string) {
     return this.findAll({
       userId,
       ...filters,
+      organizationId: scopeOrganizationId,
     });
   }
 
-  async findByEntity(entityType: string, entityId: string) {
+  async findByEntity(entityType: string, entityId: string, scopeOrganizationId?: string) {
     const logs = await this.prisma.auditLog.findMany({
-      where: { entityType, entityId },
+      where: { entityType, entityId, ...(scopeOrganizationId ? { organizationId: scopeOrganizationId } : {}) },
       include: {
         user: {
           select: { id: true, name: true, email: true, role: true },
@@ -334,9 +319,7 @@ export class AuditLogService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return logs.map((log) =>
-      this.formatAuditLogEntry(log as unknown as AuditLogRecord),
-    );
+    return logs.map(log => this.formatAuditLogEntry(log as unknown as AuditLogRecord));
   }
 
   async flagLog(logId: string, reason: string, flaggedBy: string) {
@@ -363,9 +346,9 @@ export class AuditLogService {
     });
   }
 
-  async getFlaggedLogs() {
+  async getFlaggedLogs(scopeOrganizationId?: string) {
     const logs = await this.prisma.auditLog.findMany({
-      where: { flagged: true },
+      where: { flagged: true, ...(scopeOrganizationId ? { organizationId: scopeOrganizationId } : {}) },
       include: {
         user: {
           select: { id: true, name: true, email: true },
@@ -374,66 +357,62 @@ export class AuditLogService {
       orderBy: { flaggedAt: 'desc' },
     });
 
-    return logs.map((log) =>
-      this.formatAuditLogEntry(log as unknown as AuditLogRecord),
-    );
+    return logs.map(log => this.formatAuditLogEntry(log as unknown as AuditLogRecord));
   }
 
-  async getStatistics(startDate: string, endDate: string) {
-    const where = {
+  async getStatistics(startDate: string, endDate: string, scopeOrganizationId?: string) {
+    const where: Prisma.AuditLogWhereInput = {
       createdAt: {
         gte: new Date(startDate),
         lte: new Date(endDate + 'T23:59:59.999Z'),
       },
     };
+    if (scopeOrganizationId) where.organizationId = scopeOrganizationId;
 
-    const [totalLogs, byAction, byUser, byEntity, flaggedLogs] =
-      await Promise.all([
-        this.prisma.auditLog.count({ where }),
-        this.prisma.auditLog.groupBy({
-          by: ['actionType'],
-          where,
-          _count: true,
-        }),
-        this.prisma.auditLog.groupBy({
-          by: ['userId'],
-          where,
-          _count: true,
-        }),
-        this.prisma.auditLog.groupBy({
-          by: ['entityType'],
-          where,
-          _count: true,
-        }),
-        this.prisma.auditLog.count({ where: { ...where, flagged: true } }),
-      ]);
+    const [totalLogs, byAction, byUser, byEntity, flaggedLogs] = await Promise.all([
+      this.prisma.auditLog.count({ where }),
+      this.prisma.auditLog.groupBy({
+        by: ['actionType'],
+        where,
+        _count: true,
+      }),
+      this.prisma.auditLog.groupBy({
+        by: ['userId'],
+        where,
+        _count: true,
+      }),
+      this.prisma.auditLog.groupBy({
+        by: ['entityType'],
+        where,
+        _count: true,
+      }),
+      this.prisma.auditLog.count({ where: { ...where, flagged: true } }),
+    ]);
 
-    const userIds = [...new Set(byUser.map((u) => u.userId))];
-    const userDetails =
-      userIds.length > 0
-        ? await this.prisma.user.findMany({
-            where: { id: { in: userIds } },
-            select: { id: true, name: true, email: true },
-          })
-        : [];
+    const userIds = [...new Set(byUser.map(u => u.userId))];
+    const userDetails = userIds.length > 0
+      ? await this.prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true, email: true },
+        })
+      : [];
 
     return {
       period: { startDate, endDate },
       totalLogs,
       flaggedLogs,
-      byAction: byAction.map((a) => ({
+      byAction: byAction.map(a => ({
         action: a.actionType,
         label: AuditEventLabels[a.actionType] || a.actionType,
         count: a._count,
       })),
-      byUser: byUser.map((u) => ({
+      byUser: byUser.map(u => ({
         userId: u.userId,
-        userName:
-          userDetails.find((d) => d.id === u.userId)?.name || 'Bilinmiyor',
-        userEmail: userDetails.find((d) => d.id === u.userId)?.email || '',
+        userName: userDetails.find(d => d.id === u.userId)?.name || 'Bilinmiyor',
+        userEmail: userDetails.find(d => d.id === u.userId)?.email || '',
         count: u._count,
       })),
-      byEntity: byEntity.map((e) => ({
+      byEntity: byEntity.map(e => ({
         entityType: e.entityType,
         label: EntityTypeLabels[e.entityType] || e.entityType,
         count: e._count,
@@ -441,41 +420,41 @@ export class AuditLogService {
     };
   }
 
-  async detectSuspiciousActivity(
-    userId?: string,
-  ): Promise<SuspiciousActivity[]> {
+  async detectSuspiciousActivity(userId?: string, organizationId?: string): Promise<SuspiciousActivity[]> {
     const activities: SuspiciousActivity[] = [];
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
     if (userId) {
-      activities.push(...(await this.detectRapidChanges(userId, oneHourAgo)));
-      activities.push(
-        ...(await this.detectOffHoursActivity(userId, todayStart)),
-      );
-      activities.push(...(await this.detectBulkOperations(userId, oneHourAgo)));
+      if (organizationId) {
+        const target = (await Promise.resolve(
+          this.prisma.user.findUnique({ where: { id: userId }, select: { organizationId: true } }),
+        ).catch(() => null)) as { organizationId: string | null } | null;
+        if (!target || target.organizationId !== organizationId) {
+          return activities;
+        }
+      }
+      activities.push(...await this.detectRapidChanges(userId, oneHourAgo));
+      activities.push(...await this.detectOffHoursActivity(userId, todayStart));
+      activities.push(...await this.detectBulkOperations(userId, oneHourAgo));
     } else {
-      const users = await this.prisma.user.findMany({ select: { id: true } });
+      const users = await this.prisma.user.findMany({
+        select: { id: true },
+        ...(organizationId ? { where: { organizationId } } : {}),
+      });
       for (const user of users) {
-        activities.push(
-          ...(await this.detectRapidChanges(user.id, oneHourAgo)),
-        );
-        activities.push(
-          ...(await this.detectOffHoursActivity(user.id, todayStart)),
-        );
+        activities.push(...await this.detectRapidChanges(user.id, oneHourAgo));
+        activities.push(...await this.detectOffHoursActivity(user.id, todayStart));
       }
     }
 
-    activities.push(...(await this.detectScheduleModificationsAfterPublish()));
+    activities.push(...await this.detectScheduleModificationsAfterPublish(organizationId));
 
     return activities;
   }
 
-  private async detectRapidChanges(
-    userId: string,
-    since: Date,
-  ): Promise<SuspiciousActivity[]> {
+  private async detectRapidChanges(userId: string, since: Date): Promise<SuspiciousActivity[]> {
     const logs = await this.prisma.auditLog.findMany({
       where: {
         userId,
@@ -488,35 +467,30 @@ export class AuditLogService {
     if (logs.length >= this.RAPID_CHANGE_THRESHOLD) {
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
-        select: { id: true, name: true, email: true },
+        select: { id: true, name: true, email: true }
       });
 
-      return [
-        {
-          type: SuspiciousActivityType.RAPID_CHANGES,
-          severity: 'high',
-          message: `Kullanıcı ${user?.name || userId} son 1 saatte ${logs.length} hızlı değişiklik yaptı`,
-          details: {
-            userId,
-            userName: user?.name,
-            userEmail: user?.email,
-            changeCount: logs.length,
-            timeWindow: '1 saat',
-            actions: logs.map((l) => l.actionType),
-          },
-          detectedAt: new Date(),
+      return [{
+        type: SuspiciousActivityType.RAPID_CHANGES,
+        severity: 'high',
+        message: `Kullanıcı ${user?.name || userId} son 1 saatte ${logs.length} hızlı değişiklik yaptı`,
+        details: {
           userId,
           userName: user?.name,
+          userEmail: user?.email,
+          changeCount: logs.length,
+          timeWindow: '1 saat',
+          actions: logs.map(l => l.actionType),
         },
-      ];
+        detectedAt: new Date(),
+        userId,
+        userName: user?.name,
+      }];
     }
     return [];
   }
 
-  private async detectOffHoursActivity(
-    userId: string,
-    since: Date,
-  ): Promise<SuspiciousActivity[]> {
+  private async detectOffHoursActivity(userId: string, since: Date): Promise<SuspiciousActivity[]> {
     const logs = await this.prisma.auditLog.findMany({
       where: {
         userId,
@@ -525,36 +499,31 @@ export class AuditLogService {
       include: { user: { select: { name: true } } },
     });
 
-    const offHoursLogs = logs.filter((log) => {
+    const offHoursLogs = logs.filter(log => {
       const hour = new Date(log.createdAt).getHours();
       return hour >= this.OFF_HOURS_START || hour < this.OFF_HOURS_END;
     });
 
     if (offHoursLogs.length >= 3 && logs[0]) {
-      return [
-        {
-          type: SuspiciousActivityType.OFF_HOURS,
-          severity: 'medium',
-          message: `Kullanıcı ${logs[0].user?.name} mesai dışı saatlerde ${offHoursLogs.length} işlem yaptı`,
-          details: {
-            userId,
-            offHoursCount: offHoursLogs.length,
-            totalCount: logs.length,
-            actions: offHoursLogs.map((l) => l.actionType),
-          },
-          detectedAt: new Date(),
+      return [{
+        type: SuspiciousActivityType.OFF_HOURS,
+        severity: 'medium',
+        message: `Kullanıcı ${logs[0].user?.name} mesai dışı saatlerde ${offHoursLogs.length} işlem yaptı`,
+        details: {
           userId,
-          userName: logs[0].user?.name,
+          offHoursCount: offHoursLogs.length,
+          totalCount: logs.length,
+          actions: offHoursLogs.map(l => l.actionType),
         },
-      ];
+        detectedAt: new Date(),
+        userId,
+        userName: logs[0].user?.name,
+      }];
     }
     return [];
   }
 
-  private async detectBulkOperations(
-    userId: string,
-    since: Date,
-  ): Promise<SuspiciousActivity[]> {
+  private async detectBulkOperations(userId: string, since: Date): Promise<SuspiciousActivity[]> {
     const logs = await this.prisma.auditLog.groupBy({
       by: ['actionType'],
       where: {
@@ -564,43 +533,37 @@ export class AuditLogService {
       _count: true,
     });
 
-    const bulkDelete = logs.find(
-      (l) =>
-        (l.actionType === 'DELETE' || l.actionType === 'BULK_DELETE') &&
-        l._count >= 5,
+    const bulkDelete = logs.find(l =>
+      (l.actionType === 'DELETE' || l.actionType === 'BULK_DELETE') && l._count >= 5
     );
 
     if (bulkDelete) {
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
-        select: { name: true },
+        select: { name: true }
       });
 
-      return [
-        {
-          type: SuspiciousActivityType.BULK_DELETE,
-          severity: 'critical',
-          message: `Kullanıcı ${user?.name} kısa sürede ${bulkDelete._count} kayıt sildi`,
-          details: {
-            userId,
-            deleteCount: bulkDelete._count,
-            timeWindow: '1 saat',
-          },
-          detectedAt: new Date(),
+      return [{
+        type: SuspiciousActivityType.BULK_DELETE,
+        severity: 'critical',
+        message: `Kullanıcı ${user?.name} kısa sürede ${bulkDelete._count} kayıt sildi`,
+        details: {
           userId,
-          userName: user?.name,
+          deleteCount: bulkDelete._count,
+          timeWindow: '1 saat',
         },
-      ];
+        detectedAt: new Date(),
+        userId,
+        userName: user?.name,
+      }];
     }
     return [];
   }
 
-  private async detectScheduleModificationsAfterPublish(): Promise<
-    SuspiciousActivity[]
-  > {
+  private async detectScheduleModificationsAfterPublish(organizationId?: string): Promise<SuspiciousActivity[]> {
     const publishedSchedules = await this.prisma.schedule.findMany({
-      where: { status: 'published' },
-      select: { id: true, unitId: true, month: true, year: true },
+      where: { status: 'published', ...(organizationId ? { organizationId } : {}) },
+      select: { id: true, unitId: true, month: true, year: true, organizationId: true },
     });
 
     const suspiciousModifications: SuspiciousActivity[] = [];
@@ -645,9 +608,7 @@ export class AuditLogService {
     return suspiciousModifications;
   }
 
-  private async getSchedulePublishDate(
-    scheduleId: string,
-  ): Promise<Date | null> {
+  private async getSchedulePublishDate(scheduleId: string): Promise<Date | null> {
     const approval = await this.prisma.scheduleApproval.findUnique({
       where: { scheduleId },
     });
@@ -668,8 +629,7 @@ export class AuditLogService {
     if (filters?.startDate || filters?.endDate) {
       where.createdAt = {};
       if (filters.startDate) where.createdAt.gte = new Date(filters.startDate);
-      if (filters.endDate)
-        where.createdAt.lte = new Date(filters.endDate + 'T23:59:59.999Z');
+      if (filters.endDate) where.createdAt.lte = new Date(filters.endDate + 'T23:59:59.999Z');
     }
 
     const logs = await this.prisma.auditLog.findMany({
@@ -681,19 +641,16 @@ export class AuditLogService {
       take: filters?.limit || 100,
     });
 
-    const entries = logs.map((log) =>
-      this.formatAuditLogEntry(log as unknown as AuditLogRecord),
-    );
+    const entries = logs.map(log => this.formatAuditLogEntry(log as unknown as AuditLogRecord));
 
     const summary: TimelineSummary = {
       totalEntries: entries.length,
       byAction: this.groupByAction(entries),
       byUser: this.groupByUser(entries),
       byEntity: this.groupByEntity(entries),
-      flaggedCount: entries.filter((e) => e.isFlagged).length,
+      flaggedCount: entries.filter(e => e.isFlagged).length,
       timeRange: {
-        oldest:
-          entries.length > 0 ? entries[entries.length - 1].timestamp : null,
+        oldest: entries.length > 0 ? entries[entries.length - 1].timestamp : null,
         newest: entries.length > 0 ? entries[0].timestamp : null,
       },
     };
@@ -707,7 +664,7 @@ export class AuditLogService {
   ): AuditChange[] {
     if (!oldValue && !newValue) return [];
     if (!oldValue) {
-      return Object.keys(newValue!).map((key) => ({
+      return Object.keys(newValue!).map(key => ({
         field: key,
         oldValue: undefined,
         newValue: newValue![key],
@@ -715,7 +672,7 @@ export class AuditLogService {
       }));
     }
     if (!newValue) {
-      return Object.keys(oldValue).map((key) => ({
+      return Object.keys(oldValue).map(key => ({
         field: key,
         oldValue: oldValue[key],
         newValue: undefined,
@@ -724,10 +681,7 @@ export class AuditLogService {
     }
 
     const changes: AuditChange[] = [];
-    const allKeys = new Set([
-      ...Object.keys(oldValue),
-      ...Object.keys(newValue),
-    ]);
+    const allKeys = new Set([...Object.keys(oldValue), ...Object.keys(newValue)]);
 
     for (const key of allKeys) {
       const oldVal = oldValue[key];
@@ -738,12 +692,7 @@ export class AuditLogService {
           field: key,
           oldValue: oldVal,
           newValue: newVal,
-          changeType:
-            oldVal === undefined
-              ? 'added'
-              : newVal === undefined
-                ? 'removed'
-                : 'modified',
+          changeType: oldVal === undefined ? 'added' : newVal === undefined ? 'removed' : 'modified',
         });
       }
     }

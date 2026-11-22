@@ -11,7 +11,6 @@
 This audit reveals a **functional but architecturally fragmented** system with significant technical debt. The frontend and backend exist but have **disconnected modules, duplicate implementations, and missing enterprise features**.
 
 ### Key Findings
-
 - **Build Status:** ✅ Passing (547.82 kB bundle)
 - **Architecture Health:** ⚠️ Requires Reconstruction
 - **API Integration:** 🔴 Incomplete (mock data active)
@@ -51,10 +50,10 @@ This audit reveals a **functional but architecturally fragmented** system with s
 ```
 
 **Issues:**
-
 - `onkoloji-plan` uses separate component instead of unified PlanPage
 - No `/app/approval-center` route (MISSING)
 - No `/app/audit-log` route (MISSING)
+
 
 ### 1.2 COMPONENT TREE
 
@@ -98,7 +97,6 @@ app/
 ```
 
 **Critical Issues:**
-
 - `main-layout.component.ts` is 1770 lines → Should be ~300 lines max
 - `operations-center.component.ts` is 3012 lines → Should be modularized
 - `onkoloji-plan.component.ts` duplicates PlanPage logic
@@ -159,7 +157,6 @@ Services (Backend):
 ```
 
 **Issues:**
-
 - 10 scheduling services = OVERENGINEERED
 - Frontend and backend both have `rebalance-engine`, `conflicts`, `recommendations`
 - Multiple `notification.service.ts` (frontend/app/services AND frontend/app/core/services)
@@ -167,47 +164,44 @@ Services (Backend):
 
 ### 1.4 DUPLICATE MODULES
 
-| Module               | Location 1                                         | Location 2                                     | Action   |
-| -------------------- | -------------------------------------------------- | ---------------------------------------------- | -------- |
-| Notification Service | `app/services/`                                    | `app/core/services/`                           | MERGE    |
-| Persistence          | `app/services/persistence.service.ts`              | `app/core/services/persistence.service.ts`     | MERGE    |
-| Conflict Detection   | `app/core/scheduling/conflict-detector.service.ts` | `app/core/services/conflict-engine.service.ts` | MERGE    |
-| Onkoloji Plan        | `app/features/onkoloji/onkoloji-plan.component.ts` | `app/features/plans/plan-page.component.ts`    | REWRITE  |
-| Schedule Store       | `app/core/state/schedule.store.ts`                 | `app/services/schedule.service.ts`             | EVALUATE |
-| Dashboard Store      | `app/services/dashboard.service.ts`                | `app/core/state/metrics.store.ts`              | MERGE    |
+| Module | Location 1 | Location 2 | Action |
+|--------|-----------|-----------|--------|
+| Notification Service | `app/services/` | `app/core/services/` | MERGE |
+| Persistence | `app/services/persistence.service.ts` | `app/core/services/persistence.service.ts` | MERGE |
+| Conflict Detection | `app/core/scheduling/conflict-detector.service.ts` | `app/core/services/conflict-engine.service.ts` | MERGE |
+| Onkoloji Plan | `app/features/onkoloji/onkoloji-plan.component.ts` | `app/features/plans/plan-page.component.ts` | REWRITE |
+| Schedule Store | `app/core/state/schedule.store.ts` | `app/services/schedule.service.ts` | EVALUATE |
+| Dashboard Store | `app/services/dashboard.service.ts` | `app/core/state/metrics.store.ts` | MERGE |
 
 ### 1.5 DEAD FILES / UNUSED MODULES
 
 **Potentially Dead:**
-
 - `frontend/src/app/core/state/persistence.store.ts` - Content may overlap with persistence.service.ts
 - `frontend/src/app/models/index.ts` - May duplicate domain/
 - `frontend/src/app/app.ts` - Unclear purpose
 - `frontend/src/app/components/landing/landing.component.ts` - Not routed?
 
 **Unused Services:**
-
 - `frontend/src/app/core/scheduling/solver-validation.service.ts` - Check usage
 - `frontend/src/app/core/scheduling/constraint-solver.service.ts` - Check usage
 
 ### 1.6 CIRCULAR IMPORTS
 
 **Detected:**
-
 - `domain/index.ts` → `domain/enums/index.ts` → `domain/index.ts`
 - `core/state/index.ts` → `domain/` → `core/state/index.ts`
 
 ### 1.7 API DISCONNECT POINTS
 
-| Feature       | Frontend                 | Backend                           | Status           |
-| ------------- | ------------------------ | --------------------------------- | ---------------- |
-| Schedule CRUD | ✅ `schedule.service.ts` | ✅ `schedules.service.ts`         | CONNECTED        |
-| Personnel     | ✅ `employee.service.ts` | ✅ `personnel.service.ts`         | CONNECTED        |
-| Auth          | ✅ `auth.service.ts`     | ✅ `auth.service.ts`              | CONNECTED        |
-| Approvals     | ❌ MISSING               | ✅ `schedule-workflow.service.ts` | **DISCONNECTED** |
-| Audit Log     | ❌ MISSING               | ✅ `audit-log.service.ts`         | **DISCONNECTED** |
-| Versioning    | ❌ MISSING               | ✅ `schedule-workflow.service.ts` | **DISCONNECTED** |
-| Notifications | ✅ partial               | ✅ partial                        | PARTIAL          |
+| Feature | Frontend | Backend | Status |
+|---------|----------|---------|--------|
+| Schedule CRUD | ✅ `schedule.service.ts` | ✅ `schedules.service.ts` | CONNECTED |
+| Personnel | ✅ `employee.service.ts` | ✅ `personnel.service.ts` | CONNECTED |
+| Auth | ✅ `auth.service.ts` | ✅ `auth.service.ts` | CONNECTED |
+| Approvals | ❌ MISSING | ✅ `schedule-workflow.service.ts` | **DISCONNECTED** |
+| Audit Log | ❌ MISSING | ✅ `audit-log.service.ts` | **DISCONNECTED** |
+| Versioning | ❌ MISSING | ✅ `schedule-workflow.service.ts` | **DISCONNECTED** |
+| Notifications | ✅ partial | ✅ partial | PARTIAL |
 
 ---
 
@@ -321,7 +315,6 @@ SİSTEM
 ```
 
 ### Issues:
-
 - "Radyasyon Onkoloji" should be "RONK Planı"
 - "Vardiyalar" is redundant
 - Missing: **Onay Merkezi**
@@ -438,16 +431,16 @@ backend/src/
 
 ## PART 6: PRODUCTION BLOCKERS
 
-| Blocker                  | Severity    | Impact             | Fix Effort |
-| ------------------------ | ----------- | ------------------ | ---------- |
-| No approval workflow API | 🔴 Critical | Cannot publish     | 2 days     |
-| No audit log API         | 🔴 Critical | No accountability  | 1 day      |
-| Mock data active         | 🔴 Critical | No real use        | 3 days     |
-| Missing Prisma schema    | 🔴 Critical | Cannot persist     | 1 day      |
-| Duplicate services       | 🟡 Moderate | Maintenance burden | 5 days     |
-| Oversized components     | 🟡 Moderate | Technical debt     | 3 days     |
-| No refresh token         | 🟡 Moderate | Session issues     | 2 days     |
-| No WebSocket events      | 🟡 Moderate | No real-time       | 2 days     |
+| Blocker | Severity | Impact | Fix Effort |
+|---------|----------|--------|------------|
+| No approval workflow API | 🔴 Critical | Cannot publish | 2 days |
+| No audit log API | 🔴 Critical | No accountability | 1 day |
+| Mock data active | 🔴 Critical | No real use | 3 days |
+| Missing Prisma schema | 🔴 Critical | Cannot persist | 1 day |
+| Duplicate services | 🟡 Moderate | Maintenance burden | 5 days |
+| Oversized components | 🟡 Moderate | Technical debt | 3 days |
+| No refresh token | 🟡 Moderate | Session issues | 2 days |
+| No WebSocket events | 🟡 Moderate | No real-time | 2 days |
 
 ---
 
@@ -476,7 +469,6 @@ backend/src/
 **Target State:** Production-ready enterprise radiology platform
 
 **Recommended Approach:**
-
 1. Phase 2: Create detailed rebuild plan (this document)
 2. Phase 3: Full reconstruction following the plan
 3. Phase 4: Data integration

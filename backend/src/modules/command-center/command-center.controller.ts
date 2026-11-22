@@ -7,14 +7,7 @@ import { MinRole } from '../../guards/min-role';
 import { CommandCenterService } from './command-center.service';
 
 interface RequestWithUser {
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-    organizationId?: string;
-    unitId?: string;
-  };
+  user: { id: string; email: string; name: string; role: string; organizationId?: string; unitId?: string };
 }
 
 @ApiTags('command-center')

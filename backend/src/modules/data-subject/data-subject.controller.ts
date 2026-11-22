@@ -1,18 +1,12 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Param,
-  Body,
-  Req,
-  UseGuards,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Req, UseGuards, Query } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { MinRole } from '../../guards/min-role';
 import { DataSubjectService } from './data-subject.service';
 
 @Controller('data-subject')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class DataSubjectController {
   constructor(private dataSubjectService: DataSubjectService) {}
 
@@ -38,12 +32,7 @@ export class DataSubjectController {
     @Body('currentValue') currentValue: string,
     @Body('proposedValue') proposedValue: string,
   ) {
-    return this.dataSubjectService.requestRectification(
-      req.user.id,
-      field,
-      currentValue,
-      proposedValue,
-    );
+    return this.dataSubjectService.requestRectification(req.user.id, field, currentValue, proposedValue);
   }
 
   @Post('me/restriction')
@@ -67,29 +56,25 @@ export class DataSubjectController {
   }
 
   @Post('requests/:id/process')
+  @Roles(MinRole.SYSTEM_ADMIN)
   async processRequest(
     @Param('id') id: string,
     @Body('action') action: string,
     @Req() req: any,
     @Body('notes') notes?: string,
   ) {
-    return this.dataSubjectService.processRequest(
-      id,
-      action,
-      req.user.id,
-      notes,
-    );
+    return this.dataSubjectService.processRequest(id, action, req.user.id, notes);
   }
 
   @Post('requests/:id/erasure')
+  @Roles(MinRole.SYSTEM_ADMIN)
   async processErasure(@Param('id') id: string, @Req() req: any) {
     return this.dataSubjectService.processErasure(id, req.user.id);
   }
 
   @Get('statistics')
+  @Roles(MinRole.SYSTEM_ADMIN)
   async getStatistics(@Req() req: any) {
-    return this.dataSubjectService.getRequestStatistics(
-      req.user?.organizationId,
-    );
+    return this.dataSubjectService.getRequestStatistics(req.user?.organizationId);
   }
 }

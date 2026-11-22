@@ -1,13 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsNumber,
-  Min,
-  Max,
-  IsUUID,
-} from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsNumber, Min, Max, IsUUID } from 'class-validator';
 import { ShiftType } from '@prisma/client';
 
 export class CreateShiftDto {

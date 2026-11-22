@@ -14,7 +14,6 @@ import { ScheduleGridComponent } from '../../components/schedule-grid/schedule-g
 import { ConflictPanelComponent } from '../../components/conflict-panel/conflict-panel.component';
 import { ValidationPanelComponent } from '../../components/validation-panel/validation-panel.component';
 import { FairnessPanelComponent } from '../../components/fairness-panel/fairness-panel.component';
-import { CoveragePanelComponent } from '../../components/coverage-panel/coverage-panel.component';
 import { VersionPanelComponent } from '../../components/version-panel/version-panel.component';
 import { ApprovalPanelComponent } from '../../components/approval-panel/approval-panel.component';
 import { GenerateDialogComponent } from '../../components/generate-dialog/generate-dialog.component';
@@ -26,7 +25,6 @@ import { SearchInputComponent } from '../../components/search-input/search-input
 import { MobileDayViewComponent } from '../../components/mobile-day-view/mobile-day-view.component';
 import { PersonnelViewComponent } from '../../components/personnel-view/personnel-view.component';
 import { DeviceViewComponent } from '../../components/device-view/device-view.component';
-import { CoverageViewComponent } from '../../components/coverage-view/coverage-view.component';
 import { ConflictViewComponent } from '../../components/conflict-view/conflict-view.component';
 
 @Component({
@@ -40,7 +38,6 @@ import { ConflictViewComponent } from '../../components/conflict-view/conflict-v
     ConflictPanelComponent,
     ValidationPanelComponent,
     FairnessPanelComponent,
-    CoveragePanelComponent,
     VersionPanelComponent,
     ApprovalPanelComponent,
     GenerateDialogComponent,
@@ -52,7 +49,6 @@ import { ConflictViewComponent } from '../../components/conflict-view/conflict-v
     MobileDayViewComponent,
     PersonnelViewComponent,
     DeviceViewComponent,
-    CoverageViewComponent,
     ConflictViewComponent,
   ],
   template: `
@@ -91,10 +87,6 @@ import { ConflictViewComponent } from '../../components/conflict-view/conflict-v
             <span class="score-value" [class.high]="score.overall >= 80" [class.mid]="score.overall >= 60 && score.overall < 80" [class.low]="score.overall < 60">
               {{ score.overall | number:'1.0-1' }}<span class="score-max">/100</span>
             </span>
-          </div>
-          <div class="score-item">
-            <span class="score-label">Kademe</span>
-            <span class="score-value" [class.high]="score.coverage >= 90" [class.warn]="score.coverage < 90">{{ score.coverage | number:'1.0-1' }}%</span>
           </div>
           <div class="score-item">
             <span class="score-label">Adalet</span>
@@ -194,7 +186,6 @@ import { ConflictViewComponent } from '../../components/conflict-view/conflict-v
                 }
                 @case ('personnel') { <app-personnel-view /> }
                 @case ('device') { <app-device-view /> }
-                @case ('coverage') { <app-coverage-view /> }
                 @case ('conflicts') { <app-conflict-view /> }
                 @default {
                   <app-schedule-grid
@@ -225,7 +216,6 @@ import { ConflictViewComponent } from '../../components/conflict-view/conflict-v
               @case ('conflicts') { <app-conflict-panel /> }
               @case ('validation') { <app-validation-panel /> }
               @case ('fairness') { <app-fairness-panel /> }
-              @case ('coverage') { <app-coverage-panel /> }
               @case ('versions') { <app-version-panel /> }
               @case ('approval') { <app-approval-panel /> }
               @default { <app-conflict-panel /> }
@@ -395,7 +385,6 @@ export class ScheduleWorkspaceComponent implements OnInit, OnDestroy {
     { id: 'conflicts' as ScheduleTab, label: 'Cakismalar', badge: () => this.store.conflicts().length || null, badgeClass: () => 'badge-error' },
     { id: 'validation' as ScheduleTab, label: 'Dogrulama', badge: () => this.store.hardViolationCount() > 0 ? this.store.hardViolationCount() : null, badgeClass: () => 'badge-error' },
     { id: 'fairness' as ScheduleTab, label: 'Adalet', badge: () => null, badgeClass: () => '' },
-    { id: 'coverage' as ScheduleTab, label: 'Kademe', badge: () => null, badgeClass: () => '' },
     { id: 'versions' as ScheduleTab, label: 'Surumler', badge: () => null, badgeClass: () => '' },
     { id: 'approval' as ScheduleTab, label: 'Onay', badge: () => null, badgeClass: () => '' },
   ]);
@@ -590,8 +579,12 @@ export class ScheduleWorkspaceComponent implements OnInit, OnDestroy {
   }
 
   private handleError(err: unknown, context: string): void {
-    const apiErr = err as { statusCode?: number; message?: string; serverVersion?: number; localVersion?: number; scheduleId?: string };
-    if (apiErr?.statusCode === 409) {
+    const apiErr = err as { statusCode?: number; message?: string; serverVersion?: number; localVersion?: number; scheduleId?: string; hasBlocking?: boolean; violations?: Array<{ message?: string }> };
+    const isVersionConflict =
+      apiErr?.statusCode === 409 &&
+      (typeof apiErr?.serverVersion === 'number' || typeof apiErr?.localVersion === 'number') &&
+      !apiErr?.hasBlocking;
+    if (isVersionConflict) {
       this.store.triggerVersionConflict(apiErr.localVersion ?? 0, apiErr.serverVersion ?? 0, apiErr.scheduleId ?? '');
     } else {
       const error = classifyHttpError(apiErr?.statusCode ?? 500, apiErr ?? {}, context);

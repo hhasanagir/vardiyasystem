@@ -1,22 +1,8 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-  Request,
-  Res,
+  Controller, Get, Post, Patch, Delete, Body, Param, Query,
+  UseGuards, Request, Res,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -31,14 +17,7 @@ import { AssignTrainingDto } from './dto/assign-training.dto';
 import { TrainingQueryDto } from './dto/training-query.dto';
 
 interface RequestWithUser {
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-    organizationId?: string;
-    unitId?: string;
-  };
+  user: { id: string; email: string; name: string; role: string; organizationId?: string; unitId?: string };
 }
 
 @ApiTags('trainings')
@@ -53,11 +32,7 @@ export class TrainingController {
 
   @Post()
   @Roles(MinRole.HEAD_TECHNICIAN)
-  @Log({
-    action: 'TRAINING_CREATED',
-    entityType: 'training',
-    description: 'Eğitim oluşturuldu',
-  })
+  @Log({ action: 'TRAINING_CREATED', entityType: 'training', description: 'Eğitim oluşturuldu' })
   @ApiOperation({ summary: 'Create a new training' })
   create(@Body() dto: CreateTrainingDto) {
     return this.trainingService.create(dto);
@@ -94,11 +69,7 @@ export class TrainingController {
 
   @Patch(':id')
   @Roles(MinRole.HEAD_TECHNICIAN)
-  @Log({
-    action: 'TRAINING_UPDATED',
-    entityType: 'training',
-    description: 'Eğitim güncellendi',
-  })
+  @Log({ action: 'TRAINING_UPDATED', entityType: 'training', description: 'Eğitim güncellendi' })
   @ApiOperation({ summary: 'Update training' })
   update(@Param('id') id: string, @Body() dto: UpdateTrainingDto) {
     return this.trainingService.update(id, dto);
@@ -106,11 +77,7 @@ export class TrainingController {
 
   @Delete(':id')
   @Roles(MinRole.ADMIN)
-  @Log({
-    action: 'TRAINING_DELETED',
-    entityType: 'training',
-    description: 'Eğitim silindi',
-  })
+  @Log({ action: 'TRAINING_DELETED', entityType: 'training', description: 'Eğitim silindi' })
   @ApiOperation({ summary: 'Delete training' })
   delete(@Param('id') id: string) {
     return this.trainingService.delete(id);
@@ -118,16 +85,9 @@ export class TrainingController {
 
   @Post('personnel/:personnelId')
   @Roles(MinRole.HEAD_TECHNICIAN)
-  @Log({
-    action: 'TRAINING_ASSIGNED',
-    entityType: 'personnel_training',
-    description: 'Eğitimin personele atanması',
-  })
+  @Log({ action: 'TRAINING_ASSIGNED', entityType: 'personnel_training', description: 'Eğitimin personele atanması' })
   @ApiOperation({ summary: 'Assign training to personnel' })
-  assign(
-    @Param('personnelId') personnelId: string,
-    @Body() dto: AssignTrainingDto,
-  ) {
+  assign(@Param('personnelId') personnelId: string, @Body() dto: AssignTrainingDto) {
     return this.trainingService.assign(personnelId, dto);
   }
 
@@ -140,26 +100,15 @@ export class TrainingController {
 
   @Patch('personnel-training/:id')
   @Roles(MinRole.HEAD_TECHNICIAN)
-  @Log({
-    action: 'TRAINING_ASSIGNMENT_UPDATED',
-    entityType: 'personnel_training',
-    description: 'Eğitim ataması güncellendi',
-  })
+  @Log({ action: 'TRAINING_ASSIGNMENT_UPDATED', entityType: 'personnel_training', description: 'Eğitim ataması güncellendi' })
   @ApiOperation({ summary: 'Update personnel training assignment' })
-  updateAssignment(
-    @Param('id') id: string,
-    @Body() dto: Partial<AssignTrainingDto>,
-  ) {
+  updateAssignment(@Param('id') id: string, @Body() dto: Partial<AssignTrainingDto>) {
     return this.trainingService.updateAssignment(id, dto);
   }
 
   @Delete('personnel-training/:id')
   @Roles(MinRole.HEAD_TECHNICIAN)
-  @Log({
-    action: 'TRAINING_ASSIGNMENT_REMOVED',
-    entityType: 'personnel_training',
-    description: 'Eğitim ataması kaldırıldı',
-  })
+  @Log({ action: 'TRAINING_ASSIGNMENT_REMOVED', entityType: 'personnel_training', description: 'Eğitim ataması kaldırıldı' })
   @ApiOperation({ summary: 'Remove personnel training assignment' })
   removeAssignment(@Param('id') id: string) {
     return this.trainingService.removeAssignment(id);
@@ -173,8 +122,7 @@ export class TrainingController {
     const data = await this.trainingService.findAll(query);
     const buf = await this.exportService.exportExcel(data);
     res.set({
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': 'attachment; filename="sertifikalar.xlsx"',
       'Content-Length': buf.byteLength,
     });

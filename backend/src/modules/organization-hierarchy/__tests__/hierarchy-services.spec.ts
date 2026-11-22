@@ -8,12 +8,7 @@ import { RoomsService } from '../services/rooms.service';
 import { AssignmentSlotsService } from '../services/assignment-slots.service';
 import { PrismaService } from '../../../prisma.service';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import {
-  AreaType,
-  RoomType,
-  ShiftType,
-  AssignmentSlotStatus,
-} from '@prisma/client';
+import { AreaType, RoomType, ShiftType, AssignmentSlotStatus } from '@prisma/client';
 
 describe('OrganizationHierarchyServices', () => {
   let hospitalGroupsService: HospitalGroupsService;
@@ -25,55 +20,13 @@ describe('OrganizationHierarchyServices', () => {
   let assignmentSlotsService: AssignmentSlotsService;
 
   const mockPrisma = {
-    hospitalGroup: {
-      create: vi.fn(),
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
-    hospital: {
-      create: vi.fn(),
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
-    directorate: {
-      create: vi.fn(),
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
-    department: {
-      create: vi.fn(),
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
-    area: {
-      create: vi.fn(),
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
-    room: {
-      create: vi.fn(),
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
-    assignmentSlot: {
-      create: vi.fn(),
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
+    hospitalGroup: { create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    hospital: { create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    directorate: { create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    department: { create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    area: { create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    room: { create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    assignmentSlot: { create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
     $queryRawUnsafe: vi.fn().mockResolvedValue(undefined),
     $executeRawUnsafe: vi.fn().mockResolvedValue(undefined),
   };
@@ -104,34 +57,22 @@ describe('OrganizationHierarchyServices', () => {
   });
 
   describe('HospitalGroupsService', () => {
-    const fullRecord = {
-      id: 'group-1',
-      name: 'Test Group',
-      code: 'TG',
-      isActive: true,
-    };
+    const fullRecord = { id: 'group-1', name: 'Test Group', code: 'TG', isActive: true };
     const createdRecord = { id: 'group-1', name: 'Test Group', code: 'TG' };
 
     it('should create a hospital group and compute path', async () => {
       mockPrisma.hospitalGroup.create.mockResolvedValueOnce(createdRecord);
       mockPrisma.hospitalGroup.findUnique.mockResolvedValueOnce(fullRecord);
 
-      const result = await hospitalGroupsService.create({
-        name: 'Test Group',
-        code: 'TG',
-      });
+      const result = await hospitalGroupsService.create({ name: 'Test Group', code: 'TG' });
 
       expect(result).toEqual(fullRecord);
-      expect(mockPrisma.hospitalGroup.create).toHaveBeenCalledWith({
-        data: { name: 'Test Group', code: 'TG' },
-      });
+      expect(mockPrisma.hospitalGroup.create).toHaveBeenCalledWith({ data: { name: 'Test Group', code: 'TG' } });
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE hospital_groups'),
         'group-1',
       );
-      expect(mockPrisma.hospitalGroup.findUnique).toHaveBeenCalledWith({
-        where: { id: 'group-1' },
-      });
+      expect(mockPrisma.hospitalGroup.findUnique).toHaveBeenCalledWith({ where: { id: 'group-1' } });
     });
 
     it('should find all hospital groups ordered by name', async () => {
@@ -140,9 +81,7 @@ describe('OrganizationHierarchyServices', () => {
       const result = await hospitalGroupsService.findAll();
 
       expect(result).toEqual([fullRecord]);
-      expect(mockPrisma.hospitalGroup.findMany).toHaveBeenCalledWith({
-        orderBy: { name: 'asc' },
-      });
+      expect(mockPrisma.hospitalGroup.findMany).toHaveBeenCalledWith({ orderBy: { name: 'asc' } });
     });
 
     it('should find one hospital group by id', async () => {
@@ -151,9 +90,7 @@ describe('OrganizationHierarchyServices', () => {
       const result = await hospitalGroupsService.findOne('group-1');
 
       expect(result).toEqual(fullRecord);
-      expect(mockPrisma.hospitalGroup.findUnique).toHaveBeenCalledWith({
-        where: { id: 'group-1' },
-      });
+      expect(mockPrisma.hospitalGroup.findUnique).toHaveBeenCalledWith({ where: { id: 'group-1' } });
     });
 
     it('should return null when finding non-existent hospital group', async () => {
@@ -168,9 +105,7 @@ describe('OrganizationHierarchyServices', () => {
       const updated = { ...fullRecord, name: 'Updated Group' };
       mockPrisma.hospitalGroup.update.mockResolvedValueOnce(updated);
 
-      const result = await hospitalGroupsService.update('group-1', {
-        name: 'Updated Group',
-      });
+      const result = await hospitalGroupsService.update('group-1', { name: 'Updated Group' });
 
       expect(result).toEqual(updated);
       expect(mockPrisma.hospitalGroup.update).toHaveBeenCalledWith({
@@ -194,30 +129,14 @@ describe('OrganizationHierarchyServices', () => {
   });
 
   describe('HospitalsService', () => {
-    const fullRecord = {
-      id: 'hospital-1',
-      name: 'Test Hospital',
-      code: 'TH',
-      groupId: 'group-1',
-      isActive: true,
-      group: { id: 'group-1', name: 'Test Group' },
-    };
-    const createdRecord = {
-      id: 'hospital-1',
-      name: 'Test Hospital',
-      code: 'TH',
-      groupId: 'group-1',
-    };
+    const fullRecord = { id: 'hospital-1', name: 'Test Hospital', code: 'TH', groupId: 'group-1', isActive: true, group: { id: 'group-1', name: 'Test Group' } };
+    const createdRecord = { id: 'hospital-1', name: 'Test Hospital', code: 'TH', groupId: 'group-1' };
 
     it('should create a hospital with groupId and compute hierarchical path', async () => {
       mockPrisma.hospital.create.mockResolvedValueOnce(createdRecord);
       mockPrisma.hospital.findUnique.mockResolvedValueOnce(fullRecord);
 
-      const result = await hospitalsService.create({
-        name: 'Test Hospital',
-        code: 'TH',
-        groupId: 'group-1',
-      });
+      const result = await hospitalsService.create({ name: 'Test Hospital', code: 'TH', groupId: 'group-1' });
 
       expect(result).toEqual(fullRecord);
       expect(mockPrisma.hospital.create).toHaveBeenCalledWith({
@@ -230,24 +149,12 @@ describe('OrganizationHierarchyServices', () => {
     });
 
     it('should create a hospital without groupId using root path', async () => {
-      const noGroupCreated = {
-        id: 'hospital-2',
-        name: 'Solo Hospital',
-        code: 'SH',
-      };
-      const noGroupFull = {
-        id: 'hospital-2',
-        name: 'Solo Hospital',
-        code: 'SH',
-        isActive: true,
-      };
+      const noGroupCreated = { id: 'hospital-2', name: 'Solo Hospital', code: 'SH' };
+      const noGroupFull = { id: 'hospital-2', name: 'Solo Hospital', code: 'SH', isActive: true };
       mockPrisma.hospital.create.mockResolvedValueOnce(noGroupCreated);
       mockPrisma.hospital.findUnique.mockResolvedValueOnce(noGroupFull);
 
-      const result = await hospitalsService.create({
-        name: 'Solo Hospital',
-        code: 'SH',
-      });
+      const result = await hospitalsService.create({ name: 'Solo Hospital', code: 'SH' });
 
       expect(result).toEqual(noGroupFull);
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
@@ -262,9 +169,7 @@ describe('OrganizationHierarchyServices', () => {
       const result = await hospitalsService.findAll();
 
       expect(result).toEqual([fullRecord]);
-      expect(mockPrisma.hospital.findMany).toHaveBeenCalledWith({
-        orderBy: { name: 'asc' },
-      });
+      expect(mockPrisma.hospital.findMany).toHaveBeenCalledWith({ orderBy: { name: 'asc' } });
     });
 
     it('should find one hospital with group included', async () => {
@@ -283,9 +188,7 @@ describe('OrganizationHierarchyServices', () => {
       const updated = { ...fullRecord, name: 'Updated Hospital' };
       mockPrisma.hospital.update.mockResolvedValueOnce(updated);
 
-      const result = await hospitalsService.update('hospital-1', {
-        name: 'Updated Hospital',
-      });
+      const result = await hospitalsService.update('hospital-1', { name: 'Updated Hospital' });
 
       expect(result.name).toBe('Updated Hospital');
       expect(mockPrisma.hospital.update).toHaveBeenCalledWith({
@@ -295,10 +198,7 @@ describe('OrganizationHierarchyServices', () => {
     });
 
     it('should soft delete a hospital', async () => {
-      mockPrisma.hospital.update.mockResolvedValueOnce({
-        ...fullRecord,
-        isActive: false,
-      });
+      mockPrisma.hospital.update.mockResolvedValueOnce({ ...fullRecord, isActive: false });
 
       await hospitalsService.remove('hospital-1');
 
@@ -310,38 +210,18 @@ describe('OrganizationHierarchyServices', () => {
   });
 
   describe('DirectoratesService', () => {
-    const fullRecord = {
-      id: 'dir-1',
-      name: 'Test Directorate',
-      code: 'TD',
-      hospitalId: 'hospital-1',
-      isActive: true,
-      hospital: { id: 'hospital-1', name: 'Test Hospital' },
-    };
-    const createdRecord = {
-      id: 'dir-1',
-      name: 'Test Directorate',
-      code: 'TD',
-      hospitalId: 'hospital-1',
-    };
+    const fullRecord = { id: 'dir-1', name: 'Test Directorate', code: 'TD', hospitalId: 'hospital-1', isActive: true, hospital: { id: 'hospital-1', name: 'Test Hospital' } };
+    const createdRecord = { id: 'dir-1', name: 'Test Directorate', code: 'TD', hospitalId: 'hospital-1' };
 
     it('should create a directorate and compute path from hospital', async () => {
       mockPrisma.directorate.create.mockResolvedValueOnce(createdRecord);
       mockPrisma.directorate.findUnique.mockResolvedValueOnce(fullRecord);
 
-      const result = await directoratesService.create({
-        name: 'Test Directorate',
-        code: 'TD',
-        hospitalId: 'hospital-1',
-      });
+      const result = await directoratesService.create({ name: 'Test Directorate', code: 'TD', hospitalId: 'hospital-1' });
 
       expect(result).toEqual(fullRecord);
       expect(mockPrisma.directorate.create).toHaveBeenCalledWith({
-        data: {
-          name: 'Test Directorate',
-          code: 'TD',
-          hospitalId: 'hospital-1',
-        },
+        data: { name: 'Test Directorate', code: 'TD', hospitalId: 'hospital-1' },
       });
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE directorates'),
@@ -355,9 +235,7 @@ describe('OrganizationHierarchyServices', () => {
       const result = await directoratesService.findAll();
 
       expect(result).toEqual([fullRecord]);
-      expect(mockPrisma.directorate.findMany).toHaveBeenCalledWith({
-        orderBy: { name: 'asc' },
-      });
+      expect(mockPrisma.directorate.findMany).toHaveBeenCalledWith({ orderBy: { name: 'asc' } });
     });
 
     it('should find one directorate with hospital included', async () => {
@@ -373,14 +251,9 @@ describe('OrganizationHierarchyServices', () => {
     });
 
     it('should update a directorate', async () => {
-      mockPrisma.directorate.update.mockResolvedValueOnce({
-        ...fullRecord,
-        name: 'Updated Directorate',
-      });
+      mockPrisma.directorate.update.mockResolvedValueOnce({ ...fullRecord, name: 'Updated Directorate' });
 
-      const result = await directoratesService.update('dir-1', {
-        name: 'Updated Directorate',
-      });
+      const result = await directoratesService.update('dir-1', { name: 'Updated Directorate' });
 
       expect(result.name).toBe('Updated Directorate');
       expect(mockPrisma.directorate.update).toHaveBeenCalledWith({
@@ -390,10 +263,7 @@ describe('OrganizationHierarchyServices', () => {
     });
 
     it('should soft delete a directorate', async () => {
-      mockPrisma.directorate.update.mockResolvedValueOnce({
-        ...fullRecord,
-        isActive: false,
-      });
+      mockPrisma.directorate.update.mockResolvedValueOnce({ ...fullRecord, isActive: false });
 
       await directoratesService.remove('dir-1');
 
@@ -405,39 +275,18 @@ describe('OrganizationHierarchyServices', () => {
   });
 
   describe('DepartmentsService', () => {
-    const createdRecord = {
-      id: 'dept-1',
-      name: 'Test Dept',
-      code: 'TD',
-      hospitalId: 'hospital-1',
-      directorateId: 'dir-1',
-    };
-    const fullRecord = {
-      ...createdRecord,
-      isActive: true,
-      hospital: { id: 'hospital-1' },
-      directorate: { id: 'dir-1' },
-    };
+    const createdRecord = { id: 'dept-1', name: 'Test Dept', code: 'TD', hospitalId: 'hospital-1', directorateId: 'dir-1' };
+    const fullRecord = { ...createdRecord, isActive: true, hospital: { id: 'hospital-1' }, directorate: { id: 'dir-1' } };
 
     it('should create a department with directorateId and compute path via directorates', async () => {
       mockPrisma.department.create.mockResolvedValueOnce(createdRecord);
       mockPrisma.department.findUnique.mockResolvedValueOnce(fullRecord);
 
-      const result = await departmentsService.create({
-        name: 'Test Dept',
-        code: 'TD',
-        hospitalId: 'hospital-1',
-        directorateId: 'dir-1',
-      });
+      const result = await departmentsService.create({ name: 'Test Dept', code: 'TD', hospitalId: 'hospital-1', directorateId: 'dir-1' });
 
       expect(result).toEqual(fullRecord);
       expect(mockPrisma.department.create).toHaveBeenCalledWith({
-        data: {
-          name: 'Test Dept',
-          code: 'TD',
-          hospitalId: 'hospital-1',
-          directorateId: 'dir-1',
-        },
+        data: { name: 'Test Dept', code: 'TD', hospitalId: 'hospital-1', directorateId: 'dir-1' },
       });
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining('directorates dir'),
@@ -446,26 +295,12 @@ describe('OrganizationHierarchyServices', () => {
     });
 
     it('should create a department with only hospitalId and compute path via hospitals', async () => {
-      const hospOnlyCreated = {
-        id: 'dept-2',
-        name: 'Hospital Dept',
-        code: 'HD',
-        hospitalId: 'hospital-1',
-      };
-      const hospOnlyFull = {
-        ...hospOnlyCreated,
-        isActive: true,
-        hospital: { id: 'hospital-1' },
-        directorate: null,
-      };
+      const hospOnlyCreated = { id: 'dept-2', name: 'Hospital Dept', code: 'HD', hospitalId: 'hospital-1' };
+      const hospOnlyFull = { ...hospOnlyCreated, isActive: true, hospital: { id: 'hospital-1' }, directorate: null };
       mockPrisma.department.create.mockResolvedValueOnce(hospOnlyCreated);
       mockPrisma.department.findUnique.mockResolvedValueOnce(hospOnlyFull);
 
-      const result = await departmentsService.create({
-        name: 'Hospital Dept',
-        code: 'HD',
-        hospitalId: 'hospital-1',
-      });
+      const result = await departmentsService.create({ name: 'Hospital Dept', code: 'HD', hospitalId: 'hospital-1' });
 
       expect(result).toEqual(hospOnlyFull);
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
@@ -476,23 +311,15 @@ describe('OrganizationHierarchyServices', () => {
 
     it('should create a department without parentIds using root path', async () => {
       const rootCreated = { id: 'dept-3', name: 'Root Dept', code: 'RD' };
-      const rootFull = {
-        ...rootCreated,
-        isActive: true,
-        hospital: null,
-        directorate: null,
-      };
+      const rootFull = { ...rootCreated, isActive: true, hospital: null, directorate: null };
       mockPrisma.department.create.mockResolvedValueOnce(rootCreated);
       mockPrisma.department.findUnique.mockResolvedValueOnce(rootFull);
 
-      const result = await departmentsService.create({
-        name: 'Root Dept',
-        code: 'RD',
-      });
+      const result = await departmentsService.create({ name: 'Root Dept', code: 'RD' });
 
       expect(result).toEqual(rootFull);
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining('replace(lower(code)'),
+        expect.stringContaining("replace(lower(code)"),
         'dept-3',
       );
     });
@@ -503,9 +330,7 @@ describe('OrganizationHierarchyServices', () => {
       const result = await departmentsService.findAll();
 
       expect(result).toEqual([fullRecord]);
-      expect(mockPrisma.department.findMany).toHaveBeenCalledWith({
-        orderBy: { name: 'asc' },
-      });
+      expect(mockPrisma.department.findMany).toHaveBeenCalledWith({ orderBy: { name: 'asc' } });
     });
 
     it('should find one department with hospital and directorate included', async () => {
@@ -521,14 +346,9 @@ describe('OrganizationHierarchyServices', () => {
     });
 
     it('should update a department', async () => {
-      mockPrisma.department.update.mockResolvedValueOnce({
-        ...fullRecord,
-        name: 'Updated Dept',
-      });
+      mockPrisma.department.update.mockResolvedValueOnce({ ...fullRecord, name: 'Updated Dept' });
 
-      const result = await departmentsService.update('dept-1', {
-        name: 'Updated Dept',
-      });
+      const result = await departmentsService.update('dept-1', { name: 'Updated Dept' });
 
       expect(result.name).toBe('Updated Dept');
       expect(mockPrisma.department.update).toHaveBeenCalledWith({
@@ -538,10 +358,7 @@ describe('OrganizationHierarchyServices', () => {
     });
 
     it('should soft delete a department', async () => {
-      mockPrisma.department.update.mockResolvedValueOnce({
-        ...fullRecord,
-        isActive: false,
-      });
+      mockPrisma.department.update.mockResolvedValueOnce({ ...fullRecord, isActive: false });
 
       await departmentsService.remove('dept-1');
 
@@ -553,38 +370,18 @@ describe('OrganizationHierarchyServices', () => {
   });
 
   describe('AreasService', () => {
-    const createdRecord = {
-      id: 'area-1',
-      name: 'Test Area',
-      code: 'TA',
-      unitId: 'unit-1',
-      type: AreaType.scanning,
-    };
-    const fullRecord = {
-      ...createdRecord,
-      isActive: true,
-      unit: { id: 'unit-1' },
-      rooms: [],
-    };
+    const createdRecord = { id: 'area-1', name: 'Test Area', code: 'TA', unitId: 'unit-1', type: AreaType.scanning };
+    const fullRecord = { ...createdRecord, isActive: true, unit: { id: 'unit-1' }, rooms: [] };
 
     it('should create an area with default type scanning and compute path', async () => {
       mockPrisma.area.create.mockResolvedValueOnce(createdRecord);
       mockPrisma.area.findUnique.mockResolvedValueOnce(fullRecord);
 
-      const result = await areasService.create({
-        name: 'Test Area',
-        code: 'TA',
-        unitId: 'unit-1',
-      });
+      const result = await areasService.create({ name: 'Test Area', code: 'TA', unitId: 'unit-1' });
 
       expect(result).toEqual(fullRecord);
       expect(mockPrisma.area.create).toHaveBeenCalledWith({
-        data: {
-          name: 'Test Area',
-          code: 'TA',
-          unitId: 'unit-1',
-          type: AreaType.scanning,
-        },
+        data: { name: 'Test Area', code: 'TA', unitId: 'unit-1', type: AreaType.scanning },
       });
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE areas'),
@@ -593,37 +390,16 @@ describe('OrganizationHierarchyServices', () => {
     });
 
     it('should create an area with explicit type', async () => {
-      const explicitRecord = {
-        id: 'area-2',
-        name: 'Ctrl Area',
-        code: 'CA',
-        unitId: 'unit-1',
-        type: AreaType.control,
-      };
-      const explicitFull = {
-        ...explicitRecord,
-        isActive: true,
-        unit: { id: 'unit-1' },
-        rooms: [],
-      };
+      const explicitRecord = { id: 'area-2', name: 'Ctrl Area', code: 'CA', unitId: 'unit-1', type: AreaType.control };
+      const explicitFull = { ...explicitRecord, isActive: true, unit: { id: 'unit-1' }, rooms: [] };
       mockPrisma.area.create.mockResolvedValueOnce(explicitRecord);
       mockPrisma.area.findUnique.mockResolvedValueOnce(explicitFull);
 
-      const result = await areasService.create({
-        name: 'Ctrl Area',
-        code: 'CA',
-        unitId: 'unit-1',
-        type: AreaType.control,
-      });
+      const result = await areasService.create({ name: 'Ctrl Area', code: 'CA', unitId: 'unit-1', type: AreaType.control });
 
       expect(result).toEqual(explicitFull);
       expect(mockPrisma.area.create).toHaveBeenCalledWith({
-        data: {
-          name: 'Ctrl Area',
-          code: 'CA',
-          unitId: 'unit-1',
-          type: AreaType.control,
-        },
+        data: { name: 'Ctrl Area', code: 'CA', unitId: 'unit-1', type: AreaType.control },
       });
     });
 
@@ -633,9 +409,7 @@ describe('OrganizationHierarchyServices', () => {
       const result = await areasService.findAll();
 
       expect(result).toEqual([fullRecord]);
-      expect(mockPrisma.area.findMany).toHaveBeenCalledWith({
-        orderBy: { name: 'asc' },
-      });
+      expect(mockPrisma.area.findMany).toHaveBeenCalledWith({ orderBy: { name: 'asc' } });
     });
 
     it('should find one area with unit and rooms included', async () => {
@@ -651,14 +425,9 @@ describe('OrganizationHierarchyServices', () => {
     });
 
     it('should update an area', async () => {
-      mockPrisma.area.update.mockResolvedValueOnce({
-        ...fullRecord,
-        name: 'Updated Area',
-      });
+      mockPrisma.area.update.mockResolvedValueOnce({ ...fullRecord, name: 'Updated Area' });
 
-      const result = await areasService.update('area-1', {
-        name: 'Updated Area',
-      });
+      const result = await areasService.update('area-1', { name: 'Updated Area' });
 
       expect(result.name).toBe('Updated Area');
       expect(mockPrisma.area.update).toHaveBeenCalledWith({
@@ -668,10 +437,7 @@ describe('OrganizationHierarchyServices', () => {
     });
 
     it('should soft delete an area', async () => {
-      mockPrisma.area.update.mockResolvedValueOnce({
-        ...fullRecord,
-        isActive: false,
-      });
+      mockPrisma.area.update.mockResolvedValueOnce({ ...fullRecord, isActive: false });
 
       await areasService.remove('area-1');
 
@@ -683,40 +449,18 @@ describe('OrganizationHierarchyServices', () => {
   });
 
   describe('RoomsService', () => {
-    const createdRecord = {
-      id: 'room-1',
-      name: 'Test Room',
-      code: 'TR',
-      areaId: 'area-1',
-      type: RoomType.patient_exam,
-      capacity: 1,
-    };
-    const fullRecord = {
-      ...createdRecord,
-      isActive: true,
-      area: { id: 'area-1' },
-      devices: [],
-    };
+    const createdRecord = { id: 'room-1', name: 'Test Room', code: 'TR', areaId: 'area-1', type: RoomType.patient_exam, capacity: 1 };
+    const fullRecord = { ...createdRecord, isActive: true, area: { id: 'area-1' }, devices: [] };
 
     it('should create a room with default type and capacity and compute path', async () => {
       mockPrisma.room.create.mockResolvedValueOnce(createdRecord);
       mockPrisma.room.findUnique.mockResolvedValueOnce(fullRecord);
 
-      const result = await roomsService.create({
-        name: 'Test Room',
-        code: 'TR',
-        areaId: 'area-1',
-      });
+      const result = await roomsService.create({ name: 'Test Room', code: 'TR', areaId: 'area-1' });
 
       expect(result).toEqual(fullRecord);
       expect(mockPrisma.room.create).toHaveBeenCalledWith({
-        data: {
-          name: 'Test Room',
-          code: 'TR',
-          areaId: 'area-1',
-          type: RoomType.patient_exam,
-          capacity: 1,
-        },
+        data: { name: 'Test Room', code: 'TR', areaId: 'area-1', type: RoomType.patient_exam, capacity: 1 },
       });
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE rooms'),
@@ -725,40 +469,16 @@ describe('OrganizationHierarchyServices', () => {
     });
 
     it('should create a room with explicit type and capacity', async () => {
-      const explicitRecord = {
-        id: 'room-2',
-        name: 'Equip Room',
-        code: 'ER',
-        areaId: 'area-1',
-        type: RoomType.equipment,
-        capacity: 3,
-      };
-      const explicitFull = {
-        ...explicitRecord,
-        isActive: true,
-        area: { id: 'area-1' },
-        devices: [],
-      };
+      const explicitRecord = { id: 'room-2', name: 'Equip Room', code: 'ER', areaId: 'area-1', type: RoomType.equipment, capacity: 3 };
+      const explicitFull = { ...explicitRecord, isActive: true, area: { id: 'area-1' }, devices: [] };
       mockPrisma.room.create.mockResolvedValueOnce(explicitRecord);
       mockPrisma.room.findUnique.mockResolvedValueOnce(explicitFull);
 
-      const result = await roomsService.create({
-        name: 'Equip Room',
-        code: 'ER',
-        areaId: 'area-1',
-        type: RoomType.equipment,
-        capacity: 3,
-      });
+      const result = await roomsService.create({ name: 'Equip Room', code: 'ER', areaId: 'area-1', type: RoomType.equipment, capacity: 3 });
 
       expect(result).toEqual(explicitFull);
       expect(mockPrisma.room.create).toHaveBeenCalledWith({
-        data: {
-          name: 'Equip Room',
-          code: 'ER',
-          areaId: 'area-1',
-          type: RoomType.equipment,
-          capacity: 3,
-        },
+        data: { name: 'Equip Room', code: 'ER', areaId: 'area-1', type: RoomType.equipment, capacity: 3 },
       });
     });
 
@@ -768,9 +488,7 @@ describe('OrganizationHierarchyServices', () => {
       const result = await roomsService.findAll();
 
       expect(result).toEqual([fullRecord]);
-      expect(mockPrisma.room.findMany).toHaveBeenCalledWith({
-        orderBy: { name: 'asc' },
-      });
+      expect(mockPrisma.room.findMany).toHaveBeenCalledWith({ orderBy: { name: 'asc' } });
     });
 
     it('should find one room with area and devices included', async () => {
@@ -786,14 +504,9 @@ describe('OrganizationHierarchyServices', () => {
     });
 
     it('should update a room', async () => {
-      mockPrisma.room.update.mockResolvedValueOnce({
-        ...fullRecord,
-        name: 'Updated Room',
-      });
+      mockPrisma.room.update.mockResolvedValueOnce({ ...fullRecord, name: 'Updated Room' });
 
-      const result = await roomsService.update('room-1', {
-        name: 'Updated Room',
-      });
+      const result = await roomsService.update('room-1', { name: 'Updated Room' });
 
       expect(result.name).toBe('Updated Room');
       expect(mockPrisma.room.update).toHaveBeenCalledWith({
@@ -803,10 +516,7 @@ describe('OrganizationHierarchyServices', () => {
     });
 
     it('should soft delete a room', async () => {
-      mockPrisma.room.update.mockResolvedValueOnce({
-        ...fullRecord,
-        isActive: false,
-      });
+      mockPrisma.room.update.mockResolvedValueOnce({ ...fullRecord, isActive: false });
 
       await roomsService.remove('room-1');
 
@@ -818,70 +528,28 @@ describe('OrganizationHierarchyServices', () => {
   });
 
   describe('AssignmentSlotsService', () => {
-    const mockSlot = {
-      id: 'slot-1',
-      roomId: 'room-1',
-      deviceId: null,
-      date: '2024-03-15',
-      startTime: '09:00',
-      endTime: '17:00',
-      shiftType: ShiftType.day,
-      status: AssignmentSlotStatus.available,
-      assignedTo: null,
-      scheduleId: null,
-      isActive: true,
-    };
+    const mockSlot = { id: 'slot-1', roomId: 'room-1', deviceId: null, date: '2024-03-15', startTime: '09:00', endTime: '17:00', shiftType: ShiftType.day, status: AssignmentSlotStatus.available, assignedTo: null, scheduleId: null, isActive: true };
 
     it('should create an assignment slot with default status available', async () => {
       mockPrisma.assignmentSlot.create.mockResolvedValueOnce(mockSlot);
 
-      const result = await assignmentSlotsService.create({
-        date: '2024-03-15',
-        startTime: '09:00',
-        endTime: '17:00',
-        shiftType: ShiftType.day,
-        roomId: 'room-1',
-      });
+      const result = await assignmentSlotsService.create({ date: '2024-03-15', startTime: '09:00', endTime: '17:00', shiftType: ShiftType.day, roomId: 'room-1' });
 
       expect(result).toEqual(mockSlot);
       expect(mockPrisma.assignmentSlot.create).toHaveBeenCalledWith({
-        data: {
-          date: '2024-03-15',
-          startTime: '09:00',
-          endTime: '17:00',
-          shiftType: ShiftType.day,
-          roomId: 'room-1',
-          status: AssignmentSlotStatus.available,
-        },
+        data: { date: '2024-03-15', startTime: '09:00', endTime: '17:00', shiftType: ShiftType.day, roomId: 'room-1', status: AssignmentSlotStatus.available },
       });
     });
 
     it('should create an assignment slot with explicit status', async () => {
-      const occupiedSlot = {
-        ...mockSlot,
-        status: AssignmentSlotStatus.occupied,
-      };
+      const occupiedSlot = { ...mockSlot, status: AssignmentSlotStatus.occupied };
       mockPrisma.assignmentSlot.create.mockResolvedValueOnce(occupiedSlot);
 
-      const result = await assignmentSlotsService.create({
-        date: '2024-03-15',
-        startTime: '09:00',
-        endTime: '17:00',
-        shiftType: ShiftType.day,
-        roomId: 'room-1',
-        status: AssignmentSlotStatus.occupied,
-      });
+      const result = await assignmentSlotsService.create({ date: '2024-03-15', startTime: '09:00', endTime: '17:00', shiftType: ShiftType.day, roomId: 'room-1', status: AssignmentSlotStatus.occupied });
 
       expect(result.status).toBe(AssignmentSlotStatus.occupied);
       expect(mockPrisma.assignmentSlot.create).toHaveBeenCalledWith({
-        data: {
-          date: '2024-03-15',
-          startTime: '09:00',
-          endTime: '17:00',
-          shiftType: ShiftType.day,
-          roomId: 'room-1',
-          status: AssignmentSlotStatus.occupied,
-        },
+        data: { date: '2024-03-15', startTime: '09:00', endTime: '17:00', shiftType: ShiftType.day, roomId: 'room-1', status: AssignmentSlotStatus.occupied },
       });
     });
 
@@ -920,14 +588,8 @@ describe('OrganizationHierarchyServices', () => {
     });
 
     it('should find one assignment slot with room and device included', async () => {
-      const slotWithIncludes = {
-        ...mockSlot,
-        room: { id: 'room-1' },
-        device: null,
-      };
-      mockPrisma.assignmentSlot.findUnique.mockResolvedValueOnce(
-        slotWithIncludes,
-      );
+      const slotWithIncludes = { ...mockSlot, room: { id: 'room-1' }, device: null };
+      mockPrisma.assignmentSlot.findUnique.mockResolvedValueOnce(slotWithIncludes);
 
       const result = await assignmentSlotsService.findOne('slot-1');
 
@@ -942,9 +604,7 @@ describe('OrganizationHierarchyServices', () => {
       const updated = { ...mockSlot, status: AssignmentSlotStatus.occupied };
       mockPrisma.assignmentSlot.update.mockResolvedValueOnce(updated);
 
-      const result = await assignmentSlotsService.update('slot-1', {
-        status: AssignmentSlotStatus.occupied,
-      });
+      const result = await assignmentSlotsService.update('slot-1', { status: AssignmentSlotStatus.occupied });
 
       expect(result.status).toBe(AssignmentSlotStatus.occupied);
       expect(mockPrisma.assignmentSlot.update).toHaveBeenCalledWith({
@@ -954,10 +614,7 @@ describe('OrganizationHierarchyServices', () => {
     });
 
     it('should soft delete an assignment slot', async () => {
-      mockPrisma.assignmentSlot.update.mockResolvedValueOnce({
-        ...mockSlot,
-        isActive: false,
-      });
+      mockPrisma.assignmentSlot.update.mockResolvedValueOnce({ ...mockSlot, isActive: false });
 
       await assignmentSlotsService.remove('slot-1');
 
@@ -982,10 +639,7 @@ describe('OrganizationHierarchyServices', () => {
     it('should find slots by room and date', async () => {
       mockPrisma.assignmentSlot.findMany.mockResolvedValueOnce([mockSlot]);
 
-      const result = await assignmentSlotsService.findByRoom(
-        'room-1',
-        '2024-03-15',
-      );
+      const result = await assignmentSlotsService.findByRoom('room-1', '2024-03-15');
 
       expect(result).toEqual([mockSlot]);
       expect(mockPrisma.assignmentSlot.findMany).toHaveBeenCalledWith({
@@ -998,10 +652,7 @@ describe('OrganizationHierarchyServices', () => {
       const deviceSlot = { ...mockSlot, roomId: null, deviceId: 'device-1' };
       mockPrisma.assignmentSlot.findMany.mockResolvedValueOnce([deviceSlot]);
 
-      const result = await assignmentSlotsService.findByDevice(
-        'device-1',
-        '2024-03-15',
-      );
+      const result = await assignmentSlotsService.findByDevice('device-1', '2024-03-15');
 
       expect(result).toEqual([deviceSlot]);
       expect(mockPrisma.assignmentSlot.findMany).toHaveBeenCalledWith({

@@ -1,21 +1,8 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-  Request,
+  Controller, Get, Post, Patch, Delete, Body, Param, Query,
+  UseGuards, Request,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -26,14 +13,7 @@ import { CreateSkillDto } from './dto/create-skill.dto';
 import { AssignSkillDto } from './dto/assign-skill.dto';
 
 interface RequestWithUser {
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-    organizationId?: string;
-    unitId?: string;
-  };
+  user: { id: string; email: string; name: string; role: string; organizationId?: string; unitId?: string };
 }
 
 @ApiTags('skills')
@@ -45,11 +25,7 @@ export class SkillController {
 
   @Post()
   @Roles(MinRole.HEAD_TECHNICIAN)
-  @Log({
-    action: 'SKILL_CREATED',
-    entityType: 'skill',
-    description: 'Yetenek oluşturuldu',
-  })
+  @Log({ action: 'SKILL_CREATED', entityType: 'skill', description: 'Yetenek oluşturuldu' })
   @ApiOperation({ summary: 'Create a new skill' })
   createSkill(@Body() dto: CreateSkillDto) {
     return this.skillService.createSkill(dto);
@@ -62,6 +38,14 @@ export class SkillController {
     return this.skillService.getAllSkills();
   }
 
+  @Get('expiring')
+  @Roles(MinRole.HEAD_TECHNICIAN)
+  @ApiOperation({ summary: 'Get expiring certifications' })
+  @ApiQuery({ name: 'days', required: false, type: Number })
+  getExpiring(@Query('days') days?: number) {
+    return this.skillService.getExpiringCertifications(days || 30);
+  }
+
   @Get(':id')
   @Roles(MinRole.VIEWER)
   @ApiOperation({ summary: 'Get skill by id' })
@@ -71,11 +55,7 @@ export class SkillController {
 
   @Delete(':id')
   @Roles(MinRole.ADMIN)
-  @Log({
-    action: 'SKILL_DELETED',
-    entityType: 'skill',
-    description: 'Yetenek silindi',
-  })
+  @Log({ action: 'SKILL_DELETED', entityType: 'skill', description: 'Yetenek silindi' })
   @ApiOperation({ summary: 'Delete a skill' })
   deleteSkill(@Param('id') id: string) {
     return this.skillService.deleteSkill(id);
@@ -89,26 +69,11 @@ export class SkillController {
     return this.skillService.getSkillMatrix({ unitId });
   }
 
-  @Get('expiring')
-  @Roles(MinRole.HEAD_TECHNICIAN)
-  @ApiOperation({ summary: 'Get expiring certifications' })
-  @ApiQuery({ name: 'days', required: false, type: Number })
-  getExpiring(@Query('days') days?: number) {
-    return this.skillService.getExpiringCertifications(days || 30);
-  }
-
   @Post('personnel/:personnelId')
   @Roles(MinRole.HEAD_TECHNICIAN)
-  @Log({
-    action: 'SKILL_ASSIGNED',
-    entityType: 'personnel_skill',
-    description: 'Yeteneğin personele atanması',
-  })
+  @Log({ action: 'SKILL_ASSIGNED', entityType: 'personnel_skill', description: 'Yeteneğin personele atanması' })
   @ApiOperation({ summary: 'Assign skill to personnel' })
-  assignSkill(
-    @Param('personnelId') personnelId: string,
-    @Body() dto: AssignSkillDto,
-  ) {
+  assignSkill(@Param('personnelId') personnelId: string, @Body() dto: AssignSkillDto) {
     return this.skillService.assignSkill(personnelId, dto);
   }
 
@@ -121,26 +86,15 @@ export class SkillController {
 
   @Patch('personnel-skill/:id')
   @Roles(MinRole.HEAD_TECHNICIAN)
-  @Log({
-    action: 'PERSONNEL_SKILL_UPDATED',
-    entityType: 'personnel_skill',
-    description: 'Personel yeteneği güncellendi',
-  })
+  @Log({ action: 'PERSONNEL_SKILL_UPDATED', entityType: 'personnel_skill', description: 'Personel yeteneği güncellendi' })
   @ApiOperation({ summary: 'Update personnel skill (level, expiry)' })
-  updatePersonnelSkill(
-    @Param('id') id: string,
-    @Body() dto: Partial<AssignSkillDto>,
-  ) {
+  updatePersonnelSkill(@Param('id') id: string, @Body() dto: Partial<AssignSkillDto>) {
     return this.skillService.updatePersonnelSkill(id, dto);
   }
 
   @Delete('personnel-skill/:id')
   @Roles(MinRole.HEAD_TECHNICIAN)
-  @Log({
-    action: 'PERSONNEL_SKILL_REMOVED',
-    entityType: 'personnel_skill',
-    description: 'Personel yeteneği kaldırıldı',
-  })
+  @Log({ action: 'PERSONNEL_SKILL_REMOVED', entityType: 'personnel_skill', description: 'Personel yeteneği kaldırıldı' })
   @ApiOperation({ summary: 'Remove personnel skill' })
   removePersonnelSkill(@Param('id') id: string) {
     return this.skillService.removePersonnelSkill(id);

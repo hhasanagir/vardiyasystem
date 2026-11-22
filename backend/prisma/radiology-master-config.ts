@@ -70,77 +70,22 @@ const TECH = 'technician';
 const ASSISTANT = 'assistant_technician';
 
 function singleDay(start: string, end: string): RadiologyShiftDef[] {
-  return [
-    {
-      name: 'Tekniker',
-      type: ShiftType.day,
-      startTime: start,
-      endTime: end,
-      personnelType: TECH,
-    },
-  ];
+  return [{ name: 'Tekniker', type: ShiftType.day, startTime: start, endTime: end, personnelType: TECH }];
 }
 
-function dayNight(
-  dayStart: string,
-  dayEnd: string,
-  nightStart: string,
-  nightEnd: string,
-): RadiologyShiftDef[] {
+function dayNight(dayStart: string, dayEnd: string, nightStart: string, nightEnd: string): RadiologyShiftDef[] {
   return [
-    {
-      name: 'Tekniker',
-      type: ShiftType.day,
-      startTime: dayStart,
-      endTime: dayEnd,
-      personnelType: TECH,
-    },
-    {
-      name: 'Tekniker',
-      type: ShiftType.night,
-      startTime: nightStart,
-      endTime: nightEnd,
-      personnelType: TECH,
-    },
+    { name: 'Tekniker', type: ShiftType.day, startTime: dayStart, endTime: dayEnd, personnelType: TECH },
+    { name: 'Tekniker', type: ShiftType.night, startTime: nightStart, endTime: nightEnd, personnelType: TECH },
   ];
 }
 
 export const BT_MASTER_DEVICES: RadiologyDeviceDef[] = [
-  {
-    code: 'BT-1',
-    blockCode: 'B',
-    deviceName: 'B Blok Fujifilm Tomografi',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'BT-2',
-    blockCode: 'B',
-    deviceName: 'B Blok Philips Tomografi',
-    mode: 'vardiya',
-    shifts: dayNight('08:00', '20:00', '20:00', '08:00'),
-  },
-  {
-    code: 'BT-3',
-    blockCode: 'C',
-    deviceName: 'C Blok Fujifilm Tomografi',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'BT-4',
-    blockCode: 'E',
-    deviceName: 'E Blok Canon Tomografi',
-    mode: 'vardiya',
-    shifts: dayNight('08:00', '20:00', '20:00', '08:00'),
-  },
-  {
-    code: 'BT-5',
-    blockCode: 'F',
-    deviceName: 'F Blok Fujifilm Tomografi',
-    mode: 'vardiya',
-    shifts: dayNight('08:00', '20:00', '20:00', '08:00'),
-  },
+  { code: 'BT-1', blockCode: 'B', deviceName: 'B Blok Fujifilm Tomografi', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'BT-2', blockCode: 'B', deviceName: 'B Blok Philips Tomografi', mode: 'vardiya', shifts: dayNight('08:00', '20:00', '20:00', '08:00') },
+  { code: 'BT-3', blockCode: 'C', deviceName: 'C Blok Fujifilm Tomografi', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'BT-4', blockCode: 'E', deviceName: 'E Blok Canon Tomografi', mode: 'vardiya', shifts: dayNight('08:00', '20:00', '20:00', '08:00') },
+  { code: 'BT-5', blockCode: 'F', deviceName: 'F Blok Fujifilm Tomografi', mode: 'vardiya', shifts: dayNight('08:00', '20:00', '20:00', '08:00') },
   {
     code: 'BT-6',
     blockCode: 'Erişkin Acil',
@@ -148,214 +93,40 @@ export const BT_MASTER_DEVICES: RadiologyDeviceDef[] = [
     mode: 'vardiya',
     shifts: [
       ...dayNight('08:00', '20:00', '20:00', '08:00'),
-      {
-        name: 'Tomografi Yardımcı Tekniker',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '20:00',
-        personnelType: ASSISTANT,
-      },
-      {
-        name: 'Tomografi Yardımcı Tekniker',
-        type: ShiftType.night,
-        startTime: '20:00',
-        endTime: '08:00',
-        personnelType: ASSISTANT,
-      },
+      { name: 'Tomografi Yardımcı Tekniker', type: ShiftType.day, startTime: '08:00', endTime: '20:00', personnelType: ASSISTANT },
+      { name: 'Tomografi Yardımcı Tekniker', type: ShiftType.night, startTime: '20:00', endTime: '08:00', personnelType: ASSISTANT },
     ],
   },
-  {
-    code: 'BT-7',
-    blockCode: 'Travma Acil',
-    deviceName: 'Travma Acil Fujifilm Tomografi',
-    mode: 'vardiya',
-    shifts: dayNight('08:00', '20:00', '20:00', '08:00'),
-  },
+  { code: 'BT-7', blockCode: 'Travma Acil', deviceName: 'Travma Acil Fujifilm Tomografi', mode: 'vardiya', shifts: dayNight('08:00', '20:00', '20:00', '08:00') },
 ];
 
 export const RONTGEN_MASTER_DEVICES: RadiologyDeviceDef[] = [
-  {
-    code: 'RÖ-1',
-    blockCode: 'A',
-    deviceName: 'A Blok Shimadzu Röntgen-1',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-2',
-    blockCode: 'B',
-    deviceName: 'B Blok Shimadzu Röntgen-1',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-3',
-    blockCode: 'B',
-    deviceName: 'B Blok Shimadzu Röntgen-2',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-4',
-    blockCode: 'B',
-    deviceName: 'B Blok Shimadzu Röntgen-3',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-5',
-    blockCode: 'B',
-    deviceName: 'B Blok IMS GIOTTO CLASS Mamografi',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-6',
-    blockCode: 'Erişkin Acil',
-    deviceName: 'Erişkin Acil Shimadzu Röntgen-1',
-    mode: 'vardiya',
-    shifts: dayNight('08:00', '20:00', '20:00', '08:00'),
-  },
-  {
-    code: 'RÖ-7',
-    blockCode: 'Erişkin Acil',
-    deviceName: 'Erişkin Acil Shimadzu Röntgen-2',
-    mode: 'vardiya',
-    shifts: dayNight('11:00', '18:00', '18:00', '06:00'),
-  },
-  {
-    code: 'RÖ-8',
-    blockCode: 'Travma Acil',
-    deviceName: 'Travma Acil Mobil Röntgen-1',
-    mode: 'vardiya',
-    shifts: dayNight('08:00', '20:00', '20:00', '08:00'),
-  },
-  {
-    code: 'RÖ-9',
-    blockCode: 'B',
-    deviceName: 'B Blok Fsionary Kemik Dansitometri',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-10',
-    blockCode: 'C',
-    deviceName: 'C Blok Shimadzu Röntgen-1',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-11',
-    blockCode: 'C',
-    deviceName: 'C Blok Shimadzu Röntgen-2',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-12',
-    blockCode: 'C',
-    deviceName: 'C Blok Shimadzu Röntgen-3',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-13',
-    blockCode: 'D',
-    deviceName: 'D Blok Skopi-1',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-14',
-    blockCode: 'D',
-    deviceName: 'D Blok IMS GIOTTO CLASS Mamografi',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-15',
-    blockCode: 'D',
-    deviceName: 'D Blok Fsionary Kemik Dansitometri',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-16',
-    blockCode: 'E',
-    deviceName: 'E Blok Shimadzu Röntgen-1',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-17',
-    blockCode: 'E',
-    deviceName: 'E Blok Shimadzu Röntgen-2',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-18',
-    blockCode: 'F',
-    deviceName: 'F Blok Shimadzu Röntgen-1',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-19',
-    blockCode: 'F',
-    deviceName: 'F Blok Shimadzu Röntgen-2',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-20',
-    blockCode: 'F',
-    deviceName: 'F Blok IMS GIOTTO CLASS Mamografi',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-21',
-    blockCode: 'F',
-    deviceName: 'F Blok Fsionary Kemik Dansitometri',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-22',
-    blockCode: 'H',
-    deviceName: 'H Blok Shimadzu Röntgen-1',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-23',
-    blockCode: 'H',
-    deviceName: 'H Blok Fsionary Kemik Dansitometri',
-    mode: 'polyclinic',
-    shifts: singleDay('08:30', '16:30'),
-  },
-  {
-    code: 'RÖ-24',
-    blockCode: 'Travma Acil',
-    deviceName: 'Travma Acil Shimadzu Röntgen-1',
-    mode: 'vardiya',
-    shifts: dayNight('08:00', '20:00', '20:00', '08:00'),
-  },
-  {
-    code: 'RÖ-25',
-    blockCode: 'Travma Acil',
-    deviceName: 'Travma Acil Mobil Röntgen-2',
-    mode: 'vardiya',
-    shifts: dayNight('08:00', '20:00', '20:00', '08:00'),
-  },
-  {
-    code: 'RÖ-26',
-    blockCode: 'Travma Acil',
-    deviceName: 'Travma Acil Mobil Röntgen-3',
-    mode: 'vardiya',
-    shifts: dayNight('08:00', '20:00', '20:00', '08:00'),
-  },
+  { code: 'RÖ-1', blockCode: 'A', deviceName: 'A Blok Shimadzu Röntgen-1', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-2', blockCode: 'B', deviceName: 'B Blok Shimadzu Röntgen-1', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-3', blockCode: 'B', deviceName: 'B Blok Shimadzu Röntgen-2', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-4', blockCode: 'B', deviceName: 'B Blok Shimadzu Röntgen-3', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-5', blockCode: 'B', deviceName: 'B Blok IMS GIOTTO CLASS Mamografi', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-6', blockCode: 'Erişkin Acil', deviceName: 'Erişkin Acil Shimadzu Röntgen-1', mode: 'vardiya', shifts: dayNight('08:00', '20:00', '20:00', '08:00') },
+  { code: 'RÖ-7', blockCode: 'Erişkin Acil', deviceName: 'Erişkin Acil Shimadzu Röntgen-2', mode: 'vardiya', shifts: dayNight('11:00', '18:00', '18:00', '06:00') },
+  { code: 'RÖ-8', blockCode: 'Travma Acil', deviceName: 'Travma Acil Mobil Röntgen-1', mode: 'vardiya', shifts: dayNight('08:00', '20:00', '20:00', '08:00') },
+  { code: 'RÖ-9', blockCode: 'B', deviceName: 'B Blok Fsionary Kemik Dansitometri', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-10', blockCode: 'C', deviceName: 'C Blok Shimadzu Röntgen-1', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-11', blockCode: 'C', deviceName: 'C Blok Shimadzu Röntgen-2', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-12', blockCode: 'C', deviceName: 'C Blok Shimadzu Röntgen-3', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-13', blockCode: 'D', deviceName: 'D Blok Skopi-1', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-14', blockCode: 'D', deviceName: 'D Blok IMS GIOTTO CLASS Mamografi', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-15', blockCode: 'D', deviceName: 'D Blok Fsionary Kemik Dansitometri', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-16', blockCode: 'E', deviceName: 'E Blok Shimadzu Röntgen-1', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-17', blockCode: 'E', deviceName: 'E Blok Shimadzu Röntgen-2', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-18', blockCode: 'F', deviceName: 'F Blok Shimadzu Röntgen-1', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-19', blockCode: 'F', deviceName: 'F Blok Shimadzu Röntgen-2', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-20', blockCode: 'F', deviceName: 'F Blok IMS GIOTTO CLASS Mamografi', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-21', blockCode: 'F', deviceName: 'F Blok Fsionary Kemik Dansitometri', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-22', blockCode: 'H', deviceName: 'H Blok Shimadzu Röntgen-1', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-23', blockCode: 'H', deviceName: 'H Blok Fsionary Kemik Dansitometri', mode: 'polyclinic', shifts: singleDay('08:30', '16:30') },
+  { code: 'RÖ-24', blockCode: 'Travma Acil', deviceName: 'Travma Acil Shimadzu Röntgen-1', mode: 'vardiya', shifts: dayNight('08:00', '20:00', '20:00', '08:00') },
+  { code: 'RÖ-25', blockCode: 'Travma Acil', deviceName: 'Travma Acil Mobil Röntgen-2', mode: 'vardiya', shifts: dayNight('08:00', '20:00', '20:00', '08:00') },
+  { code: 'RÖ-26', blockCode: 'Travma Acil', deviceName: 'Travma Acil Mobil Röntgen-3', mode: 'vardiya', shifts: dayNight('08:00', '20:00', '20:00', '08:00') },
 ];
 
 /**
@@ -372,11 +143,7 @@ export async function applyRadiologyMasterConfig(
 ): Promise<{ created: number; updated: number; deactivated: number }> {
   const stats = { created: 0, updated: 0, deactivated: 0 };
 
-  async function applyUnit(
-    unitId: string,
-    defs: RadiologyDeviceDef[],
-    requiredSkills: string[],
-  ) {
+  async function applyUnit(unitId: string, defs: RadiologyDeviceDef[], requiredSkills: string[]) {
     for (const def of defs) {
       const device = await prisma.device.upsert({
         where: { organizationId_code: { organizationId, code: def.code } },
@@ -386,8 +153,7 @@ export async function applyRadiologyMasterConfig(
           isMaster: true,
           unitId,
           mode: def.mode,
-          workDays:
-            def.mode === 'polyclinic' ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 5, 6],
+          workDays: def.mode === 'polyclinic' ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 5, 6],
         },
         create: {
           code: def.code,
@@ -396,8 +162,7 @@ export async function applyRadiologyMasterConfig(
           mode: def.mode,
           organizationId,
           requiredSkills,
-          workDays:
-            def.mode === 'polyclinic' ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 5, 6],
+          workDays: def.mode === 'polyclinic' ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 5, 6],
           blockCode: def.blockCode,
           isMaster: true,
         },
@@ -418,16 +183,13 @@ export async function applyRadiologyMasterConfig(
         });
         wantedKeys.add(key);
 
-        const match = existingShifts.find(
-          (s) =>
-            shiftMatchKey({
-              deviceId: s.deviceId as string,
-              type: s.type,
-              personnelType: s.personnelType,
-              startTime: s.startTime,
-              endTime: s.endTime,
-            }) === key,
-        );
+        const match = existingShifts.find(s => shiftMatchKey({
+          deviceId: s.deviceId as string,
+          type: s.type,
+          personnelType: s.personnelType,
+          startTime: s.startTime,
+          endTime: s.endTime,
+        }) === key);
 
         const data = {
           name: shiftDef.name,
@@ -451,8 +213,7 @@ export async function applyRadiologyMasterConfig(
             match.isMaster !== true ||
             match.isActive !== true ||
             match.blockId !== (shiftDef.blockId ?? null) ||
-            match.optionalOnWeekends !==
-              (shiftDef.optionalOnWeekends ?? false) ||
+            match.optionalOnWeekends !== (shiftDef.optionalOnWeekends ?? false) ||
             match.optionalOnHolidays !== (shiftDef.optionalOnHolidays ?? false);
           if (needsUpdate) {
             await prisma.shifts.update({
@@ -476,16 +237,13 @@ export async function applyRadiologyMasterConfig(
       }
 
       const stale = existingShifts.filter(
-        (s) =>
-          !wantedKeys.has(
-            shiftMatchKey({
-              deviceId: s.deviceId as string,
-              type: s.type,
-              personnelType: s.personnelType,
-              startTime: s.startTime,
-              endTime: s.endTime,
-            }),
-          ),
+        s => !wantedKeys.has(shiftMatchKey({
+          deviceId: s.deviceId as string,
+          type: s.type,
+          personnelType: s.personnelType,
+          startTime: s.startTime,
+          endTime: s.endTime,
+        })),
       );
       for (const s of stale) {
         if (s.isActive) {

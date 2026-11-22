@@ -42,40 +42,32 @@ export class AssignmentCollection {
   }
 
   findByDate(date: AssignmentDate): Assignment[] {
-    return this.all.filter((a) => a.date.isSameDay(date));
+    return this.all.filter(a => a.date.isSameDay(date));
   }
 
   findByPersonnel(personnelId: PersonnelId): Assignment[] {
-    return this.all.filter((a) => a.personnelId.equals(personnelId));
+    return this.all.filter(a => a.personnelId.equals(personnelId));
   }
 
   findByDevice(deviceId: DeviceId): Assignment[] {
-    return this.all.filter(
-      (a) => a.deviceId !== null && a.deviceId.equals(deviceId),
-    );
+    return this.all.filter(a => a.deviceId !== null && a.deviceId.equals(deviceId));
   }
 
-  findByPersonnelAndDate(
-    personnelId: PersonnelId,
-    date: AssignmentDate,
-  ): Assignment[] {
+  findByPersonnelAndDate(personnelId: PersonnelId, date: AssignmentDate): Assignment[] {
     return this.all.filter(
-      (a) => a.personnelId.equals(personnelId) && a.date.isSameDay(date),
+      a => a.personnelId.equals(personnelId) && a.date.isSameDay(date),
     );
   }
 
   findByDeviceAndDate(deviceId: DeviceId, date: AssignmentDate): Assignment[] {
     return this.all.filter(
-      (a) =>
-        a.deviceId !== null &&
-        a.deviceId.equals(deviceId) &&
-        a.date.isSameDay(date),
+      a => a.deviceId !== null && a.deviceId.equals(deviceId) && a.date.isSameDay(date),
     );
   }
 
   findOverlapping(assignment: Assignment): Assignment[] {
     return this.all.filter(
-      (a) => a.id !== assignment.id && a.overlapsWith(assignment),
+      a => a.id !== assignment.id && a.overlapsWith(assignment),
     );
   }
 
@@ -84,9 +76,7 @@ export class AssignmentCollection {
   }
 
   hasSameSlot(assignment: Assignment): boolean {
-    return this.all.some(
-      (a) => a.id !== assignment.id && a.isSameSlot(assignment),
-    );
+    return this.all.some(a => a.id !== assignment.id && a.isSameSlot(assignment));
   }
 
   countByPersonnel(personnelId: PersonnelId): number {
@@ -94,20 +84,16 @@ export class AssignmentCollection {
   }
 
   countWorkingDaysByPersonnel(personnelId: PersonnelId): number {
-    return this.findByPersonnel(personnelId).filter(
-      (a) => a.shiftType.isWorking,
-    ).length;
+    return this.findByPersonnel(personnelId).filter(a => a.shiftType.isWorking).length;
   }
 
   countNightShiftsByPersonnel(personnelId: PersonnelId): number {
-    return this.findByPersonnel(personnelId).filter(
-      (a) => a.shiftType.isNightShift,
-    ).length;
+    return this.findByPersonnel(personnelId).filter(a => a.shiftType.isNightShift).length;
   }
 
   getConsecutiveDays(personnelId: PersonnelId): number {
     const assignments = this.findByPersonnel(personnelId)
-      .filter((a) => a.shiftType.isWorking)
+      .filter(a => a.shiftType.isWorking)
       .sort((a, b) => a.date.value.localeCompare(b.date.value));
 
     if (assignments.length === 0) return 0;
@@ -135,38 +121,30 @@ export class AssignmentCollection {
   getWeeklyHours(personnelId: PersonnelId, weekStart: AssignmentDate): number {
     const weekEnd = weekStart.addDays(6);
     return this.findByPersonnel(personnelId)
-      .filter((a) => {
+      .filter(a => {
         const d = a.date.value;
-        return (
-          d >= weekStart.value && d <= weekEnd.value && a.shiftType.isWorking
-        );
+        return d >= weekStart.value && d <= weekEnd.value && a.shiftType.isWorking;
       })
       .reduce((total, a) => total + a.durationHours, 0);
   }
 
-  getLastAssignmentBefore(
-    personnelId: PersonnelId,
-    date: AssignmentDate,
-  ): Assignment | undefined {
+  getLastAssignmentBefore(personnelId: PersonnelId, date: AssignmentDate): Assignment | undefined {
     return this.findByPersonnel(personnelId)
-      .filter((a) => a.date.isBefore(date) && a.shiftType.isWorking)
+      .filter(a => a.date.isBefore(date) && a.shiftType.isWorking)
       .sort((a, b) => b.date.value.localeCompare(a.date.value))[0];
   }
 
-  getLastNightShiftBefore(
-    personnelId: PersonnelId,
-    date: AssignmentDate,
-  ): Assignment | undefined {
+  getLastNightShiftBefore(personnelId: PersonnelId, date: AssignmentDate): Assignment | undefined {
     return this.findByPersonnel(personnelId)
-      .filter((a) => a.date.isBefore(date) && a.shiftType.isNightShift)
+      .filter(a => a.date.isBefore(date) && a.shiftType.isNightShift)
       .sort((a, b) => b.date.value.localeCompare(a.date.value))[0];
   }
 
   countByUnit(unitId: string): number {
-    return this.all.filter((a) => a.unitId === unitId).length;
+    return this.all.filter(a => a.unitId === unitId).length;
   }
 
   toJSON(): Array<ReturnType<Assignment['toSnapshot']>> {
-    return this.all.map((a) => a.toSnapshot());
+    return this.all.map(a => a.toSnapshot());
   }
 }

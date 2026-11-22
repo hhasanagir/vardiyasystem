@@ -10,12 +10,8 @@ export class RestDuration extends ValueObject<{ hours: number }> {
     return new RestDuration({ hours });
   }
 
-  get hours(): number {
-    return this._value.hours;
-  }
-  get minutes(): number {
-    return this._value.hours * 60;
-  }
+  get hours(): number { return this._value.hours; }
+  get minutes(): number { return this._value.hours * 60; }
 
   isSufficient(minHours: number): boolean {
     return this._value.hours >= minHours;

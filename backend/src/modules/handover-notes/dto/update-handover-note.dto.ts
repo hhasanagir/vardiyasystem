@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  IsIn,
-  MinLength,
-  MaxLength,
-} from 'class-validator';
+import { IsString, IsOptional, IsIn, MinLength, MaxLength } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateHandoverNoteDto {
@@ -22,10 +16,7 @@ export class UpdateHandoverNoteDto {
   @MaxLength(5000)
   content?: string;
 
-  @ApiPropertyOptional({
-    description: 'Priority level',
-    enum: ['info', 'warning', 'critical'],
-  })
+  @ApiPropertyOptional({ description: 'Priority level', enum: ['info', 'warning', 'critical'] })
   @IsOptional()
   @IsString()
   @IsIn(['info', 'warning', 'critical'])

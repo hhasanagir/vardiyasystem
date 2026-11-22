@@ -13,21 +13,17 @@ import { SkillModule } from '../skills/skill.module';
 import { PrismaScheduleRepository } from './infrastructure/prisma-schedule.repository';
 import { ScheduleValidationService } from './schedule-validation.service';
 import { ScheduleApplicationService } from './schedule-application.service';
-import { ScheduleEventBus } from './domain/events/schedule-event-bus';
 import { ScheduleAccessGuard } from './guards/schedule-access.guard';
 import { ScheduleJobQueueModule } from './job-queue/schedule-job-queue.module';
 import { ScheduleJobStatusService } from './job-queue/schedule-job-status.service';
 import { ScheduleDryRunService } from './schedule-dry-run.service';
+import { PersonnelAvailabilityService } from './services/personnel-availability.service';
+import { PersonnelAvailabilityController } from './personnel-availability.controller';
+import { ScheduleCoverageService } from './services/schedule-coverage.service';
 
 @Module({
-  imports: [
-    UnitsModule,
-    WebsocketModule,
-    NotificationsModule,
-    SkillModule,
-    ScheduleJobQueueModule,
-  ],
-  controllers: [SchedulesController, SchedulesDDDController],
+  imports: [UnitsModule, WebsocketModule, NotificationsModule, SkillModule, ScheduleJobQueueModule],
+  controllers: [SchedulesController, SchedulesDDDController, PersonnelAvailabilityController],
   providers: [
     SchedulesService,
     ScheduleAutoGeneratorService,
@@ -37,10 +33,11 @@ import { ScheduleDryRunService } from './schedule-dry-run.service';
     PrismaScheduleRepository,
     ScheduleValidationService,
     ScheduleApplicationService,
-    ScheduleEventBus,
     ScheduleAccessGuard,
     ScheduleJobStatusService,
     ScheduleDryRunService,
+    PersonnelAvailabilityService,
+    ScheduleCoverageService,
   ],
   exports: [
     SchedulesService,
@@ -51,7 +48,7 @@ import { ScheduleDryRunService } from './schedule-dry-run.service';
     PrismaScheduleRepository,
     ScheduleValidationService,
     ScheduleApplicationService,
-    ScheduleEventBus,
+    ScheduleCoverageService,
   ],
 })
 export class SchedulesModule {}

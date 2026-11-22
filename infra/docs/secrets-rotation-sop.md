@@ -6,16 +6,16 @@ All secrets are managed as Bitnami Sealed Secrets. The Sealed Secrets controller
 
 ## Rotation Schedule
 
-| Secret Type          | Rotate Every      | Method                     | Automation   |
-| -------------------- | ----------------- | -------------------------- | ------------ |
-| JWT signing keys     | 90 days           | Regenerate + re-encrypt    | Manual (SOP) |
-| Database passwords   | 90 days           | pgpass update + re-encrypt | Manual (SOP) |
-| Redis passwords      | 90 days           | AUTH change + re-encrypt   | Manual (SOP) |
-| SMTP credentials     | 180 days          | Provider rotation          | Manual (SOP) |
-| TLS certificates     | Auto (720h renew) | cert-manager               | Automatic    |
-| Slack webhooks       | 180 days          | Revoke + recreate          | Manual (SOP) |
-| Feature flag tokens  | 180 days          | Unleash Admin UI           | Manual (SOP) |
-| Cloudflare API token | 180 days          | Cloudflare dashboard       | Manual (SOP) |
+| Secret Type | Rotate Every | Method | Automation |
+|-------------|-------------|--------|------------|
+| JWT signing keys | 90 days | Regenerate + re-encrypt | Manual (SOP) |
+| Database passwords | 90 days | pgpass update + re-encrypt | Manual (SOP) |
+| Redis passwords | 90 days | AUTH change + re-encrypt | Manual (SOP) |
+| SMTP credentials | 180 days | Provider rotation | Manual (SOP) |
+| TLS certificates | Auto (720h renew) | cert-manager | Automatic |
+| Slack webhooks | 180 days | Revoke + recreate | Manual (SOP) |
+| Feature flag tokens | 180 days | Unleash Admin UI | Manual (SOP) |
+| Cloudflare API token | 180 days | Cloudflare dashboard | Manual (SOP) |
 
 ## Rotation Procedure
 

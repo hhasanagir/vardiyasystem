@@ -10,22 +10,15 @@ export class DateRange extends ValueObject<{ start: string; end: string }> {
     return new DateRange({ start, end });
   }
 
-  get start(): string {
-    return this._value.start;
-  }
-  get end(): string {
-    return this._value.end;
-  }
+  get start(): string { return this._value.start; }
+  get end(): string { return this._value.end; }
 
   contains(date: string): boolean {
     return date >= this._value.start && date <= this._value.end;
   }
 
   overlaps(other: DateRange): boolean {
-    return (
-      this._value.start <= other._value.end &&
-      other._value.start <= this._value.end
-    );
+    return this._value.start <= other._value.end && other._value.start <= this._value.end;
   }
 
   days(): number {

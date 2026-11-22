@@ -90,7 +90,7 @@ export function toScheduleResponseDto(
     version: schedule.scheduleVersion,
     createdById: schedule.createdById,
     publishedAt: schedule.publishedAt?.toISOString() ?? null,
-    assignments: enrichedAssignments.map((a) => ({
+    assignments: enrichedAssignments.map(a => ({
       id: a.id,
       scheduleId: a.scheduleId,
       personnelId: a.personnelId,
@@ -112,23 +112,21 @@ export function toScheduleResponseDto(
       overriddenBy: a.overriddenBy,
       overriddenAt: a.overriddenAt,
     })),
-    approvalData: approvalData
-      ? {
-          submittedBy: approvalData.submittedBy,
-          submittedAt: approvalData.submittedAt,
-          submittedComment: approvalData.submittedComment,
-          approvedBy: approvalData.approvedBy,
-          approvedAt: approvalData.approvedAt,
-          approvalComment: approvalData.approvalComment,
-          rejectedBy: approvalData.rejectedBy,
-          rejectedAt: approvalData.rejectedAt,
-          rejectionReason: approvalData.rejectionReason,
-          publishedBy: approvalData.publishedBy,
-          publishedAt: approvalData.publishedAt,
-          archivedBy: approvalData.archivedBy,
-          archivedAt: approvalData.archivedAt,
-        }
-      : null,
+    approvalData: approvalData ? {
+      submittedBy: approvalData.submittedBy,
+      submittedAt: approvalData.submittedAt,
+      submittedComment: approvalData.submittedComment,
+      approvedBy: approvalData.approvedBy,
+      approvedAt: approvalData.approvedAt,
+      approvalComment: approvalData.approvalComment,
+      rejectedBy: approvalData.rejectedBy,
+      rejectedAt: approvalData.rejectedAt,
+      rejectionReason: approvalData.rejectionReason,
+      publishedBy: approvalData.publishedBy,
+      publishedAt: approvalData.publishedAt,
+      archivedBy: approvalData.archivedBy,
+      archivedAt: approvalData.archivedAt,
+    } : null,
   };
 }
 
@@ -136,7 +134,7 @@ export function toScheduleListResponseDto(
   schedules: Schedule[],
   enrichedAssignmentsMap: Map<string, EnrichedAssignment[]>,
 ): ScheduleResponseDto[] {
-  return schedules.map((s) =>
+  return schedules.map(s =>
     toScheduleResponseDto(s, enrichedAssignmentsMap.get(s.id) ?? []),
   );
 }

@@ -8,6 +8,7 @@ import {
   Body,
   UseGuards,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SwapRequestsService } from './swap-requests.service';
@@ -15,6 +16,9 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Log } from '../audit-log/log.decorator';
+import { UnitScope } from '../rbac/decorators/unit-scope.decorator';
+import { UnitScopeGuard } from '../rbac/guards/unit-scope.guard';
+import { UnitScopeService } from '../rbac/services/unit-scope.service';
 
 interface RequestWithUser {
   user: {
@@ -32,50 +36,45 @@ interface RequestWithUser {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class SwapRequestsController {
-  constructor(private swapRequestsService: SwapRequestsService) {}
+  constructor(
+    private swapRequestsService: SwapRequestsService,
+    private readonly unitScopeService: UnitScopeService,
+  ) {}
 
   @Get()
-  @Roles(
-    'hospital_admin',
-    'supervisor',
-    'senior_technician',
-    'medical_engineer',
-  )
+  @Roles('hospital_admin', 'supervisor', 'senior_technician', 'medical_engineer')
   @ApiOperation({ summary: 'Get all swap requests' })
-  findAll(@Request() req: RequestWithUser) {
-    return this.swapRequestsService.findAll({
-      unitId: req.user.unitId,
-    });
+  async findAll(@Request() req: RequestWithUser) {
+    // Authoritative list scope derived from the swap's schedule relationship.
+    const scope = await this.unitScopeService.resolveReadScope(req.user as any);
+    if (scope.denyAll) {
+      throw new ForbiddenException('Bu birime erişim yetkiniz yok');
+    }
+    return this.swapRequestsService.findAll(
+      {},
+      { unitId: scope.unitId, organizationId: scope.organizationId },
+    );
   }
 
   @Get(':id')
-  @Roles(
-    'hospital_admin',
-    'supervisor',
-    'senior_technician',
-    'medical_engineer',
-  )
+  @Roles('hospital_admin', 'supervisor', 'senior_technician', 'medical_engineer')
   @ApiOperation({ summary: 'Get swap request by ID' })
-  findOne(@Param('id') id: string) {
-    return this.swapRequestsService.findOne(id);
+  async findOne(@Param('id') id: string, @Request() req: RequestWithUser) {
+    const scope = await this.unitScopeService.resolveReadScope(req.user as any);
+    if (scope.denyAll) {
+      throw new ForbiddenException('Bu birime erişim yetkiniz yok');
+    }
+    return this.swapRequestsService.findOne(
+      id,
+      { unitId: scope.unitId, organizationId: scope.organizationId },
+    );
   }
 
   @Post()
-  @Roles(
-    'hospital_admin',
-    'supervisor',
-    'senior_technician',
-    'medical_engineer',
-    'technician',
-    'assistant_technician',
-  )
-  @Log({
-    action: 'SWAP_REQUEST_CREATED',
-    entityType: 'swap_request',
-    description: 'Takas talebi oluşturuldu',
-  })
+  @Roles('hospital_admin', 'supervisor', 'senior_technician', 'medical_engineer', 'technician', 'assistant_technician')
+  @Log({ action: 'SWAP_REQUEST_CREATED', entityType: 'swap_request', description: 'Takas talebi oluşturuldu' })
   @ApiOperation({ summary: 'Create swap request' })
-  create(
+  async create(
     @Request() req: RequestWithUser,
     @Body()
     data: {
@@ -83,56 +82,51 @@ export class SwapRequestsController {
       targetPersonnelId?: string;
       toAssignmentId?: string;
       reason?: string;
-    },
+    }
   ) {
-    return this.swapRequestsService.create({
-      ...data,
-      requesterId: req.user.id,
-      organizationId: req.user.organizationId || '',
-      unitId: req.user.unitId || '',
-    });
+    const scope = await this.unitScopeService.resolveReadScope(req.user as any);
+    if (scope.denyAll) {
+      throw new ForbiddenException('Bu birime erişim yetkiniz yok');
+    }
+    return this.swapRequestsService.create(
+      {
+        ...data,
+        requesterId: req.user.id,
+        organizationId: req.user.organizationId || '',
+        unitId: req.user.unitId || '',
+      },
+      {
+        unitId: scope.unitId,
+        organizationId: scope.organizationId ?? (req.user.organizationId || ''),
+      },
+    );
   }
 
   @Patch(':id/approve')
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, UnitScopeGuard)
+  @UnitScope({ entityType: 'swap', idParam: 'id' })
   @Roles('hospital_admin', 'supervisor', 'senior_technician')
-  @Log({
-    action: 'SWAP_REQUEST_APPROVED',
-    entityType: 'swap_request',
-    description: 'Takas talebi onaylandı',
-  })
+  @Log({ action: 'SWAP_REQUEST_APPROVED', entityType: 'swap_request', description: 'Takas talebi onaylandı' })
   @ApiOperation({ summary: 'Approve swap request' })
   approve(@Param('id') id: string, @Request() req: RequestWithUser) {
     return this.swapRequestsService.approve(id, req.user.id);
   }
 
   @Patch(':id/reject')
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, UnitScopeGuard)
+  @UnitScope({ entityType: 'swap', idParam: 'id' })
   @Roles('hospital_admin', 'supervisor', 'senior_technician')
-  @Log({
-    action: 'SWAP_REQUEST_REJECTED',
-    entityType: 'swap_request',
-    description: 'Takas talebi reddedildi',
-  })
+  @Log({ action: 'SWAP_REQUEST_REJECTED', entityType: 'swap_request', description: 'Takas talebi reddedildi' })
   @ApiOperation({ summary: 'Reject swap request' })
   reject(@Param('id') id: string, @Request() req: RequestWithUser) {
     return this.swapRequestsService.reject(id, req.user.id);
   }
 
   @Delete(':id')
-  @Roles(
-    'hospital_admin',
-    'supervisor',
-    'senior_technician',
-    'medical_engineer',
-    'technician',
-    'assistant_technician',
-  )
-  @Log({
-    action: 'SWAP_REQUEST_DELETED',
-    entityType: 'swap_request',
-    description: 'Takas talebi silindi',
-  })
+  @UseGuards(RolesGuard, UnitScopeGuard)
+  @UnitScope({ entityType: 'swap', idParam: 'id' })
+  @Roles('hospital_admin', 'supervisor', 'senior_technician', 'medical_engineer', 'technician', 'assistant_technician')
+  @Log({ action: 'SWAP_REQUEST_DELETED', entityType: 'swap_request', description: 'Takas talebi silindi' })
   @ApiOperation({ summary: 'Delete swap request' })
   delete(@Param('id') id: string, @Request() req: RequestWithUser) {
     return this.swapRequestsService.delete(id, req.user.id);

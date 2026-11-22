@@ -22,19 +22,13 @@ export class HandoverNoteQueryDto {
   @IsString()
   date?: string;
 
-  @ApiPropertyOptional({
-    description: 'Filter by status',
-    enum: ['active', 'resolved'],
-  })
+  @ApiPropertyOptional({ description: 'Filter by status', enum: ['active', 'resolved'] })
   @IsOptional()
   @IsString()
   @IsIn(['active', 'resolved'])
   status?: string;
 
-  @ApiPropertyOptional({
-    description: 'Filter by priority',
-    enum: ['info', 'warning', 'critical'],
-  })
+  @ApiPropertyOptional({ description: 'Filter by priority', enum: ['info', 'warning', 'critical'] })
   @IsOptional()
   @IsString()
   @IsIn(['info', 'warning', 'critical'])

@@ -1,9 +1,5 @@
 import { FairnessResult } from './fairness-engine';
-import {
-  CoverageMetrics,
-  FatigueMetrics,
-  WorkloadMetrics,
-} from './validation-result';
+import { CoverageMetrics, FatigueMetrics, WorkloadMetrics } from './validation-result';
 import { CANONICAL_SCORING_WEIGHTS } from '../optimization/canonical-scoring.config';
 
 export interface ScoringInput {
@@ -94,8 +90,7 @@ export class ScoringModel {
 
   private calculatePreferenceScore(fatigue: FatigueMetrics): number {
     let score = 100;
-    if (fatigue.maxConsecutiveDays > 6)
-      score -= (fatigue.maxConsecutiveDays - 6) * 10;
+    if (fatigue.maxConsecutiveDays > 6) score -= (fatigue.maxConsecutiveDays - 6) * 10;
     if (fatigue.minRestHours < 8) score -= (8 - fatigue.minRestHours) * 5;
     if (fatigue.overtimeHours > 0) score -= fatigue.overtimeHours * 2;
     return Math.max(0, Math.min(100, score));

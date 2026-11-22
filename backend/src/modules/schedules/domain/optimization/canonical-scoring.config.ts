@@ -44,6 +44,8 @@ export const SOFT_CONSTRAINT_WEIGHTS: Record<string, number> = {
   FAIRNESS: CANONICAL_SCORING_WEIGHTS.fairness,
   WORKLOAD_BALANCE: CANONICAL_SCORING_WEIGHTS.workload,
   FATIGUE: CANONICAL_SCORING_WEIGHTS.fatigue,
+  // P2-02 — coverage is part of the canonical sum and must be addressable.
+  COVERAGE: CANONICAL_SCORING_WEIGHTS.coverage,
 } as const;
 
 /**
@@ -56,10 +58,9 @@ export const PENALTY_MULTIPLIER = 2.0;
  * Validates that canonical weights sum to 1.0 (within floating-point tolerance).
  */
 export function validateCanonicalWeights(): boolean {
-  const sum =
-    CANONICAL_SCORING_WEIGHTS.fairness +
-    CANONICAL_SCORING_WEIGHTS.workload +
-    CANONICAL_SCORING_WEIGHTS.fatigue +
-    CANONICAL_SCORING_WEIGHTS.coverage;
+  const sum = CANONICAL_SCORING_WEIGHTS.fairness
+    + CANONICAL_SCORING_WEIGHTS.workload
+    + CANONICAL_SCORING_WEIGHTS.fatigue
+    + CANONICAL_SCORING_WEIGHTS.coverage;
   return Math.abs(sum - 1.0) < 0.001;
 }

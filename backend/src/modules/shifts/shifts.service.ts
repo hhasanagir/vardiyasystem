@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { Prisma, ShiftType, ScheduleStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma.service';
 import { CreateShiftDto } from './dto/create-shift.dto';
@@ -42,9 +37,7 @@ export class ShiftsService {
       },
     });
     if (existing) {
-      throw new ConflictException(
-        'Bu birimde aynı isimde bir vardiya zaten mevcut',
-      );
+      throw new ConflictException('Bu birimde aynı isimde bir vardiya zaten mevcut');
     }
 
     const masterCollision = await this.prisma.shifts.findFirst({
@@ -58,9 +51,7 @@ export class ShiftsService {
       },
     });
     if (masterCollision) {
-      throw new ConflictException(
-        'Bu cihaz için aynı kalıcı (master) vardiya şablonu zaten mevcut',
-      );
+      throw new ConflictException('Bu cihaz için aynı kalıcı (master) vardiya şablonu zaten mevcut');
     }
 
     const shift = await this.prisma.shifts.create({
@@ -80,15 +71,13 @@ export class ShiftsService {
     return this.toResponse(shift);
   }
 
-  async findAll(
-    organizationId: string,
-    unitId?: string,
-    deviceId?: string,
-    personnelType?: string,
-  ): Promise<ShiftResponse[]> {
+  async findAll(organizationId: string, unitId?: string, deviceId?: string, personnelType?: string): Promise<ShiftResponse[]> {
     const where: Prisma.ShiftsWhereInput = { organizationId };
     if (unitId) {
-      where.OR = [{ unitId }, { unitId: null }];
+      where.OR = [
+        { unitId },
+        { unitId: null },
+      ];
     }
     if (deviceId) {
       where.deviceId = deviceId;
@@ -102,7 +91,7 @@ export class ShiftsService {
       orderBy: { name: 'asc' },
     });
 
-    return shifts.map((s) => this.toResponse(s));
+    return shifts.map(s => this.toResponse(s));
   }
 
   async findOne(id: string, organizationId: string): Promise<ShiftResponse> {
@@ -115,25 +104,16 @@ export class ShiftsService {
     return this.toResponse(shift);
   }
 
-  async update(
-    id: string,
-    dto: UpdateShiftDto,
-    userId: string,
-  ): Promise<ShiftResponse> {
+  async update(id: string, dto: UpdateShiftDto, userId: string): Promise<ShiftResponse> {
     const existing = await this.prisma.shifts.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Vardiya bulunamadı');
     }
     if (existing.isMaster) {
-      throw new ForbiddenException(
-        'Kalıcı (master) vardiya şablonları değiştirilemez. Sadece sistemsel konfigürasyon ile güncellenebilir.',
-      );
+      throw new ForbiddenException('Kalıcı (master) vardiya şablonları değiştirilemez. Sadece sistemsel konfigürasyon ile güncellenebilir.');
     }
 
-    if (
-      dto.name &&
-      (dto.name !== existing.name || dto.unitId !== existing.unitId)
-    ) {
+    if (dto.name && (dto.name !== existing.name || dto.unitId !== existing.unitId)) {
       const duplicate = await this.prisma.shifts.findFirst({
         where: {
           name: dto.name,
@@ -143,9 +123,7 @@ export class ShiftsService {
         },
       });
       if (duplicate) {
-        throw new ConflictException(
-          'Bu birimde aynı isimde bir vardiya zaten mevcut',
-        );
+        throw new ConflictException('Bu birimde aynı isimde bir vardiya zaten mevcut');
       }
     }
 
@@ -156,14 +134,10 @@ export class ShiftsService {
         ...(dto.type !== undefined && { type: dto.type }),
         ...(dto.startTime !== undefined && { startTime: dto.startTime }),
         ...(dto.endTime !== undefined && { endTime: dto.endTime }),
-        ...(dto.durationHours !== undefined && {
-          durationHours: dto.durationHours,
-        }),
+        ...(dto.durationHours !== undefined && { durationHours: dto.durationHours }),
         ...(dto.unitId !== undefined && { unitId: dto.unitId ?? null }),
         ...(dto.deviceId !== undefined && { deviceId: dto.deviceId ?? null }),
-        ...(dto.personnelType !== undefined && {
-          personnelType: dto.personnelType ?? null,
-        }),
+        ...(dto.personnelType !== undefined && { personnelType: dto.personnelType ?? null }),
       },
     });
 
@@ -178,9 +152,7 @@ export class ShiftsService {
       throw new NotFoundException('Vardiya bulunamadı');
     }
     if (shift.isMaster) {
-      throw new ForbiddenException(
-        'Kalıcı (master) vardiya şablonları silinemez. Sadece sistemsel konfigürasyon ile pasifleştirilebilir.',
-      );
+      throw new ForbiddenException('Kalıcı (master) vardiya şablonları silinemez. Sadece sistemsel konfigürasyon ile pasifleştirilebilir.');
     }
 
     await this.prisma.shifts.delete({ where: { id } });
@@ -255,17 +227,11 @@ export class ShiftsService {
         progress = 100;
       } else {
         status = 'active';
-        progress = Math.round(
-          ((currentTotalMinutes - startMin) / duration) * 100,
-        );
+        progress = Math.round(((currentTotalMinutes - startMin) / duration) * 100);
       }
 
       const typeLabel =
-        a.shiftType === ShiftType.day
-          ? 'Gündüz'
-          : a.shiftType === ShiftType.night
-            ? 'Gece'
-            : 'Aktif';
+        a.shiftType === ShiftType.day ? 'Gündüz' : a.shiftType === ShiftType.night ? 'Gece' : 'Aktif';
 
       return {
         id: a.id,

@@ -77,7 +77,7 @@ export class SessionService {
       where: { userId },
       orderBy: { lastUsedAt: 'desc' },
     });
-    return sessions.map((s) => this.toSessionInfo(s));
+    return sessions.map(s => this.toSessionInfo(s));
   }
 
   async updateLastUsed(sessionId: string): Promise<void> {
@@ -87,11 +87,7 @@ export class SessionService {
     });
   }
 
-  async revoke(
-    sessionId: string,
-    userId: string,
-    reason?: string,
-  ): Promise<void> {
+  async revoke(sessionId: string, userId: string, reason?: string): Promise<void> {
     const session = await this.prisma.authSession.findUnique({
       where: { id: sessionId },
     });
@@ -127,15 +123,10 @@ export class SessionService {
       this.logger.warn('Failed to log session revocation audit');
     }
 
-    this.logger.warn(
-      `Session revoked: ${sessionId} for user ${userId}${reason ? ` (${reason})` : ''}`,
-    );
+    this.logger.warn(`Session revoked: ${sessionId} for user ${userId}${reason ? ` (${reason})` : ''}`);
   }
 
-  async revokeAllForUser(
-    userId: string,
-    excludeSessionId?: string,
-  ): Promise<number> {
+  async revokeAllForUser(userId: string, excludeSessionId?: string): Promise<number> {
     const where: any = { userId, revokedAt: null };
     if (excludeSessionId) {
       where.id = { not: excludeSessionId };

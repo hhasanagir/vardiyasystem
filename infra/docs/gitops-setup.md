@@ -56,7 +56,6 @@ kubectl apply -f infra/argocd/applications/
 ## Sync Policy
 
 All applications use automated sync with:
-
 - `Prune: true` — removes resources not in git
 - `SelfHeal: true` — corrects manual changes automatically
 - `ServerSideApply: true` — avoids annotation drift
@@ -104,7 +103,6 @@ argocd app sync vardiya-prometheus-operator
 ### Secret recovery
 
 If the cluster is lost and Sealed Secrets controller private key is lost:
-
 1. Restore from the Sealed Secrets controller backup (`kubectl get secret -n kube-system sealed-secrets-key -o yaml > backup.yaml`)
 2. Re-encrypt all secrets with new keys
 

@@ -3,10 +3,9 @@ import { AggregateRoot, EntityId, RepositoryPort } from '../../ddd';
 import { Logger } from '@nestjs/common';
 import { UnitOfWorkService } from './unit-of-work';
 
-export abstract class BaseRepository<
-  TAggregate extends AggregateRoot<unknown>,
-  TPrismaModel = Record<string, unknown>,
-> implements RepositoryPort<TAggregate> {
+export abstract class BaseRepository<TAggregate extends AggregateRoot<unknown>, TPrismaModel = Record<string, unknown>>
+  implements RepositoryPort<TAggregate>
+{
   protected readonly logger: Logger;
 
   constructor(
@@ -20,9 +19,7 @@ export abstract class BaseRepository<
   abstract toDomain(record: TPrismaModel): TAggregate;
   abstract toPersistence(aggregate: TAggregate): Record<string, unknown>;
 
-  protected get client():
-    | Prisma.TransactionClient
-    | import('@prisma/client').PrismaClient {
+  protected get client(): Prisma.TransactionClient | import('@prisma/client').PrismaClient {
     return this.uow.getClient();
   }
 
@@ -67,30 +64,17 @@ export abstract class BaseRepository<
     if (existing) {
       await this.delegate.update({
         where: { id: aggregate.id, version: existing.version },
-        data: {
-          ...this.toPersistence(aggregate),
-          version: { increment: 1 },
-          updatedAt: new Date(),
-        },
+        data: { ...this.toPersistence(aggregate), version: { increment: 1 }, updatedAt: new Date() },
       });
     } else {
       const data = this.toPersistence(aggregate) as any;
       await this.delegate.create({
-        data: {
-          ...data,
-          id: aggregate.id,
-          version: 1,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
+        data: { ...data, id: aggregate.id, version: 1, createdAt: new Date(), updatedAt: new Date() },
       });
     }
   }
 
-  async update(
-    id: EntityId,
-    data: Partial<Record<string, unknown>>,
-  ): Promise<void> {
+  async update(id: EntityId, data: Partial<Record<string, unknown>>): Promise<void> {
     await this.delegate.update({
       where: { id },
       data: { ...data, updatedAt: new Date() },
@@ -104,11 +88,7 @@ export abstract class BaseRepository<
   async softDelete(id: EntityId): Promise<void> {
     await this.delegate.update({
       where: { id },
-      data: {
-        deletedAt: new Date(),
-        version: { increment: 1 },
-        updatedAt: new Date(),
-      },
+      data: { deletedAt: new Date(), version: { increment: 1 }, updatedAt: new Date() },
     });
   }
 }

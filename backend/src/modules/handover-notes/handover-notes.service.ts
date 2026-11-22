@@ -1,31 +1,40 @@
-import {
-  Injectable,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { ScheduleGateway } from '../websocket/schedule.gateway';
+import { UnitScopeService } from '../rbac/services/unit-scope.service';
 import { CreateHandoverNoteDto } from './dto/create-handover-note.dto';
 import { UpdateHandoverNoteDto } from './dto/update-handover-note.dto';
 import { HandoverNoteQueryDto } from './dto/handover-note-query.dto';
+
+interface HandoverScopeUser {
+  id: string;
+  role?: string | null;
+  unitId?: string | null;
+  organizationId?: string | null;
+  rbacRoles?: Array<{ roleName: string; unitId: string | null; organizationId: string | null }>;
+}
 
 @Injectable()
 export class HandoverNotesService {
   constructor(
     private prisma: PrismaService,
     private gateway: ScheduleGateway,
+    private unitScopeService: UnitScopeService,
   ) {}
 
-  async create(userId: string, dto: CreateHandoverNoteDto) {
+  async create(user: HandoverScopeUser, dto: CreateHandoverNoteDto) {
     const unit = await this.prisma.unit.findUnique({
       where: { id: dto.unitId },
       select: { id: true, name: true, organizationId: true },
     });
     if (!unit) throw new NotFoundException('Birim bulunamadı');
 
+    const allowed = await this.unitScopeService.canAccessUnit(user, unit.id, unit.organizationId);
+    if (!allowed) throw new ForbiddenException('Bu birime erişim yetkiniz yok');
+
     const note = await this.prisma.handoverNote.create({
       data: {
-        userId,
+        userId: user.id,
         unitId: dto.unitId,
         deviceId: dto.deviceId || null,
         shiftType: dto.shiftType || null,
@@ -40,35 +49,49 @@ export class HandoverNotesService {
       },
     });
 
-    this.gateway
-      .broadcastHandoverNote({
-        organizationId: note.unit.organizationId || '',
-        unitId: note.unitId,
-        note: {
-          id: note.id,
-          title: note.title,
-          priority: note.priority,
-          authorName: note.user.name,
-          unitName: note.unit.name,
-          createdAt: note.createdAt.toISOString(),
-        },
-      })
-      .catch(() => {});
+    this.gateway.broadcastHandoverNote({
+      organizationId: note.unit.organizationId || '',
+      unitId: note.unitId,
+      note: {
+        id: note.id,
+        title: note.title,
+        priority: note.priority,
+        authorName: note.user.name,
+        unitName: note.unit.name,
+        createdAt: note.createdAt.toISOString(),
+      },
+    }).catch(() => {});
 
     return note;
   }
 
-  async findAll(
-    userId: string,
-    userUnitId: string | undefined,
-    query: HandoverNoteQueryDto,
-  ) {
+  async findAll(user: HandoverScopeUser, query: HandoverNoteQueryDto) {
     const where: any = {};
 
     if (query.unitId) {
+      const target = await this.prisma.unit.findUnique({
+        where: { id: query.unitId },
+        select: { id: true, organizationId: true },
+      });
+      const allowed = target
+        ? await this.unitScopeService.canAccessUnit(user, target.id, target.organizationId)
+        : false;
+      if (!allowed) throw new ForbiddenException('Bu birime erişim yetkiniz yok');
       where.unitId = query.unitId;
-    } else if (userUnitId) {
-      where.unitId = userUnitId;
+    } else {
+      const scope = await this.unitScopeService.resolveReadScope(user);
+      if (scope.denyAll) {
+        throw new ForbiddenException('Bu birime erişim yetkiniz yok');
+      }
+      if (scope.unitId) {
+        where.unitId = scope.unitId;
+      } else if (scope.organizationId) {
+        const orgUnits = await this.prisma.unit.findMany({
+          where: { organizationId: scope.organizationId },
+          select: { id: true },
+        });
+        where.unitId = { in: orgUnits.map((u) => u.id) };
+      }
     }
 
     if (query.deviceId) where.deviceId = query.deviceId;
@@ -97,36 +120,36 @@ export class HandoverNotesService {
       this.prisma.handoverNote.count({ where }),
     ]);
 
-    const dataWithReadStatus = data.map((note) => ({
+    const dataWithReadStatus = data.map(note => ({
       ...note,
-      isReadByMe: note.readBy.includes(userId),
+      isReadByMe: note.readBy.includes(user.id),
     }));
 
     return { data: dataWithReadStatus, total };
   }
 
-  async findOne(id: string, userId: string) {
+  async findOne(id: string, user: HandoverScopeUser) {
     const note = await this.prisma.handoverNote.findUnique({
       where: { id },
       include: {
         user: { select: { id: true, name: true, role: true } },
-        unit: { select: { id: true, name: true } },
+        unit: { select: { id: true, name: true, organizationId: true } },
         device: { select: { id: true, name: true, code: true } },
       },
     });
 
     if (!note) throw new NotFoundException('Devir teslim notu bulunamadı');
 
-    return { ...note, isReadByMe: note.readBy.includes(userId) };
+    const allowed = await this.unitScopeService.canAccessUnit(user, note.unitId, note.unit?.organizationId ?? null);
+    if (!allowed) throw new ForbiddenException('Bu birime erişim yetkiniz yok');
+
+    return { ...note, isReadByMe: note.readBy.includes(user.id) };
   }
 
-  async update(id: string, userId: string, dto: UpdateHandoverNoteDto) {
+  async update(id: string, user: HandoverScopeUser, dto: UpdateHandoverNoteDto) {
     const note = await this.prisma.handoverNote.findUnique({ where: { id } });
     if (!note) throw new NotFoundException('Devir teslim notu bulunamadı');
-    if (note.userId !== userId)
-      throw new ForbiddenException(
-        'Yalnızca kendi notlarınızı düzenleyebilirsiniz',
-      );
+    if (note.userId !== user.id) throw new ForbiddenException('Yalnızca kendi notlarınızı düzenleyebilirsiniz');
 
     const updated = await this.prisma.handoverNote.update({
       where: { id },
@@ -143,20 +166,26 @@ export class HandoverNotesService {
       },
     });
 
-    return { ...updated, isReadByMe: updated.readBy.includes(userId) };
+    return { ...updated, isReadByMe: updated.readBy.includes(user.id) };
   }
 
-  async markAsRead(id: string, userId: string) {
-    const note = await this.prisma.handoverNote.findUnique({ where: { id } });
+  async markAsRead(id: string, user: HandoverScopeUser) {
+    const note = await this.prisma.handoverNote.findUnique({
+      where: { id },
+      include: { unit: { select: { id: true, organizationId: true } } },
+    });
     if (!note) throw new NotFoundException('Devir teslim notu bulunamadı');
 
-    if (note.readBy.includes(userId)) {
-      return this.findOne(id, userId);
+    const allowed = await this.unitScopeService.canAccessUnit(user, note.unitId, note.unit?.organizationId ?? null);
+    if (!allowed) throw new ForbiddenException('Bu birime erişim yetkiniz yok');
+
+    if (note.readBy.includes(user.id)) {
+      return this.findOne(id, user);
     }
 
     const updated = await this.prisma.handoverNote.update({
       where: { id },
-      data: { readBy: { push: userId } },
+      data: { readBy: { push: user.id } },
       include: {
         user: { select: { id: true, name: true, role: true } },
         unit: { select: { id: true, name: true } },
@@ -167,12 +196,25 @@ export class HandoverNotesService {
     return { ...updated, isReadByMe: true };
   }
 
-  async getUnreadCount(userId: string, userUnitId: string | undefined) {
+  async getUnreadCount(user: HandoverScopeUser) {
+    const scope = await this.unitScopeService.resolveReadScope(user);
+    if (scope.denyAll) {
+      throw new ForbiddenException('Bu birime erişim yetkiniz yok');
+    }
+
     const where: any = {
       status: 'active',
-      NOT: { readBy: { has: userId } },
+      NOT: { readBy: { has: user.id } },
     };
-    if (userUnitId) where.unitId = userUnitId;
+    if (scope.unitId) {
+      where.unitId = scope.unitId;
+    } else if (scope.organizationId) {
+      const orgUnits = await this.prisma.unit.findMany({
+        where: { organizationId: scope.organizationId },
+        select: { id: true },
+      });
+      where.unitId = { in: orgUnits.map((u) => u.id) };
+    }
 
     const count = await this.prisma.handoverNote.count({ where });
     return { count };

@@ -5,11 +5,7 @@ import { PrismaService } from '../../prisma.service';
 export class FaultsService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(filters?: {
-    status?: string;
-    severity?: string;
-    assetId?: string;
-  }) {
+  async findAll(filters?: { status?: string; severity?: string; assetId?: string }) {
     const where: any = {};
     if (filters?.status) where.status = filters.status;
     if (filters?.severity) where.severity = filters.severity;
@@ -58,18 +54,12 @@ export class FaultsService {
     return {
       mtbf: maintenanceAgg._avg.mtbf || 0,
       mttr: maintenanceAgg._avg.mttr || 0,
-      topFaultTypes: faultTypeCounts.map((f) => ({
+      topFaultTypes: faultTypeCounts.map(f => ({
         issueType: f.issueType,
         count: f._count.id,
       })),
-      bySeverity: severityCounts.reduce(
-        (acc, s) => ({ ...acc, [s.severity]: s._count.id }),
-        {},
-      ),
-      byStatus: statusCounts.reduce(
-        (acc, s) => ({ ...acc, [s.status]: s._count.id }),
-        {},
-      ),
+      bySeverity: severityCounts.reduce((acc, s) => ({ ...acc, [s.severity]: s._count.id }), {}),
+      byStatus: statusCounts.reduce((acc, s) => ({ ...acc, [s.status]: s._count.id }), {}),
     };
   }
 }

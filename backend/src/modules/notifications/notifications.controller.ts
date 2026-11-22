@@ -1,23 +1,8 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Delete,
-  Param,
-  Query,
-  Body,
-  Request,
-  UseGuards,
-  HttpCode,
-  HttpStatus,
-  ParseIntPipe,
+  Controller, Get, Post, Delete, Param, Query, Body, Request,
+  UseGuards, HttpCode, HttpStatus, ParseIntPipe,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -31,13 +16,9 @@ import { NotificationEventService } from './notification-event.service';
 import { WebPushSenderService } from './web-push-sender.service';
 import { NotificationAccessGuard } from './guards/notification-access.guard';
 import {
-  SendNotificationDto,
-  SendAnnouncementDto,
-  SendEmergencyDto,
-  NotificationFilterDto,
-  NotificationPreferenceDto,
-  RegisterWebPushDto,
-  NotificationStatsQueryDto,
+  SendNotificationDto, SendAnnouncementDto, SendEmergencyDto,
+  NotificationFilterDto, NotificationPreferenceDto,
+  RegisterWebPushDto, NotificationStatsQueryDto,
 } from './dto/notification.dto';
 
 @ApiTags('Notifications')
@@ -89,15 +70,36 @@ export class NotificationsController {
     return this.notificationsService.getUnreadCountByType(req.user.id);
   }
 
+  @Get('preferences')
+  @ApiOperation({ summary: 'Get notification preferences' })
+  getPreferences(@Request() req: any) {
+    return this.preferenceService.getPreferences(req.user.id);
+  }
+
+  @Get('stats')
+  @UseGuards(RolesGuard)
+  @Roles(MinRole.SUPERVISOR)
+  @ApiOperation({ summary: 'Get notification delivery statistics' })
+  async getStats(@Query() query: NotificationStatsQueryDto) {
+    return this.deliveryTracker.getDeliveryStats(
+      query.organizationId,
+      query.startDate ? new Date(query.startDate) : undefined,
+      query.endDate ? new Date(query.endDate) : undefined,
+    );
+  }
+
+  @Get('engagement')
+  @ApiOperation({ summary: 'Get user notification engagement' })
+  async getEngagement(@Request() req: any) {
+    return this.analytics.getUserEngagement(req.user.id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get notification by ID' })
   async getById(@Param('id') id: string, @Request() req: any) {
-    const notification =
-      await this.notificationsService.getNotificationById(id);
+    const notification = await this.notificationsService.getNotificationById(id);
     if (!notification) return { data: null };
-    const isRecipient = notification.recipients.some(
-      (r) => r.userId === req.user.id,
-    );
+    const isRecipient = notification.recipients.some((r) => r.userId === req.user.id);
     if (!isRecipient && req.user.role !== 'system_admin') {
       return { data: null };
     }
@@ -128,16 +130,8 @@ export class NotificationsController {
   @Post(':id/clicked')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Mark notification as clicked' })
-  markClicked(
-    @Param('id') id: string,
-    @Request() req: any,
-    @Body('channel') channel?: string,
-  ) {
-    return this.notificationsService.markClicked(
-      id,
-      req.user.id,
-      channel as any,
-    );
+  markClicked(@Param('id') id: string, @Request() req: any, @Body('channel') channel?: string) {
+    return this.notificationsService.markClicked(id, req.user.id, channel as any);
   }
 
   @Post('send')
@@ -205,42 +199,18 @@ export class NotificationsController {
     });
   }
 
-  @Get('preferences')
-  @ApiOperation({ summary: 'Get notification preferences' })
-  getPreferences(@Request() req: any) {
-    return this.preferenceService.getPreferences(req.user.id);
-  }
-
   @Post('preferences')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update notification preferences' })
-  updatePreferences(
-    @Request() req: any,
-    @Body() dto: NotificationPreferenceDto,
-  ) {
+  updatePreferences(@Request() req: any, @Body() dto: NotificationPreferenceDto) {
     return this.preferenceService.updatePreferences(req.user.id, dto);
-  }
-
-  @Get('stats')
-  @UseGuards(RolesGuard)
-  @Roles(MinRole.SUPERVISOR)
-  @ApiOperation({ summary: 'Get notification delivery statistics' })
-  async getStats(@Query() query: NotificationStatsQueryDto) {
-    return this.deliveryTracker.getDeliveryStats(
-      query.organizationId,
-      query.startDate ? new Date(query.startDate) : undefined,
-      query.endDate ? new Date(query.endDate) : undefined,
-    );
   }
 
   @Get('stats/trend')
   @UseGuards(RolesGuard)
   @Roles(MinRole.SUPERVISOR)
   @ApiOperation({ summary: 'Get notification delivery trend' })
-  async getTrend(
-    @Query('days') days?: string,
-    @Query('organizationId') orgId?: string,
-  ) {
+  async getTrend(@Query('days') days?: string, @Query('organizationId') orgId?: string) {
     return this.deliveryTracker.getDeliveryTrend(Number(days) || 30, orgId);
   }
 
@@ -268,10 +238,7 @@ export class NotificationsController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    return this.deliveryTracker.getFailedDeliveries(
-      Number(limit) || 50,
-      Number(offset) || 0,
-    );
+    return this.deliveryTracker.getFailedDeliveries(Number(limit) || 50, Number(offset) || 0);
   }
 
   @Post('stats/failed/retry-all')
@@ -292,33 +259,18 @@ export class NotificationsController {
     return this.deliveryTracker.retryFailedDelivery(id);
   }
 
-  @Get('engagement')
-  @ApiOperation({ summary: 'Get user notification engagement' })
-  async getEngagement(@Request() req: any) {
-    return this.analytics.getUserEngagement(req.user.id);
-  }
-
   @Post('web-push/subscribe')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Register web push subscription' })
   async subscribeWebPush(@Body() dto: RegisterWebPushDto, @Request() req: any) {
-    await this.webPushSender.subscribe(
-      req.user.id,
-      dto.endpoint,
-      dto.auth,
-      dto.p256dh,
-      dto.userAgent,
-    );
+    await this.webPushSender.subscribe(req.user.id, dto.endpoint, dto.auth, dto.p256dh, dto.userAgent);
     return { success: true };
   }
 
   @Post('web-push/unsubscribe')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Unregister web push subscription' })
-  async unsubscribeWebPush(
-    @Body('endpoint') endpoint: string,
-    @Request() req: any,
-  ) {
+  async unsubscribeWebPush(@Body('endpoint') endpoint: string, @Request() req: any) {
     await this.webPushSender.unsubscribe(req.user.id, endpoint);
     return { success: true };
   }

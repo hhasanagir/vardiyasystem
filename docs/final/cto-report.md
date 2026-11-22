@@ -26,16 +26,16 @@
 
 ### 1.1 Stack
 
-| Layer             | Technology                    | Version |
-| ----------------- | ----------------------------- | ------- |
-| Backend Framework | NestJS (Express adapter)      | 10.x    |
-| Runtime           | Node.js                       | 20 LTS  |
-| Frontend          | Angular (standalone, Signals) | 21      |
-| ORM               | Prisma                        | 6.x     |
-| Database          | PostgreSQL                    | 17      |
-| Queue / Cache     | BullMQ + Redis                | 7       |
-| Real-time         | Socket.IO (NestJS WS adapter) | —       |
-| Package Manager   | npm                           | —       |
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Backend Framework | NestJS (Express adapter) | 10.x |
+| Runtime | Node.js | 20 LTS |
+| Frontend | Angular (standalone, Signals) | 21 |
+| ORM | Prisma | 6.x |
+| Database | PostgreSQL | 17 |
+| Queue / Cache | BullMQ + Redis | 7 |
+| Real-time | Socket.IO (NestJS WS adapter) | — |
+| Package Manager | npm | — |
 
 ### 1.2 Module Topology
 
@@ -72,27 +72,27 @@ Event-driven side-effects via BullMQ: domain events enqueue async jobs (notifica
 
 ### 2.1 Backend
 
-| Metric                           | Count                |
-| -------------------------------- | -------------------- |
-| Unit test files                  | 21                   |
-| Unit test cases (`it()` blocks)  | 185                  |
-| E2E test files                   | 9                    |
-| E2E test cases                   | 33                   |
-| Test runner                      | Vitest               |
-| Coverage threshold (CI-enforced) | 80% line / branch    |
-| TypeScript compilation           | `tsc --noEmit` clean |
+| Metric | Count |
+|--------|-------|
+| Unit test files | 21 |
+| Unit test cases (`it()` blocks) | 185 |
+| E2E test files | 9 |
+| E2E test cases | 33 |
+| Test runner | Vitest |
+| Coverage threshold (CI-enforced) | 80% line / branch |
+| TypeScript compilation | `tsc --noEmit` clean |
 
 Test distribution spans 15 service classes (auth, sessions, audit-log, schedules, attendance, swap-requests, analytics, device-incidents, device-status, shifts, shift-tasks, push-subscriptions, token-blacklist, rate-limit, csrf) and 4 DTO validation suites.
 
 ### 2.2 Frontend
 
-| Metric             | Count                           |
-| ------------------ | ------------------------------- |
-| Unit test files    | 7                               |
-| Unit test cases    | 60                              |
-| Test runner        | Jasmine + Karma (Angular CLI)   |
-| Component strategy | `OnPush` ChangeDetection        |
-| State management   | Angular Signals (no NgRx/Redux) |
+| Metric | Count |
+|--------|-------|
+| Unit test files | 7 |
+| Unit test cases | 60 |
+| Test runner | Jasmine + Karma (Angular CLI) |
+| Component strategy | `OnPush` ChangeDetection |
+| State management | Angular Signals (no NgRx/Redux) |
 
 Frontend testing covers 3 services (ScheduleApi, DeviceApi, Pwa, DeviceIncidents), 3 components (Reports, PwaInstallPrompt, DeviceIncidentReport), and integration-level HTTP mock suites.
 
@@ -113,39 +113,39 @@ Frontend testing covers 3 services (ScheduleApi, DeviceApi, Pwa, DeviceIncidents
 
 ### 3.2 Authentication & Session Management
 
-| Control                 | Configuration                                           |
-| ----------------------- | ------------------------------------------------------- |
-| Password hashing        | bcrypt, cost factor 13 (upgraded from 12)               |
-| Password policy         | Min 8 chars, upper+lower+digit, max 128 chars           |
-| JWT access token expiry | 15 minutes                                              |
-| JWT refresh token       | Rotation + replay detection (JTI blacklist)             |
-| Session storage         | SHA-256 hashed tokens, 7-day TTL                        |
-| Brute-force protection  | Progressive lockout: 5 failures → 15min → 24h           |
-| Rate limiting           | Auth: 3/60s register, 10/60s login; Global: 200 req/60s |
-| Anti-enumeration        | Generic error messages (`Invalid credentials`)          |
+| Control | Configuration |
+|---------|--------------|
+| Password hashing | bcrypt, cost factor 13 (upgraded from 12) |
+| Password policy | Min 8 chars, upper+lower+digit, max 128 chars |
+| JWT access token expiry | 15 minutes |
+| JWT refresh token | Rotation + replay detection (JTI blacklist) |
+| Session storage | SHA-256 hashed tokens, 7-day TTL |
+| Brute-force protection | Progressive lockout: 5 failures → 15min → 24h |
+| Rate limiting | Auth: 3/60s register, 10/60s login; Global: 200 req/60s |
+| Anti-enumeration | Generic error messages (`Invalid credentials`) |
 
 ### 3.3 Transport & API Protection
 
-| Control          | Implementation                                                                                          |
-| ---------------- | ------------------------------------------------------------------------------------------------------- |
-| CSRF             | Double-submit cookie pattern, global `CsrfGuard`, `SameSite=Strict`, cookie signed with `COOKIE_SECRET` |
-| CSP              | `default-src 'self'`; script/style/img restricted; frame-ancestors `none`; form-action `self`           |
-| HSTS             | `max-age=31536000; includeSubDomains; preload` (production)                                             |
-| TLS              | Nginx termination, TLS 1.2/1.3 only, strong ciphers                                                     |
-| mTLS             | Istio `STRICT` mode (mutual TLS across all service mesh traffic)                                        |
-| WebSocket        | Origin validation in `handleConnection()` against `WS_CORS_ORIGIN`                                      |
-| Security headers | X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy                            |
-| Swagger          | Disabled in production (`NODE_ENV === 'production'` guard)                                              |
+| Control | Implementation |
+|---------|---------------|
+| CSRF | Double-submit cookie pattern, global `CsrfGuard`, `SameSite=Strict`, cookie signed with `COOKIE_SECRET` |
+| CSP | `default-src 'self'`; script/style/img restricted; frame-ancestors `none`; form-action `self` |
+| HSTS | `max-age=31536000; includeSubDomains; preload` (production) |
+| TLS | Nginx termination, TLS 1.2/1.3 only, strong ciphers |
+| mTLS | Istio `STRICT` mode (mutual TLS across all service mesh traffic) |
+| WebSocket | Origin validation in `handleConnection()` against `WS_CORS_ORIGIN` |
+| Security headers | X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy |
+| Swagger | Disabled in production (`NODE_ENV === 'production'` guard) |
 
 ### 3.4 Secret Scanning & SAST
 
-| Tool       | Schedule           | Scope                          |
-| ---------- | ------------------ | ------------------------------ |
-| Gitleaks   | Per-PR + weekly CI | Hardcoded secrets              |
-| TruffleHog | Weekly CI          | High-entropy secrets, API keys |
-| CodeQL     | Per-PR + weekly CI | Semantic code analysis (JS/TS) |
-| npm audit  | Per-PR             | Dependency vulnerabilities     |
-| Dependabot | Weekly             | Automated dependency PRs       |
+| Tool | Schedule | Scope |
+|------|----------|-------|
+| Gitleaks | Per-PR + weekly CI | Hardcoded secrets |
+| TruffleHog | Weekly CI | High-entropy secrets, API keys |
+| CodeQL | Per-PR + weekly CI | Semantic code analysis (JS/TS) |
+| npm audit | Per-PR | Dependency vulnerabilities |
+| Dependabot | Weekly | Automated dependency PRs |
 
 ### 3.5 Penetration Testing
 
@@ -159,21 +159,20 @@ External penetration test is **planned** (scheduled for Q3 2026). Internal secur
 
 **Namespace:** `vardiya` (PSA `restricted` level enforced)
 
-| Deployment           | Replicas           | HPA                 | PDB             |
-| -------------------- | ------------------ | ------------------- | --------------- |
-| Backend (NestJS)     | 2 (min) / 10 (max) | CPU 70%, Memory 80% | minAvailable: 2 |
-| Frontend (nginx SPA) | 2 (min) / 6 (max)  | CPU 70%             | minAvailable: 1 |
-| PostgreSQL           | 1 (StatefulSet)    | —                   | —               |
-| Redis                | 1 (with Sentinel)  | —                   | —               |
-| PgBouncer            | 2                  | —                   | —               |
-| OTEL Collector       | 2 (min) / 6 (max)  | CPU 70%             | —               |
+| Deployment | Replicas | HPA | PDB |
+|-----------|----------|-----|-----|
+| Backend (NestJS) | 2 (min) / 10 (max) | CPU 70%, Memory 80% | minAvailable: 2 |
+| Frontend (nginx SPA) | 2 (min) / 6 (max) | CPU 70% | minAvailable: 1 |
+| PostgreSQL | 1 (StatefulSet) | — | — |
+| Redis | 1 (with Sentinel) | — | — |
+| PgBouncer | 2 | — | — |
+| OTEL Collector | 2 (min) / 6 (max) | CPU 70% | — |
 
 **Strategies:** RollingUpdate with `maxSurge: 1, maxUnavailable: 0` for backend; `maxUnavailable: 1` for frontend. Pod anti-affinity preferred during scheduling. `terminationGracePeriodSeconds: 30`.
 
 ### 4.2 Helm Charts
 
 The project uses a **Helm umbrella chart** composed of 7 subcharts across 49 files:
-
 - `backend` — NestJS deployment, HPA, PDB, Service, ServiceMonitor
 - `frontend` — nginx deployment, HPA, PDB, Service
 - `postgres` — StatefulSet, PVC, Service, ServiceMonitor
@@ -184,14 +183,14 @@ The project uses a **Helm umbrella chart** composed of 7 subcharts across 49 fil
 
 ### 4.3 Istio Service Mesh
 
-| Feature           | Configuration                                                        |
-| ----------------- | -------------------------------------------------------------------- |
-| mTLS mode         | `STRICT` (peer authentication)                                       |
-| Circuit breaker   | Max connections: 100, max pending requests: 10, max retries: 3       |
+| Feature | Configuration |
+|---------|--------------|
+| mTLS mode | `STRICT` (peer authentication) |
+| Circuit breaker | Max connections: 100, max pending requests: 10, max retries: 3 |
 | Outlier detection | Consecutive 5xx errors: 5, ejection time: 30s, baseEjectionTime: 30s |
-| Request timeout   | 60s (backend service)                                                |
-| Retry policy      | 3 attempts, 200ms base interval, 2x multiplier                       |
-| DestinationRule   | `trafficPolicy.connectionPool.tcp.maxConnections: 100`               |
+| Request timeout | 60s (backend service) |
+| Retry policy | 3 attempts, 200ms base interval, 2x multiplier |
+| DestinationRule | `trafficPolicy.connectionPool.tcp.maxConnections: 100` |
 
 ### 4.4 Certificate Management
 
@@ -204,22 +203,22 @@ The project uses a **Helm umbrella chart** composed of 7 subcharts across 49 fil
 
 6 Applications defined in the `argocd/` directory:
 
-| Application       | Source                             | Sync Policy | Auto-prune | Self-heal |
-| ----------------- | ---------------------------------- | ----------- | ---------- | --------- |
-| vardiya-backend   | ghcr.io/anomalyco/vardiya-backend  | auto        | true       | true      |
-| vardiya-frontend  | ghcr.io/anomalyco/vardiya-frontend | auto        | true       | true      |
-| vardiya-postgres  | helm/postgres                      | auto        | true       | true      |
-| vardiya-redis     | helm/redis                         | auto        | true       | true      |
-| vardiya-pgbouncer | helm/pgbouncer                     | auto        | true       | true      |
-| vardiya-otel      | helm/otel-collector                | auto        | true       | true      |
+| Application | Source | Sync Policy | Auto-prune | Self-heal |
+|-------------|--------|------------|------------|-----------|
+| vardiya-backend | ghcr.io/anomalyco/vardiya-backend | auto | true | true |
+| vardiya-frontend | ghcr.io/anomalyco/vardiya-frontend | auto | true | true |
+| vardiya-postgres | helm/postgres | auto | true | true |
+| vardiya-redis | helm/redis | auto | true | true |
+| vardiya-pgbouncer | helm/pgbouncer | auto | true | true |
+| vardiya-otel | helm/otel-collector | auto | true | true |
 
 ### 4.6 Progressive Delivery — Argo Rollouts
 
-| Workload       | Strategy                  | Analysis                                                    |
-| -------------- | ------------------------- | ----------------------------------------------------------- |
-| Backend        | Blue-green                | Pre-promotion: smoke tests + metric health check            |
-| Frontend       | Canary (10% → 50% → 100%) | Prometheus query: `http_request_duration_seconds{p95} < 2s` |
-| Step intervals | 5 minutes                 | Rollback on any step failure                                |
+| Workload | Strategy | Analysis |
+|----------|----------|----------|
+| Backend | Blue-green | Pre-promotion: smoke tests + metric health check |
+| Frontend | Canary (10% → 50% → 100%) | Prometheus query: `http_request_duration_seconds{p95} < 2s` |
+| Step intervals | 5 minutes | Rollback on any step failure |
 
 ### 4.7 Network Policies
 
@@ -241,28 +240,28 @@ Pod Security Admission: `restricted` profile enforced at namespace level.
 
 ### 5.1 Stack
 
-| Component      | Role                                       |
-| -------------- | ------------------------------------------ |
-| Prometheus     | Metrics collection and alerting evaluation |
-| Grafana        | Dashboards (API, DB, WS, infra, business)  |
-| Loki           | Log aggregation from all pods              |
-| Tempo          | Distributed trace storage and querying     |
-| AlertManager   | Alert routing (Slack, email)               |
+| Component | Role |
+|-----------|------|
+| Prometheus | Metrics collection and alerting evaluation |
+| Grafana | Dashboards (API, DB, WS, infra, business) |
+| Loki | Log aggregation from all pods |
+| Tempo | Distributed trace storage and querying |
+| AlertManager | Alert routing (Slack, email) |
 | OTEL Collector | Trace ingestion, batch processing, 2-6 HPA |
 
 ### 5.2 Metrics & Alerting
 
 **15+ Prometheus recording and alerting rules** covering:
 
-| Category           | Rule Example                                      | Threshold             |
-| ------------------ | ------------------------------------------------- | --------------------- |
-| Availability       | `(1 - rate(5xx) / rate(total)) < 0.999`           | Burn rate > 0.5%/week |
-| Latency            | `histogram_quantile(0.95, ...) > 2s`              | P95 exceeds SLO       |
-| Errors             | `rate(5xx[5m]) > 0.01`                            | 1% error rate         |
-| DB connections     | `pg_stat_database_numbackends > 80`               | Near connection limit |
-| Queue depth        | `bullmq_queue_waiting > 1000`                     | BullMQ backlog        |
-| Memory             | `container_memory_usage_bytes > 85%`              | Pod OOM risk          |
-| Certificate expiry | `certmanager_certificate_expiry_seconds < 864000` | 10 days to expiry     |
+| Category | Rule Example | Threshold |
+|----------|-------------|-----------|
+| Availability | `(1 - rate(5xx) / rate(total)) < 0.999` | Burn rate > 0.5%/week |
+| Latency | `histogram_quantile(0.95, ...) > 2s` | P95 exceeds SLO |
+| Errors | `rate(5xx[5m]) > 0.01` | 1% error rate |
+| DB connections | `pg_stat_database_numbackends > 80` | Near connection limit |
+| Queue depth | `bullmq_queue_waiting > 1000` | BullMQ backlog |
+| Memory | `container_memory_usage_bytes > 85%` | Pod OOM risk |
+| Certificate expiry | `certmanager_certificate_expiry_seconds < 864000` | 10 days to expiry |
 
 ### 5.3 Tracing
 
@@ -274,17 +273,16 @@ OpenTelemetry SDK auto-instrumentation in NestJS. Traces sampled at 10% for norm
 
 ### 6.1 Encryption
 
-| Layer             | Algorithm              | Key Management               |
-| ----------------- | ---------------------- | ---------------------------- |
-| Field-level (PII) | AES-256-GCM            | Per-field encryption service |
-| TLS transport     | TLS 1.2/1.3 with ECDHE | cert-manager + Let's Encrypt |
-| Secrets           | Vault integration      | Docker secrets + K8s Secrets |
-| Token hashing     | SHA-256                | `SessionService.hashToken()` |
+| Layer | Algorithm | Key Management |
+|-------|-----------|---------------|
+| Field-level (PII) | AES-256-GCM | Per-field encryption service |
+| TLS transport | TLS 1.2/1.3 with ECDHE | cert-manager + Let's Encrypt |
+| Secrets | Vault integration | Docker secrets + K8s Secrets |
+| Token hashing | SHA-256 | `SessionService.hashToken()` |
 
 ### 6.2 Consent Lifecycle
 
 Full consent management module with templates, explicit grant/withdraw, and expiry cron:
-
 - `ConsentTemplate` — multi-language templates with versioning
 - `ConsentRecord` — per-user consent grants with timestamps
 - Expiry job runs daily, revokes stale consents and notifies users
@@ -293,13 +291,13 @@ Full consent management module with templates, explicit grant/withdraw, and expi
 
 **5 DSR types** fully automated with API endpoints:
 
-| DSR Type      | Endpoint                                     | SLA                 |
-| ------------- | -------------------------------------------- | ------------------- |
-| Access        | `GET /api/v1/data-subject/me/data`           | Instant             |
-| Rectification | `POST /api/v1/data-subject/me/rectification` | 24h                 |
-| Erasure       | `POST /api/v1/data-subject/me/erasure`       | 48h (anonymisation) |
-| Portability   | `POST /api/v1/data-subject/me/portability`   | 24h (JSON export)   |
-| Restriction   | `POST /api/v1/data-subject/me/restriction`   | Instant             |
+| DSR Type | Endpoint | SLA |
+|----------|----------|-----|
+| Access | `GET /api/v1/data-subject/me/data` | Instant |
+| Rectification | `POST /api/v1/data-subject/me/rectification` | 24h |
+| Erasure | `POST /api/v1/data-subject/me/erasure` | 48h (anonymisation) |
+| Portability | `POST /api/v1/data-subject/me/portability` | 24h (JSON export) |
+| Restriction | `POST /api/v1/data-subject/me/restriction` | Instant |
 
 Each DSR has an audit trail (`DataSubjectRequestAuditLog`) for compliance evidence.
 
@@ -307,12 +305,12 @@ Each DSR has an audit trail (`DataSubjectRequestAuditLog`) for compliance eviden
 
 **4 cron jobs** implemented in `cron/`:
 
-| Job                | Scope                      | Retention           | Action              |
-| ------------------ | -------------------------- | ------------------- | ------------------- |
-| Session cleanup    | Expired/revoked sessions   | 7 days after expiry | Hard delete         |
-| Event store purge  | Processed BullMQ jobs      | 90 days             | Hard delete         |
-| Notification purge | Read/deleted notifications | 180 days            | Soft delete         |
-| Audit log archive  | Completed audit entries    | 10 years            | Partition + archive |
+| Job | Scope | Retention | Action |
+|-----|-------|-----------|--------|
+| Session cleanup | Expired/revoked sessions | 7 days after expiry | Hard delete |
+| Event store purge | Processed BullMQ jobs | 90 days | Hard delete |
+| Notification purge | Read/deleted notifications | 180 days | Soft delete |
+| Audit log archive | Completed audit entries | 10 years | Partition + archive |
 
 ### 6.5 Break-Glass Emergency Access
 
@@ -322,16 +320,16 @@ Each DSR has an audit trail (`DataSubjectRequestAuditLog`) for compliance eviden
 
 **8 processing activities** documented and registered:
 
-| ID     | Activity              | Legal Basis          | Retention         |
-| ------ | --------------------- | -------------------- | ----------------- |
-| PA-001 | User account mgmt     | Contract performance | Employment + 10yr |
-| PA-002 | Schedule management   | Contract performance | Employment + 2yr  |
-| PA-003 | Attendance tracking   | Legal obligation     | 10 years          |
-| PA-004 | Shift swap mgmt       | Consent              | 2 years           |
-| PA-005 | Training management   | Contract performance | Employment + 2yr  |
-| PA-006 | Performance analytics | Legitimate interest  | 2 years           |
-| PA-007 | Communication         | Consent              | Session + 90d     |
-| PA-008 | Audit logging         | Legal obligation     | 10 years          |
+| ID | Activity | Legal Basis | Retention |
+|----|----------|-------------|-----------|
+| PA-001 | User account mgmt | Contract performance | Employment + 10yr |
+| PA-002 | Schedule management | Contract performance | Employment + 2yr |
+| PA-003 | Attendance tracking | Legal obligation | 10 years |
+| PA-004 | Shift swap mgmt | Consent | 2 years |
+| PA-005 | Training management | Contract performance | Employment + 2yr |
+| PA-006 | Performance analytics | Legitimate interest | 2 years |
+| PA-007 | Communication | Consent | Session + 90d |
+| PA-008 | Audit logging | Legal obligation | 10 years |
 
 ---
 
@@ -341,15 +339,14 @@ Each DSR has an audit trail (`DataSubjectRequestAuditLog`) for compliance eviden
 
 **4 scenarios** across **5 user tiers** (100, 500, 1000, 2500, 5000 CCU):
 
-| Scenario | Description                          | Duration |
-| -------- | ------------------------------------ | -------- |
-| Load     | Constant ramp to target, hold 10 min | 15 min   |
-| Stress   | Ramp beyond target until errors      | 10 min   |
-| Spike    | 0 → target in 30s, hold 2 min        | 5 min    |
-| Soak     | Target load sustained 60 min         | 60 min   |
+| Scenario | Description | Duration |
+|----------|-------------|----------|
+| Load | Constant ramp to target, hold 10 min | 15 min |
+| Stress | Ramp beyond target until errors | 10 min |
+| Spike | 0 → target in 30s, hold 2 min | 5 min |
+| Soak | Target load sustained 60 min | 60 min |
 
 **Results at 5000 CCU (load test):**
-
 - Error rate: 0.3% (target < 1%)
 - P50: 320ms (target < 500ms)
 - P95: 1,800ms (target < 2,000ms)
@@ -360,26 +357,26 @@ Each DSR has an audit trail (`DataSubjectRequestAuditLog`) for compliance eviden
 
 **10 composite indexes** created based on `EXPLAIN ANALYZE` profiling:
 
-| Table            | Columns                               | Query Pattern           |
-| ---------------- | ------------------------------------- | ----------------------- |
-| Schedule         | (organizationId, status, month, year) | Dashboard aggregation   |
-| Schedule         | (unitId, month, year)                 | Unit monthly view       |
-| Schedule         | (employeeId, date)                    | Employee shift history  |
-| Assignment       | (scheduleId, personnelId)             | Assignment lookup       |
-| SwapRequest      | (status, createdAt)                   | Pending swaps dashboard |
-| Notification     | (userId, createdAt DESC)              | User notification inbox |
-| AttendanceRecord | (personnelId, date)                   | Attendance timeline     |
-| AuditLog         | (userId, createdAt DESC)              | User audit trail        |
-| DeviceIncident   | (unitId, severity, createdAt)         | Unit incident timeline  |
-| DeviceIncident   | (assignedTo, status)                  | Assigned incidents      |
+| Table | Columns | Query Pattern |
+|-------|---------|---------------|
+| Schedule | (organizationId, status, month, year) | Dashboard aggregation |
+| Schedule | (unitId, month, year) | Unit monthly view |
+| Schedule | (employeeId, date) | Employee shift history |
+| Assignment | (scheduleId, personnelId) | Assignment lookup |
+| SwapRequest | (status, createdAt) | Pending swaps dashboard |
+| Notification | (userId, createdAt DESC) | User notification inbox |
+| AttendanceRecord | (personnelId, date) | Attendance timeline |
+| AuditLog | (userId, createdAt DESC) | User audit trail |
+| DeviceIncident | (unitId, severity, createdAt) | Unit incident timeline |
+| DeviceIncident | (assignedTo, status) | Assigned incidents |
 
 ### 7.3 Connection Management
 
-| Component     | Configuration                                                                                 |
-| ------------- | --------------------------------------------------------------------------------------------- |
+| Component | Configuration |
+|-----------|--------------|
 | **PgBouncer** | Transaction pooling, `default_pool_size: 50`, `max_client_conn: 200`, pool mode `transaction` |
-| Prisma        | `connection_limit: 5` per instance, 4 replicas = 20 connections via PgBouncer                 |
-| Redis         | Memory limit 256MB, `maxmemory-policy allkeys-lru`, AOF persistence `appendfsync everysec`    |
+| Prisma | `connection_limit: 5` per instance, 4 replicas = 20 connections via PgBouncer |
+| Redis | Memory limit 256MB, `maxmemory-policy allkeys-lru`, AOF persistence `appendfsync everysec` |
 
 ### 7.4 Caching
 
@@ -399,12 +396,12 @@ Each DSR has an audit trail (`DataSubjectRequestAuditLog`) for compliance eviden
 
 ### 8.1 GitHub Actions Workflows
 
-| Workflow             | Trigger                        | Stages                                                                |
-| -------------------- | ------------------------------ | --------------------------------------------------------------------- |
-| **PR Validation**    | `pull_request` (main, develop) | Lint → TypeCheck → Unit Tests → Coverage → Build → E2E                |
-| **Deploy**           | `push` (main)                  | Build → Scan (Gitleaks + npm audit) → Docker Build/Push → ArgoCD sync |
-| **Security Scan**    | Weekly cron + manual           | Gitleaks → TruffleHog → CodeQL → npm audit → SBOM generation (SPDX)   |
-| **Performance Gate** | Nightly cron                   | k6 load test (1000 CCU) → Compare baseline → Report to Slack          |
+| Workflow | Trigger | Stages |
+|----------|---------|--------|
+| **PR Validation** | `pull_request` (main, develop) | Lint → TypeCheck → Unit Tests → Coverage → Build → E2E | 
+| **Deploy** | `push` (main) | Build → Scan (Gitleaks + npm audit) → Docker Build/Push → ArgoCD sync |
+| **Security Scan** | Weekly cron + manual | Gitleaks → TruffleHog → CodeQL → npm audit → SBOM generation (SPDX) |
+| **Performance Gate** | Nightly cron | k6 load test (1000 CCU) → Compare baseline → Report to Slack |
 
 ### 8.2 Dependency Management
 
@@ -438,32 +435,30 @@ Ingress TLS stanza referenced a non-existent `cluster-issuer` staging value. Fix
 ### 9.5 License & CHANGELOG
 
 Created:
-
 - `LICENSE` — MIT license file
 - `CHANGELOG.md` — semantic versioning with major/minor/patch entries, following Keep a Changelog format
 
 ### 9.6 Silent Catch Errors
 
 All `.catch(() => {})` patterns across the backend replaced with `logger.warn()`:
-
 - `auth.service.ts` — register auditLog catch
 - `schedules-workflow.service.ts` — 5 instances in approval workflow methods
 - BullMQ job error handlers — caught errors now logged with queue/job context
 
 ### 9.7 Additional Remediations
 
-| Finding                           | Fix                                                                    |
-| --------------------------------- | ---------------------------------------------------------------------- |
-| CSP missing                       | Added custom CSP with default-src 'self', frame-ancestors, form-action |
-| Swagger exposed in production     | Wrapped in `if (!isProduction)`                                        |
-| No cookie secret                  | Added `COOKIE_SECRET` env var                                          |
-| Metrics endpoint public           | Added `JwtAuthGuard`                                                   |
-| Health endpoint leaks system info | Stripped hostname/platform/nodeVersion; added `JwtAuthGuard`           |
-| HSTS not explicit                 | `max-age=31536000; includeSubDomains; preload`                         |
-| JWT algorithm not restricted      | `algorithms: ['HS256']` on all verify calls                            |
-| bcrypt cost 12 → 13               | Upgraded to 13                                                         |
-| No MaxLength on DTOs              | Added `@MaxLength(255)` on email/name, `@MaxLength(128)` on passwords  |
-| No WebSocket origin validation    | Origin header checked against `WS_CORS_ORIGIN`                         |
+| Finding | Fix |
+|---------|-----|
+| CSP missing | Added custom CSP with default-src 'self', frame-ancestors, form-action |
+| Swagger exposed in production | Wrapped in `if (!isProduction)` |
+| No cookie secret | Added `COOKIE_SECRET` env var |
+| Metrics endpoint public | Added `JwtAuthGuard` |
+| Health endpoint leaks system info | Stripped hostname/platform/nodeVersion; added `JwtAuthGuard` |
+| HSTS not explicit | `max-age=31536000; includeSubDomains; preload` |
+| JWT algorithm not restricted | `algorithms: ['HS256']` on all verify calls |
+| bcrypt cost 12 → 13 | Upgraded to 13 |
+| No MaxLength on DTOs | Added `@MaxLength(255)` on email/name, `@MaxLength(128)` on passwords |
+| No WebSocket origin validation | Origin header checked against `WS_CORS_ORIGIN` |
 
 ---
 
@@ -497,17 +492,17 @@ All `.catch(() => {})` patterns across the backend replaced with `logger.warn()`
 
 ### 10.4 Additional Recommendations
 
-| Area           | Item                                                    | Priority | Effort  |
-| -------------- | ------------------------------------------------------- | -------- | ------- |
-| Security       | HIBP breach check integration for password registration | MED      | 1 day   |
-| Security       | Formal STRIDE threat model document                     | MED      | 2 days  |
-| Observability  | Synthetic monitoring with Playwright checks             | MED      | 2 days  |
-| Infrastructure | PgBouncer metrics → Prometheus exporter                 | LOW      | 0.5 day |
-| Database       | AuditLog table partitioning (pg_partman monthly)        | MED      | 1 day   |
-| Database       | Personnel.email unique constraint migration             | MED      | 0.5 day |
-| Caching        | Redis cache dashboard aggregations (30-60s TTL)         | MED      | 1 day   |
-| Performance    | Angular bundle analysis + code-splitting audit          | LOW      | 1 day   |
-| Compliance     | KVKK data retention policy documentation                | MED      | 1 day   |
+| Area | Item | Priority | Effort |
+|------|------|----------|--------|
+| Security | HIBP breach check integration for password registration | MED | 1 day |
+| Security | Formal STRIDE threat model document | MED | 2 days |
+| Observability | Synthetic monitoring with Playwright checks | MED | 2 days |
+| Infrastructure | PgBouncer metrics → Prometheus exporter | LOW | 0.5 day |
+| Database | AuditLog table partitioning (pg_partman monthly) | MED | 1 day |
+| Database | Personnel.email unique constraint migration | MED | 0.5 day |
+| Caching | Redis cache dashboard aggregations (30-60s TTL) | MED | 1 day |
+| Performance | Angular bundle analysis + code-splitting audit | LOW | 1 day |
+| Compliance | KVKK data retention policy documentation | MED | 1 day |
 
 ---
 
@@ -578,14 +573,14 @@ spec:
 
 ## Appendix B — Service Level Objectives
 
-| Tier                                | Availability | Latency p99 | Error Rate | Window |
-| ----------------------------------- | ------------ | ----------- | ---------- | ------ |
-| Critical (auth, schedule CRUD)      | 99.99%       | < 1s        | < 0.1%     | 30d    |
-| Normal (lists, search)              | 99.9%        | < 3s        | < 0.5%     | 30d    |
-| Background (reports, notifications) | 99.5%        | < 10s       | < 1%       | 30d    |
+| Tier | Availability | Latency p99 | Error Rate | Window |
+|------|-------------|-------------|------------|--------|
+| Critical (auth, schedule CRUD) | 99.99% | < 1s | < 0.1% | 30d |
+| Normal (lists, search) | 99.9% | < 3s | < 0.5% | 30d |
+| Background (reports, notifications) | 99.5% | < 10s | < 1% | 30d |
 
 Error budgets: Critical 4.3 min/month, Normal 43 min/month, Background 3.6 h/month. Burn rate alerts at 0.5%/week (warning) and 1%/day (critical).
 
 ---
 
-_End of Report — Generated 2026-06-29_
+*End of Report — Generated 2026-06-29*

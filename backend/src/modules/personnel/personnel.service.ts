@@ -1,21 +1,11 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  BadRequestException,
-  Inject,
-  forwardRef,
-} from '@nestjs/common';
-import { Prisma, UnitType } from '@prisma/client';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { isValidUnitType } from '../../models/unit-type';
 import { PrismaService } from '../../prisma.service';
 import { AuditLogService, AuditAction } from '../audit-log/audit-log.service';
 import { ScheduleGateway } from '../websocket/schedule.gateway';
 import { EventBusService } from '../../events/event-bus.service';
-import {
-  createEvent,
-  EVENT_NAMES,
-  AGGREGATE_TYPES,
-} from '../../events/domain-event.interface';
+import { createEvent, EVENT_NAMES, AGGREGATE_TYPES } from '../../events/domain-event.interface';
 
 @Injectable()
 export class PersonnelService {
@@ -28,45 +18,23 @@ export class PersonnelService {
   ) {}
 
   async resolveUnit(value: string) {
-    const validUnitTypes = [
-      'mr',
-      'bt',
-      'rontgen',
-      'nukleer',
-      'onkoloji',
-      'ultrason',
-      'anjiyo',
-      'mamografi',
-      'kemik_dansitometri',
-      'floroskopi',
-      'pet_ct',
-      'spect_ct',
-      'linak',
-      'simutasyon_ct',
-      'mobil',
-      'supervizor',
-    ];
     return this.prisma.unit.findFirst({
       where: {
         OR: [
           { id: value },
           { code: value.toUpperCase() },
-          ...(validUnitTypes.includes(value)
-            ? [{ type: value as UnitType }]
-            : []),
+          ...(isValidUnitType(value) ? [{ type: value }] : []),
         ],
       },
     });
   }
 
-  async findAll(filters?: {
-    unitId?: string;
-    isActive?: boolean | string;
-    search?: string;
-    month?: number;
-    year?: number;
-  }) {
+  async findAll(filters?: { unitId?: string; organizationId?: string; isActive?: boolean | string; search?: string; month?: number; year?: number }) {
     const where: Prisma.PersonnelWhereInput = {};
+
+    if (filters?.organizationId) {
+      where.organizationId = filters.organizationId;
+    }
 
     if (filters?.unitId) {
       const unit = await this.resolveUnit(filters.unitId);
@@ -95,11 +63,7 @@ export class PersonnelService {
           select: {
             assignments:
               filters?.month && filters?.year
-                ? {
-                    where: {
-                      schedule: { month: filters.month, year: filters.year },
-                    },
-                  }
+                ? { where: { schedule: { month: filters.month, year: filters.year } } }
                 : true,
           },
         },
@@ -111,24 +75,13 @@ export class PersonnelService {
       const month = filters.month;
       const year = filters.year;
       const assignments = await this.prisma.assignment.findMany({
-        where: { schedule: { month, year } },
-        select: {
-          personnelId: true,
-          shiftType: true,
-          startTime: true,
-          endTime: true,
-          date: true,
+        where: {
+          schedule: { month, year },
+          ...(filters.organizationId ? { organizationId: filters.organizationId } : {}),
         },
+        select: { personnelId: true, shiftType: true, startTime: true, endTime: true, date: true },
       });
-      const byPerson = new Map<
-        string,
-        Array<{
-          shiftType: string;
-          startTime: string;
-          endTime: string;
-          date: string;
-        }>
-      >();
+      const byPerson = new Map<string, Array<{ shiftType: string; startTime: string; endTime: string; date: string }>>();
       for (const a of assignments) {
         const list = byPerson.get(a.personnelId) || [];
         list.push(a);
@@ -136,13 +89,7 @@ export class PersonnelService {
       }
       return personnel.map((p) => ({
         ...p,
-        stats: this.computeStats(
-          p.id,
-          month,
-          year,
-          p.maxWeeklyHours || 40,
-          byPerson.get(p.id) || [],
-        ),
+        stats: this.computeStats(p.id, month, year, p.maxWeeklyHours || 40, byPerson.get(p.id) || []),
       }));
     }
 
@@ -166,26 +113,14 @@ export class PersonnelService {
     month: number,
     year: number,
     maxWeeklyHours: number,
-    assignments: Array<{
-      shiftType: string;
-      startTime: string;
-      endTime: string;
-      date: string;
-    }>,
+    assignments: Array<{ shiftType: string; startTime: string; endTime: string; date: string }>,
   ) {
     const daysInMonth = new Date(year, month, 0).getDate();
     const weeksInMonth = daysInMonth / 7;
     const totalShifts = assignments.length;
-    const dayShifts = assignments.filter(
-      (a) => a.shiftType === 'day' || a.shiftType === 'evening',
-    ).length;
-    const nightShifts = assignments.filter(
-      (a) => a.shiftType === 'night',
-    ).length;
-    const totalHours = assignments.reduce(
-      (sum, a) => sum + this.durationHours(a.startTime, a.endTime),
-      0,
-    );
+    const dayShifts = assignments.filter((a) => a.shiftType === 'day' || a.shiftType === 'evening').length;
+    const nightShifts = assignments.filter((a) => a.shiftType === 'night').length;
+    const totalHours = assignments.reduce((sum, a) => sum + this.durationHours(a.startTime, a.endTime), 0);
     const weeklyHours = weeksInMonth > 0 ? totalHours / weeksInMonth : 0;
     const workloadPercentage =
       maxWeeklyHours > 0 ? Math.round((weeklyHours / maxWeeklyHours) * 100) : 0;
@@ -239,42 +174,35 @@ export class PersonnelService {
     return personnel;
   }
 
-  async create(
-    data: {
-      name: string;
-      role?: string;
-      employeeNo?: string;
-      email?: string;
-      phone?: string;
-      unitId: string;
-      organizationId?: string;
-      skills?: string[];
-      seniority?: number;
-      specialization?: string;
-      experienceYears?: number;
-      certifications?: string[];
-      deviceSkills?: string[];
-      nightShiftEligible?: boolean;
-      employmentStatus?: string;
-      startDate?: string;
-      notes?: string;
-      offDays?: number[];
-      maxWeeklyHours?: number;
-    },
-    userId?: string,
-  ) {
+  async create(data: {
+    name: string;
+    role?: string;
+    employeeNo?: string;
+    email?: string;
+    phone?: string;
+    unitId: string;
+    organizationId?: string;
+    skills?: string[];
+    seniority?: number;
+    specialization?: string;
+    experienceYears?: number;
+    certifications?: string[];
+    deviceSkills?: string[];
+    nightShiftEligible?: boolean;
+    employmentStatus?: string;
+    startDate?: string;
+    notes?: string;
+    offDays?: number[];
+    maxWeeklyHours?: number;
+  }, userId?: string, actorOrganizationId?: string) {
     let unitId = data.unitId;
-    const unit = await this.prisma.unit.findFirst({
-      where: {
-        OR: [
-          { id: data.unitId },
-          { code: data.unitId.toUpperCase() },
-          { type: data.unitId as UnitType },
-        ],
-      },
-    });
+    const unit = await this.resolveUnit(data.unitId);
     if (!unit) {
-      throw new BadRequestException(`Geçersiz birim: ${data.unitId}`);
+      throw new BadRequestException(`GeÃ§ersiz birim: ${data.unitId}`);
+    }
+    const unitOrg = unit.organizationId ?? null;
+    if (actorOrganizationId && unitOrg && unitOrg !== actorOrganizationId) {
+      throw new ForbiddenException('Bu birimde personel oluÅŸturma yetkiniz yok');
     }
     unitId = unit.id;
 
@@ -286,6 +214,7 @@ export class PersonnelService {
         email: data.email,
         phone: data.phone,
         unitId,
+        organizationId: actorOrganizationId ?? unitOrg ?? undefined,
         skills: data.skills || [],
         seniority: data.seniority || 0,
         specialization: data.specialization,
@@ -305,96 +234,72 @@ export class PersonnelService {
     });
 
     if (userId) {
-      await this.auditLog
-        .log({
-          userId,
-          action: AuditAction.CREATE,
-          entityType: 'personnel',
-          entityId: created.id,
-          after: created,
-        })
-        .catch(() => {});
+      await this.auditLog.log({
+        userId,
+        action: AuditAction.CREATE,
+        entityType: 'personnel',
+        entityId: created.id,
+        after: created,
+      }).catch(() => {});
     }
 
-    this.gateway
-      .broadcastPersonnelUpdate({
-        action: 'created',
-        personnelId: created.id,
-        personnelName: created.name,
-        unitId: created.unitId || undefined,
-        organizationId: created.unit?.organizationId || undefined,
-      })
-      .catch(() => {});
+    this.gateway.broadcastPersonnelUpdate({
+      action: 'created',
+      personnelId: created.id,
+      personnelName: created.name,
+      unitId: created.unitId || undefined,
+      organizationId: created.unit?.organizationId || undefined,
+    }).catch(() => {});
 
-    this.eventBus.publish(
-      createEvent(
-        EVENT_NAMES.PERSONNEL_CREATED,
-        created.id,
-        AGGREGATE_TYPES.PERSONNEL,
-        {
-          personnelId: created.id,
-          name: created.name,
-          role: created.role,
-          unitId: created.unitId,
-          organizationId: created.unit?.organizationId,
-          employeeNo: created.employeeNo,
-          email: created.email,
-        },
-        userId || created.id,
-      ),
-    );
+    this.eventBus.publish(createEvent(
+      EVENT_NAMES.PERSONNEL_CREATED,
+      created.id,
+      AGGREGATE_TYPES.PERSONNEL,
+      {
+        personnelId: created.id,
+        name: created.name,
+        role: created.role,
+        unitId: created.unitId,
+        organizationId: created.unit?.organizationId,
+        employeeNo: created.employeeNo,
+        email: created.email,
+      },
+      userId || created.id,
+    ));
 
     return created;
   }
 
-  async update(
-    id: string,
-    data: Partial<{
-      name: string;
-      role: string;
-      employeeNo: string;
-      email: string;
-      phone: string;
-      skills: string[];
-      seniority: number;
-      specialization: string;
-      experienceYears: number;
-      certifications: string[];
-      deviceSkills: string[];
-      nightShiftEligible: boolean;
-      employmentStatus: string;
-      startDate: string;
-      notes: string;
-      offDays: number[];
-      maxWeeklyHours: number;
-      isActive: boolean;
-      unitId: string;
-      organizationId: string;
-      version: number;
-    }>,
-    userId?: string,
-  ) {
-    const {
-      version: clientVersion,
-      unitId: _unitId,
-      organizationId: _orgId,
-      ...rest
-    } = data;
-    const updateData: Prisma.PersonnelUncheckedUpdateInput = {
-      ...rest,
-    } as Prisma.PersonnelUncheckedUpdateInput;
+  async update(id: string, data: Partial<{
+    name: string;
+    role: string;
+    employeeNo: string;
+    email: string;
+    phone: string;
+    skills: string[];
+    seniority: number;
+    specialization: string;
+    experienceYears: number;
+    certifications: string[];
+    deviceSkills: string[];
+    nightShiftEligible: boolean;
+    employmentStatus: string;
+    startDate: string;
+    notes: string;
+    offDays: number[];
+    maxWeeklyHours: number;
+    isActive: boolean;
+    unitId: string;
+    organizationId: string;
+    version: number;
+  }>, userId?: string, actorOrganizationId?: string) {
+    const { version: clientVersion, unitId: _unitId, organizationId: _orgId, ...rest } = data;
+    const updateData: Prisma.PersonnelUncheckedUpdateInput = { ...rest } as Prisma.PersonnelUncheckedUpdateInput;
 
+    let resolvedTargetUnitId: string | undefined;
     if (data.unitId) {
-      const unit = await this.prisma.unit.findFirst({
-        where: {
-          OR: [
-            { id: data.unitId },
-            { code: data.unitId.toUpperCase() },
-            { type: data.unitId as UnitType },
-          ],
-        },
-      });
-      if (unit) updateData.unitId = unit.id;
+      const unit = await this.resolveUnit(data.unitId);
+      if (unit) resolvedTargetUnitId = unit.id;
     }
 
     if (data.startDate) {
@@ -407,14 +312,33 @@ export class PersonnelService {
     });
     if (!before) throw new NotFoundException('Personnel not found');
 
+    if (actorOrganizationId && before.organizationId && before.organizationId !== actorOrganizationId) {
+      throw new ForbiddenException('Bu personel baÅŸka bir kuruluÅŸa aittir');
+    }
+
+    if (data.unitId && resolvedTargetUnitId && before.unitId !== resolvedTargetUnitId) {
+      const targetUnit = await this.prisma.unit.findUnique({
+        where: { id: resolvedTargetUnitId },
+        select: { id: true, organizationId: true },
+      });
+      if (targetUnit && actorOrganizationId && targetUnit.organizationId && targetUnit.organizationId !== actorOrganizationId) {
+        throw new ForbiddenException('Bu birime personel taÅŸÄ±ma yetkiniz yok');
+      }
+    }
+
+    if (resolvedTargetUnitId) {
+      updateData.unitId = resolvedTargetUnitId;
+    }
+
     if (clientVersion !== undefined && before.version !== clientVersion) {
       throw new ConflictException({
         statusCode: 409,
         error: 'Conflict',
-        message:
-          'Personnel was modified by another user. Please refresh and try again.',
+        message: 'Personnel was modified by another user. Please refresh and try again.',
         currentVersion: before.version,
         clientVersion,
+        serverVersion: before.version,
+        localVersion: clientVersion,
       });
     }
 
@@ -430,33 +354,29 @@ export class PersonnelService {
     });
 
     if (userId) {
-      await this.auditLog
-        .log({
-          userId,
-          action: AuditAction.UPDATE,
-          entityType: 'personnel',
-          entityId: id,
-          before,
-          after: updated,
-        })
-        .catch(() => {});
+      await this.auditLog.log({
+        userId,
+        action: AuditAction.UPDATE,
+        entityType: 'personnel',
+        entityId: id,
+        before,
+        after: updated,
+      }).catch(() => {});
     }
 
-    this.gateway
-      .broadcastPersonnelUpdate({
-        action: 'updated',
-        personnelId: id,
-        personnelName: updated.name,
-        unitId: updated.unitId || undefined,
-        organizationId: before?.unit?.organizationId || undefined,
-        updatedBy: userId,
-      })
-      .catch(() => {});
+    this.gateway.broadcastPersonnelUpdate({
+      action: 'updated',
+      personnelId: id,
+      personnelName: updated.name,
+      unitId: updated.unitId || undefined,
+      organizationId: before?.unit?.organizationId || undefined,
+      updatedBy: userId,
+    }).catch(() => {});
 
     return updated;
   }
 
-  async delete(id: string, userId?: string) {
+  async delete(id: string, userId?: string, actorOrganizationId?: string) {
     const before = await this.prisma.personnel.findUnique({
       where: { id },
       include: { unit: true },
@@ -464,6 +384,10 @@ export class PersonnelService {
 
     if (!before) {
       throw new NotFoundException('Personnel not found');
+    }
+
+    if (actorOrganizationId && before.organizationId && before.organizationId !== actorOrganizationId) {
+      throw new ForbiddenException('Bu personel baÅŸka bir kuruluÅŸa aittir');
     }
 
     const activeAssignments = await this.prisma.assignment.count({
@@ -475,40 +399,39 @@ export class PersonnelService {
 
     if (activeAssignments > 0) {
       throw new ConflictException(
-        `Bu personelin ${activeAssignments} aktif vardiya ataması bulunmaktadır. Silinmeden önce tüm atamalar kaldırılmalıdır.`,
+        `Bu personelin ${activeAssignments} aktif vardiya atamasÄ± bulunmaktadÄ±r. Silinmeden Ã¶nce tÃ¼m atamalar kaldÄ±rÄ±lmalÄ±dÄ±r.`,
       );
     }
 
     await this.prisma.personnel.delete({ where: { id } });
 
     if (userId && before) {
-      await this.auditLog
-        .log({
-          userId,
-          action: AuditAction.DELETE,
-          entityType: 'personnel',
-          entityId: id,
-          before,
-        })
-        .catch(() => {});
+      await this.auditLog.log({
+        userId,
+        action: AuditAction.DELETE,
+        entityType: 'personnel',
+        entityId: id,
+        before,
+      }).catch(() => {});
     }
 
-    this.gateway
-      .broadcastPersonnelUpdate({
-        action: 'deleted',
-        personnelId: id,
-        personnelName: before?.name || id,
-        unitId: before?.unitId || undefined,
-        organizationId: before?.unit?.organizationId || undefined,
-      })
-      .catch(() => {});
+    this.gateway.broadcastPersonnelUpdate({
+      action: 'deleted',
+      personnelId: id,
+      personnelName: before?.name || id,
+      unitId: before?.unitId || undefined,
+      organizationId: before?.unit?.organizationId || undefined,
+    }).catch(() => {});
 
     return { success: true };
   }
 
-  async getWorkload(id: string, month?: number, year?: number) {
+  async getWorkload(id: string, month?: number, year?: number, organizationId?: string) {
     const personnel = await this.prisma.personnel.findUnique({
-      where: { id },
+      where: {
+        id,
+        ...(organizationId ? { organizationId } : {}),
+      },
       select: {
         id: true,
         name: true,
@@ -553,23 +476,14 @@ export class PersonnelService {
     };
   }
 
-  private groupByDevice(
-    assignments: Array<{
-      deviceId: string | null;
-      date: string;
-      shiftType: string;
-    }>,
-  ) {
+  private groupByDevice(assignments: Array<{ deviceId: string | null; date: string; shiftType: string }>) {
     const groups = new Map<string, number>();
     for (const a of assignments) {
       const key = a.deviceId || 'personel-nobeti';
       const count = groups.get(key) || 0;
       groups.set(key, count + 1);
     }
-    return Array.from(groups.entries()).map(([deviceId, count]) => ({
-      deviceId,
-      count,
-    }));
+    return Array.from(groups.entries()).map(([deviceId, count]) => ({ deviceId, count }));
   }
 
   private groupByMonth(assignments: Array<{ date: string }>) {
@@ -579,9 +493,6 @@ export class PersonnelService {
       const count = groups.get(month) || 0;
       groups.set(month, count + 1);
     }
-    return Array.from(groups.entries()).map(([month, count]) => ({
-      month,
-      count,
-    }));
+    return Array.from(groups.entries()).map(([month, count]) => ({ month, count }));
   }
 }

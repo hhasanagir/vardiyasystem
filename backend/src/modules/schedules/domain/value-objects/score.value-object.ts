@@ -11,16 +11,10 @@ export class Score extends ValueObject<{ value: number; max: number }> {
     return new Score({ value, max });
   }
 
-  get scoreValue(): number {
-    return this._value.value;
-  }
-  get max(): number {
-    return this._value.max;
-  }
+  get scoreValue(): number { return this._value.value; }
+  get max(): number { return this._value.max; }
   get percentage(): number {
-    return this._value.max === 0
-      ? 0
-      : (this._value.value / this._value.max) * 100;
+    return this._value.max === 0 ? 0 : (this._value.value / this._value.max) * 100;
   }
 
   isAbove(threshold: number): boolean {

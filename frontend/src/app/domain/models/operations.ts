@@ -32,6 +32,7 @@ export interface Employee {
   employmentStatus?: string;
   startDate?: string;
   notes?: string;
+  version?: number;
   createdAt?: string;
   updatedAt?: string;
   stats?: PersonnelStats;

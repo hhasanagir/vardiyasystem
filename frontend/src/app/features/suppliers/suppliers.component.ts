@@ -17,15 +17,9 @@ import type { Supplier } from './models/supplier.models';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
-    FormsModule,
-    TableModule,
-    ButtonModule,
-    TagModule,
-    ToastModule,
-    ProgressSpinnerModule,
-    TooltipModule,
-    InputTextModule,
+    CommonModule, FormsModule,
+    TableModule, ButtonModule, TagModule, ToastModule,
+    ProgressSpinnerModule, TooltipModule, InputTextModule,
   ],
   providers: [MessageService],
   templateUrl: './suppliers.component.html',
@@ -44,48 +38,25 @@ export class SuppliersComponent implements OnInit {
 
   loadSuppliers(): void {
     this.suppliersService.getSuppliers().subscribe({
-      error: () =>
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Hata',
-          detail: 'Tedarikçiler yüklenemedi',
-          life: 3000,
-        }),
+      error: () => this.messageService.add({ severity: 'error', summary: 'Hata', detail: 'Tedarikçiler yüklenemedi', life: 3000 }),
     });
   }
 
-  getStatusSeverity(
-    status: string,
-  ): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
+  getStatusSeverity(status: string): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
     switch (status) {
-      case 'active':
-        return 'success';
-      case 'inactive':
-        return 'secondary';
-      case 'suspended':
-        return 'danger';
-      case 'pending':
-        return 'warn';
-      default:
-        return 'info';
+      case 'active': return 'success';
+      case 'inactive': return 'secondary';
+      case 'suspended': return 'danger';
+      case 'pending': return 'warn';
+      default: return 'info';
     }
   }
 
   onCreate(): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Bilgi',
-      detail: 'Yeni tedarikçi oluşturulacak',
-      life: 3000,
-    });
+    this.messageService.add({ severity: 'info', summary: 'Bilgi', detail: 'Yeni tedarikçi oluşturulacak', life: 3000 });
   }
 
   onEdit(supplier: Supplier): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Bilgi',
-      detail: `${supplier.name} düzenleniyor`,
-      life: 3000,
-    });
+    this.messageService.add({ severity: 'info', summary: 'Bilgi', detail: `${supplier.name} düzenleniyor`, life: 3000 });
   }
 }

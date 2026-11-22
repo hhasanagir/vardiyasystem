@@ -1,14 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-  UseGuards,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Query } from '@nestjs/common';
 import { RbacService } from './rbac.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Permissions } from './decorators/permissions.decorator';
@@ -16,6 +6,8 @@ import { PermissionGuard } from './guards/permission.guard';
 import { AssignRoleDto, UpdateRolePermissionsDto } from './dto/assign-role.dto';
 import { RbacUser } from './interfaces/rbac.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Log } from '../audit-log/log.decorator';
+import { AuditEvent } from '../audit-log/audit.constants';
 
 @Controller('rbac')
 @UseGuards(JwtAuthGuard)
@@ -39,11 +31,13 @@ export class RbacController {
   @Put('roles/:id/permissions')
   @UseGuards(PermissionGuard)
   @Permissions('role.update')
+  @Log({ action: AuditEvent.PERMISSION_CHANGED, entityType: 'role', description: 'Rol yetkileri güncellendi' })
   async updateRolePermissions(
     @Param('id') id: string,
     @Body() dto: UpdateRolePermissionsDto,
+    @CurrentUser() user: RbacUser,
   ) {
-    await this.rbacService.updateRolePermissions(id, dto.permissions);
+    await this.rbacService.updateRolePermissions(id, dto.permissions, user.id);
     return { success: true };
   }
 
@@ -79,6 +73,7 @@ export class RbacController {
   @Post('assign')
   @UseGuards(PermissionGuard)
   @Permissions('role.assign')
+  @Log({ action: AuditEvent.ROLE_ASSIGNED, entityType: 'role', description: 'Kullanıcıya rol atandı' })
   async assignRole(@Body() dto: AssignRoleDto, @CurrentUser() user: RbacUser) {
     await this.rbacService.assignRoleToUser(dto.userId, dto.roleId, user.id, {
       organizationId: dto.organizationId,
@@ -93,7 +88,9 @@ export class RbacController {
   @Delete('assign')
   @UseGuards(PermissionGuard)
   @Permissions('role.assign')
+  @Log({ action: AuditEvent.ROLE_REMOVED, entityType: 'role', description: 'Kullanıcıdan rol kaldırıldı' })
   async removeRole(
+    @CurrentUser() user: RbacUser,
     @Query('userId') userId: string,
     @Query('roleId') roleId: string,
     @Query('organizationId') organizationId?: string,
@@ -102,13 +99,7 @@ export class RbacController {
     @Query('departmentId') departmentId?: string,
     @Query('unitId') unitId?: string,
   ) {
-    await this.rbacService.removeRoleFromUser(userId, roleId, {
-      organizationId,
-      hospitalGroupId,
-      hospitalId,
-      departmentId,
-      unitId,
-    });
+    await this.rbacService.removeRoleFromUser(userId, roleId, { organizationId, hospitalGroupId, hospitalId, departmentId, unitId }, user.id);
     return { success: true };
   }
 
@@ -118,9 +109,6 @@ export class RbacController {
       organizationId: user.organizationId,
       unitId: user.unitId,
     });
-    return {
-      permissions,
-      rbacRoles: await this.rbacService.getUserRbacRoles(user.id),
-    };
+    return { permissions, rbacRoles: await this.rbacService.getUserRbacRoles(user.id) };
   }
 }

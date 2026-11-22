@@ -30,13 +30,8 @@ describe('Phase 5C.15 — A: production user-seed guard', () => {
   }
 
   it('calls seed + ensurePersonnelGroups but NOT user seeding when NODE_ENV=production (even with password set)', async () => {
-    const { service, mockPrisma } = buildService({
-      NODE_ENV: 'production',
-      SEED_ADMIN_PASSWORD: 's3cret',
-    });
-    (service as any).ensurePersonnelGroups = vi
-      .fn()
-      .mockResolvedValue(undefined);
+    const { service, mockPrisma } = buildService({ NODE_ENV: 'production', SEED_ADMIN_PASSWORD: 's3cret' });
+    (service as any).ensurePersonnelGroups = vi.fn().mockResolvedValue(undefined);
     (service as any).ensureUsers = vi.fn().mockResolvedValue(undefined);
 
     await service.onModuleInit();
@@ -47,13 +42,8 @@ describe('Phase 5C.15 — A: production user-seed guard', () => {
   });
 
   it('seeds users ONLY when not production and a password is provided', async () => {
-    const { service } = buildService({
-      NODE_ENV: 'development',
-      SEED_ADMIN_PASSWORD: 'demo-pass',
-    });
-    (service as any).ensurePersonnelGroups = vi
-      .fn()
-      .mockResolvedValue(undefined);
+    const { service } = buildService({ NODE_ENV: 'development', SEED_ADMIN_PASSWORD: 'demo-pass' });
+    (service as any).ensurePersonnelGroups = vi.fn().mockResolvedValue(undefined);
     (service as any).ensureUsers = vi.fn().mockResolvedValue(undefined);
 
     await service.onModuleInit();
@@ -63,13 +53,8 @@ describe('Phase 5C.15 — A: production user-seed guard', () => {
   });
 
   it('does NOT seed users when a password is absent, even in development', async () => {
-    const { service } = buildService({
-      NODE_ENV: 'development',
-      SEED_ADMIN_PASSWORD: undefined,
-    });
-    (service as any).ensurePersonnelGroups = vi
-      .fn()
-      .mockResolvedValue(undefined);
+    const { service } = buildService({ NODE_ENV: 'development', SEED_ADMIN_PASSWORD: undefined });
+    (service as any).ensurePersonnelGroups = vi.fn().mockResolvedValue(undefined);
     (service as any).ensureUsers = vi.fn().mockResolvedValue(undefined);
 
     await service.onModuleInit();
@@ -78,12 +63,8 @@ describe('Phase 5C.15 — A: production user-seed guard', () => {
   });
 
   it('defaults to development and does not seed users without a password', async () => {
-    const { service, configService } = buildService({
-      SEED_ADMIN_PASSWORD: undefined,
-    });
-    (service as any).ensurePersonnelGroups = vi
-      .fn()
-      .mockResolvedValue(undefined);
+    const { service, configService } = buildService({ SEED_ADMIN_PASSWORD: undefined });
+    (service as any).ensurePersonnelGroups = vi.fn().mockResolvedValue(undefined);
     (service as any).ensureUsers = vi.fn().mockResolvedValue(undefined);
 
     await service.onModuleInit();

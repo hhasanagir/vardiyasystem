@@ -38,15 +38,23 @@ export enum AuditEvent {
   SCHEDULE_PUBLISHED = 'SCHEDULE_PUBLISHED',
   SCHEDULE_ROLLED_BACK = 'SCHEDULE_ROLLED_BACK',
   SCHEDULE_DELETED = 'SCHEDULE_DELETED',
+  SCHEDULE_ARCHIVED = 'SCHEDULE_ARCHIVED',
+  SCHEDULE_REVERTED = 'SCHEDULE_REVERTED',
 
   // Assignments
   ASSIGNMENT_CREATED = 'ASSIGNMENT_CREATED',
   ASSIGNMENT_UPDATED = 'ASSIGNMENT_UPDATED',
   ASSIGNMENT_REMOVED = 'ASSIGNMENT_REMOVED',
+  ASSIGNMENTS_APPLIED = 'ASSIGNMENTS_APPLIED',
 
   // Attendance
   ATTENDANCE_CREATED = 'ATTENDANCE_CREATED',
   ATTENDANCE_UPDATED = 'ATTENDANCE_UPDATED',
+
+  // Personnel availability
+  PERSONNEL_AVAILABILITY_CREATED = 'PERSONNEL_AVAILABILITY_CREATED',
+  PERSONNEL_AVAILABILITY_UPDATED = 'PERSONNEL_AVAILABILITY_UPDATED',
+  PERSONNEL_AVAILABILITY_DEACTIVATED = 'PERSONNEL_AVAILABILITY_DEACTIVATED',
 
   // Training
   TRAINING_CREATED = 'TRAINING_CREATED',
@@ -57,6 +65,7 @@ export enum AuditEvent {
   DEVICE_CREATED = 'DEVICE_CREATED',
   DEVICE_UPDATED = 'DEVICE_UPDATED',
   DEVICE_INCIDENT_CREATED = 'DEVICE_INCIDENT_CREATED',
+  EQUIPMENT_OFF_TOGGLE = 'EQUIPMENT_OFF_TOGGLE',
 
   // Permissions
   ROLE_ASSIGNED = 'ROLE_ASSIGNED',
@@ -109,15 +118,23 @@ export const AuditEventLabels: Record<string, string> = {
   SCHEDULE_PUBLISHED: 'Program Yayınlandı',
   SCHEDULE_ROLLED_BACK: 'Program Geri Alındı',
   SCHEDULE_DELETED: 'Program Silindi',
+  SCHEDULE_ARCHIVED: 'Program Arşivlendi',
+  SCHEDULE_REVERTED: 'Program Taslağa Döndürüldü',
 
   // Assignments
   ASSIGNMENT_CREATED: 'Atama Oluşturuldu',
   ASSIGNMENT_UPDATED: 'Atama Güncellendi',
   ASSIGNMENT_REMOVED: 'Atama Kaldırıldı',
+  ASSIGNMENTS_APPLIED: 'Otomatik Atamalar Uygulandı',
 
   // Attendance
   ATTENDANCE_CREATED: 'Katılım Kaydı Oluşturuldu',
   ATTENDANCE_UPDATED: 'Katılım Kaydı Güncellendi',
+
+  // Personnel availability
+  PERSONNEL_AVAILABILITY_CREATED: 'Uygunluk Kaydı Oluşturuldu',
+  PERSONNEL_AVAILABILITY_UPDATED: 'Uygunluk Kaydı Güncellendi',
+  PERSONNEL_AVAILABILITY_DEACTIVATED: 'Uygunluk Kaydı Devre Dışı',
 
   // Training
   TRAINING_CREATED: 'Eğitim Oluşturuldu',
@@ -128,6 +145,7 @@ export const AuditEventLabels: Record<string, string> = {
   DEVICE_CREATED: 'Cihaz Oluşturuldu',
   DEVICE_UPDATED: 'Cihaz Güncellendi',
   DEVICE_INCIDENT_CREATED: 'Cihaz Arızası Bildirildi',
+  EQUIPMENT_OFF_TOGGLE: 'Cihaz Kapalı Değişikliği',
 
   // Permissions
   ROLE_ASSIGNED: 'Rol Atandı',
@@ -149,6 +167,8 @@ export const EntityTypeLabels: Record<string, string> = {
   training: 'Eğitim',
   device: 'Cihaz',
   device_incident: 'Cihaz Arızası',
+  device_off_date: 'Cihaz Kapalı',
+  personnel_date_availability: 'Uygunluk Kaydı',
   role: 'Rol',
   permission: 'Yetki',
   setting: 'Ayar',

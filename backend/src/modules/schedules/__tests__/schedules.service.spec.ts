@@ -9,12 +9,14 @@ import { ScheduleGateway } from '../../websocket/schedule.gateway';
 import { NotificationEventService } from '../../notifications/notification-event.service';
 import { MetricsService } from '../../../metrics/metrics.service';
 import { EventBusService } from '../../../events/event-bus.service';
+import { UnitScopeService } from '../../rbac/services/unit-scope.service';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 describe('SchedulesService', () => {
   let service: SchedulesService;
   let prisma: PrismaService;
   let auditLog: AuditLogService;
+  let workflow: any;
 
   const mockPrisma = {
     schedule: {
@@ -52,6 +54,8 @@ describe('SchedulesService', () => {
     unit: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
+      // `create` resolves the owning organization from the unit before writing.
+      findUnique: vi.fn().mockResolvedValue({ id: 'unit-1', organizationId: 'org-1' }),
     },
     personnel: {
       count: vi.fn(),
@@ -59,6 +63,14 @@ describe('SchedulesService', () => {
     },
     device: {
       count: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    deviceOffDate: {
+      findMany: vi.fn().mockResolvedValue([]),
+      findUnique: vi.fn().mockResolvedValue(null),
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: vi.fn(),
+      update: vi.fn(),
     },
     shifts: {
       findMany: vi.fn(),
@@ -68,29 +80,14 @@ describe('SchedulesService', () => {
     },
   };
 
-  const mockUnitsService = {
-    findAll: vi.fn(),
-    findOne: vi.fn(),
-    findByOrganization: vi.fn(),
-    getDevices: vi.fn(),
-  };
+  const mockUnitsService = { findAll: vi.fn(), findOne: vi.fn(), findByOrganization: vi.fn(), getDevices: vi.fn() };
 
   const mockAuditLog = {
     log: vi.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(async () => {
-    const mockWorkflowService = {
-      submitForReview: vi.fn(),
-      approve: vi.fn(),
-      reject: vi.fn(),
-      publish: vi.fn(),
-      archive: vi.fn(),
-      rollback: vi.fn(),
-      createRevision: vi.fn(),
-      compareVersions: vi.fn(),
-      getAuditLog: vi.fn(),
-    };
+    const mockWorkflowService = { submitForReview: vi.fn(), approve: vi.fn(), reject: vi.fn(), publish: vi.fn(), archive: vi.fn(), rollback: vi.fn(), createRevision: vi.fn(), compareVersions: vi.fn(), getAuditLog: vi.fn() };
     const mockMetrics = {
       authLoginTotal: { inc: vi.fn() },
       authLoginDuration: { observe: vi.fn() },
@@ -109,16 +106,16 @@ describe('SchedulesService', () => {
       dbQueriesTotal: { inc: vi.fn() },
       incidentCreatedTotal: { inc: vi.fn() },
     };
-    const mockGateway = {
-      broadcastPersonnelUpdate: vi.fn().mockResolvedValue(undefined),
-      broadcastAlertUpdate: vi.fn().mockResolvedValue(undefined),
-      server: { to: vi.fn().mockReturnValue({ emit: vi.fn() }) },
-    };
+    const mockGateway = { broadcastPersonnelUpdate: vi.fn().mockResolvedValue(undefined), broadcastAlertUpdate: vi.fn().mockResolvedValue(undefined), server: { to: vi.fn().mockReturnValue({ emit: vi.fn() }) } };
     const mockNotificationEvent = {
       assignmentCreated: vi.fn().mockResolvedValue(undefined),
       assignmentRemoved: vi.fn().mockResolvedValue(undefined),
     };
     const mockEventBus = { publish: vi.fn().mockResolvedValue(undefined) };
+    const mockUnitScope = {
+      resolveScope: vi.fn().mockResolvedValue({ strictUnitId: null, organizationId: 'org-1', role: 'project_manager' }),
+      isStrictlyUnitScoped: vi.fn().mockReturnValue(false),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -131,12 +128,14 @@ describe('SchedulesService', () => {
         { provide: NotificationEventService, useValue: mockNotificationEvent },
         { provide: MetricsService, useValue: mockMetrics },
         { provide: EventBusService, useValue: mockEventBus },
+        { provide: UnitScopeService, useValue: mockUnitScope },
       ],
     }).compile();
 
     service = module.get<SchedulesService>(SchedulesService);
     prisma = module.get<PrismaService>(PrismaService);
     auditLog = module.get<AuditLogService>(AuditLogService);
+    workflow = module.get(SchedulesWorkflowService);
 
     vi.clearAllMocks();
   });
@@ -156,6 +155,8 @@ describe('SchedulesService', () => {
       expect(mockPrisma.schedule.create).toHaveBeenCalledWith({
         data: {
           unitId: dto.unitId,
+          // Stamped from the owning unit so tenant-scoped reads can see the row.
+          organizationId: 'org-1',
           month: dto.month,
           year: dto.year,
           status: 'draft',
@@ -170,20 +171,13 @@ describe('SchedulesService', () => {
       const dto = { unitId: 'unit-1', month: 5, year: 2026 };
       mockPrisma.schedule.findFirst.mockResolvedValue({ id: 'existing' });
 
-      await expect(service.create(dto, 'user-1')).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(service.create(dto, 'user-1')).rejects.toThrow(ConflictException);
     });
   });
 
   describe('findOne', () => {
     it('should return schedule with assignments', async () => {
-      const schedule = {
-        id: 'schedule-1',
-        unitId: 'unit-1',
-        month: 5,
-        year: 2026,
-      };
+      const schedule = { id: 'schedule-1', unitId: 'unit-1', month: 5, year: 2026 };
       mockPrisma.schedule.findUnique.mockResolvedValue(schedule);
 
       const result = await service.findOne('schedule-1');
@@ -194,9 +188,7 @@ describe('SchedulesService', () => {
     it('should throw NotFoundException if schedule not found', async () => {
       mockPrisma.schedule.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -226,25 +218,17 @@ describe('SchedulesService', () => {
       mockPrisma.schedule.findUnique.mockResolvedValue(schedule);
       mockPrisma.schedule.update.mockResolvedValue(updated);
 
-      const result = await service.update(
-        'schedule-1',
-        { status: 'published' },
-        'user-1',
-        1,
-      );
+      const result = await service.update('schedule-1', {} as any, 'user-1', 1);
 
       expect(result.version).toBe(2);
       expect(mockAuditLog.log).toHaveBeenCalled();
     });
 
     it('should throw ConflictException on version mismatch', async () => {
-      mockPrisma.schedule.findUnique.mockResolvedValue({
-        id: 'schedule-1',
-        version: 2,
-      });
+      mockPrisma.schedule.findUnique.mockResolvedValue({ id: 'schedule-1', version: 2 });
 
       await expect(
-        service.update('schedule-1', { status: 'published' }, 'user-1', 1),
+        service.update('schedule-1', {} as any, 'user-1', 1)
       ).rejects.toThrow(ConflictException);
     });
   });
@@ -267,36 +251,12 @@ describe('SchedulesService', () => {
       year: 2026,
     };
 
-    const mockValidPersonnel = {
-      id: 'personnel-1',
-      role: 'technician',
-      offDays: [],
-      isActive: true,
-    };
+    const mockValidPersonnel = { id: 'personnel-1', role: 'technician', offDays: [], isActive: true };
 
     const mockFindByUnitTypeSuccess = () => {
-      mockPrisma.unit.findFirst.mockResolvedValue({
-        id: 'unit-1',
-        type: 'mr',
-        organizationId: 'org-1',
-      });
-      mockPrisma.schedule.findFirst.mockResolvedValue({
-        id: 'schedule-1',
-        unit: { type: 'mr' },
-        month: 5,
-        year: 2026,
-        assignments: [],
-      });
-      mockUnitsService.getDevices.mockResolvedValue([
-        {
-          id: 'device-1',
-          code: 'MR-A',
-          name: 'MR-A',
-          mode: 'primary',
-          blockCode: 'A',
-          isMaster: true,
-        },
-      ]);
+      mockPrisma.unit.findFirst.mockResolvedValue({ id: 'unit-1', type: 'mr', organizationId: 'org-1' });
+      mockPrisma.schedule.findFirst.mockResolvedValue({ id: 'schedule-1', unit: { type: 'mr' }, month: 5, year: 2026, assignments: [] });
+      mockUnitsService.getDevices.mockResolvedValue([{ id: 'device-1', code: 'MR-A', name: 'MR-A', mode: 'primary', blockCode: 'A', isMaster: true }]);
       mockPrisma.shifts.findMany.mockResolvedValue([]);
     };
 
@@ -306,22 +266,14 @@ describe('SchedulesService', () => {
       mockPrisma.schedule.findUnique.mockResolvedValue(mockSchedule);
       mockPrisma.personnel.findUnique.mockResolvedValue(mockValidPersonnel);
       mockPrisma.assignment.findFirst.mockResolvedValue(null);
-      mockPrisma.assignment.create.mockResolvedValue({
-        id: 'assignment-1',
-        ...dto,
-      });
+      mockPrisma.assignment.create.mockResolvedValue({ id: 'assignment-1', ...dto });
       mockPrisma.schedule.update.mockResolvedValue({ id: 'schedule-1' });
       mockFindByUnitTypeSuccess();
 
       const result = await service.addAssignment('schedule-1', dto, 'user-1');
 
       expect(mockPrisma.assignment.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          personnelId: 'personnel-1',
-          deviceId: 'device-1',
-          date: '2026-05-01',
-          shiftType: 'day',
-        }),
+        data: expect.objectContaining({ personnelId: 'personnel-1', deviceId: 'device-1', date: '2026-05-01', shiftType: 'day' }),
         include: expect.any(Object),
       });
       expect(result.id).toBe('schedule-1');
@@ -336,18 +288,12 @@ describe('SchedulesService', () => {
         .mockResolvedValueOnce({ id: 'existing-day-shift' })
         .mockResolvedValue(null);
 
-      await expect(
-        service.addAssignment('schedule-1', dto, 'user-1'),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.addAssignment('schedule-1', dto, 'user-1')).rejects.toThrow(ConflictException);
       expect(mockPrisma.assignment.create).not.toHaveBeenCalled();
     });
 
     it('should reject same person on two different slots the same day (rule B)', async () => {
-      const dto = {
-        ...baseDto,
-        deviceId: 'device-2',
-        personnelType: 'technician',
-      };
+      const dto = { ...baseDto, deviceId: 'device-2', personnelType: 'technician' };
 
       mockPrisma.schedule.findUnique.mockResolvedValue(mockSchedule);
       mockPrisma.personnel.findUnique.mockResolvedValue(mockValidPersonnel);
@@ -355,9 +301,7 @@ describe('SchedulesService', () => {
         .mockResolvedValueOnce({ id: 'existing-other-slot' })
         .mockResolvedValue(null);
 
-      await expect(
-        service.addAssignment('schedule-1', dto, 'user-1'),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.addAssignment('schedule-1', dto, 'user-1')).rejects.toThrow(ConflictException);
       expect(mockPrisma.assignment.create).not.toHaveBeenCalled();
     });
 
@@ -371,9 +315,7 @@ describe('SchedulesService', () => {
         .mockResolvedValueOnce({ id: 'existing-device-booking' })
         .mockResolvedValue(null);
 
-      await expect(
-        service.addAssignment('schedule-1', dto, 'user-1'),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.addAssignment('schedule-1', dto, 'user-1')).rejects.toThrow(ConflictException);
       expect(mockPrisma.assignment.create).not.toHaveBeenCalled();
     });
 
@@ -381,18 +323,54 @@ describe('SchedulesService', () => {
       const dto = { ...baseDto, personnelType: 'technician' };
 
       mockPrisma.schedule.findUnique.mockResolvedValue(mockSchedule);
-      mockPrisma.personnel.findUnique.mockResolvedValue({
-        id: 'personnel-1',
-        role: 'technician',
-        offDays: [],
-        isActive: false,
-      });
+      mockPrisma.personnel.findUnique.mockResolvedValue({ id: 'personnel-1', role: 'technician', offDays: [], isActive: false });
       mockPrisma.assignment.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.addAssignment('schedule-1', dto, 'user-1'),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.addAssignment('schedule-1', dto, 'user-1')).rejects.toThrow(ConflictException);
       expect(mockPrisma.assignment.create).not.toHaveBeenCalled();
+    });
+
+    it('should reject assignment on a day the device is closed (UNIT_CLOSED)', async () => {
+      const dto = { ...baseDto, date: '2026-05-02', personnelType: 'technician' };
+
+      mockPrisma.schedule.findUnique.mockResolvedValue(mockSchedule);
+      mockPrisma.personnel.findUnique.mockResolvedValue(mockValidPersonnel);
+      mockPrisma.assignment.findFirst.mockResolvedValue(null);
+      mockPrisma.device.findUnique.mockResolvedValue({ id: 'device-1', workDays: [1, 2, 3, 4, 5], name: 'MR-A', code: 'MR-A', isActive: true });
+      mockPrisma.deviceOffDate.findFirst.mockResolvedValue(null);
+
+      await expect(service.addAssignment('schedule-1', dto, 'user-1')).rejects.toThrow(ConflictException);
+      expect(mockPrisma.assignment.create).not.toHaveBeenCalled();
+    });
+
+    it('should reject assignment when the device has an active DeviceOffDate (DEVICE_OFF_DATE)', async () => {
+      const dto = { ...baseDto, personnelType: 'technician' };
+
+      mockPrisma.schedule.findUnique.mockResolvedValue(mockSchedule);
+      mockPrisma.personnel.findUnique.mockResolvedValue(mockValidPersonnel);
+      mockPrisma.assignment.findFirst.mockResolvedValue(null);
+      mockPrisma.device.findUnique.mockResolvedValue({ id: 'device-1', workDays: [1, 2, 3, 4, 5], name: 'MR-A', code: 'MR-A', isActive: true });
+      mockPrisma.deviceOffDate.findFirst.mockResolvedValue({ id: 'off-1', deviceId: 'device-1', date: '2026-05-01', isActive: true });
+
+      await expect(service.addAssignment('schedule-1', dto, 'user-1')).rejects.toThrow(ConflictException);
+      expect(mockPrisma.assignment.create).not.toHaveBeenCalled();
+    });
+
+    it('should allow assignment when no active DeviceOffDate exists for the device/date', async () => {
+      const dto = { ...baseDto, personnelType: 'technician' };
+
+      mockPrisma.schedule.findUnique.mockResolvedValue(mockSchedule);
+      mockPrisma.personnel.findUnique.mockResolvedValue(mockValidPersonnel);
+      mockPrisma.assignment.findFirst.mockResolvedValue(null);
+      mockPrisma.assignment.create.mockResolvedValue({ id: 'assignment-2', ...dto });
+      mockPrisma.schedule.update.mockResolvedValue({ id: 'schedule-1' });
+      mockPrisma.device.findUnique.mockResolvedValue({ id: 'device-1', workDays: [1, 2, 3, 4, 5], name: 'MR-A', code: 'MR-A', isActive: true });
+      mockPrisma.deviceOffDate.findFirst.mockResolvedValue(null);
+      mockFindByUnitTypeSuccess();
+
+      const result = await service.addAssignment('schedule-1', dto, 'user-1');
+      expect(mockPrisma.assignment.create).toHaveBeenCalled();
+      expect(result.id).toBe('schedule-1');
     });
 
     it('should throw ConflictException for duplicate assignment', async () => {
@@ -402,9 +380,132 @@ describe('SchedulesService', () => {
       mockPrisma.assignment.findFirst.mockResolvedValue({ id: 'existing' });
       mockPrisma.personnel.findUnique.mockResolvedValue(mockValidPersonnel);
 
+      await expect(service.addAssignment('schedule-1', dto, 'user-1')).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('update - bulk assignment validation for device kind (Phase 5C.4, STEP 5)', () => {
+    const weekdayAssignment = { personnelId: 'personnel-1', deviceId: 'device-1', date: '2026-08-10', shiftType: 'day' as const, startTime: '08:00', endTime: '16:00' };
+    const saturdayAssignment = { personnelId: 'personnel-1', deviceId: 'device-1', date: '2026-08-15', shiftType: 'day' as const, startTime: '08:00', endTime: '16:00' };
+
+    function setupMocks({ closedWorkDays = true, offDate = null as any } = {}) {
+      mockPrisma.schedule.findUnique.mockResolvedValue({ id: 'schedule-1', version: 1 });
+      mockPrisma.assignment.findFirst.mockResolvedValue(null);
+      mockPrisma.device.findUnique.mockResolvedValue({ id: 'device-1', workDays: closedWorkDays ? [1, 2, 3, 4, 5] : [], name: 'MR-A', code: 'MR-A', isActive: true });
+      mockPrisma.deviceOffDate.findFirst.mockResolvedValue(offDate);
+      mockPrisma.assignment.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrisma.assignment.createMany.mockResolvedValue({ count: 1 });
+      mockPrisma.schedule.update.mockResolvedValue({ id: 'schedule-1', version: 2, assignments: [] });
+    }
+
+    it('rejects bulk update assigning a device on a closed day (UNIT_CLOSED) without persisting', async () => {
+      setupMocks();
+
       await expect(
-        service.addAssignment('schedule-1', dto, 'user-1'),
+        service.update('schedule-1', { status: 'published', assignments: [saturdayAssignment] } as any, 'user-1', 1),
       ).rejects.toThrow(ConflictException);
+
+      expect(mockPrisma.assignment.createMany).not.toHaveBeenCalled();
+      expect(mockPrisma.assignment.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('rejects bulk update on an active DeviceOffDate (DEVICE_OFF_DATE) without persisting', async () => {
+      setupMocks({ offDate: { id: 'off-1', deviceId: 'device-1', date: '2026-08-10', isActive: true } });
+
+      await expect(
+        service.update('schedule-1', { status: 'published', assignments: [weekdayAssignment] } as any, 'user-1', 1),
+      ).rejects.toThrow(ConflictException);
+
+      expect(mockPrisma.assignment.createMany).not.toHaveBeenCalled();
+    });
+
+    it('allows valid bulk update on a working day (inactive DeviceOffDate ignored) and persists', async () => {
+      // deviceOffDate.findFirst returns null (no ACTIVE off-date for the query)
+      setupMocks({ offDate: null });
+
+      const result = await service.update('schedule-1', { status: 'published', assignments: [weekdayAssignment] } as any, 'user-1', 1);
+
+      expect(result.version).toBe(2);
+      expect(mockPrisma.assignment.deleteMany).toHaveBeenCalled();
+      expect(mockPrisma.assignment.createMany).toHaveBeenCalled();
+    });
+
+    it('allows bulk update when the device has no workDays configured (empty array retains old semantics)', async () => {
+      setupMocks({ closedWorkDays: false });
+
+      const result = await service.update('schedule-1', { status: 'published', assignments: [saturdayAssignment] } as any, 'user-1', 1);
+
+      expect(result.version).toBe(2);
+      expect(mockPrisma.assignment.createMany).toHaveBeenCalled();
+    });
+  });
+
+  describe('publishByUnit (real four-eyes + published immutability)', () => {
+    const publisher = { id: 'user-1', email: 'a@x.com', name: 'A', role: 'imaging_director', organizationId: 'org-1' };
+
+    function seedSchedule(status: string) {
+      mockPrisma.unit.findFirst.mockResolvedValue({ id: 'unit-1', type: 'mr', organizationId: 'org-1' });
+      mockPrisma.schedule.findFirst.mockResolvedValue({ id: 's-1', status, unitId: 'unit-1', month: 6, year: 2026, organizationId: 'org-1' });
+      mockPrisma.schedule.create.mockResolvedValue({ id: 's-1', status: 'draft', unitId: 'unit-1', month: 6, year: 2026 });
+      mockPrisma.schedule.update.mockResolvedValue({ id: 's-1', status: 'draft', unitId: 'unit-1', month: 6, year: 2026 });
+      workflow.submitForReview.mockResolvedValue({ success: true, newStatus: 'under_review' });
+      workflow.approve.mockResolvedValue({ success: true });
+      workflow.publish.mockResolvedValue({ success: true });
+    }
+
+    it('draft is submitted for review as the acting user and is NOT auto-approved', async () => {
+      seedSchedule('draft');
+
+      const result = await service.publishByUnit('mr', { month: 6, year: 2026, assignments: [] }, publisher);
+
+      expect(workflow.submitForReview).toHaveBeenCalledWith('s-1', publisher, expect.any(String));
+      expect(workflow.approve).not.toHaveBeenCalled();
+      expect(workflow.publish).not.toHaveBeenCalled();
+      expect(result).toHaveProperty('requiresApproval', true);
+    });
+
+    it('approved schedules are published by the acting user (no synthetic system actor)', async () => {
+      seedSchedule('approved');
+
+      await service.publishByUnit('mr', { month: 6, year: 2026, assignments: [] }, publisher);
+
+      expect(workflow.publish).toHaveBeenCalledWith('s-1', publisher);
+      expect(workflow.approve).not.toHaveBeenCalled();
+      expect(workflow.publish.mock.calls[0][1].id).toBe(publisher.id);
+    });
+
+    it('under_review schedules are not approved by the submitter (409)', async () => {
+      seedSchedule('under_review');
+
+      await expect(
+        service.publishByUnit('mr', { month: 6, year: 2026, assignments: [] }, publisher),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(workflow.approve).not.toHaveBeenCalled();
+      expect(workflow.publish).not.toHaveBeenCalled();
+    });
+
+    it('published schedules are immutable: no assignment delete/recreate', async () => {
+      seedSchedule('published');
+
+      await expect(
+        service.publishByUnit('mr', {
+          month: 6,
+          year: 2026,
+          assignments: [{ personnelId: 'p-1', deviceId: 'd-1', date: '2026-06-01', shiftType: 'day', startTime: '08:00', endTime: '16:00' }],
+        } as any, publisher),
+      ).rejects.toBeInstanceOf(ConflictException);
+
+      expect(mockPrisma.assignment.deleteMany).not.toHaveBeenCalled();
+      expect(mockPrisma.assignment.createMany).not.toHaveBeenCalled();
+      expect(workflow.publish).not.toHaveBeenCalled();
+    });
+
+    it('archived schedules are immutable (409)', async () => {
+      seedSchedule('archived');
+
+      await expect(
+        service.publishByUnit('mr', { month: 6, year: 2026, assignments: [] }, publisher),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
   });
 
@@ -418,16 +519,10 @@ describe('SchedulesService', () => {
       };
 
       mockPrisma.scheduleSnapshot.findFirst.mockResolvedValue(snapshot);
-      mockPrisma.schedule.findUnique.mockResolvedValue({
-        id: 'schedule-1',
-        version: 3,
-      });
+      mockPrisma.schedule.findUnique.mockResolvedValue({ id: 'schedule-1', version: 3 });
       mockPrisma.assignment.deleteMany.mockResolvedValue({});
       mockPrisma.assignment.createMany.mockResolvedValue({ count: 1 });
-      mockPrisma.schedule.update.mockResolvedValue({
-        id: 'schedule-1',
-        version: 4,
-      });
+      mockPrisma.schedule.update.mockResolvedValue({ id: 'schedule-1', version: 4 });
 
       const result = await service.rollback('schedule-1', 1, 'user-1');
 
@@ -438,9 +533,7 @@ describe('SchedulesService', () => {
     it('should throw NotFoundException if snapshot not found', async () => {
       mockPrisma.scheduleSnapshot.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.rollback('schedule-1', 999, 'user-1'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.rollback('schedule-1', 999, 'user-1')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -452,9 +545,7 @@ describe('SchedulesService', () => {
       const result = await service.delete('schedule-1', 'user-1');
 
       expect(result.success).toBe(true);
-      expect(mockPrisma.schedule.delete).toHaveBeenCalledWith({
-        where: { id: 'schedule-1' },
-      });
+      expect(mockPrisma.schedule.delete).toHaveBeenCalledWith({ where: { id: 'schedule-1' } });
     });
   });
 });

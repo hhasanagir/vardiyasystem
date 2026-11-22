@@ -51,10 +51,7 @@ export class HospitalGroupsController {
   @Patch(':id')
   @Roles(MinRole.ADMIN)
   @ApiOperation({ summary: 'Update hospital group' })
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateHospitalGroupDto,
-  ) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateHospitalGroupDto) {
     return this.service.update(id, dto);
   }
 

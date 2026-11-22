@@ -6,11 +6,7 @@ import { PrismaService } from '../../prisma.service';
 export class BiomedicalService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(filters?: {
-    type?: string;
-    status?: string;
-    assetId?: string;
-  }) {
+  async findAll(filters?: { type?: string; status?: string; assetId?: string }) {
     const where: Prisma.MaintenanceRecordWhereInput = {};
 
     if (filters?.type) where.type = filters.type as any;
@@ -73,9 +69,7 @@ export class BiomedicalService {
   }
 
   async update(id: string, data: any) {
-    const existing = await this.prisma.maintenanceRecord.findUnique({
-      where: { id },
-    });
+    const existing = await this.prisma.maintenanceRecord.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Maintenance record not found');
     }
@@ -86,29 +80,21 @@ export class BiomedicalService {
     if (data.priority !== undefined) updateData.priority = data.priority;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.title !== undefined) updateData.title = data.title;
-    if (data.description !== undefined)
-      updateData.description = data.description;
-    if (data.reportedById !== undefined)
-      updateData.reportedById = data.reportedById;
-    if (data.assignedToId !== undefined)
-      updateData.assignedToId = data.assignedToId;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.reportedById !== undefined) updateData.reportedById = data.reportedById;
+    if (data.assignedToId !== undefined) updateData.assignedToId = data.assignedToId;
     if (data.vendorId !== undefined) updateData.vendorId = data.vendorId;
-    if (data.startDate !== undefined)
-      updateData.startDate = new Date(data.startDate);
+    if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
     if (data.endDate !== undefined) updateData.endDate = new Date(data.endDate);
-    if (data.downtimeHours !== undefined)
-      updateData.downtimeHours = data.downtimeHours;
+    if (data.downtimeHours !== undefined) updateData.downtimeHours = data.downtimeHours;
     if (data.cost !== undefined) updateData.cost = data.cost;
     if (data.mtbf !== undefined) updateData.mtbf = data.mtbf;
     if (data.mttr !== undefined) updateData.mttr = data.mttr;
     if (data.rootCause !== undefined) updateData.rootCause = data.rootCause;
     if (data.resolution !== undefined) updateData.resolution = data.resolution;
-    if (data.closingNotes !== undefined)
-      updateData.closingNotes = data.closingNotes;
-    if (data.verifiedById !== undefined)
-      updateData.verifiedById = data.verifiedById;
-    if (data.verifiedAt !== undefined)
-      updateData.verifiedAt = new Date(data.verifiedAt);
+    if (data.closingNotes !== undefined) updateData.closingNotes = data.closingNotes;
+    if (data.verifiedById !== undefined) updateData.verifiedById = data.verifiedById;
+    if (data.verifiedAt !== undefined) updateData.verifiedAt = new Date(data.verifiedAt);
 
     return this.prisma.maintenanceRecord.update({
       where: { id },
@@ -122,9 +108,7 @@ export class BiomedicalService {
   }
 
   async getByAsset(assetId: string) {
-    const asset = await this.prisma.enterpriseAsset.findUnique({
-      where: { id: assetId },
-    });
+    const asset = await this.prisma.enterpriseAsset.findUnique({ where: { id: assetId } });
     if (!asset) {
       throw new NotFoundException('Asset not found');
     }

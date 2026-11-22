@@ -11,13 +11,13 @@ The VardiyaOS codebase contains extensive mock data, demo generators, and silent
 
 ### Critical Findings
 
-| Category                     | Count      | Severity |
-| ---------------------------- | ---------- | -------- |
-| Files with mock data         | 13         | CRITICAL |
-| Files with fallback patterns | 18         | HIGH     |
-| Contract mismatches (F/B)    | 8          | HIGH     |
-| Missing error handling       | 6 services | CRITICAL |
-| Components needing updates   | 12         | MEDIUM   |
+| Category | Count | Severity |
+|----------|-------|----------|
+| Files with mock data | 13 | CRITICAL |
+| Files with fallback patterns | 18 | HIGH |
+| Contract mismatches (F/B) | 8 | HIGH |
+| Missing error handling | 6 services | CRITICAL |
+| Components needing updates | 12 | MEDIUM |
 
 ---
 
@@ -25,31 +25,31 @@ The VardiyaOS codebase contains extensive mock data, demo generators, and silent
 
 ### Files to DELETE Mock Functions
 
-| File                             | Function                   | Lines     | Action                     |
-| -------------------------------- | -------------------------- | --------- | -------------------------- |
-| `reports.component.ts`           | `generateMockData()`       | 83-167    | **DELETE ENTIRE FUNCTION** |
-| `onkoloji-plan.component.ts`     | `getMockTechnicians()`     | 1081-1088 | DELETE                     |
-| `onkoloji-plan.component.ts`     | `getDefaultDevices()`      | 1091-1141 | DELETE                     |
-| `onkoloji-plan.component.ts`     | `loadSampleData()`         | 2394-2438 | DELETE                     |
-| `leave-management.component.ts`  | `getMockData()`            | 688-695   | DELETE                     |
-| `live-tracking.component.ts`     | Mock liveShifts            | 476-483   | DELETE                     |
-| `fairness-analysis.component.ts` | Mock personnel             | 469-478   | DELETE                     |
-| `notifications.component.ts`     | Mock notifications         | 377-383   | DELETE                     |
-| `employees.component.ts`         | `calculateStats()`         | 1033-1036 | REFACTOR - use API         |
-| `employees.component.ts`         | `getDepartment()`          | 1062      | REFACTOR                   |
-| `operations-center.component.ts` | `updateMetrics()`          | 2720-2733 | REFACTOR - use API         |
-| `operations-center.component.ts` | `showExplanation()`        | 2736-2767 | REFACTOR - use API         |
-| `operations-center.component.ts` | `calculateImpactPreview()` | 2970-2978 | REFACTOR - use API         |
-| `onboarding.service.ts`          | `runDemo()`                | 35-39     | KEEP for demo mode flag    |
+| File | Function | Lines | Action |
+|------|----------|-------|--------|
+| `reports.component.ts` | `generateMockData()` | 83-167 | **DELETE ENTIRE FUNCTION** |
+| `onkoloji-plan.component.ts` | `getMockTechnicians()` | 1081-1088 | DELETE |
+| `onkoloji-plan.component.ts` | `getDefaultDevices()` | 1091-1141 | DELETE |
+| `onkoloji-plan.component.ts` | `loadSampleData()` | 2394-2438 | DELETE |
+| `leave-management.component.ts` | `getMockData()` | 688-695 | DELETE |
+| `live-tracking.component.ts` | Mock liveShifts | 476-483 | DELETE |
+| `fairness-analysis.component.ts` | Mock personnel | 469-478 | DELETE |
+| `notifications.component.ts` | Mock notifications | 377-383 | DELETE |
+| `employees.component.ts` | `calculateStats()` | 1033-1036 | REFACTOR - use API |
+| `employees.component.ts` | `getDepartment()` | 1062 | REFACTOR |
+| `operations-center.component.ts` | `updateMetrics()` | 2720-2733 | REFACTOR - use API |
+| `operations-center.component.ts` | `showExplanation()` | 2736-2767 | REFACTOR - use API |
+| `operations-center.component.ts` | `calculateImpactPreview()` | 2970-2978 | REFACTOR - use API |
+| `onboarding.service.ts` | `runDemo()` | 35-39 | KEEP for demo mode flag |
 
 ### Files to UPDATE - Remove Fallback Defaults
 
-| File                      | Lines                          | Current Behavior              | Required Behavior        |
-| ------------------------- | ------------------------------ | ----------------------------- | ------------------------ |
-| `device-api.service.ts`   | 87, 102-220                    | Fallback to hardcoded devices | **THROW ERROR**          |
-| `dashboard.service.ts`    | 112-115, 133-135, 154, 174-214 | Return fake metrics           | **THROW ERROR**          |
-| `schedule.service.ts`     | 243-254, 270-278               | Return zeroed stats           | **THROW ERROR**          |
-| `schedule-api.service.ts` | 420, 459, 474, 509             | Return empty array            | **THROW ERROR + notify** |
+| File | Lines | Current Behavior | Required Behavior |
+|------|-------|------------------|------------------|
+| `device-api.service.ts` | 87, 102-220 | Fallback to hardcoded devices | **THROW ERROR** |
+| `dashboard.service.ts` | 112-115, 133-135, 154, 174-214 | Return fake metrics | **THROW ERROR** |
+| `schedule.service.ts` | 243-254, 270-278 | Return zeroed stats | **THROW ERROR** |
+| `schedule-api.service.ts` | 420, 459, 474, 509 | Return empty array | **THROW ERROR + notify** |
 
 ---
 
@@ -113,32 +113,23 @@ getAll(): Observable<Employee[]> {
 
 ### Frontend-Backend DTO Alignment
 
-| Interface   | Frontend Location                                  | Backend Location      | Status                 |
-| ----------- | -------------------------------------------------- | --------------------- | ---------------------- |
-| Schedule    | `domain/models/index.ts`                           | `Prisma: Schedule`    | ⚠️ Status mismatch     |
-| Assignment  | `domain/models/index.ts`                           | `Prisma: Assignment`  | ✅ OK                  |
-| Device      | `domain/models/index.ts` + `device-api.service.ts` | `Prisma: Device`      | ❌ DUPLICATE           |
-| Personnel   | `domain/models/index.ts`                           | `Prisma: Personnel`   | ⚠️ Missing fields      |
-| User        | `domain/models/index.ts`                           | `Prisma: User`        | ✅ OK                  |
-| SwapRequest | `domain/models/index.ts`                           | `Prisma: SwapRequest` | ⚠️ Field name mismatch |
+| Interface | Frontend Location | Backend Location | Status |
+|----------|-----------------|-----------------|--------|
+| Schedule | `domain/models/index.ts` | `Prisma: Schedule` | ⚠️ Status mismatch |
+| Assignment | `domain/models/index.ts` | `Prisma: Assignment` | ✅ OK |
+| Device | `domain/models/index.ts` + `device-api.service.ts` | `Prisma: Device` | ❌ DUPLICATE |
+| Personnel | `domain/models/index.ts` | `Prisma: Personnel` | ⚠️ Missing fields |
+| User | `domain/models/index.ts` | `Prisma: User` | ✅ OK |
+| SwapRequest | `domain/models/index.ts` | `Prisma: SwapRequest` | ⚠️ Field name mismatch |
 
 ### ScheduleStatus Enum Mismatch
 
 ```typescript
 // Frontend (INCORRECT)
-type ScheduleStatus =
-  | "draft"
-  | "review"
-  | "approved"
-  | "published"
-  | "archived";
+type ScheduleStatus = 'draft' | 'review' | 'approved' | 'published' | 'archived';
 
 // Backend Prisma (CORRECT)
-enum ScheduleStatus {
-  draft,
-  published,
-  archived,
-}
+enum ScheduleStatus { draft, published, archived }
 
 // FIX: Remove 'review' and 'approved' - backend uses separate approval table
 ```
@@ -147,14 +138,10 @@ enum ScheduleStatus {
 
 ```typescript
 // Frontend (INCORRECT)
-type SwapRequestStatus = "pending" | "approved" | "rejected";
+type SwapRequestStatus = 'pending' | 'approved' | 'rejected';
 
 // Backend Prisma (CORRECT)
-enum SwapRequestStatus {
-  PENDING,
-  APPROVED,
-  REJECTED,
-}
+enum SwapRequestStatus { PENDING, APPROVED, REJECTED }
 
 // FIX: Use uppercase or add normalization layer
 ```
@@ -183,10 +170,10 @@ interface Device {
   id: string;
   code: string;
   name: string;
-  block: string; // ❌ Extra field
-  manufacturer: string; // ❌ Extra field
-  model: string; // ❌ Extra field
-  mode: "vardiya" | "polyclinic";
+  block: string;           // ❌ Extra field
+  manufacturer: string;    // ❌ Extra field
+  model: string;           // ❌ Extra field
+  mode: 'vardiya' | 'polyclinic';
   tripleShift: boolean;
   isActive: boolean;
   unit: UnitType;
@@ -232,7 +219,7 @@ interface Device {
 ### Standard Error Handling Pattern
 
 ```typescript
-@Injectable({ providedIn: "root" })
+@Injectable({ providedIn: 'root' })
 export class ExampleService {
   private readonly api = inject(ApiService);
   private readonly notification = inject(NotificationService);
@@ -248,20 +235,20 @@ export class ExampleService {
     this._isLoading.set(true);
     this._error.set(null);
 
-    return this.api.get<ApiResponse<Data[]>>("/endpoint").pipe(
-      tap((response) => {
+    return this.api.get<ApiResponse<Data[]>>('/endpoint').pipe(
+      tap(response => {
         if (response.success) {
           this._data.set(response.data);
         }
       }),
-      map((response) => response.data),
-      catchError((err) => {
-        const message = err.error?.message || "Veriler yüklenemedi";
+      map(response => response.data),
+      catchError(err => {
+        const message = err.error?.message || 'Veriler yüklenemedi';
         this._error.set(message);
-        this.notification.error("Yükleme Hatası", message);
+        this.notification.error('Yükleme Hatası', message);
         return of([]);
       }),
-      finalize(() => this._isLoading.set(false)),
+      finalize(() => this._isLoading.set(false))
     );
   }
 
@@ -269,21 +256,21 @@ export class ExampleService {
     this._isLoading.set(true);
     this._error.set(null);
 
-    return this.api.post<ApiResponse<Data>>("/endpoint", item).pipe(
-      tap((response) => {
+    return this.api.post<ApiResponse<Data>>('/endpoint', item).pipe(
+      tap(response => {
         if (response.success) {
-          this._data.update((list) => [...list, response.data]);
-          this.notification.success("Başarılı", "Kayıt oluşturuldu");
+          this._data.update(list => [...list, response.data]);
+          this.notification.success('Başarılı', 'Kayıt oluşturuldu');
         }
       }),
-      map((response) => response.data),
-      catchError((err) => {
-        const message = err.error?.message || "Kayıt oluşturulamadı";
+      map(response => response.data),
+      catchError(err => {
+        const message = err.error?.message || 'Kayıt oluşturulamadı';
         this._error.set(message);
-        this.notification.error("Kayıt Hatası", message);
+        this.notification.error('Kayıt Hatası', message);
         return of(null);
       }),
-      finalize(() => this._isLoading.set(false)),
+      finalize(() => this._isLoading.set(false))
     );
   }
 }
@@ -314,23 +301,23 @@ export class ExampleComponent {
 ```html
 <!-- Template -->
 @if (isLoading()) {
-<div class="loading-state">
-  <mat-spinner></mat-spinner>
-  <span>Yükleniyor...</span>
-</div>
+  <div class="loading-state">
+    <mat-spinner></mat-spinner>
+    <span>Yükleniyor...</span>
+  </div>
 } @else if (error()) {
-<div class="error-state">
-  <mat-icon>error_outline</mat-icon>
-  <span>{{ error() }}</span>
-  <button (click)="retry()">Tekrar Dene</button>
-</div>
+  <div class="error-state">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ error() }}</span>
+    <button (click)="retry()">Tekrar Dene</button>
+  </div>
 } @else if (data().length === 0) {
-<div class="empty-state">
-  <mat-icon>inbox</mat-icon>
-  <span>Henüz veri yok</span>
-</div>
+  <div class="empty-state">
+    <mat-icon>inbox</mat-icon>
+    <span>Henüz veri yok</span>
+  </div>
 } @else {
-<!-- Content -->
+  <!-- Content -->
 }
 ```
 
@@ -397,7 +384,7 @@ describe('ScheduleApiService Integration', () => {
 ### Test File: `device-api.integration.spec.ts`
 
 ```typescript
-describe("DeviceApiService Integration", () => {
+describe('DeviceApiService Integration', () => {
   // Tests that device API throws error instead of returning defaults
   // Tests that API errors propagate correctly
 });
@@ -434,7 +421,6 @@ describe("DeviceApiService Integration", () => {
 ## APPENDIX: FILE PATHS
 
 ### Mock Data Files
-
 ```
 frontend/src/app/components/reports/reports.component.ts
 frontend/src/app/features/onkoloji/onkoloji-plan.component.ts
@@ -447,7 +433,6 @@ frontend/src/app/features/operations/components/operations-center.component.ts
 ```
 
 ### Files Needing Error Handling Updates
-
 ```
 frontend/src/app/services/dashboard.service.ts
 frontend/src/app/services/schedule.service.ts
@@ -458,7 +443,6 @@ frontend/src/app/core/api/device-api.service.ts
 ```
 
 ### Files Needing Contract Updates
-
 ```
 frontend/src/app/domain/enums/index.ts (ScheduleStatus)
 frontend/src/app/domain/models/index.ts (Device, SwapRequest)

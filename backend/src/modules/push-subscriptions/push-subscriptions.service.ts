@@ -33,10 +33,7 @@ export class PushSubscriptionsService {
     try {
       const publicKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
       const privateKey = this.configService.get<string>('VAPID_PRIVATE_KEY');
-      const subject = this.configService.get<string>(
-        'VAPID_SUBJECT',
-        'mailto:vardiyaos@hospital.com',
-      );
+      const subject = this.configService.get<string>('VAPID_SUBJECT', 'mailto:vardiyaos@hospital.com');
       if (publicKey && privateKey) {
         webpush.setVapidDetails(subject, publicKey, privateKey);
         this.initialized = true;
@@ -93,10 +90,7 @@ export class PushSubscriptionsService {
     const map = new Map<string, PushSubscriptionData[]>();
     for (const s of subs) {
       const arr = map.get(s.userId) || [];
-      arr.push({
-        endpoint: s.endpoint,
-        keys: { p256dh: s.p256dh, auth: s.auth },
-      });
+      arr.push({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } });
       map.set(s.userId, arr);
     }
     return map;
@@ -106,10 +100,7 @@ export class PushSubscriptionsService {
     return this.prisma.webPushSubscription.count();
   }
 
-  async sendPush(
-    userId: string,
-    payload: PushNotificationPayload,
-  ): Promise<boolean> {
+  async sendPush(userId: string, payload: PushNotificationPayload): Promise<boolean> {
     if (!this.initialized) return false;
 
     const subs = await this.getSubscriptions(userId);
@@ -141,19 +132,14 @@ export class PushSubscriptionsService {
     for (const sub of subs) {
       try {
         await webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: { p256dh: sub.p256dh, auth: sub.auth },
-          },
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           JSON.stringify(payload),
           { TTL: 86400 },
         );
         sent++;
       } catch (err: any) {
         if (err.statusCode === 410 || err.statusCode === 404) {
-          await this.prisma.webPushSubscription
-            .delete({ where: { id: sub.id } })
-            .catch(() => {});
+          await this.prisma.webPushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
         }
       }
     }

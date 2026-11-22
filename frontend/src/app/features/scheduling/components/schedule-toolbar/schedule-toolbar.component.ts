@@ -1,11 +1,4 @@
-import {
-  Component,
-  Input,
-  Output,
-  EventEmitter,
-  ChangeDetectionStrategy,
-  computed,
-} from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, computed } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import type { ScheduleStatus } from '../../models';
 import type { ScheduleTab } from '../../store/schedule.store';
@@ -26,13 +19,8 @@ import type { ScheduleTab } from '../../store/schedule.store';
           <span class="version-badge">v{{ version }}</span>
         }
         @if (score !== null && score !== undefined) {
-          <span
-            class="score-badge"
-            [class.high]="score >= 80"
-            [class.mid]="score >= 60 && score < 80"
-            [class.low]="score < 60"
-          >
-            {{ score | number: '1.0-1' }}
+          <span class="score-badge" [class.high]="score >= 80" [class.mid]="score >= 60 && score < 80" [class.low]="score < 60">
+            {{ score | number:'1.0-1' }}
           </span>
         }
         @if (connectionState && connectionState !== 'connected') {
@@ -42,11 +30,7 @@ import type { ScheduleTab } from '../../store/schedule.store';
       <div class="toolbar-right">
         @switch (status) {
           @case ('draft') {
-            <button
-              class="toolbar-btn btn-generate"
-              (click)="generate.emit()"
-              [disabled]="executing || generating"
-            >
+            <button class="toolbar-btn btn-generate" (click)="generate.emit()" [disabled]="executing || generating">
               {{ generating ? 'Üretiliyor...' : 'Vardiya Üret' }}
             </button>
             <button class="toolbar-btn btn-validate" (click)="validate.emit()" [disabled]="loading">
@@ -54,21 +38,13 @@ import type { ScheduleTab } from '../../store/schedule.store';
             </button>
           }
           @case ('rejected') {
-            <button
-              class="toolbar-btn btn-generate"
-              (click)="generate.emit()"
-              [disabled]="executing || generating"
-            >
+            <button class="toolbar-btn btn-generate" (click)="generate.emit()" [disabled]="executing || generating">
               Yeniden Üret
             </button>
             <button class="toolbar-btn btn-validate" (click)="validate.emit()" [disabled]="loading">
               Doğrula
             </button>
-            <button
-              class="toolbar-btn btn-review"
-              (click)="submitReview.emit()"
-              [disabled]="executing || loading"
-            >
+            <button class="toolbar-btn btn-review" (click)="submitReview.emit()" [disabled]="executing || loading">
               İncelemeye Gönder
             </button>
           }
@@ -76,20 +52,12 @@ import type { ScheduleTab } from '../../store/schedule.store';
             <button class="toolbar-btn btn-validate" (click)="validate.emit()" [disabled]="loading">
               Doğrula
             </button>
-            <button
-              class="toolbar-btn btn-review"
-              (click)="submitReview.emit()"
-              [disabled]="executing || loading"
-            >
+            <button class="toolbar-btn btn-review" (click)="submitReview.emit()" [disabled]="executing || loading">
               İncelemeye Gönder
             </button>
           }
           @case ('validated') {
-            <button
-              class="toolbar-btn btn-review"
-              (click)="submitReview.emit()"
-              [disabled]="executing || loading"
-            >
+            <button class="toolbar-btn btn-review" (click)="submitReview.emit()" [disabled]="executing || loading">
               İncelemeye Gönder
             </button>
           }
@@ -112,11 +80,7 @@ import type { ScheduleTab } from '../../store/schedule.store';
             </button>
           }
           @case ('archived') {
-            <button
-              class="toolbar-btn btn-revert"
-              (click)="revertToDraft.emit()"
-              [disabled]="executing"
-            >
+            <button class="toolbar-btn btn-revert" (click)="revertToDraft.emit()" [disabled]="executing">
               Taslağa Dön
             </button>
           }
@@ -127,173 +91,61 @@ import type { ScheduleTab } from '../../store/schedule.store';
       </div>
     </div>
   `,
-  styles: [
-    `
-      .toolbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 10px 16px;
-        background: var(--surface-card, #fff);
-        border-bottom: 1px solid var(--surface-border, #e2e8f0);
-      }
-      .toolbar-left {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .toolbar-title {
-        font-size: 15px;
-        font-weight: 600;
-        color: var(--text-color, #1e293b);
-      }
-      .status-badge {
-        padding: 3px 10px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-      }
-      .status-draft {
-        background: #f1f5f9;
-        color: #64748b;
-      }
-      .status-generated {
-        background: #ede9fe;
-        color: #6d28d9;
-      }
-      .status-validated {
-        background: #d1fae5;
-        color: #065f46;
-      }
-      .status-under_review {
-        background: #fef3c7;
-        color: #92400e;
-      }
-      .status-approved {
-        background: #d1fae5;
-        color: #065f46;
-      }
-      .status-published {
-        background: #dbeafe;
-        color: #1e40af;
-      }
-      .status-archived {
-        background: #f3f4f6;
-        color: #6b7280;
-      }
-      .status-rejected {
-        background: #fee2e2;
-        color: #991b1b;
-      }
-      .version-badge {
-        padding: 2px 8px;
-        border-radius: 4px;
-        background: var(--surface-hover, #f1f5f9);
-        font-size: 11px;
-        font-weight: 500;
-        color: var(--text-color-secondary, #64748b);
-      }
-      .score-badge {
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 600;
-      }
-      .score-badge.high {
-        background: #d1fae5;
-        color: #065f46;
-      }
-      .score-badge.mid {
-        background: #fef3c7;
-        color: #92400e;
-      }
-      .score-badge.low {
-        background: #fee2e2;
-        color: #991b1b;
-      }
-      .connection-badge {
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 10px;
-        font-weight: 500;
-      }
-      .connection-badge.connecting {
-        background: #fef3c7;
-        color: #92400e;
-      }
-      .connection-badge.disconnected {
-        background: #fee2e2;
-        color: #991b1b;
-      }
-      .toolbar-right {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .toolbar-btn {
-        padding: 6px 14px;
-        border: 1px solid var(--surface-border, #e2e8f0);
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.15s;
-        background: var(--surface-card, #fff);
-        color: var(--text-color, #1e293b);
-      }
-      .toolbar-btn:hover:not(:disabled) {
-        background: var(--surface-hover, #f1f5f9);
-      }
-      .toolbar-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-      .btn-generate {
-        border-color: #6366f1;
-        color: #6366f1;
-      }
-      .btn-validate {
-        border-color: #6366f1;
-        color: #6366f1;
-      }
-      .btn-review {
-        background: #6366f1;
-        color: white;
-        border-color: #6366f1;
-      }
-      .btn-approve {
-        background: #10b981;
-        color: white;
-        border-color: #10b981;
-      }
-      .btn-reject {
-        background: #ef4444;
-        color: white;
-        border-color: #ef4444;
-      }
-      .btn-publish {
-        background: #3b82f6;
-        color: white;
-        border-color: #3b82f6;
-      }
-      .btn-archive {
-        background: #6b7280;
-        color: white;
-        border-color: #6b7280;
-      }
-      .btn-revert {
-        border-color: #f59e0b;
-        color: #92400e;
-        background: #fffbeb;
-      }
-      .btn-refresh {
-        padding: 6px 10px;
-        font-size: 16px;
-      }
-    `,
-  ],
+  styles: [`
+    .toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; background: var(--surface-card, #fff);
+      border-bottom: 1px solid var(--surface-border, #e2e8f0);
+    }
+    .toolbar-left { display: flex; align-items: center; gap: 10px; }
+    .toolbar-title { font-size: 15px; font-weight: 600; color: var(--text-color, #1e293b); }
+    .status-badge {
+      padding: 3px 10px; border-radius: 12px; font-size: 11px;
+      font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    .status-draft { background: #f1f5f9; color: #64748b; }
+    .status-generated { background: #ede9fe; color: #6d28d9; }
+    .status-validated { background: #d1fae5; color: #065f46; }
+    .status-under_review { background: #fef3c7; color: #92400e; }
+    .status-approved { background: #d1fae5; color: #065f46; }
+    .status-published { background: #dbeafe; color: #1e40af; }
+    .status-archived { background: #f3f4f6; color: #6b7280; }
+    .status-rejected { background: #fee2e2; color: #991b1b; }
+    .version-badge {
+      padding: 2px 8px; border-radius: 4px;
+      background: var(--surface-hover, #f1f5f9); font-size: 11px;
+      font-weight: 500; color: var(--text-color-secondary, #64748b);
+    }
+    .score-badge {
+      padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+    }
+    .score-badge.high { background: #d1fae5; color: #065f46; }
+    .score-badge.mid { background: #fef3c7; color: #92400e; }
+    .score-badge.low { background: #fee2e2; color: #991b1b; }
+    .connection-badge {
+      padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 500;
+    }
+    .connection-badge.connecting { background: #fef3c7; color: #92400e; }
+    .connection-badge.disconnected { background: #fee2e2; color: #991b1b; }
+    .toolbar-right { display: flex; align-items: center; gap: 6px; }
+    .toolbar-btn {
+      padding: 6px 14px; border: 1px solid var(--surface-border, #e2e8f0);
+      border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer;
+      transition: all 0.15s; background: var(--surface-card, #fff);
+      color: var(--text-color, #1e293b);
+    }
+    .toolbar-btn:hover:not(:disabled) { background: var(--surface-hover, #f1f5f9); }
+    .toolbar-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-generate { border-color: #6366f1; color: #6366f1; }
+    .btn-validate { border-color: #6366f1; color: #6366f1; }
+    .btn-review { background: #6366f1; color: white; border-color: #6366f1; }
+    .btn-approve { background: #10b981; color: white; border-color: #10b981; }
+    .btn-reject { background: #ef4444; color: white; border-color: #ef4444; }
+    .btn-publish { background: #3b82f6; color: white; border-color: #3b82f6; }
+    .btn-archive { background: #6b7280; color: white; border-color: #6b7280; }
+    .btn-revert { border-color: #f59e0b; color: #92400e; background: #fffbeb; }
+    .btn-refresh { padding: 6px 10px; font-size: 16px; }
+  `],
 })
 export class ScheduleToolbarComponent {
   @Input() scheduleId: string | null = null;

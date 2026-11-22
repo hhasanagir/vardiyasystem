@@ -22,23 +22,15 @@ export default registerAs('rateLimit', () => ({
   lockout: {
     threshold: parseInt(process.env.AUTH_LOCKOUT_THRESHOLD || '5', 10),
     durationMs: parseInt(process.env.AUTH_LOCKOUT_DURATION_MS || '900000', 10),
-    progressiveFactor: parseFloat(
-      process.env.AUTH_LOCKOUT_PROGRESSIVE_FACTOR || '1.5',
-    ),
-    maxDurationMs: parseInt(
-      process.env.AUTH_LOCKOUT_MAX_DURATION_MS || '86400000',
-      10,
-    ),
+    progressiveFactor: parseFloat(process.env.AUTH_LOCKOUT_PROGRESSIVE_FACTOR || '1.5'),
+    maxDurationMs: parseInt(process.env.AUTH_LOCKOUT_MAX_DURATION_MS || '86400000', 10),
   },
   ws: {
     connection: {
       limit: parseInt(process.env.WS_CONNECTION_LIMIT || '10', 10),
       windowMs: parseInt(process.env.WS_CONNECTION_WINDOW_MS || '60000', 10),
     },
-    reconnectCooldownMs: parseInt(
-      process.env.WS_RECONNECT_COOLDOWN_MS || '2000',
-      10,
-    ),
+    reconnectCooldownMs: parseInt(process.env.WS_RECONNECT_COOLDOWN_MS || '2000', 10),
   },
   proxy: {
     trustLevel: parseInt(process.env.TRUST_PROXY_LEVEL || '1', 10),

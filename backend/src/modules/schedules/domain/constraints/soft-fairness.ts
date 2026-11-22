@@ -1,13 +1,7 @@
-import {
-  SoftConstraint,
-  ConstraintScore,
-} from '../constraints/soft-constraint.interface';
+import { SoftConstraint, ConstraintScore } from '../constraints/soft-constraint.interface';
 import { ConstraintContext } from '../constraints/constraint.interface';
-import {
-  FairnessEngine,
-  FairnessInput,
-  FairnessPersonnelInfo,
-} from '../models/fairness-engine';
+import { FairnessEngine, FairnessInput, FairnessPersonnelInfo } from '../models/fairness-engine';
+import { daysInMonth } from '../value-objects/local-date';
 
 export interface FairnessSoftConstraintConfig {
   nightWeight: number;
@@ -18,15 +12,14 @@ export interface FairnessSoftConstraintConfig {
 
 const DEFAULT_FAIRNESS_CONFIG: FairnessSoftConstraintConfig = {
   nightWeight: 0.25,
-  weekendWeight: 0.2,
+  weekendWeight: 0.20,
   holidayWeight: 0.15,
-  workloadWeight: 0.4,
+  workloadWeight: 0.40,
 };
 
 export class FairnessSoftConstraint implements SoftConstraint {
   id = 'FAIRNESS';
-  description =
-    'Fair distribution of night, weekend, holiday, and workload assignments across personnel';
+  description = 'Fair distribution of night, weekend, holiday, and workload assignments across personnel';
 
   private readonly fairnessEngine: FairnessEngine;
   private readonly config: FairnessSoftConstraintConfig;
@@ -37,26 +30,36 @@ export class FairnessSoftConstraint implements SoftConstraint {
   }
 
   evaluate(context: ConstraintContext): ConstraintScore {
-    const personnelIds = new Set<string>();
+    // P2-02 — use the real problem roster (including personnel with zero
+    // assignments) instead of deriving names/eligibility/caps from assignment
+    // ids. The fallback only applies to minimal unit-test contexts that do not
+    // expose a roster; production lookups always provide `all()`.
+    const roster = context.personnelLookup.all?.();
+    const personnelIds = new Set<string>((roster ?? []).map(p => p.id));
     for (const a of context.existingAssignments.all) {
       personnelIds.add(a.personnelId.value);
     }
     personnelIds.add(context.assignment.personnelId.value);
 
-    const personnel: FairnessPersonnelInfo[] = Array.from(personnelIds).map(
-      (id) => ({
+    const personnel: FairnessPersonnelInfo[] = Array.from(personnelIds).map(id => {
+      const info = context.personnelLookup.findById(id) ?? roster?.find(p => p.id === id);
+      return {
         id,
-        name: id,
-        nightShiftEligible: true,
-        maxWeeklyHours: 40,
-      }),
-    );
+        name: info?.name ?? id,
+        nightShiftEligible: info?.nightShiftEligible ?? true,
+        maxWeeklyHours: info?.maxWeeklyHours ?? 40,
+      };
+    });
+
+    const monthDays = context.year && context.month
+      ? daysInMonth(context.year, context.month)
+      : 30;
 
     const input: FairnessInput = {
       assignments: context.existingAssignments,
       personnel,
       holidays: context.holidays,
-      monthDays: 30,
+      monthDays,
     };
 
     const result = this.fairnessEngine.calculate(input);
@@ -72,6 +75,9 @@ export class FairnessSoftConstraint implements SoftConstraint {
         weekendScore: result.weekendScore,
         holidayScore: result.holidayScore,
         workloadScore: result.workloadScore,
+        personnelCount: personnel.length,
+        realPersonnelData: Boolean(roster),
+        monthDays,
       },
     };
   }

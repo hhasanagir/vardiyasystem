@@ -42,50 +42,22 @@ export class AlertingService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          attachments: [
-            {
-              color: colors[params.severity] || '#64748b',
-              blocks: [
-                {
-                  type: 'header',
-                  text: {
-                    type: 'plain_text',
-                    text: `[${params.severity.toUpperCase()}] ${params.title}`,
-                  },
-                },
-                {
-                  type: 'section',
-                  text: { type: 'mrkdwn', text: params.message },
-                },
-                ...(params.metadata
-                  ? [
-                      {
-                        type: 'context',
-                        elements: [
-                          {
-                            type: 'mrkdwn',
-                            text:
-                              '```' +
-                              JSON.stringify(params.metadata, null, 2) +
-                              '```',
-                          },
-                        ],
-                      },
-                    ]
-                  : []),
-                ...(params.source
-                  ? [
-                      {
-                        type: 'context',
-                        elements: [
-                          { type: 'mrkdwn', text: `Source: ${params.source}` },
-                        ],
-                      },
-                    ]
-                  : []),
-              ],
-            },
-          ],
+          attachments: [{
+            color: colors[params.severity] || '#64748b',
+            blocks: [
+              {
+                type: 'header',
+                text: { type: 'plain_text', text: `[${params.severity.toUpperCase()}] ${params.title}` },
+              },
+              { type: 'section', text: { type: 'mrkdwn', text: params.message } },
+              ...(params.metadata
+                ? [{ type: 'context', elements: [{ type: 'mrkdwn', text: '```' + JSON.stringify(params.metadata, null, 2) + '```' }] }]
+                : []),
+              ...(params.source
+                ? [{ type: 'context', elements: [{ type: 'mrkdwn', text: `Source: ${params.source}` }] }]
+                : []),
+            ],
+          }],
         }),
       });
     } catch (err) {

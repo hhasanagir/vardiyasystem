@@ -20,29 +20,23 @@ export type ViolationRule =
   | 'INACTIVE_PERSONNEL'
   | 'NOT_NIGHT_ELIGIBLE'
   | 'OFF_DAY_CONFLICT'
-  | 'REST_RULE_VIOLATION';
+  | 'REST_RULE_VIOLATION'
+  | 'DEVICE_OFF_DATE'
+  | 'UNIT_CLOSED'
+  | 'PERSONNEL_AVAILABILITY_CONFLICT';
 
 export interface AssignmentViolation {
   rule: ViolationRule;
   severity: ViolationSeverity;
   message: string;
   details?: {
-    currentShift?: {
-      date: string;
-      shiftType: string;
-      startTime: string;
-      endTime: string;
-    };
-    newShift?: {
-      date: string;
-      shiftType: string;
-      startTime: string;
-      endTime: string;
-    };
+    currentShift?: { date: string; shiftType: string; startTime: string; endTime: string };
+    newShift?: { date: string; shiftType: string; startTime: string; endTime: string };
     restHours?: number;
     minRestHours?: number;
     dayOfWeek?: string;
     personnelName?: string;
+    blockingType?: string;
   };
   isOverrideAllowed: boolean;
 }

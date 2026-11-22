@@ -9,26 +9,24 @@ import { AuthAttemptService } from './auth-attempt.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { SessionService } from './session.service';
 import { AuditLogModule } from '../audit-log/audit-log.module';
+import { DistributedLockModule } from '../../infrastructure/distributed-lock.module';
 import { CsrfService, CsrfGuard } from './csrf';
 import { InviteCodeService } from './invite-code.service';
 import { TokenBlacklistService } from './token-blacklist.service';
 
 @Module({
   imports: [
+    DistributedLockModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
-        const secret =
-          configService.get<string>('JWT_ACCESS_TOKEN_SECRET') ||
-          configService.get<string>('JWT_SECRET');
+        const secret = configService.get<string>('JWT_ACCESS_TOKEN_SECRET')
+          || configService.get<string>('JWT_SECRET');
         return {
           secret,
           signOptions: {
-            expiresIn: configService.get<string>(
-              'JWT_ACCESS_TOKEN_EXPIRES_IN',
-              '15m',
-            ),
+            expiresIn: configService.get<string>('JWT_ACCESS_TOKEN_EXPIRES_IN', '15m'),
             algorithm: 'HS256',
           },
         };
@@ -37,26 +35,7 @@ import { TokenBlacklistService } from './token-blacklist.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [
-    AuthService,
-    JwtStrategy,
-    AuthAttemptService,
-    RefreshTokenService,
-    SessionService,
-    CsrfService,
-    CsrfGuard,
-    InviteCodeService,
-    TokenBlacklistService,
-  ],
-  exports: [
-    AuthService,
-    JwtModule,
-    AuthAttemptService,
-    SessionService,
-    CsrfService,
-    CsrfGuard,
-    InviteCodeService,
-    TokenBlacklistService,
-  ],
+  providers: [AuthService, JwtStrategy, AuthAttemptService, RefreshTokenService, SessionService, CsrfService, CsrfGuard, InviteCodeService, TokenBlacklistService],
+  exports: [AuthService, JwtModule, AuthAttemptService, SessionService, CsrfService, CsrfGuard, InviteCodeService, TokenBlacklistService],
 })
 export class AuthModule {}

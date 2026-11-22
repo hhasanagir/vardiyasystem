@@ -3,7 +3,6 @@
 ## GitHub Actions Workflow
 
 ### Android Build (`cd-android.yml`)
-
 ```yaml
 name: Build Android APK
 
@@ -20,8 +19,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
-          cache: "npm"
+          node-version: '22'
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install Dependencies
@@ -39,8 +38,8 @@ jobs:
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
-          distribution: "temurin"
-          java-version: "17"
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -71,7 +70,6 @@ jobs:
 ```
 
 ### iOS Build (`cd-ios.yml`)
-
 ```yaml
 name: Build iOS IPA
 
@@ -88,8 +86,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
-          cache: "npm"
+          node-version: '22'
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install Dependencies
@@ -131,7 +129,6 @@ jobs:
 ## Code Signing
 
 ### Android
-
 - Generate keystore:
   ```bash
   keytool -genkey -v -keystore vardiyaos-release.keystore \
@@ -144,7 +141,6 @@ jobs:
   - `ANDROID_KEY_PASSWORD`
 
 ### iOS
-
 - Apple Developer account required ($99/year)
 - Create App Store Connect API Key
 - Store in GitHub Secrets:
@@ -156,7 +152,6 @@ jobs:
   - `KEYCHAIN_PASSWORD`
 
 ## Fastlane Configuration
-
 For automated deployment to stores, add Fastlane:
 
 ```ruby
@@ -182,7 +177,6 @@ end
 ```
 
 ## Required Environment Variables
-
 ```env
 # CI/CD
 ANDROID_SIGNING_KEY=<base64-encoded-keystore>

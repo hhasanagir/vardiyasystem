@@ -37,15 +37,13 @@ export class MetricsStore {
 
   readonly currentHeatmapMetrics = computed(() => {
     const unit = this._selectedHeatmapUnit();
-    return (
-      this._heatmapMetrics().get(unit) || {
-        active: 0,
-        idle: 0,
-        maintenance: 0,
-        critical: 0,
-        occupancyRate: 0,
-      }
-    );
+    return this._heatmapMetrics().get(unit) || {
+      active: 0,
+      idle: 0,
+      maintenance: 0,
+      critical: 0,
+      occupancyRate: 0,
+    };
   });
 
   setMetrics(metrics: UnitMetrics): void {

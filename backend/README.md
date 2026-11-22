@@ -56,13 +56,11 @@ npm run start:prod
 ## API Endpoints
 
 ### Auth
-
 - `POST /api/v1/auth/register` - Register user
 - `POST /api/v1/auth/login` - Login
 - `GET /api/v1/auth/me` - Get current user
 
 ### Schedules
-
 - `GET /api/v1/schedules` - List all schedules
 - `POST /api/v1/schedules` - Create schedule
 - `GET /api/v1/schedules/:id` - Get schedule
@@ -74,7 +72,6 @@ npm run start:prod
 - `DELETE /api/v1/schedules/:id/assignments/:assignmentId` - Remove assignment
 
 ### Personnel
-
 - `GET /api/v1/personnel` - List all
 - `GET /api/v1/personnel/:id` - Get by ID
 - `GET /api/v1/personnel/:id/workload` - Get workload
@@ -82,18 +79,15 @@ npm run start:prod
 - `PUT /api/v1/personnel/:id` - Update
 
 ### Units
-
 - `GET /api/v1/units` - List all
 - `GET /api/v1/units/:id` - Get by ID
 - `GET /api/v1/units/:id/devices` - Get devices
 
 ### Holidays
-
 - `GET /api/v1/holidays` - List holidays
 - `POST /api/v1/holidays/seed-2026` - Seed 2026 holidays
 
 ### Audit Logs
-
 - `GET /api/v1/audit-logs` - List all logs
 - `GET /api/v1/audit-logs/entity/:type/:id` - Logs for entity
 
@@ -108,6 +102,5 @@ npm run start:prod
 ## Default Credentials
 
 After seeding:
-
 - Email: `admin@hospital.com`
 - Password: `admin123`

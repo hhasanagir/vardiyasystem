@@ -38,14 +38,14 @@
 
 ### Components
 
-| Component      | Technology           | Purpose                                           |
-| -------------- | -------------------- | ------------------------------------------------- |
-| **Backend**    | NestJS (Node.js 20)  | REST API + WebSocket server                       |
-| **Frontend**   | Angular 19           | Single-page application                           |
-| **PostgreSQL** | 17                   | Primary data store                                |
-| **Redis**      | 7                    | Distributed rate limiting, caching, session store |
-| **Nginx**      | 1.27                 | Reverse proxy, TLS termination, rate limiting     |
-| **Vault**      | HashiCorp (optional) | Secret management                                 |
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Backend** | NestJS (Node.js 20) | REST API + WebSocket server |
+| **Frontend** | Angular 19 | Single-page application |
+| **PostgreSQL** | 17 | Primary data store |
+| **Redis** | 7 | Distributed rate limiting, caching, session store |
+| **Nginx** | 1.27 | Reverse proxy, TLS termination, rate limiting |
+| **Vault** | HashiCorp (optional) | Secret management |
 
 ### Network Architecture (Production)
 
@@ -61,33 +61,33 @@ Internet ──▶ HTTPS :443 ──▶ Nginx ──▶ :3000 Backend
 
 ### Required Tools
 
-| Tool           | Version | Purpose                |
-| -------------- | ------- | ---------------------- |
-| Docker         | 27+     | Container runtime      |
-| Docker Compose | 2.29+   | Local orchestration    |
-| Node.js        | 20 LTS  | Local development      |
-| PostgreSQL     | 17      | Local database         |
-| Redis          | 7       | Local cache (optional) |
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Docker | 27+ | Container runtime |
+| Docker Compose | 2.29+ | Local orchestration |
+| Node.js | 20 LTS | Local development |
+| PostgreSQL | 17 | Local database |
+| Redis | 7 | Local cache (optional) |
 
 ### Infrastructure Requirements (Production)
 
-| Resource | Minimum   | Recommended |
-| -------- | --------- | ----------- |
-| CPU      | 2 cores   | 4 cores     |
-| RAM      | 4 GB      | 8 GB        |
-| Disk     | 20 GB SSD | 50 GB SSD   |
-| Database | 1 GB RAM  | 2 GB RAM    |
-| Network  | 100 Mbps  | 1 Gbps      |
+| Resource | Minimum | Recommended |
+|----------|---------|-------------|
+| CPU | 2 cores | 4 cores |
+| RAM | 4 GB | 8 GB |
+| Disk | 20 GB SSD | 50 GB SSD |
+| Database | 1 GB RAM | 2 GB RAM |
+| Network | 100 Mbps | 1 Gbps |
 
 ### Required Secrets (GitHub Secrets)
 
 For CI/CD, configure these in your GitHub repository under **Settings > Secrets and variables > Actions**:
 
-| Secret                  | Description                                |
-| ----------------------- | ------------------------------------------ |
-| `SLACK_WEBHOOK_URL`     | Slack webhook for deployment notifications |
-| `DOCKER_REGISTRY_TOKEN` | Container registry access token            |
-| `SENTRY_DSN`            | Error tracking DSN (optional)              |
+| Secret | Description |
+|--------|-------------|
+| `SLACK_WEBHOOK_URL` | Slack webhook for deployment notifications |
+| `DOCKER_REGISTRY_TOKEN` | Container registry access token |
+| `SENTRY_DSN` | Error tracking DSN (optional) |
 
 ---
 
@@ -118,15 +118,15 @@ cp .env.production.example .env
 
 **Critical environment variables:**
 
-| Variable                   | Required | Description                               |
-| -------------------------- | -------- | ----------------------------------------- |
-| `DATABASE_URL`             | ✅       | PostgreSQL connection string (pooled)     |
-| `DATABASE_DIRECT_URL`      | ✅       | PostgreSQL direct connection (migrations) |
-| `JWT_ACCESS_TOKEN_SECRET`  | ✅       | JWT signing key (64+ hex chars)           |
-| `JWT_REFRESH_TOKEN_SECRET` | ✅       | JWT refresh signing key (64+ hex chars)   |
-| `REDIS_URL`                | ✅       | Redis connection string                   |
-| `SLACK_WEBHOOK_URL`        | ❌       | Alerting webhook                          |
-| `FRONTEND_URL`             | ✅       | CORS origin                               |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | ✅ | PostgreSQL connection string (pooled) |
+| `DATABASE_DIRECT_URL` | ✅ | PostgreSQL direct connection (migrations) |
+| `JWT_ACCESS_TOKEN_SECRET` | ✅ | JWT signing key (64+ hex chars) |
+| `JWT_REFRESH_TOKEN_SECRET` | ✅ | JWT refresh signing key (64+ hex chars) |
+| `REDIS_URL` | ✅ | Redis connection string |
+| `SLACK_WEBHOOK_URL` | ❌ | Alerting webhook |
+| `FRONTEND_URL` | ✅ | CORS origin |
 
 ### 3. Generate Secrets
 
@@ -188,9 +188,9 @@ curl http://localhost:3000/api/v1/health
 
 ### Docker Compose Files
 
-| File                      | Purpose                                             |
-| ------------------------- | --------------------------------------------------- |
-| `docker-compose.yml`      | Development stack with hot-reload                   |
+| File | Purpose |
+|------|---------|
+| `docker-compose.yml` | Development stack with hot-reload |
 | `docker-compose.prod.yml` | Production stack with secrets, limits, healthchecks |
 
 ### Secrets Management
@@ -253,11 +253,11 @@ k8s/
 
 ### Workflows
 
-| Workflow            | Trigger            | Purpose                                |
-| ------------------- | ------------------ | -------------------------------------- |
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
 | `pr-validation.yml` | PR to main/develop | Validate code quality, tests, security |
-| `deploy.yml`        | Push to main       | Build, test, deploy to production      |
-| `security-scan.yml` | Weekly / manual    | Full security audit + SBOM             |
+| `deploy.yml` | Push to main | Build, test, deploy to production |
+| `security-scan.yml` | Weekly / manual | Full security audit + SBOM |
 
 ### Pipeline Diagram
 
@@ -341,12 +341,12 @@ pg_dump -h localhost -U vardiya -d vardiyasystem \
 
 **Backup Schedule (Production):**
 
-| Frequency | Type                            | Retention |
-| --------- | ------------------------------- | --------- |
-| Hourly    | WAL archive                     | 24 hours  |
-| Daily     | Full backup (custom format)     | 30 days   |
-| Weekly    | Full backup + encrypted offsite | 90 days   |
-| Monthly   | Full backup + cold storage      | 1 year    |
+| Frequency | Type | Retention |
+|-----------|------|-----------|
+| Hourly | WAL archive | 24 hours |
+| Daily | Full backup (custom format) | 30 days |
+| Weekly | Full backup + encrypted offsite | 90 days |
+| Monthly | Full backup + cold storage | 1 year |
 
 ### Connection Pooling
 
@@ -360,11 +360,11 @@ pg_dump -h localhost -U vardiya -d vardiyasystem \
 
 ### Health Endpoints
 
-| Endpoint                   | Purpose         | Expected Response                |
-| -------------------------- | --------------- | -------------------------------- |
-| `GET /api/v1/health/live`  | Liveness probe  | `{"status":"ok"}`                |
+| Endpoint | Purpose | Expected Response |
+|----------|---------|-------------------|
+| `GET /api/v1/health/live` | Liveness probe | `{"status":"ok"}` |
 | `GET /api/v1/health/ready` | Readiness probe | `{"status":"ok","checks":{...}}` |
-| `GET /api/v1/health`       | Full report     | System metrics, DB status        |
+| `GET /api/v1/health` | Full report | System metrics, DB status |
 
 ### Logging
 
@@ -376,13 +376,13 @@ pg_dump -h localhost -U vardiya -d vardiyasystem \
 
 ### Alerting
 
-| Event                    | Severity | Channel       |
-| ------------------------ | -------- | ------------- |
-| Server startup           | info     | Slack         |
-| Readiness degradation    | warning  | Slack         |
+| Event | Severity | Channel |
+|-------|----------|---------|
+| Server startup | info | Slack |
+| Readiness degradation | warning | Slack |
 | Critical device incident | critical | Slack + Email |
-| Backup failure           | critical | Slack         |
-| Deployment               | info     | Slack         |
+| Backup failure | critical | Slack |
+| Deployment | info | Slack |
 
 ### Metrics to Monitor
 
@@ -418,13 +418,13 @@ docker compose -f docker-compose.prod.yml logs backup-cron
 
 ### Rate Limiting (Nginx)
 
-| Zone         | Rate  | Burst | Endpoint             |
-| ------------ | ----- | ----- | -------------------- |
-| login        | 5/s   | 10    | `/api/auth/login`    |
-| register     | 2/s   | 5     | `/api/auth/register` |
-| auth_refresh | 10/s  | 10    | `/api/auth/refresh`  |
-| api_general  | 100/s | 30    | `/api/*` (other)     |
-| ws_connect   | 10/s  | 5     | `/realtime`          |
+| Zone | Rate | Burst | Endpoint |
+|------|------|-------|----------|
+| login | 5/s | 10 | `/api/auth/login` |
+| register | 2/s | 5 | `/api/auth/register` |
+| auth_refresh | 10/s | 10 | `/api/auth/refresh` |
+| api_general | 100/s | 30 | `/api/*` (other) |
+| ws_connect | 10/s | 5 | `/realtime` |
 
 ### Security Headers (Nginx)
 

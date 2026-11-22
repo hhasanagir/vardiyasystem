@@ -27,7 +27,7 @@ export class DeviceStatusService {
 
   getMyUnitDevices(): Observable<UnitDeviceWithStatus[]> {
     return this.http.get<UnitDeviceWithStatus[]>(this.baseUrl).pipe(
-      catchError((err) => {
+      catchError(err => {
         console.error('DeviceStatus getMyUnitDevices failed:', err);
         return throwError(() => err);
       }),
@@ -36,7 +36,7 @@ export class DeviceStatusService {
 
   getDeviceStatus(deviceId: string): Observable<DeviceStatusEntry> {
     return this.http.get<DeviceStatusEntry>(`${this.baseUrl}/device/${deviceId}`).pipe(
-      catchError((err) => {
+      catchError(err => {
         console.error('DeviceStatus getDeviceStatus failed:', err);
         return throwError(() => err);
       }),
@@ -44,19 +44,17 @@ export class DeviceStatusService {
   }
 
   getDeviceHistory(deviceId: string, limit = 10): Observable<DeviceStatusEntry[]> {
-    return this.http
-      .get<DeviceStatusEntry[]>(`${this.baseUrl}/device/${deviceId}/history?limit=${limit}`)
-      .pipe(
-        catchError((err) => {
-          console.error('DeviceStatus getDeviceHistory failed:', err);
-          return throwError(() => err);
-        }),
-      );
+    return this.http.get<DeviceStatusEntry[]>(`${this.baseUrl}/device/${deviceId}/history?limit=${limit}`).pipe(
+      catchError(err => {
+        console.error('DeviceStatus getDeviceHistory failed:', err);
+        return throwError(() => err);
+      }),
+    );
   }
 
   updateStatus(deviceId: string, status: string, notes?: string): Observable<DeviceStatusEntry> {
     return this.http.post<DeviceStatusEntry>(this.baseUrl, { deviceId, status, notes }).pipe(
-      catchError((err) => {
+      catchError(err => {
         console.error('DeviceStatus updateStatus failed:', err);
         return throwError(() => err);
       }),

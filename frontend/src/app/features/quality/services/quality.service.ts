@@ -20,8 +20,8 @@ export class QualityService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<QualityRecord[]>('/quality/records').pipe(
-      tap((d) => this._records.set(d)),
-      catchError((err) => {
+      tap(d => this._records.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Kalite kayıtları yüklenemedi');
         return throwError(() => err);
       }),
@@ -33,8 +33,8 @@ export class QualityService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<QualityRecord>(`/quality/records/${id}`).pipe(
-      tap((d) => this._selectedRecord.set(d)),
-      catchError((err) => {
+      tap(d => this._selectedRecord.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Kalite kaydı yüklenemedi');
         return throwError(() => err);
       }),
@@ -46,7 +46,7 @@ export class QualityService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.post<QualityRecord>('/quality/records', data).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Kalite kaydı oluşturulamadı');
         return throwError(() => err);
       }),
@@ -58,7 +58,7 @@ export class QualityService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.patch<QualityRecord>(`/quality/records/${id}`, data).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Kalite kaydı güncellenemedi');
         return throwError(() => err);
       }),
@@ -70,7 +70,7 @@ export class QualityService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.post<QualityAction>(`/quality/records/${recordId}/actions`, action).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Aksiyon eklenemedi');
         return throwError(() => err);
       }),

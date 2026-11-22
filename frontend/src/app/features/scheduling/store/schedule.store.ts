@@ -9,14 +9,7 @@ import type {
   ScheduleError,
 } from '../models';
 
-export type ScheduleTab =
-  | 'grid'
-  | 'conflicts'
-  | 'validation'
-  | 'fairness'
-  | 'coverage'
-  | 'versions'
-  | 'approval';
+export type ScheduleTab = 'grid' | 'conflicts' | 'validation' | 'fairness' | 'coverage' | 'versions' | 'approval';
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected';
 
@@ -115,15 +108,8 @@ export class ScheduleStore {
   readonly softViolationCount = computed(() => {
     return this.state().validationResult?.softViolations.total ?? 0;
   });
-  readonly coveragePercent = computed(() => {
-    return this.state().validationResult?.coverage.coveragePercent ?? 0;
-  });
   readonly fairnessScore = computed(() => {
-    return (
-      this.state().validationResult?.fairness.overallScore ??
-      this.state().fairnessResult?.overallScore ??
-      0
-    );
+    return this.state().validationResult?.fairness.overallScore ?? this.state().fairnessResult?.overallScore ?? 0;
   });
   readonly overallScore = computed(() => {
     return this.state().validationResult?.score.overall ?? 0;
@@ -134,7 +120,6 @@ export class ScheduleStore {
     if (!v) return null;
     return {
       overall: v.score.overall,
-      coverage: v.coverage.coveragePercent,
       fairness: v.fairness.overallScore,
       hardViolations: v.hardViolations.total,
       softViolations: v.softViolations.total,
@@ -146,14 +131,13 @@ export class ScheduleStore {
     const fp = this.state().filterPersonnelId;
     const fd = this.state().filterDeviceId;
     const term = this.state().searchTerm.toLowerCase();
-    if (fp) list = list.filter((a) => a.personnelId === fp);
-    if (fd) list = list.filter((a) => a.deviceId === fd);
+    if (fp) list = list.filter(a => a.personnelId === fp);
+    if (fd) list = list.filter(a => a.deviceId === fd);
     if (term) {
-      list = list.filter(
-        (a) =>
-          (a.personnelName ?? '').toLowerCase().includes(term) ||
-          (a.deviceCode ?? '').toLowerCase().includes(term) ||
-          a.shiftType.toLowerCase().includes(term),
+      list = list.filter(a =>
+        (a.personnelName ?? '').toLowerCase().includes(term) ||
+        (a.deviceCode ?? '').toLowerCase().includes(term) ||
+        a.shiftType.toLowerCase().includes(term)
       );
     }
     return list;
@@ -180,12 +164,10 @@ export class ScheduleStore {
   });
 
   readonly hasVersionConflict = computed(() => this.state().versionConflict.active);
-  readonly isBusy = computed(
-    () => this.state().generating || this.state().publishing || this.state().loading,
-  );
+  readonly isBusy = computed(() => this.state().generating || this.state().publishing || this.state().loading);
 
   loadSchedule(schedule: Schedule): void {
-    this.state.update((s) => ({
+    this.state.update(s => ({
       ...s,
       schedule,
       loading: false,
@@ -204,7 +186,7 @@ export class ScheduleStore {
   }
 
   setValidation(result: ValidationResult): void {
-    this.state.update((s) => ({
+    this.state.update(s => ({
       ...s,
       validationResult: result,
       conflicts: result.hardViolations.conflicts.concat(result.softViolations.warnings),
@@ -212,19 +194,19 @@ export class ScheduleStore {
   }
 
   setFairness(result: FairnessResult): void {
-    this.state.update((s) => ({ ...s, fairnessResult: result }));
+    this.state.update(s => ({ ...s, fairnessResult: result }));
   }
 
   setLoading(loading: boolean): void {
-    this.state.update((s) => ({ ...s, loading }));
+    this.state.update(s => ({ ...s, loading }));
   }
 
   setError(error: string | null): void {
-    this.state.update((s) => ({ ...s, error, activeError: null, loading: false }));
+    this.state.update(s => ({ ...s, error, activeError: null, loading: false }));
   }
 
   setActiveError(err: ScheduleError | null): void {
-    this.state.update((s) => ({
+    this.state.update(s => ({
       ...s,
       activeError: err,
       error: err ? err.userMessage : null,
@@ -233,62 +215,62 @@ export class ScheduleStore {
   }
 
   setActiveTab(tab: ScheduleTab): void {
-    this.state.update((s) => ({ ...s, activeTab: tab }));
+    this.state.update(s => ({ ...s, activeTab: tab }));
   }
 
   selectAssignment(assignmentId: string | null): void {
-    this.state.update((s) => ({ ...s, selectedAssignmentId: assignmentId }));
+    this.state.update(s => ({ ...s, selectedAssignmentId: assignmentId }));
   }
 
   selectCell(date: string | null): void {
-    this.state.update((s) => ({ ...s, selectedCellDate: date }));
+    this.state.update(s => ({ ...s, selectedCellDate: date }));
   }
 
   setFilterPersonnel(personnelId: string | null): void {
-    this.state.update((s) => ({ ...s, filterPersonnelId: personnelId }));
+    this.state.update(s => ({ ...s, filterPersonnelId: personnelId }));
   }
 
   setFilterDevice(deviceId: string | null): void {
-    this.state.update((s) => ({ ...s, filterDeviceId: deviceId }));
+    this.state.update(s => ({ ...s, filterDeviceId: deviceId }));
   }
 
   setSearchTerm(term: string): void {
-    this.state.update((s) => ({ ...s, searchTerm: term }));
+    this.state.update(s => ({ ...s, searchTerm: term }));
   }
 
   clearSelection(): void {
-    this.state.update((s) => ({ ...s, selectedAssignmentId: null, selectedCellDate: null }));
+    this.state.update(s => ({ ...s, selectedAssignmentId: null, selectedCellDate: null }));
   }
 
   setDirty(dirty: boolean): void {
-    this.state.update((s) => ({ ...s, dirty }));
+    this.state.update(s => ({ ...s, dirty }));
   }
 
   setGenerating(generating: boolean, progress = 0): void {
-    this.state.update((s) => ({ ...s, generating, generatingProgress: progress }));
+    this.state.update(s => ({ ...s, generating, generatingProgress: progress }));
   }
 
   setGeneratingProgress(progress: number): void {
-    this.state.update((s) => ({ ...s, generatingProgress: progress }));
+    this.state.update(s => ({ ...s, generatingProgress: progress }));
   }
 
   setPublishing(publishing: boolean): void {
-    this.state.update((s) => ({ ...s, publishing }));
+    this.state.update(s => ({ ...s, publishing }));
   }
 
   setConnectionState(conn: ConnectionState): void {
-    this.state.update((s) => ({ ...s, connectionState: conn }));
+    this.state.update(s => ({ ...s, connectionState: conn }));
   }
 
   triggerVersionConflict(localVersion: number, serverVersion: number, scheduleId: string): void {
-    this.state.update((s) => ({
+    this.state.update(s => ({
       ...s,
       versionConflict: { active: true, localVersion, serverVersion, scheduleId },
     }));
   }
 
   resolveVersionConflict(): void {
-    this.state.update((s) => ({
+    this.state.update(s => ({
       ...s,
       versionConflict: { active: false, localVersion: 0, serverVersion: 0, scheduleId: '' },
     }));

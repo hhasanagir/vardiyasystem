@@ -22,7 +22,6 @@ Two separate issues were identified and fixed:
 ## Before
 
 ### DDD endpoint response (broken)
-
 ```json
 {
   "_id": "uuid-123",
@@ -44,7 +43,6 @@ Two separate issues were identified and fixed:
 ```
 
 ### Legacy endpoint assignment (missing deviceCode)
-
 ```json
 {
   "id": "sched-1",
@@ -65,7 +63,6 @@ Two separate issues were identified and fixed:
 ## After
 
 ### DDD endpoint response (fixed)
-
 ```json
 {
   "id": "sched-1",
@@ -103,7 +100,6 @@ Two separate issues were identified and fixed:
 ```
 
 ### Legacy endpoint assignment (fixed)
-
 ```json
 {
   "id": "sched-1",
@@ -125,43 +121,43 @@ Two separate issues were identified and fixed:
 
 ### `ScheduleResponseDto` (DDD endpoint)
 
-| Field          | Type                      | Source                                |
-| -------------- | ------------------------- | ------------------------------------- |
-| `id`           | `string`                  | `Schedule.id` (aggregate getter)      |
-| `unitId`       | `string`                  | `Schedule.unitId`                     |
-| `month`        | `number`                  | `Schedule.month`                      |
-| `year`         | `number`                  | `Schedule.year`                       |
-| `status`       | `string`                  | `Schedule.status`                     |
-| `version`      | `number`                  | `Schedule.scheduleVersion`            |
-| `createdById`  | `string \| null`          | `Schedule.createdById`                |
-| `publishedAt`  | `string \| null`          | `Schedule.publishedAt?.toISOString()` |
-| `assignments`  | `AssignmentResponseDto[]` | Enriched from Prisma                  |
-| `approvalData` | `object \| null`          | `Schedule.approvalData`               |
+| Field | Type | Source |
+|---|---|---|
+| `id` | `string` | `Schedule.id` (aggregate getter) |
+| `unitId` | `string` | `Schedule.unitId` |
+| `month` | `number` | `Schedule.month` |
+| `year` | `number` | `Schedule.year` |
+| `status` | `string` | `Schedule.status` |
+| `version` | `number` | `Schedule.scheduleVersion` |
+| `createdById` | `string \| null` | `Schedule.createdById` |
+| `publishedAt` | `string \| null` | `Schedule.publishedAt?.toISOString()` |
+| `assignments` | `AssignmentResponseDto[]` | Enriched from Prisma |
+| `approvalData` | `object \| null` | `Schedule.approvalData` |
 
 ### `AssignmentResponseDto`
 
-| Field              | Type                   | Source                        |
-| ------------------ | ---------------------- | ----------------------------- |
-| `id`               | `string`               | `assignment.id` (DB)          |
-| `scheduleId`       | `string`               | `assignment.scheduleId`       |
-| `personnelId`      | `string`               | `assignment.personnelId`      |
-| `personnelName`    | `string`               | `personnel.name` (JOIN)       |
-| `deviceId`         | `string \| null`       | `assignment.deviceId`         |
-| `deviceCode`       | `string \| null`       | `device.code` (JOIN)          |
-| `unitId`           | `string \| null`       | `assignment.unitId`           |
-| `personnelGroupId` | `string \| null`       | `assignment.personnelGroupId` |
-| `shiftTemplateId`  | `string \| null`       | `assignment.shiftTemplateId`  |
-| `kind`             | `'device' \| 'person'` | `assignment.kind`             |
-| `source`           | `string`               | `assignment.source`           |
-| `date`             | `string`               | `assignment.date`             |
-| `shiftType`        | `string`               | `assignment.shiftType`        |
-| `startTime`        | `string`               | `assignment.startTime`        |
-| `endTime`          | `string`               | `assignment.endTime`          |
-| `personnelType`    | `string`               | `assignment.personnelType`    |
-| `isConfirmed`      | `boolean`              | `assignment.isConfirmed`      |
-| `overrideReason`   | `string \| null`       | `assignment.overrideReason`   |
-| `overriddenBy`     | `string \| null`       | `assignment.overriddenBy`     |
-| `overriddenAt`     | `string \| null`       | `assignment.overriddenAt`     |
+| Field | Type | Source |
+|---|---|---|
+| `id` | `string` | `assignment.id` (DB) |
+| `scheduleId` | `string` | `assignment.scheduleId` |
+| `personnelId` | `string` | `assignment.personnelId` |
+| `personnelName` | `string` | `personnel.name` (JOIN) |
+| `deviceId` | `string \| null` | `assignment.deviceId` |
+| `deviceCode` | `string \| null` | `device.code` (JOIN) |
+| `unitId` | `string \| null` | `assignment.unitId` |
+| `personnelGroupId` | `string \| null` | `assignment.personnelGroupId` |
+| `shiftTemplateId` | `string \| null` | `assignment.shiftTemplateId` |
+| `kind` | `'device' \| 'person'` | `assignment.kind` |
+| `source` | `string` | `assignment.source` |
+| `date` | `string` | `assignment.date` |
+| `shiftType` | `string` | `assignment.shiftType` |
+| `startTime` | `string` | `assignment.startTime` |
+| `endTime` | `string` | `assignment.endTime` |
+| `personnelType` | `string` | `assignment.personnelType` |
+| `isConfirmed` | `boolean` | `assignment.isConfirmed` |
+| `overrideReason` | `string \| null` | `assignment.overrideReason` |
+| `overriddenBy` | `string \| null` | `assignment.overriddenBy` |
+| `overriddenAt` | `string \| null` | `assignment.overriddenAt` |
 
 ---
 
@@ -172,7 +168,6 @@ Two separate issues were identified and fixed:
 Created `ScheduleResponseDto`, `AssignmentResponseDto`, and `EnrichedAssignment` interfaces. Created `toScheduleResponseDto()` and `toScheduleListResponseDto()` mapper functions that convert DDD aggregates to flat DTOs.
 
 Architecture:
-
 ```
 Schedule Aggregate → toSnapshot() + getters → toScheduleResponseDto(schedule, enrichedAssignments) → ScheduleResponseDto
 ```
@@ -193,7 +188,6 @@ Added `deviceCode: a.device?.code || null` to the assignment mapping in `findByU
 ### N+1 Prevention
 
 The DDD controller uses a single Prisma query per endpoint:
-
 - Single schedule: `assignment.findMany({ where: { scheduleId } })`
 - List: `assignment.findMany({ where: { scheduleId: { in: ids } })` (batch)
 
@@ -208,7 +202,6 @@ No N+1 queries introduced. The enrichment query is separate from the aggregate r
 Added `deviceCode?: string` field to the `ShiftAssignment` interface (line 46). This matches the `AssignmentDTO` interface in `features/scheduling/models/schedule.models.ts` which already declared `deviceCode?: string | null`.
 
 No component changes required — all device view components already use `a.deviceCode ?? a.deviceId` fallback pattern:
-
 - `device-view.component.ts:74`: `deviceCode: a.deviceCode ?? a.deviceId`
 - `schedule.store.ts:143`: `(a.deviceCode ?? '').toLowerCase().includes(term)`
 - `schedule.store.ts:164`: `{ id: a.deviceId, code: a.deviceCode ?? a.deviceId }`
@@ -229,22 +222,22 @@ No component changes required — all device view components already use `a.devi
 
 ### New: `dto/__tests__/device-shift-visibility.spec.ts` — 14 tests
 
-| #   | Test                                                   | Type       |
-| --- | ------------------------------------------------------ | ---------- |
-| 1   | Schedule response contains `id` (flat, not `_id`)      | Structural |
-| 2   | Schedule response contains `assignments` array         | Structural |
-| 3   | Assignment contains `deviceId`                         | Behavioral |
-| 4   | Assignment contains `personnelId`                      | Behavioral |
-| 5   | Device code is returned when available                 | Behavioral |
-| 6   | Device code is null when device is null                | Behavioral |
-| 7   | Personnel name is returned when available              | Behavioral |
-| 8   | Device A shows only Device A assignments               | Filtering  |
-| 9   | Device B shows only Device B assignments               | Filtering  |
-| 10  | Schedule response has no `_id` or `props` properties   | Structural |
-| 11  | `toScheduleListResponseDto` maps multiple schedules    | Structural |
-| 12  | Schedule DTO contains correct month/year/status        | Contract   |
-| 13  | Assignment DTO preserves shiftType, startTime, endTime | Contract   |
-| 14  | Schedule DTO returns null assignments as empty array   | Edge case  |
+| # | Test | Type |
+|---|---|---|
+| 1 | Schedule response contains `id` (flat, not `_id`) | Structural |
+| 2 | Schedule response contains `assignments` array | Structural |
+| 3 | Assignment contains `deviceId` | Behavioral |
+| 4 | Assignment contains `personnelId` | Behavioral |
+| 5 | Device code is returned when available | Behavioral |
+| 6 | Device code is null when device is null | Behavioral |
+| 7 | Personnel name is returned when available | Behavioral |
+| 8 | Device A shows only Device A assignments | Filtering |
+| 9 | Device B shows only Device B assignments | Filtering |
+| 10 | Schedule response has no `_id` or `props` properties | Structural |
+| 11 | `toScheduleListResponseDto` maps multiple schedules | Structural |
+| 12 | Schedule DTO contains correct month/year/status | Contract |
+| 13 | Assignment DTO preserves shiftType, startTime, endTime | Contract |
+| 14 | Schedule DTO returns null assignments as empty array | Edge case |
 
 All 14 tests instantiate real DDD `Schedule` aggregates via `Schedule.create()` and exercise the actual `toScheduleResponseDto()` mapper with enriched assignment data.
 
@@ -252,12 +245,12 @@ All 14 tests instantiate real DDD `Schedule` aggregates via `Schedule.create()` 
 
 ## Regression
 
-| Test Suite                          | Tests     | Status   |
-| ----------------------------------- | --------- | -------- |
+| Test Suite | Tests | Status |
+|---|---|---|
 | **device-shift-visibility.spec.ts** | **14/14** | **PASS** |
-| security-closure-4.1.spec.ts        | 38/38     | PASS     |
-| security-invariants.spec.ts         | 12/12     | PASS     |
-| **Total**                           | **64/64** | **PASS** |
+| security-closure-4.1.spec.ts | 38/38 | PASS |
+| security-invariants.spec.ts | 12/12 | PASS |
+| **Total** | **64/64** | **PASS** |
 
 Zero regressions. All Phase 4.1 security tests remain green.
 
@@ -265,10 +258,10 @@ Zero regressions. All Phase 4.1 security tests remain green.
 
 ## Build
 
-| Gate             | Command                          | Result               |
-| ---------------- | -------------------------------- | -------------------- |
-| TypeScript check | `npx tsc --noEmit`               | **Clean — 0 errors** |
-| TypeScript build | `npx tsc -p tsconfig.build.json` | **BUILD SUCCEEDED**  |
+| Gate | Command | Result |
+|---|---|---|
+| TypeScript check | `npx tsc --noEmit` | **Clean — 0 errors** |
+| TypeScript build | `npx tsc -p tsconfig.build.json` | **BUILD SUCCEEDED** |
 
 ---
 

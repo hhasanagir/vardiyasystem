@@ -41,10 +41,7 @@ export type Changes = ChangePayload | Record<string, unknown>;
 
 @Injectable()
 export class ConcurrencyService {
-  private versionCache = new Map<
-    string,
-    { version: number; updatedAt: Date }
-  >();
+  private versionCache = new Map<string, { version: number; updatedAt: Date }>();
   private readonly CACHE_TTL_MS = 1000;
 
   constructor(private prisma: PrismaService) {}
@@ -63,19 +60,12 @@ export class ConcurrencyService {
         });
 
         if (!schedule) {
-          return {
-            success: false,
-            conflict: false,
-            error: 'Schedule not found',
-          };
+          return { success: false, conflict: false, error: 'Schedule not found' };
         }
 
         if (schedule.version !== clientVersion) {
-          const recentChanges = await this.getRecentChanges(
-            scheduleId,
-            clientVersion,
-          );
-
+          const recentChanges = await this.getRecentChanges(scheduleId, clientVersion);
+          
           return {
             success: false,
             conflict: true,
@@ -94,13 +84,7 @@ export class ConcurrencyService {
           },
         });
 
-        await this.createSnapshotTx(
-          tx,
-          scheduleId,
-          newVersion,
-          userId,
-          changes,
-        );
+        await this.createSnapshotTx(tx, scheduleId, newVersion, userId, changes);
 
         this.versionCache.set(scheduleId, {
           version: newVersion,
@@ -128,10 +112,7 @@ export class ConcurrencyService {
     }
   }
 
-  async checkVersion(
-    scheduleId: string,
-    clientVersion: number,
-  ): Promise<{
+  async checkVersion(scheduleId: string, clientVersion: number): Promise<{
     valid: boolean;
     serverVersion: number;
     conflict: boolean;
@@ -147,11 +128,8 @@ export class ConcurrencyService {
     }
 
     if (schedule.version !== clientVersion) {
-      const recentChanges = await this.getRecentChanges(
-        scheduleId,
-        clientVersion,
-      );
-
+      const recentChanges = await this.getRecentChanges(scheduleId, clientVersion);
+      
       return {
         valid: false,
         serverVersion: schedule.version,
@@ -169,8 +147,8 @@ export class ConcurrencyService {
 
   async getVersionInfo(scheduleId: string): Promise<VersionInfo> {
     const cached = this.versionCache.get(scheduleId);
-
-    if (cached && Date.now() - cached.updatedAt.getTime() < this.CACHE_TTL_MS) {
+    
+    if (cached && (Date.now() - cached.updatedAt.getTime()) < this.CACHE_TTL_MS) {
       return {
         currentVersion: cached.version,
         lastUpdated: cached.updatedAt,
@@ -203,11 +181,7 @@ export class ConcurrencyService {
     };
   }
 
-  async forceUpdate(
-    scheduleId: string,
-    newVersion: number,
-    changes: Changes,
-  ): Promise<void> {
+  async forceUpdate(scheduleId: string, newVersion: number, changes: Changes): Promise<void> {
     await this.prisma.schedule.update({
       where: { id: scheduleId },
       data: { version: newVersion },
@@ -228,19 +202,13 @@ export class ConcurrencyService {
 
     const versionCheck = await this.checkVersion(scheduleId, clientVersion);
     if (versionCheck.conflict) {
-      errors.push(
-        `Sürüm çakışması: Mevcut sürüm ${versionCheck.serverVersion}, istemci sürümü ${clientVersion}`,
-      );
+      errors.push(`Sürüm çakışması: Mevcut sürüm ${versionCheck.serverVersion}, istemci sürümü ${clientVersion}`);
     }
 
     const changePayload = changes as ChangePayload;
     if (changePayload.assignments) {
       for (const assignment of changePayload.assignments) {
-        if (
-          !assignment.deviceId ||
-          !assignment.personnelId ||
-          !assignment.date
-        ) {
+        if (!assignment.deviceId || !assignment.personnelId || !assignment.date) {
           errors.push(`Eksik atama bilgisi: ${JSON.stringify(assignment)}`);
         }
       }
@@ -252,10 +220,7 @@ export class ConcurrencyService {
     };
   }
 
-  private async getRecentChanges(
-    scheduleId: string,
-    sinceVersion: number,
-  ): Promise<RecentChanges> {
+  private async getRecentChanges(scheduleId: string, sinceVersion: number): Promise<RecentChanges> {
     const snapshots = await this.prisma.scheduleSnapshot.findMany({
       where: {
         scheduleId,
@@ -266,18 +231,15 @@ export class ConcurrencyService {
     });
 
     return {
-      snapshots: snapshots.map((s) => ({
+      snapshots: snapshots.map(s => ({
         version: s.version,
         createdAt: s.createdAt,
         data: s.data,
       })),
-      currentVersion:
-        (
-          await this.prisma.schedule.findUnique({
-            where: { id: scheduleId },
-            select: { version: true },
-          })
-        )?.version || 0,
+      currentVersion: (await this.prisma.schedule.findUnique({
+        where: { id: scheduleId },
+        select: { version: true },
+      }))?.version || 0,
     };
   }
 

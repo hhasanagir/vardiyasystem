@@ -2,13 +2,13 @@
 
 **VardiyaOS — Hospital Operations Management Platform**
 
-| Field       | Value                                              |
-| ----------- | -------------------------------------------------- |
-| **Date**    | 2026-08-25                                         |
-| **Status**  | COMPLETE                                           |
-| **Author**  | VardiyaOS Architecture Team                        |
-| **Scope**   | Full codebase audit for Phase 5B Scheduling Engine |
-| **Verdict** | PHASE 5B READY: YES (with caveats)                 |
+| Field | Value |
+|---|---|
+| **Date** | 2026-08-25 |
+| **Status** | COMPLETE |
+| **Author** | VardiyaOS Architecture Team |
+| **Scope** | Full codebase audit for Phase 5B Scheduling Engine |
+| **Verdict** | PHASE 5B READY: YES (with caveats) |
 
 ---
 
@@ -51,20 +51,20 @@ VardiyaOS is a production-grade Hospital Operations Management Platform focused 
 
 ### Key Metrics
 
-| Metric                       | Value                                |
-| ---------------------------- | ------------------------------------ |
-| Prisma Models                | **95**                               |
-| Prisma Enums                 | **48**                               |
-| NestJS Modules               | **66** (registered in app.module.ts) |
-| Angular Routes               | **43**                               |
-| Angular Components           | **98**                               |
-| TypeScript Files (FE)        | **246**                              |
-| Hard Constraints             | **12** (ConstraintEngine)            |
-| Violation Rules              | **20**                               |
-| Conflict Codes               | **10**                               |
-| Domain Events                | **9** (schedule lifecycle)           |
-| Frontend Scheduling Services | **13** (core/scheduling/)            |
-| Test Files (Schedule)        | **6** (security + regression + DTO)  |
+| Metric | Value |
+|---|---|
+| Prisma Models | **95** |
+| Prisma Enums | **48** |
+| NestJS Modules | **66** (registered in app.module.ts) |
+| Angular Routes | **43** |
+| Angular Components | **98** |
+| TypeScript Files (FE) | **246** |
+| Hard Constraints | **12** (ConstraintEngine) |
+| Violation Rules | **20** |
+| Conflict Codes | **10** |
+| Domain Events | **9** (schedule lifecycle) |
+| Frontend Scheduling Services | **13** (core/scheduling/) |
+| Test Files (Schedule) | **6** (security + regression + DTO) |
 
 ### Architecture Summary
 
@@ -83,25 +83,25 @@ VardiyaOS is a production-grade Hospital Operations Management Platform focused 
 
 ### What Exists
 
-| Feature                     | Status        | Notes                                                                                                            |
-| --------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Manual schedule creation    | ✅ Production | PrismaScheduleRepository                                                                                         |
-| Auto-generation (genetic)   | ⚠️ Basic      | `ScheduleAutoGeneratorService` — greedy, no optimization loop                                                    |
-| Constraint validation       | ✅ Production | `ConstraintEngine` — 12 hard constraints                                                                         |
-| Conflict detection          | ✅ Production | `ConflictCode` enum, `Conflict` model, `createConflict()`                                                        |
-| Fairness calculation        | ✅ Production | `FairnessEngine` — night/weekend/holiday/workload dimensions                                                     |
-| Scoring                     | ✅ Production | `ScoringModel` — weighted average (coverage 35%, fairness 30%, workload 25%, preference 10%)                     |
-| Schedule workflow           | ✅ Production | Draft → Under Review → Approved → Published → Archived                                                           |
-| Approval workflow           | ✅ Production | Four-eyes principle, role-based, idempotent                                                                      |
-| Override system             | ✅ Production | Role-restricted, reason-tracked, overridable constraints                                                         |
-| Version snapshots           | ✅ Production | `ScheduleSnapshot`, rollback support                                                                             |
-| Publish validation          | ✅ Production | Hard-violation check before publish                                                                              |
-| Real-time updates           | ✅ Production | Socket.IO gateway                                                                                                |
-| Dry-run / Preview           | ⚠️ Partial    | Backend `preview()` method exists; frontend `previewSchedule()` API call exists; no dedicated dry-run simulation |
-| Optimization engine         | ❌ Missing    | Frontend has `ConstraintSolverService.optimize()` (genetic algorithm) but backend has no equivalent              |
-| Multi-service-line          | ❌ Missing    | No `ServiceLine` model; unit-type-based separation only                                                          |
-| Candidate evaluation        | ❌ Missing    | Backend has no candidate generation for optimization                                                             |
-| Load balancing across units | ❌ Missing    | No cross-unit scheduling intelligence                                                                            |
+| Feature | Status | Notes |
+|---|---|---|
+| Manual schedule creation | ✅ Production | PrismaScheduleRepository |
+| Auto-generation (genetic) | ⚠️ Basic | `ScheduleAutoGeneratorService` — greedy, no optimization loop |
+| Constraint validation | ✅ Production | `ConstraintEngine` — 12 hard constraints |
+| Conflict detection | ✅ Production | `ConflictCode` enum, `Conflict` model, `createConflict()` |
+| Fairness calculation | ✅ Production | `FairnessEngine` — night/weekend/holiday/workload dimensions |
+| Scoring | ✅ Production | `ScoringModel` — weighted average (coverage 35%, fairness 30%, workload 25%, preference 10%) |
+| Schedule workflow | ✅ Production | Draft → Under Review → Approved → Published → Archived |
+| Approval workflow | ✅ Production | Four-eyes principle, role-based, idempotent |
+| Override system | ✅ Production | Role-restricted, reason-tracked, overridable constraints |
+| Version snapshots | ✅ Production | `ScheduleSnapshot`, rollback support |
+| Publish validation | ✅ Production | Hard-violation check before publish |
+| Real-time updates | ✅ Production | Socket.IO gateway |
+| Dry-run / Preview | ⚠️ Partial | Backend `preview()` method exists; frontend `previewSchedule()` API call exists; no dedicated dry-run simulation |
+| Optimization engine | ❌ Missing | Frontend has `ConstraintSolverService.optimize()` (genetic algorithm) but backend has no equivalent |
+| Multi-service-line | ❌ Missing | No `ServiceLine` model; unit-type-based separation only |
+| Candidate evaluation | ❌ Missing | Backend has no candidate generation for optimization |
+| Load balancing across units | ❌ Missing | No cross-unit scheduling intelligence |
 
 ### Parallel Code Trees
 
@@ -121,35 +121,35 @@ The active layer uses `SchedulesService` (legacy Prisma-direct) and `SchedulesDD
 
 ### Backend
 
-| Component          | Version | Purpose                                       |
-| ------------------ | ------- | --------------------------------------------- |
-| NestJS             | 10.4    | HTTP framework                                |
-| Prisma             | 5.22    | ORM + migrations                              |
-| PostgreSQL         | 14+     | Primary database                              |
-| Redis              | 7+      | Throttler storage, caching, distributed locks |
-| BullMQ             | —       | Job queue (schedule generation)               |
-| Socket.IO          | 4.8     | Real-time updates                             |
-| JWT                | —       | Authentication                                |
-| Vitest             | 4.1     | Test runner                                   |
-| pgcrypto           | —       | UUID generation                               |
-| citext             | —       | Case-insensitive text                         |
-| btree_gin          | —       | GIN index support                             |
-| pg_stat_statements | —       | Query performance                             |
-| ltree              | —       | Hierarchical paths (device.path, role.path)   |
+| Component | Version | Purpose |
+|---|---|---|
+| NestJS | 10.4 | HTTP framework |
+| Prisma | 5.22 | ORM + migrations |
+| PostgreSQL | 14+ | Primary database |
+| Redis | 7+ | Throttler storage, caching, distributed locks |
+| BullMQ | — | Job queue (schedule generation) |
+| Socket.IO | 4.8 | Real-time updates |
+| JWT | — | Authentication |
+| Vitest | 4.1 | Test runner |
+| pgcrypto | — | UUID generation |
+| citext | — | Case-insensitive text |
+| btree_gin | — | GIN index support |
+| pg_stat_statements | — | Query performance |
+| ltree | — | Hierarchical paths (device.path, role.path) |
 
 ### Frontend
 
-| Component        | Version | Purpose              |
-| ---------------- | ------- | -------------------- |
-| Angular          | 21.2    | SPA framework        |
-| PrimeNG          | 21.1.6  | UI component library |
-| @primeng/themes  | 21.0.4  | Theme engine         |
-| @angular/cdk     | 21.2.8  | Component Dev Kit    |
-| RxJS             | 7.8     | Reactive extensions  |
-| Socket.IO Client | 4.8     | Real-time updates    |
-| Chart.js         | 4.5     | Data visualization   |
-| Capacitor        | 8.4     | Mobile deployment    |
-| TypeScript       | 5.9     | Type system          |
+| Component | Version | Purpose |
+|---|---|---|
+| Angular | 21.2 | SPA framework |
+| PrimeNG | 21.1.6 | UI component library |
+| @primeng/themes | 21.0.4 | Theme engine |
+| @angular/cdk | 21.2.8 | Component Dev Kit |
+| RxJS | 7.8 | Reactive extensions |
+| Socket.IO Client | 4.8 | Real-time updates |
+| Chart.js | 4.5 | Data visualization |
+| Capacitor | 8.4 | Mobile deployment |
+| TypeScript | 5.9 | Type system |
 
 ---
 
@@ -179,13 +179,13 @@ ScheduleJobQueueModule, InfrastructureModule (distributed lock)
 
 ### Global Guards & Interceptors
 
-| Guard/Interceptor          | Type            | Purpose                                |
-| -------------------------- | --------------- | -------------------------------------- |
-| `ThrottlerGuard`           | APP_GUARD       | Global rate limiting (200/min default) |
-| `CsrfGuard`                | APP_GUARD       | CSRF protection                        |
-| `CorrelationInterceptor`   | APP_INTERCEPTOR | Request correlation IDs                |
-| `TenantContextInterceptor` | APP_INTERCEPTOR | Multi-tenant context                   |
-| `InactivityInterceptor`    | APP_INTERCEPTOR | Session inactivity timeout             |
+| Guard/Interceptor | Type | Purpose |
+|---|---|---|
+| `ThrottlerGuard` | APP_GUARD | Global rate limiting (200/min default) |
+| `CsrfGuard` | APP_GUARD | CSRF protection |
+| `CorrelationInterceptor` | APP_INTERCEPTOR | Request correlation IDs |
+| `TenantContextInterceptor` | APP_INTERCEPTOR | Multi-tenant context |
+| `InactivityInterceptor` | APP_INTERCEPTOR | Session inactivity timeout |
 
 ### Schedules Module Structure
 
@@ -345,21 +345,21 @@ features/scheduling/
 
 ### Core Scheduling Services (Frontend)
 
-| Service                                         | Purpose                                             | Lines |
-| ----------------------------------------------- | --------------------------------------------------- | ----- |
-| `constraint-solver.service.ts`                  | Genetic algorithm solver (`solve()` + `optimize()`) | ~350  |
-| `constraint-validator.service.ts`               | Individual assignment validation                    | ~150  |
-| `comprehensive-constraint-validator.service.ts` | Full schedule validation                            | ~200  |
-| `conflict-detector.service.ts`                  | Conflict detection (person/device overlap, rest)    | ~250  |
-| `fairness-balancer.service.ts`                  | Fairness metrics calculation                        | ~180  |
-| `fatigue-engine.service.ts`                     | Fatigue scoring                                     | ~120  |
-| `rebalance-engine.service.ts`                   | Swap-based rebalancing                              | ~300  |
-| `recommendation-engine.service.ts`              | Smart swap recommendations                          | ~450  |
-| `scheduling-engine.service.ts`                  | Orchestrator (validator + conflict + fairness)      | ~200  |
-| `schedule-generator.service.ts`                 | Schedule generation with constraints                | ~350  |
-| `solver-validation.service.ts`                  | Pre/post optimization validation                    | ~200  |
-| `scheduling.models.ts`                          | Internal model types                                | ~100  |
-| `index.ts`                                      | Barrel exports                                      | ~20   |
+| Service | Purpose | Lines |
+|---|---|---|
+| `constraint-solver.service.ts` | Genetic algorithm solver (`solve()` + `optimize()`) | ~350 |
+| `constraint-validator.service.ts` | Individual assignment validation | ~150 |
+| `comprehensive-constraint-validator.service.ts` | Full schedule validation | ~200 |
+| `conflict-detector.service.ts` | Conflict detection (person/device overlap, rest) | ~250 |
+| `fairness-balancer.service.ts` | Fairness metrics calculation | ~180 |
+| `fatigue-engine.service.ts` | Fatigue scoring | ~120 |
+| `rebalance-engine.service.ts` | Swap-based rebalancing | ~300 |
+| `recommendation-engine.service.ts` | Smart swap recommendations | ~450 |
+| `scheduling-engine.service.ts` | Orchestrator (validator + conflict + fairness) | ~200 |
+| `schedule-generator.service.ts` | Schedule generation with constraints | ~350 |
+| `solver-validation.service.ts` | Pre/post optimization validation | ~200 |
+| `scheduling.models.ts` | Internal model types | ~100 |
+| `index.ts` | Barrel exports | ~20 |
 
 ---
 
@@ -375,38 +375,38 @@ features/scheduling/
 
 ### Key Scheduling-Related Models
 
-| Model                 | Table                    | Purpose                         | Key Relations                                                                  |
-| --------------------- | ------------------------ | ------------------------------- | ------------------------------------------------------------------------------ |
-| `Schedule`            | `schedules`              | Monthly schedule container      | → Unit, Organization, User, Assignment[], ScheduleSnapshot[], ScheduleApproval |
-| `Assignment`          | `assignments`            | Individual shift assignment     | → Schedule, Personnel, Device, Unit, PersonnelGroup, PersonShiftTemplate       |
-| `ScheduleApproval`    | `schedule_approvals`     | Approval workflow state         | → Schedule (1:1)                                                               |
-| `ScheduleSnapshot`    | `schedule_snapshots`     | Version snapshots for rollback  | → Schedule                                                                     |
-| `Personnel`           | `personnel`              | Staff members                   | → Unit, PersonnelGroup, Assignment[], SwapRequest[], PersonnelSkill[]          |
-| `Device`              | `devices`                | Imaging/treatment equipment     | → Unit, Room, Assignment[], Shifts[], DutyRoster[]                             |
-| `PersonnelGroup`      | `personnel_groups`       | Staff grouping within units     | → Unit, Personnel[], PersonShiftTemplate[], Assignment[]                       |
-| `PersonShiftTemplate` | `person_shift_templates` | Shift pattern templates         | → Unit, PersonnelGroup, Assignment[]                                           |
-| `Shifts`              | `shifts`                 | Device shift definitions        | → Organization, Unit, Device, ShiftDateOverride[]                              |
-| `AssignmentSlot`      | `assignment_slots`       | Time-slot reservation           | → Room, Device                                                                 |
-| `DutyRoster`          | `duty_roster`            | Daily duty roster entries       | → Organization, Unit, Device, Personnel                                        |
-| `Holiday`             | `holidays`               | Public holidays                 | (standalone)                                                                   |
-| `SwapRequest`         | `swap_requests`          | Shift swap requests             | → Personnel (requester/target), Assignment (from/to)                           |
-| `Conflict`            | `conflicts`              | Detected conflicts (persistent) | → User (resolver)                                                              |
-| `Recommendation`      | `recommendations`        | AI/algorithm recommendations    | → User (creator)                                                               |
+| Model | Table | Purpose | Key Relations |
+|---|---|---|---|
+| `Schedule` | `schedules` | Monthly schedule container | → Unit, Organization, User, Assignment[], ScheduleSnapshot[], ScheduleApproval |
+| `Assignment` | `assignments` | Individual shift assignment | → Schedule, Personnel, Device, Unit, PersonnelGroup, PersonShiftTemplate |
+| `ScheduleApproval` | `schedule_approvals` | Approval workflow state | → Schedule (1:1) |
+| `ScheduleSnapshot` | `schedule_snapshots` | Version snapshots for rollback | → Schedule |
+| `Personnel` | `personnel` | Staff members | → Unit, PersonnelGroup, Assignment[], SwapRequest[], PersonnelSkill[] |
+| `Device` | `devices` | Imaging/treatment equipment | → Unit, Room, Assignment[], Shifts[], DutyRoster[] |
+| `PersonnelGroup` | `personnel_groups` | Staff grouping within units | → Unit, Personnel[], PersonShiftTemplate[], Assignment[] |
+| `PersonShiftTemplate` | `person_shift_templates` | Shift pattern templates | → Unit, PersonnelGroup, Assignment[] |
+| `Shifts` | `shifts` | Device shift definitions | → Organization, Unit, Device, ShiftDateOverride[] |
+| `AssignmentSlot` | `assignment_slots` | Time-slot reservation | → Room, Device |
+| `DutyRoster` | `duty_roster` | Daily duty roster entries | → Organization, Unit, Device, Personnel |
+| `Holiday` | `holidays` | Public holidays | (standalone) |
+| `SwapRequest` | `swap_requests` | Shift swap requests | → Personnel (requester/target), Assignment (from/to) |
+| `Conflict` | `conflicts` | Detected conflicts (persistent) | → User (resolver) |
+| `Recommendation` | `recommendations` | AI/algorithm recommendations | → User (creator) |
 
 ### Key Enums
 
-| Enum                 | Values                                                                                                                                                     | Used By                                        |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `UnitType`           | mr, bt, rontgen, nukleer, onkoloji, ultrason, anjiyo, mamografi, kemik_dansitometri, floroskopi, pet_ct, spect_ct, linak, simutasyon_ct, mobil, supervizor | Unit                                           |
-| `ShiftType`          | day, evening, night, morning, off, leave, sick, training, backup                                                                                           | Assignment, Shifts, DutyRoster, AssignmentSlot |
-| `AssignmentKind`     | device, person                                                                                                                                             | Assignment                                     |
-| `AssignmentSource`   | manual, auto_generated, override, swap, template, import                                                                                                   | Assignment                                     |
-| `ScheduleStatus`     | draft, under_review, approved, published, archived, rejected                                                                                               | Schedule                                       |
-| `DeviceMode`         | vardiya, polyclinic                                                                                                                                        | Device                                         |
-| `DutyRosterRole`     | sorumlu_tekniker, tekniker, yardimci_tekniker, supervisor, radyolog                                                                                        | DutyRoster                                     |
-| `UserRole`           | system_admin, hospital_admin, imaging_director, supervisor, medical_engineer, senior_technician, technician, assistant_technician, secretary, guest        | User                                           |
-| `ConflictSeverity`   | CRITICAL, WARNING, INFO                                                                                                                                    | Conflict                                       |
-| `RecommendationType` | SWAP, COVERAGE, FAIRNESS, FATIGUE                                                                                                                          | Recommendation                                 |
+| Enum | Values | Used By |
+|---|---|---|
+| `UnitType` | mr, bt, rontgen, nukleer, onkoloji, ultrason, anjiyo, mamografi, kemik_dansitometri, floroskopi, pet_ct, spect_ct, linak, simutasyon_ct, mobil, supervizor | Unit |
+| `ShiftType` | day, evening, night, morning, off, leave, sick, training, backup | Assignment, Shifts, DutyRoster, AssignmentSlot |
+| `AssignmentKind` | device, person | Assignment |
+| `AssignmentSource` | manual, auto_generated, override, swap, template, import | Assignment |
+| `ScheduleStatus` | draft, under_review, approved, published, archived, rejected | Schedule |
+| `DeviceMode` | vardiya, polyclinic | Device |
+| `DutyRosterRole` | sorumlu_tekniker, tekniker, yardimci_tekniker, supervisor, radyolog | DutyRoster |
+| `UserRole` | system_admin, hospital_admin, imaging_director, supervisor, medical_engineer, senior_technician, technician, assistant_technician, secretary, guest | User |
+| `ConflictSeverity` | CRITICAL, WARNING, INFO | Conflict |
+| `RecommendationType` | SWAP, COVERAGE, FAIRNESS, FATIGUE | Recommendation |
 
 ### Assignment Unique Constraints
 
@@ -416,7 +416,6 @@ features/scheduling/
 ```
 
 These constraints enforce that:
-
 1. A device can only have one assignment per shift type per day within a schedule
 2. A person can only have one assignment per shift type per day (global)
 
@@ -426,18 +425,18 @@ These constraints enforce that:
 
 ### DDD Building Blocks Present
 
-| Building Block      | Present | Location                                                                     |
-| ------------------- | ------- | ---------------------------------------------------------------------------- |
-| Aggregate Root      | ✅      | `Schedule` aggregate (`domain/aggregates/schedule.aggregate.ts`, 561 lines)  |
-| Entity              | ✅      | `Assignment` entity (`domain/entities/assignment.entity.ts`, 170 lines)      |
-| Value Object        | ✅      | `PersonnelId`, `Date`, `ShiftType`, `TimeSlot` (`domain/value-objects/`)     |
-| Domain Event        | ✅      | 9 events (`domain/events/`)                                                  |
-| Repository Port     | ✅      | `ScheduleRepositoryPort` (`domain/repositories/schedule-repository.port.ts`) |
-| Repository Impl     | ✅      | `PrismaScheduleRepository` (`infrastructure/prisma-schedule.repository.ts`)  |
-| Application Service | ✅      | `ScheduleApplicationService` (`schedule-application.service.ts`)             |
-| Domain Service      | ⚠️      | Only `SchedulingLogger` in `domain/services/`                                |
-| CQRS Commands       | ✅      | `domain/commands/` directory exists                                          |
-| Entity Collection   | ✅      | `AssignmentCollection` pattern                                               |
+| Building Block | Present | Location |
+|---|---|---|
+| Aggregate Root | ✅ | `Schedule` aggregate (`domain/aggregates/schedule.aggregate.ts`, 561 lines) |
+| Entity | ✅ | `Assignment` entity (`domain/entities/assignment.entity.ts`, 170 lines) |
+| Value Object | ✅ | `PersonnelId`, `Date`, `ShiftType`, `TimeSlot` (`domain/value-objects/`) |
+| Domain Event | ✅ | 9 events (`domain/events/`) |
+| Repository Port | ✅ | `ScheduleRepositoryPort` (`domain/repositories/schedule-repository.port.ts`) |
+| Repository Impl | ✅ | `PrismaScheduleRepository` (`infrastructure/prisma-schedule.repository.ts`) |
+| Application Service | ✅ | `ScheduleApplicationService` (`schedule-application.service.ts`) |
+| Domain Service | ⚠️ | Only `SchedulingLogger` in `domain/services/` |
+| CQRS Commands | ✅ | `domain/commands/` directory exists |
+| Entity Collection | ✅ | `AssignmentCollection` pattern |
 
 ### Schedule Aggregate
 
@@ -482,7 +481,6 @@ The `Schedule` aggregate is the core DDD construct:
 #### Integration Point
 
 Both implementations share:
-
 - Same database (Prisma schema)
 - Same `ScheduleValidationService` (constraint engine)
 - Same `ScheduleAccessGuard` (security)
@@ -540,20 +538,20 @@ ValidationResult { hardViolations, softViolations, coverage, fatigue, fairness, 
 
 ### 12 Hard Constraints
 
-| #   | Class                                | ViolationRule             | Severity | Overridable | Description                                     |
-| --- | ------------------------------------ | ------------------------- | -------- | ----------- | ----------------------------------------------- |
-| 1   | `PersonnelIsActiveConstraint`        | INACTIVE_PERSONNEL        | BLOCKING | No          | Personnel must be active                        |
-| 2   | `DeviceIsRequiredConstraint`         | DEVICE_REQUIRED           | BLOCKING | No          | Device assignments need a device                |
-| 3   | `NoOverlappingAssignmentsConstraint` | TIME_OVERLAP              | BLOCKING | No          | No time overlaps per person                     |
-| 4   | `RequiredRestConstraint`             | REQUIRED_REST_NOT_MET     | BLOCKING | Yes         | Minimum 8h rest between shifts                  |
-| 5   | `NightShiftEligibilityConstraint`    | NOT_NIGHT_ELIGIBLE        | BLOCKING | No          | Only night-eligible for night shifts            |
-| 6   | `OffDayConflictConstraint`           | OFF_DAY_CONFLICT          | BLOCKING | Yes         | Respect configured off days                     |
-| 7   | `PersonnelInUnitConstraint`          | PERSONNEL_NOT_IN_UNIT     | BLOCKING | No          | Personnel must be in assigned unit              |
-| 8   | `PersonnelInGroupConstraint`         | PERSONNEL_NOT_IN_GROUP    | BLOCKING | No          | Personnel must be in assigned group             |
-| 9   | `DeviceSkillsConstraint`             | PERSON_DEVICE_NOT_ALLOWED | BLOCKING | Yes         | Personnel skills must match device requirements |
-| 10  | `TemplateValidationConstraint`       | TEMPLATE_NOT_FOUND        | BLOCKING | No          | Shift template must exist and match             |
-| 11  | `GroupSlotOccupiedConstraint`        | GROUP_SLOT_OCCUPIED       | BLOCKING | Yes         | Group slot must not be occupied                 |
-| 12  | `RequiredRestConstraintNew`          | REST_RULE_VIOLATION       | BLOCKING | No          | 1+ day rest between consecutive nights          |
+| # | Class | ViolationRule | Severity | Overridable | Description |
+|---|---|---|---|---|---|
+| 1 | `PersonnelIsActiveConstraint` | INACTIVE_PERSONNEL | BLOCKING | No | Personnel must be active |
+| 2 | `DeviceIsRequiredConstraint` | DEVICE_REQUIRED | BLOCKING | No | Device assignments need a device |
+| 3 | `NoOverlappingAssignmentsConstraint` | TIME_OVERLAP | BLOCKING | No | No time overlaps per person |
+| 4 | `RequiredRestConstraint` | REQUIRED_REST_NOT_MET | BLOCKING | Yes | Minimum 8h rest between shifts |
+| 5 | `NightShiftEligibilityConstraint` | NOT_NIGHT_ELIGIBLE | BLOCKING | No | Only night-eligible for night shifts |
+| 6 | `OffDayConflictConstraint` | OFF_DAY_CONFLICT | BLOCKING | Yes | Respect configured off days |
+| 7 | `PersonnelInUnitConstraint` | PERSONNEL_NOT_IN_UNIT | BLOCKING | No | Personnel must be in assigned unit |
+| 8 | `PersonnelInGroupConstraint` | PERSONNEL_NOT_IN_GROUP | BLOCKING | No | Personnel must be in assigned group |
+| 9 | `DeviceSkillsConstraint` | PERSON_DEVICE_NOT_ALLOWED | BLOCKING | Yes | Personnel skills must match device requirements |
+| 10 | `TemplateValidationConstraint` | TEMPLATE_NOT_FOUND | BLOCKING | No | Shift template must exist and match |
+| 11 | `GroupSlotOccupiedConstraint` | GROUP_SLOT_OCCUPIED | BLOCKING | Yes | Group slot must not be occupied |
+| 12 | `RequiredRestConstraintNew` | REST_RULE_VIOLATION | BLOCKING | No | 1+ day rest between consecutive nights |
 
 ### ConstraintEngine API
 
@@ -584,18 +582,18 @@ These are built by `ScheduleValidationService` from Prisma queries, scoped to th
 
 ### ConflictCode Enum (10 codes)
 
-| Code                    | Label (Turkish)        | Description                                  |
-| ----------------------- | ---------------------- | -------------------------------------------- |
-| `PERSON_OVERLAP`        | Personel Çakışması     | Two assignments for same person at same time |
-| `DEVICE_OVERLAP`        | Cihaz Çakışması        | Two assignments for same device at same time |
-| `REST_VIOLATION`        | Dinlenme İhlali        | Insufficient rest between shifts             |
-| `QUALIFICATION_MISSING` | Yetersiz Yeterlilik    | Personnel lacks required skills              |
-| `LEAVE_CONFLICT`        | İzin Çakışması         | Assignment conflicts with approved leave     |
-| `AVAILABILITY_CONFLICT` | Uygunluk Çakışması     | Personnel/device unavailable                 |
-| `COVERAGE_MISSING`      | Eksik Kadro            | Required shift not covered                   |
-| `MAX_WORK_EXCEEDED`     | Maksimum Çalışma Aşımı | Weekly hour limit exceeded                   |
-| `RULE_VIOLATION`        | Kural İhlali           | Generic rule violation                       |
-| `OFF_DAY_CONFLICT`      | İzin Günü Çakışması    | Assigned on configured off day               |
+| Code | Label (Turkish) | Description |
+|---|---|---|
+| `PERSON_OVERLAP` | Personel Çakışması | Two assignments for same person at same time |
+| `DEVICE_OVERLAP` | Cihaz Çakışması | Two assignments for same device at same time |
+| `REST_VIOLATION` | Dinlenme İhlali | Insufficient rest between shifts |
+| `QUALIFICATION_MISSING` | Yetersiz Yeterlilik | Personnel lacks required skills |
+| `LEAVE_CONFLICT` | İzin Çakışması | Assignment conflicts with approved leave |
+| `AVAILABILITY_CONFLICT` | Uygunluk Çakışması | Personnel/device unavailable |
+| `COVERAGE_MISSING` | Eksik Kadro | Required shift not covered |
+| `MAX_WORK_EXCEEDED` | Maksimum Çalışma Aşımı | Weekly hour limit exceeded |
+| `RULE_VIOLATION` | Kural İhlali | Generic rule violation |
+| `OFF_DAY_CONFLICT` | İzin Günü Çakışması | Assigned on configured off day |
 
 ### ConflictSeverity Weights
 
@@ -620,15 +618,14 @@ Located at `domain/models/fairness-engine.ts` (112 lines).
 
 **Dimensions:**
 
-| Dimension        | Weight | Calculation                                         |
-| ---------------- | ------ | --------------------------------------------------- |
-| Night shifts     | 25%    | Coefficient of variation of night counts per person |
-| Weekend shifts   | 20%    | CV of weekend working-day counts                    |
-| Holiday shifts   | 15%    | CV of holiday working-day counts                    |
-| Workload (hours) | 40%    | CV of total hours per person (weighted more)        |
+| Dimension | Weight | Calculation |
+|---|---|---|
+| Night shifts | 25% | Coefficient of variation of night counts per person |
+| Weekend shifts | 20% | CV of weekend working-day counts |
+| Holiday shifts | 15% | CV of holiday working-day counts |
+| Workload (hours) | 40% | CV of total hours per person (weighted more) |
 
 **Formula:**
-
 ```
 score = max(0, 100 - CV × 100)  // for night/weekend/holiday
 workload_score = max(0, 100 - CV × 80)  // slightly more lenient
@@ -636,7 +633,6 @@ overall = night×0.25 + weekend×0.20 + holiday×0.15 + workload×0.40
 ```
 
 **Output:**
-
 ```typescript
 interface FairnessResult {
   overallScore: number;
@@ -644,7 +640,7 @@ interface FairnessResult {
   weekendScore: number;
   holidayScore: number;
   workloadScore: number;
-  details: FairnessDetail[]; // per-person breakdown
+  details: FairnessDetail[];  // per-person breakdown
 }
 ```
 
@@ -658,15 +654,14 @@ Located at `domain/models/scoring-model.ts` (89 lines).
 
 **Default Weights:**
 
-| Factor               | Weight |
-| -------------------- | ------ |
-| Coverage             | 35%    |
-| Fairness             | 30%    |
-| Workload             | 25%    |
-| Preference (fatigue) | 10%    |
+| Factor | Weight |
+|---|---|
+| Coverage | 35% |
+| Fairness | 30% |
+| Workload | 25% |
+| Preference (fatigue) | 10% |
 
 **Preference Score Calculation:**
-
 ```
 score = 100
 if maxConsecutiveDays > 6: score -= (maxConsecutiveDays - 6) × 10
@@ -675,7 +670,6 @@ if overtimeHours > 0:       score -= overtimeHours × 2
 ```
 
 **Overall Score:**
-
 ```
 overall = weightedSum - (penalties × penaltyMultiplier)
 overall = clamp(overall, 0, 100)
@@ -714,21 +708,21 @@ overall = clamp(overall, 0, 100)
 
 ### Gap Analysis
 
-| Capability              | Backend               | Frontend           | Required for Phase 5B |
-| ----------------------- | --------------------- | ------------------ | --------------------- |
-| Greedy generation       | ✅                    | ✅                 | ✅                    |
-| Genetic algorithm       | ❌                    | ✅                 | ✅                    |
-| Constraint validation   | ✅ (12 constraints)   | ✅ (comprehensive) | ✅                    |
-| Fairness optimization   | ⚠️ (calculation only) | ✅ (balancer)      | ✅                    |
-| Workload balancing      | ⚠️ (calculation only) | ✅                 | ✅                    |
-| Fatigue scoring         | ❌                    | ✅                 | ✅                    |
-| Candidate generation    | ❌                    | ✅                 | ✅                    |
-| Candidate scoring       | ❌                    | ✅                 | ✅                    |
-| Swap recommendation     | ❌                    | ✅                 | ✅                    |
-| Rebalancing             | ❌                    | ✅                 | ✅                    |
-| Dry-run simulation      | ⚠️ (preview only)     | ❌                 | ✅                    |
-| Multi-service-line      | ❌                    | ❌                 | ✅                    |
-| Cross-unit optimization | ❌                    | ❌                 | ✅                    |
+| Capability | Backend | Frontend | Required for Phase 5B |
+|---|---|---|---|
+| Greedy generation | ✅ | ✅ | ✅ |
+| Genetic algorithm | ❌ | ✅ | ✅ |
+| Constraint validation | ✅ (12 constraints) | ✅ (comprehensive) | ✅ |
+| Fairness optimization | ⚠️ (calculation only) | ✅ (balancer) | ✅ |
+| Workload balancing | ⚠️ (calculation only) | ✅ | ✅ |
+| Fatigue scoring | ❌ | ✅ | ✅ |
+| Candidate generation | ❌ | ✅ | ✅ |
+| Candidate scoring | ❌ | ✅ | ✅ |
+| Swap recommendation | ❌ | ✅ | ✅ |
+| Rebalancing | ❌ | ✅ | ✅ |
+| Dry-run simulation | ⚠️ (preview only) | ❌ | ✅ |
+| Multi-service-line | ❌ | ❌ | ✅ |
+| Cross-unit optimization | ❌ | ❌ | ✅ |
 
 ---
 
@@ -746,12 +740,12 @@ Organization → Directorate → Department → Unit → Area → Room
 
 Service lines are implicitly defined by `UnitType`:
 
-| Service Line           | Unit Types                                                                                     | Domain             |
-| ---------------------- | ---------------------------------------------------------------------------------------------- | ------------------ |
-| **Imaging**            | mr, bt, rontgen, ultrason, anjiyo, mamografi, kemik_dansitometri, floroskopi, pet_ct, spect_ct | Diagnostic imaging |
-| **Radiation Oncology** | nukleer, onkoloji, linak, simutasyon_ct                                                        | Cancer treatment   |
-| **Supervision**        | supervizor                                                                                     | Management         |
-| **Mobile**             | mobil                                                                                          | Mobile units       |
+| Service Line | Unit Types | Domain |
+|---|---|---|
+| **Imaging** | mr, bt, rontgen, ultrason, anjiyo, mamografi, kemik_dansitometri, floroskopi, pet_ct, spect_ct | Diagnostic imaging |
+| **Radiation Oncology** | nukleer, onkoloji, linak, simutasyon_ct | Cancer treatment |
+| **Supervision** | supervizor | Management |
+| **Mobile** | mobil | Mobile units |
 
 ### Implication for Phase 5B
 
@@ -770,47 +764,47 @@ Resource types are **discovered from the existing repository**, not invented:
 
 ### Personnel Types
 
-| Type                   | Description                 | Source                    |
-| ---------------------- | --------------------------- | ------------------------- |
-| `technician`           | Default, general technician | `Personnel.role` (string) |
-| `senior_technician`    | Senior technician           | `UserRole` enum           |
-| `medical_engineer`     | Medical engineer            | `UserRole` enum           |
-| `radyolog`             | Radiologist                 | `DutyRosterRole` enum     |
-| `supervisor`           | Shift supervisor            | `UserRole` enum           |
-| `assistant_technician` | Assistant technician        | `UserRole` enum           |
+| Type | Description | Source |
+|---|---|---|
+| `technician` | Default, general technician | `Personnel.role` (string) |
+| `senior_technician` | Senior technician | `UserRole` enum |
+| `medical_engineer` | Medical engineer | `UserRole` enum |
+| `radyolog` | Radiologist | `DutyRosterRole` enum |
+| `supervisor` | Shift supervisor | `UserRole` enum |
+| `assistant_technician` | Assistant technician | `UserRole` enum |
 
 ### Device Types (by UnitType)
 
-| Unit Type   | Device Examples            | Mode               |
-| ----------- | -------------------------- | ------------------ |
-| `mr`        | MRI scanners               | vardiya/polyclinic |
-| `bt`        | CT scanners                | vardiya/polyclinic |
-| `rontgen`   | X-ray machines             | vardiya/polyclinic |
-| `nukleer`   | Nuclear medicine equipment | vardiya            |
-| `onkoloji`  | Linac, simulation CT       | vardiya            |
-| `ultrason`  | Ultrasound machines        | vardiya/polyclinic |
-| `anjiyo`    | Angiography suites         | vardiya            |
-| `mamografi` | Mammography units          | vardiya/polyclinic |
+| Unit Type | Device Examples | Mode |
+|---|---|---|
+| `mr` | MRI scanners | vardiya/polyclinic |
+| `bt` | CT scanners | vardiya/polyclinic |
+| `rontgen` | X-ray machines | vardiya/polyclinic |
+| `nukleer` | Nuclear medicine equipment | vardiya |
+| `onkoloji` | Linac, simulation CT | vardiya |
+| `ultrason` | Ultrasound machines | vardiya/polyclinic |
+| `anjiyo` | Angiography suites | vardiya |
+| `mamografi` | Mammography units | vardiya/polyclinic |
 
 ### Shift Types
 
-| Type       | Time           | Description    |
-| ---------- | -------------- | -------------- |
-| `day`      | 08:00-16:00    | Day shift      |
-| `evening`  | 16:00-00:00    | Evening shift  |
-| `night`    | 00:00-08:00    | Night shift    |
-| `morning`  | (configurable) | Morning shift  |
-| `off`      | —              | Day off        |
-| `leave`    | —              | On leave       |
-| `sick`     | —              | Sick leave     |
-| `training` | —              | Training day   |
-| `backup`   | —              | On-call/backup |
+| Type | Time | Description |
+|---|---|---|
+| `day` | 08:00-16:00 | Day shift |
+| `evening` | 16:00-00:00 | Evening shift |
+| `night` | 00:00-08:00 | Night shift |
+| `morning` | (configurable) | Morning shift |
+| `off` | — | Day off |
+| `leave` | — | On leave |
+| `sick` | — | Sick leave |
+| `training` | — | Training day |
+| `backup` | — | On-call/backup |
 
 ### Shift Modes
 
-| Mode         | Description                              |
-| ------------ | ---------------------------------------- |
-| `vardiya`    | Standard shift-based operation           |
+| Mode | Description |
+|---|---|
+| `vardiya` | Standard shift-based operation |
 | `polyclinic` | Polyclinic/OPD operation (shorter slots) |
 
 ---
@@ -866,53 +860,53 @@ Backend                    WebSocket                 Frontend
 
 ### Legacy Endpoints (`SchedulesController`)
 
-| Method | Path                                       | Purpose                         |
-| ------ | ------------------------------------------ | ------------------------------- |
-| GET    | `/schedules`                               | List schedules (with filters)   |
-| GET    | `/schedules/:id`                           | Get schedule by ID              |
-| POST   | `/schedules`                               | Create new schedule             |
-| PUT    | `/schedules/:id`                           | Update schedule                 |
-| DELETE | `/schedules/:id`                           | Delete schedule                 |
-| POST   | `/schedules/:id/assignments`               | Add assignment                  |
-| PUT    | `/schedules/:id/assignments/:assignmentId` | Update assignment               |
-| DELETE | `/schedules/:id/assignments/:assignmentId` | Remove assignment               |
-| POST   | `/schedules/:id/override`                  | Override assignment with reason |
-| POST   | `/schedules/:id/submit-for-review`         | Submit for review               |
-| POST   | `/schedules/:id/approve`                   | Approve schedule                |
-| POST   | `/schedules/:id/reject`                    | Reject schedule                 |
-| POST   | `/schedules/:id/publish`                   | Publish schedule                |
-| POST   | `/schedules/:id/archive`                   | Archive schedule                |
-| POST   | `/schedules/:id/revert-to-draft`           | Revert to draft                 |
-| POST   | `/schedules/:id/rollback`                  | Rollback to previous version    |
-| POST   | `/schedules/generate`                      | Generate schedule               |
-| POST   | `/schedules/generate/preview`              | Preview generation              |
-| POST   | `/schedules/:id/generate`                  | Generate for specific schedule  |
-| GET    | `/schedules/:id/validate`                  | Validate schedule               |
-| GET    | `/schedules/:id/snapshots`                 | List version snapshots          |
-| GET    | `/schedules/:id/conflicts`                 | Get schedule conflicts          |
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/schedules` | List schedules (with filters) |
+| GET | `/schedules/:id` | Get schedule by ID |
+| POST | `/schedules` | Create new schedule |
+| PUT | `/schedules/:id` | Update schedule |
+| DELETE | `/schedules/:id` | Delete schedule |
+| POST | `/schedules/:id/assignments` | Add assignment |
+| PUT | `/schedules/:id/assignments/:assignmentId` | Update assignment |
+| DELETE | `/schedules/:id/assignments/:assignmentId` | Remove assignment |
+| POST | `/schedules/:id/override` | Override assignment with reason |
+| POST | `/schedules/:id/submit-for-review` | Submit for review |
+| POST | `/schedules/:id/approve` | Approve schedule |
+| POST | `/schedules/:id/reject` | Reject schedule |
+| POST | `/schedules/:id/publish` | Publish schedule |
+| POST | `/schedules/:id/archive` | Archive schedule |
+| POST | `/schedules/:id/revert-to-draft` | Revert to draft |
+| POST | `/schedules/:id/rollback` | Rollback to previous version |
+| POST | `/schedules/generate` | Generate schedule |
+| POST | `/schedules/generate/preview` | Preview generation |
+| POST | `/schedules/:id/generate` | Generate for specific schedule |
+| GET | `/schedules/:id/validate` | Validate schedule |
+| GET | `/schedules/:id/snapshots` | List version snapshots |
+| GET | `/schedules/:id/conflicts` | Get schedule conflicts |
 
 ### DDD Endpoints (`SchedulesDDDController`)
 
-| Method | Path                                                    | Purpose                     |
-| ------ | ------------------------------------------------------- | --------------------------- |
-| GET    | `/schedules-ddd/:unitType/:year/:month`                 | Get schedule (DTO-enriched) |
-| POST   | `/schedules-ddd/:unitType/:year/:month/assignments`     | Add assignment (DDD)        |
-| PUT    | `/schedules-ddd/:unitType/:year/:month/assignments/:id` | Update assignment (DDD)     |
-| DELETE | `/schedules-ddd/:unitType/:year/:month/assignments/:id` | Remove assignment (DDD)     |
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/schedules-ddd/:unitType/:year/:month` | Get schedule (DTO-enriched) |
+| POST | `/schedules-ddd/:unitType/:year/:month/assignments` | Add assignment (DDD) |
+| PUT | `/schedules-ddd/:unitType/:year/:month/assignments/:id` | Update assignment (DDD) |
+| DELETE | `/schedules-ddd/:unitType/:year/:month/assignments/:id` | Remove assignment (DDD) |
 
 ### Other Scheduling-Related Endpoints
 
-| Module                  | Endpoints                                |
-| ----------------------- | ---------------------------------------- |
-| `SwapRequestsModule`    | `/swap-requests` — CRUD + approve/reject |
-| `HolidaysModule`        | `/holidays` — CRUD                       |
-| `ShiftsModule`          | `/shifts` — CRUD for shift definitions   |
-| `DutyRosterModule`      | `/duty-roster` — CRUD                    |
-| `PersonnelGroupsModule` | `/personnel-groups` — CRUD               |
-| `TrainingModule`        | `/trainings` — CRUD                      |
-| `SkillModule`           | `/skills` — CRUD                         |
-| `AttendanceModule`      | `/attendance` — clock in/out             |
-| `RecommendationsModule` | `/recommendations` — AI recommendations  |
+| Module | Endpoints |
+|---|---|
+| `SwapRequestsModule` | `/swap-requests` — CRUD + approve/reject |
+| `HolidaysModule` | `/holidays` — CRUD |
+| `ShiftsModule` | `/shifts` — CRUD for shift definitions |
+| `DutyRosterModule` | `/duty-roster` — CRUD |
+| `PersonnelGroupsModule` | `/personnel-groups` — CRUD |
+| `TrainingModule` | `/trainings` — CRUD |
+| `SkillModule` | `/skills` — CRUD |
+| `AttendanceModule` | `/attendance` — clock in/out |
+| `RecommendationsModule` | `/recommendations` — AI recommendations |
 
 ---
 
@@ -939,18 +933,18 @@ Backend                    WebSocket                 Frontend
 
 ### Schedule-Specific Security
 
-| Check                  | Location                                          | Description                                                |
-| ---------------------- | ------------------------------------------------- | ---------------------------------------------------------- |
-| Tenant isolation       | `ScheduleAccessGuard`                             | Fail-closed, verifies unit belongs to organization         |
-| Role restrictions      | `@Roles()` decorator                              | supervisor, imaging_director, system_admin, hospital_admin |
-| Permission checks      | `@Permissions()` decorator                        | schedule.create, schedule.publish, etc.                    |
-| Override authorization | `ScheduleApplicationService.overrideAssignment()` | Only specific roles can override                           |
-| Four-eyes principle    | `ScheduleApplicationService.approve()`            | Submitter cannot be approver                               |
-| Optimistic concurrency | `schedule.verifyVersion()`                        | Prevents concurrent modifications                          |
-| Distributed lock       | `DistributedLockService`                          | Prevents concurrent publish/rollback                       |
-| Idempotency            | `ScheduleApplicationService.checkIdempotency()`   | Prevents duplicate operations                              |
-| Rate limiting          | `ThrottlerGuard`                                  | 200 requests/minute                                        |
-| CSRF                   | `CsrfGuard`                                       | Cross-site request forgery protection                      |
+| Check | Location | Description |
+|---|---|---|
+| Tenant isolation | `ScheduleAccessGuard` | Fail-closed, verifies unit belongs to organization |
+| Role restrictions | `@Roles()` decorator | supervisor, imaging_director, system_admin, hospital_admin |
+| Permission checks | `@Permissions()` decorator | schedule.create, schedule.publish, etc. |
+| Override authorization | `ScheduleApplicationService.overrideAssignment()` | Only specific roles can override |
+| Four-eyes principle | `ScheduleApplicationService.approve()` | Submitter cannot be approver |
+| Optimistic concurrency | `schedule.verifyVersion()` | Prevents concurrent modifications |
+| Distributed lock | `DistributedLockService` | Prevents concurrent publish/rollback |
+| Idempotency | `ScheduleApplicationService.checkIdempotency()` | Prevents duplicate operations |
+| Rate limiting | `ThrottlerGuard` | 200 requests/minute |
+| CSRF | `CsrfGuard` | Cross-site request forgery protection |
 
 ---
 
@@ -963,14 +957,14 @@ Backend                    WebSocket                 Frontend
 
 ### Test Files (Schedule Module)
 
-| File                              | Tests | Purpose                             |
-| --------------------------------- | ----- | ----------------------------------- |
-| `security-closure-4.1.spec.ts`    | 38    | Security closure behavioral tests   |
-| `security-invariants.spec.ts`     | 12    | Security invariant regression tests |
-| `device-shift-visibility.spec.ts` | 14    | DTO mapping tests                   |
-| `constraint-engine.spec.ts`       | —     | Constraint validation tests         |
-| `fairness-engine.spec.ts`         | —     | Fairness calculation tests          |
-| `schedule-validation.spec.ts`     | —     | Validation orchestration tests      |
+| File | Tests | Purpose |
+|---|---|---|
+| `security-closure-4.1.spec.ts` | 38 | Security closure behavioral tests |
+| `security-invariants.spec.ts` | 12 | Security invariant regression tests |
+| `device-shift-visibility.spec.ts` | 14 | DTO mapping tests |
+| `constraint-engine.spec.ts` | — | Constraint validation tests |
+| `fairness-engine.spec.ts` | — | Fairness calculation tests |
+| `schedule-validation.spec.ts` | — | Validation orchestration tests |
 
 ### Test Results
 
@@ -981,15 +975,15 @@ Backend                    WebSocket                 Frontend
 
 ### Coverage Gaps
 
-| Area                | Test Coverage | Gap                                |
-| ------------------- | ------------- | ---------------------------------- |
-| ConstraintEngine    | ✅            | Comprehensive                      |
-| FairnessEngine      | ⚠️            | Missing `holiday` mock integration |
-| ScheduleGeneration  | ❌            | No generation tests                |
-| ScheduleWorkflow    | ❌            | No workflow transition tests       |
-| ScheduleRollback    | ❌            | No rollback tests                  |
-| SwapRequests        | ❌            | No swap workflow tests             |
-| Frontend scheduling | ❌            | No frontend scheduling tests       |
+| Area | Test Coverage | Gap |
+|---|---|---|
+| ConstraintEngine | ✅ | Comprehensive |
+| FairnessEngine | ⚠️ | Missing `holiday` mock integration |
+| ScheduleGeneration | ❌ | No generation tests |
+| ScheduleWorkflow | ❌ | No workflow transition tests |
+| ScheduleRollback | ❌ | No rollback tests |
+| SwapRequests | ❌ | No swap workflow tests |
+| Frontend scheduling | ❌ | No frontend scheduling tests |
 
 ---
 
@@ -997,15 +991,15 @@ Backend                    WebSocket                 Frontend
 
 ### Current Performance Profile
 
-| Operation                                | Estimated Time | Bottleneck                                            |
-| ---------------------------------------- | -------------- | ----------------------------------------------------- |
-| Schedule query (list)                    | <100ms         | Prisma query                                          |
-| Schedule query (single with assignments) | <200ms         | Prisma relation loading                               |
-| Add assignment (single)                  | <100ms         | Constraint validation + DB write                      |
-| Validate schedule (full)                 | 1-5s           | N×M constraint checks (N assignments × M constraints) |
-| Generate schedule (greedy)               | 2-10s          | Iterative assignment creation                         |
-| Publish (with validation)                | 2-5s           | Full validation + distributed lock                    |
-| Real-time broadcast                      | <50ms          | Socket.IO emit                                        |
+| Operation | Estimated Time | Bottleneck |
+|---|---|---|
+| Schedule query (list) | <100ms | Prisma query |
+| Schedule query (single with assignments) | <200ms | Prisma relation loading |
+| Add assignment (single) | <100ms | Constraint validation + DB write |
+| Validate schedule (full) | 1-5s | N×M constraint checks (N assignments × M constraints) |
+| Generate schedule (greedy) | 2-10s | Iterative assignment creation |
+| Publish (with validation) | 2-5s | Full validation + distributed lock |
+| Real-time broadcast | <50ms | Socket.IO emit |
 
 ### Constraint Validation Complexity
 
@@ -1045,29 +1039,29 @@ Backend                    WebSocket                 Frontend
 
 ### Critical
 
-| #    | Issue                                                      | Impact                               | Files                                                      |
-| ---- | ---------------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------- |
-| TD-1 | `schedules/schedules/` duplicate directory (314 TS errors) | Build noise, developer confusion     | `backend/src/modules/schedules/schedules/`                 |
-| TD-2 | `src/src/` duplicate dead code tree                        | Build noise, confusion               | `backend/src/src/`                                         |
-| TD-3 | Two parallel scheduling implementations (legacy + DDD)     | Code duplication, maintenance burden | `schedules.controller.ts` vs `schedules-ddd.controller.ts` |
+| # | Issue | Impact | Files |
+|---|---|---|---|
+| TD-1 | `schedules/schedules/` duplicate directory (314 TS errors) | Build noise, developer confusion | `backend/src/modules/schedules/schedules/` |
+| TD-2 | `src/src/` duplicate dead code tree | Build noise, confusion | `backend/src/src/` |
+| TD-3 | Two parallel scheduling implementations (legacy + DDD) | Code duplication, maintenance burden | `schedules.controller.ts` vs `schedules-ddd.controller.ts` |
 
 ### Moderate
 
-| #    | Issue                                                                         | Impact                                           | Location                                       |
-| ---- | ----------------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------- |
-| TD-4 | `Personnel.role` is plain string, not enum                                    | No DB-level role validation                      | `Personnel` model                              |
-| TD-5 | Frontend `ConstraintSolverService` exists but backend has no equivalent       | Frontend-only optimization, not server-validated | `core/scheduling/constraint-solver.service.ts` |
-| TD-6 | `ScheduleAutoGeneratorService` uses greedy only                               | Suboptimal schedule quality                      | `schedule-auto-generator.service.ts`           |
-| TD-7 | Fairness calculation in `FairnessEngine` doesn't consider seniority weighting | Junior/senior parity issues                      | `fairness-engine.ts`                           |
-| TD-8 | No soft constraint system (only hard constraints with overridable flag)       | Limited constraint flexibility                   | `hard-constraints.ts`                          |
+| # | Issue | Impact | Location |
+|---|---|---|---|
+| TD-4 | `Personnel.role` is plain string, not enum | No DB-level role validation | `Personnel` model |
+| TD-5 | Frontend `ConstraintSolverService` exists but backend has no equivalent | Frontend-only optimization, not server-validated | `core/scheduling/constraint-solver.service.ts` |
+| TD-6 | `ScheduleAutoGeneratorService` uses greedy only | Suboptimal schedule quality | `schedule-auto-generator.service.ts` |
+| TD-7 | Fairness calculation in `FairnessEngine` doesn't consider seniority weighting | Junior/senior parity issues | `fairness-engine.ts` |
+| TD-8 | No soft constraint system (only hard constraints with overridable flag) | Limited constraint flexibility | `hard-constraints.ts` |
 
 ### Low
 
-| #     | Issue                                                                 | Impact                | Location                    |
-| ----- | --------------------------------------------------------------------- | --------------------- | --------------------------- |
-| TD-9  | `src/src/` directory with `auth/`, `personnel/`, `prisma/` duplicates | Dead code, confusion  | `backend/src/src/`          |
-| TD-10 | Analytics tests fail (missing `holiday` mock)                         | 2 test failures       | `analytics.service.spec.ts` |
-| TD-11 | No database seeding for schedule-specific test data                   | Tests rely on live DB | `__tests__/`                |
+| # | Issue | Impact | Location |
+|---|---|---|---|
+| TD-9 | `src/src/` directory with `auth/`, `personnel/`, `prisma/` duplicates | Dead code, confusion | `backend/src/src/` |
+| TD-10 | Analytics tests fail (missing `holiday` mock) | 2 test failures | `analytics.service.spec.ts` |
+| TD-11 | No database seeding for schedule-specific test data | Tests rely on live DB | `__tests__/` |
 
 ---
 
@@ -1075,82 +1069,82 @@ Backend                    WebSocket                 Frontend
 
 ### For Phase 5B Scheduling Engine
 
-| Requirement                    | Current State                             | Gap                                                     | Priority |
-| ------------------------------ | ----------------------------------------- | ------------------------------------------------------- | -------- |
-| Genetic algorithm optimization | Frontend only                             | Backend needs `ScheduleOptimizerService`                | HIGH     |
-| Candidate generation           | Frontend only                             | Backend needs candidate evaluation                      | HIGH     |
-| Candidate scoring              | Frontend only                             | Backend needs scoring integration                       | HIGH     |
-| Soft constraint system         | None                                      | Need `SoftConstraint` interface + implementations       | HIGH     |
-| Multi-service-line scheduling  | UnitType enum only                        | Need `ServiceLine` strategy pattern                     | HIGH     |
-| Dry-run simulation             | `preview()` exists but no full simulation | Need dry-run API with full constraint/fairness checking | HIGH     |
-| Swap recommendation engine     | Frontend only                             | Backend needs recommendation generation                 | MEDIUM   |
-| Load balancing across units    | None                                      | Need cross-unit intelligence                            | MEDIUM   |
-| Fatigue-aware scheduling       | Frontend fatigue engine only              | Backend needs fatigue scoring                           | MEDIUM   |
-| Seniority-aware fairness       | None (CV-based only)                      | Need seniority weighting in fairness                    | MEDIUM   |
-| Consecutive night rules        | Basic (1-day gap)                         | Need configurable rules per unit                        | MEDIUM   |
-| Device maintenance awareness   | None                                      | Need maintenance schedule integration                   | LOW      |
-| Holiday-aware generation       | Basic (holiday check exists)              | Need holiday weighting in generation                    | LOW      |
-| Export/shift swap automation   | Basic                                     | Need intelligent swap matching                          | LOW      |
+| Requirement | Current State | Gap | Priority |
+|---|---|---|---|
+| Genetic algorithm optimization | Frontend only | Backend needs `ScheduleOptimizerService` | HIGH |
+| Candidate generation | Frontend only | Backend needs candidate evaluation | HIGH |
+| Candidate scoring | Frontend only | Backend needs scoring integration | HIGH |
+| Soft constraint system | None | Need `SoftConstraint` interface + implementations | HIGH |
+| Multi-service-line scheduling | UnitType enum only | Need `ServiceLine` strategy pattern | HIGH |
+| Dry-run simulation | `preview()` exists but no full simulation | Need dry-run API with full constraint/fairness checking | HIGH |
+| Swap recommendation engine | Frontend only | Backend needs recommendation generation | MEDIUM |
+| Load balancing across units | None | Need cross-unit intelligence | MEDIUM |
+| Fatigue-aware scheduling | Frontend fatigue engine only | Backend needs fatigue scoring | MEDIUM |
+| Seniority-aware fairness | None (CV-based only) | Need seniority weighting in fairness | MEDIUM |
+| Consecutive night rules | Basic (1-day gap) | Need configurable rules per unit | MEDIUM |
+| Device maintenance awareness | None | Need maintenance schedule integration | LOW |
+| Holiday-aware generation | Basic (holiday check exists) | Need holiday weighting in generation | LOW |
+| Export/shift swap automation | Basic | Need intelligent swap matching | LOW |
 
 ### For Production Readiness
 
-| Requirement    | Current State              | Gap                                               |
-| -------------- | -------------------------- | ------------------------------------------------- |
-| Load testing   | None                       | Need k6/Artillery scripts for schedule generation |
-| Monitoring     | Basic (Prometheus metrics) | Need scheduling-specific dashboards               |
-| Alerting       | Basic                      | Need constraint violation alerts                  |
-| Backup/restore | Prisma migrations only     | Need schedule-specific backup strategy            |
+| Requirement | Current State | Gap |
+|---|---|---|
+| Load testing | None | Need k6/Artillery scripts for schedule generation |
+| Monitoring | Basic (Prometheus metrics) | Need scheduling-specific dashboards |
+| Alerting | Basic | Need constraint violation alerts |
+| Backup/restore | Prisma migrations only | Need schedule-specific backup strategy |
 
 ---
 
 ## 23. Top 10 Risks
 
-| #   | Risk                                                                                                   | Severity | Mitigation                                                                 |
-| --- | ------------------------------------------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------- |
-| 1   | **Genetic algorithm in frontend only** — optimization not validated server-side                        | HIGH     | Build backend optimizer with server-side validation                        |
-| 2   | **No `ServiceLine` abstraction** — all units treated identically                                       | HIGH     | Introduce strategy pattern before adding Radiation Oncology-specific rules |
-| 3   | **Parallel code trees** — `schedules/schedules/` causes build confusion                                | MEDIUM   | Delete duplicate directory                                                 |
-| 4   | **`Personnel.role` as string** — no DB-level constraint on valid roles                                 | MEDIUM   | Add enum or check constraint                                               |
-| 5   | **No soft constraints** — only hard + overridable                                                      | MEDIUM   | Design soft constraint interface                                           |
-| 6   | **Frontend scheduling services not used server-side** — fairness, fatigue, rebalancing are client-only | MEDIUM   | Extract shared domain logic                                                |
-| 7   | **No load testing** — schedule generation performance unknown at scale                                 | MEDIUM   | Add performance benchmarks                                                 |
-| 8   | **Two controller implementations** — legacy + DDD                                                      | LOW      | Plan migration path                                                        |
-| 9   | **No seniority weighting** in fairness                                                                 | LOW      | Add seniority dimension to FairnessEngine                                  |
-| 10  | **2 analytics test failures** — pre-existing                                                           | LOW      | Fix `holiday` mock in test                                                 |
+| # | Risk | Severity | Mitigation |
+|---|---|---|---|
+| 1 | **Genetic algorithm in frontend only** — optimization not validated server-side | HIGH | Build backend optimizer with server-side validation |
+| 2 | **No `ServiceLine` abstraction** — all units treated identically | HIGH | Introduce strategy pattern before adding Radiation Oncology-specific rules |
+| 3 | **Parallel code trees** — `schedules/schedules/` causes build confusion | MEDIUM | Delete duplicate directory |
+| 4 | **`Personnel.role` as string** — no DB-level constraint on valid roles | MEDIUM | Add enum or check constraint |
+| 5 | **No soft constraints** — only hard + overridable | MEDIUM | Design soft constraint interface |
+| 6 | **Frontend scheduling services not used server-side** — fairness, fatigue, rebalancing are client-only | MEDIUM | Extract shared domain logic |
+| 7 | **No load testing** — schedule generation performance unknown at scale | MEDIUM | Add performance benchmarks |
+| 8 | **Two controller implementations** — legacy + DDD | LOW | Plan migration path |
+| 9 | **No seniority weighting** in fairness | LOW | Add seniority dimension to FairnessEngine |
+| 10 | **2 analytics test failures** — pre-existing | LOW | Fix `holiday` mock in test |
 
 ---
 
 ## 24. Top 10 Architectural Findings
 
-| #   | Finding                                                                                                                        | Impact                                                                               |
-| --- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| 1   | **95 Prisma models, 48 enums** — very large schema for a scheduling system                                                     | Schema complexity is high; need modular Prisma schemas or careful migration strategy |
-| 2   | **DDD Aggregate Root pattern is well-implemented** — Schedule aggregate enforces invariants, emits events, supports versioning | Strong foundation for Phase 5B; new features can build on existing domain            |
-| 3   | **ConstraintEngine is production-quality** — 12 hard constraints with lookup-optimized validation                              | Can be extended with soft constraints without breaking changes                       |
-| 4   | **Frontend has 13 scheduling services** — most logic lives client-side                                                         | Server-side equivalents needed for production scheduling                             |
-| 5   | **`FairnessEngine` uses CV-based scoring** — fair but doesn't consider seniority or preferences                                | Need weighted fairness with seniority dimension                                      |
-| 6   | **No `ServiceLine` model** — service line is implicit from UnitType                                                            | Must introduce before Radiation Oncology-specific scheduling                         |
-| 7   | **Two scheduling controllers** — legacy + DDD                                                                                  | Migration path needed; DDD should become primary                                     |
-| 8   | **Schedule generation is greedy-only on backend** — no optimization loop                                                       | Frontend has genetic algorithm; backend needs equivalent                             |
-| 9   | **Security is comprehensive** — 38 behavioral tests, fail-closed guard, four-eyes principle                                    | Security is solid; no changes needed for Phase 5B                                    |
-| 10  | **No dry-run/simulation mode** — preview exists but no full simulation with scoring                                            | Critical for Phase 5B; supervisors need to evaluate before applying                  |
+| # | Finding | Impact |
+|---|---|---|
+| 1 | **95 Prisma models, 48 enums** — very large schema for a scheduling system | Schema complexity is high; need modular Prisma schemas or careful migration strategy |
+| 2 | **DDD Aggregate Root pattern is well-implemented** — Schedule aggregate enforces invariants, emits events, supports versioning | Strong foundation for Phase 5B; new features can build on existing domain |
+| 3 | **ConstraintEngine is production-quality** — 12 hard constraints with lookup-optimized validation | Can be extended with soft constraints without breaking changes |
+| 4 | **Frontend has 13 scheduling services** — most logic lives client-side | Server-side equivalents needed for production scheduling |
+| 5 | **`FairnessEngine` uses CV-based scoring** — fair but doesn't consider seniority or preferences | Need weighted fairness with seniority dimension |
+| 6 | **No `ServiceLine` model** — service line is implicit from UnitType | Must introduce before Radiation Oncology-specific scheduling |
+| 7 | **Two scheduling controllers** — legacy + DDD | Migration path needed; DDD should become primary |
+| 8 | **Schedule generation is greedy-only on backend** — no optimization loop | Frontend has genetic algorithm; backend needs equivalent |
+| 9 | **Security is comprehensive** — 38 behavioral tests, fail-closed guard, four-eyes principle | Security is solid; no changes needed for Phase 5B |
+| 10 | **No dry-run/simulation mode** — preview exists but no full simulation with scoring | Critical for Phase 5B; supervisors need to evaluate before applying |
 
 ---
 
 ## 25. Top 10 Recommended Next Steps
 
-| #   | Step                                                                                           | Priority | Effort        |
-| --- | ---------------------------------------------------------------------------------------------- | -------- | ------------- |
-| 1   | **Build backend `ScheduleOptimizerService`** — port genetic algorithm from frontend to backend | HIGH     | 2-3 weeks     |
-| 2   | **Introduce `SoftConstraint` interface** — extend ConstraintEngine with soft constraints       | HIGH     | 1 week        |
-| 3   | **Create `ServiceLineScheduler` strategy pattern** — separate Imaging vs Radiation Oncology    | HIGH     | 1-2 weeks     |
-| 4   | **Build dry-run API** — full simulation with scoring, no DB persistence                        | HIGH     | 1 week        |
-| 5   | **Extract shared domain logic** — move fairness, fatigue, scoring to shared backend services   | MEDIUM   | 1 week        |
-| 6   | **Delete `schedules/schedules/` duplicate** — clean up 314 TS errors                           | MEDIUM   | 1 hour        |
-| 7   | **Add performance benchmarks** — k6 scripts for schedule generation                            | MEDIUM   | 3 days        |
-| 8   | **Fix 2 analytics test failures** — add `holiday` mock                                         | LOW      | 1 hour        |
-| 9   | **Plan DDD migration path** — deprecate legacy controller                                      | LOW      | Planning only |
-| 10  | **Add seniority dimension to FairnessEngine** — weight fairness by seniority                   | LOW      | 2 days        |
+| # | Step | Priority | Effort |
+|---|---|---|---|
+| 1 | **Build backend `ScheduleOptimizerService`** — port genetic algorithm from frontend to backend | HIGH | 2-3 weeks |
+| 2 | **Introduce `SoftConstraint` interface** — extend ConstraintEngine with soft constraints | HIGH | 1 week |
+| 3 | **Create `ServiceLineScheduler` strategy pattern** — separate Imaging vs Radiation Oncology | HIGH | 1-2 weeks |
+| 4 | **Build dry-run API** — full simulation with scoring, no DB persistence | HIGH | 1 week |
+| 5 | **Extract shared domain logic** — move fairness, fatigue, scoring to shared backend services | MEDIUM | 1 week |
+| 6 | **Delete `schedules/schedules/` duplicate** — clean up 314 TS errors | MEDIUM | 1 hour |
+| 7 | **Add performance benchmarks** — k6 scripts for schedule generation | MEDIUM | 3 days |
+| 8 | **Fix 2 analytics test failures** — add `holiday` mock | LOW | 1 hour |
+| 9 | **Plan DDD migration path** — deprecate legacy controller | LOW | Planning only |
+| 10 | **Add seniority dimension to FairnessEngine** — weight fairness by seniority | LOW | 2 days |
 
 ---
 
@@ -1189,18 +1183,18 @@ Backend                    WebSocket                 Frontend
 
 ### Phase 5B: Scheduling Engine (Recommended Sequence)
 
-| Step | Feature                                               | Dependencies                     | Effort    |
-| ---- | ----------------------------------------------------- | -------------------------------- | --------- |
-| 1    | Delete `schedules/schedules/` duplicate               | None                             | 1 hour    |
-| 2    | Add `SoftConstraint` interface + 3-4 soft constraints | ConstraintEngine                 | 1 week    |
-| 3    | Build `ScheduleOptimizerService` (genetic algorithm)  | ConstraintEngine, FairnessEngine | 2-3 weeks |
-| 4    | Build dry-run API (POST `/schedules/dry-run`)         | ScheduleOptimizerService         | 1 week    |
-| 5    | Create `ServiceLineScheduler` strategy pattern        | UnitType enum                    | 1-2 weeks |
-| 6    | Extract fairness/fatigue/scoring to backend services  | FairnessEngine, ScoringModel     | 1 week    |
-| 7    | Build swap recommendation engine (backend)            | FairnessEngine, ConstraintEngine | 1 week    |
-| 8    | Add seniority weighting to FairnessEngine             | FairnessEngine                   | 2 days    |
-| 9    | Add performance benchmarks                            | ScheduleOptimizerService         | 3 days    |
-| 10   | Integration testing                                   | All above                        | 1 week    |
+| Step | Feature | Dependencies | Effort |
+|---|---|---|---|
+| 1 | Delete `schedules/schedules/` duplicate | None | 1 hour |
+| 2 | Add `SoftConstraint` interface + 3-4 soft constraints | ConstraintEngine | 1 week |
+| 3 | Build `ScheduleOptimizerService` (genetic algorithm) | ConstraintEngine, FairnessEngine | 2-3 weeks |
+| 4 | Build dry-run API (POST `/schedules/dry-run`) | ScheduleOptimizerService | 1 week |
+| 5 | Create `ServiceLineScheduler` strategy pattern | UnitType enum | 1-2 weeks |
+| 6 | Extract fairness/fatigue/scoring to backend services | FairnessEngine, ScoringModel | 1 week |
+| 7 | Build swap recommendation engine (backend) | FairnessEngine, ConstraintEngine | 1 week |
+| 8 | Add seniority weighting to FairnessEngine | FairnessEngine | 2 days |
+| 9 | Add performance benchmarks | ScheduleOptimizerService | 3 days |
+| 10 | Integration testing | All above | 1 week |
 
 **Total estimated effort:** 8-10 weeks
 
@@ -1210,35 +1204,35 @@ Backend                    WebSocket                 Frontend
 
 ### PHASE 5B READY: YES
 
-| Criterion                   | Status | Evidence                                                  |
-| --------------------------- | ------ | --------------------------------------------------------- |
-| Constraint system exists    | ✅     | 12 hard constraints, ConstraintEngine, 20 violation rules |
-| Fairness engine exists      | ✅     | FairnessEngine, 4 dimensions, CV-based scoring            |
-| Scoring model exists        | ✅     | ScoringModel, weighted average, configurable weights      |
-| Domain model exists         | ✅     | DDD Aggregate, Entity, ValueObject, Events, Repository    |
-| Security is solid           | ✅     | 38/38 tests, fail-closed, four-eyes, RBAC                 |
-| Database schema is complete | ✅     | 95 models, all scheduling entities present                |
-| API surface is defined      | ✅     | Legacy + DDD controllers, full CRUD + workflow            |
-| Frontend has working UI     | ✅     | 40 files, signals-based store, 28 computed values         |
-| Generation exists (basic)   | ✅     | Greedy backend, genetic frontend                          |
-| Version control works       | ✅     | ScheduleSnapshot, rollback, optimistic concurrency        |
+| Criterion | Status | Evidence |
+|---|---|---|
+| Constraint system exists | ✅ | 12 hard constraints, ConstraintEngine, 20 violation rules |
+| Fairness engine exists | ✅ | FairnessEngine, 4 dimensions, CV-based scoring |
+| Scoring model exists | ✅ | ScoringModel, weighted average, configurable weights |
+| Domain model exists | ✅ | DDD Aggregate, Entity, ValueObject, Events, Repository |
+| Security is solid | ✅ | 38/38 tests, fail-closed, four-eyes, RBAC |
+| Database schema is complete | ✅ | 95 models, all scheduling entities present |
+| API surface is defined | ✅ | Legacy + DDD controllers, full CRUD + workflow |
+| Frontend has working UI | ✅ | 40 files, signals-based store, 28 computed values |
+| Generation exists (basic) | ✅ | Greedy backend, genetic frontend |
+| Version control works | ✅ | ScheduleSnapshot, rollback, optimistic concurrency |
 
 ### What's Needed for Phase 5B
 
-| Item                      | Priority | Can Start Immediately                             |
-| ------------------------- | -------- | ------------------------------------------------- |
-| Backend optimizer service | HIGH     | YES (fairness, scoring, constraint engines exist) |
-| Soft constraints          | HIGH     | YES (ConstraintEngine extensible)                 |
-| Service line strategy     | HIGH     | YES (UnitType enum exists)                        |
-| Dry-run API               | HIGH     | YES (preview() exists as starting point)          |
-| Shared domain logic       | MEDIUM   | YES (extraction, not creation)                    |
-| Performance benchmarks    | MEDIUM   | YES (existing endpoints testable)                 |
+| Item | Priority | Can Start Immediately |
+|---|---|---|
+| Backend optimizer service | HIGH | YES (fairness, scoring, constraint engines exist) |
+| Soft constraints | HIGH | YES (ConstraintEngine extensible) |
+| Service line strategy | HIGH | YES (UnitType enum exists) |
+| Dry-run API | HIGH | YES (preview() exists as starting point) |
+| Shared domain logic | MEDIUM | YES (extraction, not creation) |
+| Performance benchmarks | MEDIUM | YES (existing endpoints testable) |
 
 ### Blockers
 
-| Blocker       | Status | Resolution |
-| ------------- | ------ | ---------- |
-| None critical | —      | —          |
+| Blocker | Status | Resolution |
+|---|---|---|
+| None critical | — | — |
 
 ### Pre-Phase 5B Cleanup (Recommended)
 
@@ -1248,6 +1242,6 @@ Backend                    WebSocket                 Frontend
 
 ---
 
-_Report generated: 2026-08-25_
-_Phase 5A Status: COMPLETE_
-_Phase 5B Status: READY TO BEGIN_
+*Report generated: 2026-08-25*
+*Phase 5A Status: COMPLETE*
+*Phase 5B Status: READY TO BEGIN*

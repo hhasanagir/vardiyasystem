@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { NotificationEventService } from '../notifications/notification-event.service';
 import { CreateTrainingDto } from './dto/create-training.dto';
@@ -19,9 +14,7 @@ export class TrainingService {
   ) {}
 
   async create(dto: CreateTrainingDto) {
-    const existing = await this.prisma.training.findFirst({
-      where: { name: dto.name },
-    });
+    const existing = await this.prisma.training.findFirst({ where: { name: dto.name } });
     if (existing) throw new ConflictException('Bu eğitim zaten mevcut');
     return this.prisma.training.create({ data: dto });
   }
@@ -44,10 +37,7 @@ export class TrainingService {
     if (query.personnelId) {
       where.personnelTrainings = {
         ...where.personnelTrainings,
-        some: {
-          ...(where.personnelTrainings?.some || {}),
-          personnelId: query.personnelId,
-        },
+        some: { ...(where.personnelTrainings?.some || {}), personnelId: query.personnelId },
       };
     }
 
@@ -58,9 +48,7 @@ export class TrainingService {
         personnelTrainings: {
           where: { isActive: true },
           include: {
-            personnel: {
-              select: { id: true, name: true, role: true, employeeNo: true },
-            },
+            personnel: { select: { id: true, name: true, role: true, employeeNo: true } },
           },
           orderBy: { createdAt: 'desc' },
         },
@@ -76,9 +64,7 @@ export class TrainingService {
         personnelTrainings: {
           where: { isActive: true },
           include: {
-            personnel: {
-              select: { id: true, name: true, role: true, employeeNo: true },
-            },
+            personnel: { select: { id: true, name: true, role: true, employeeNo: true } },
           },
           orderBy: { createdAt: 'desc' },
         },
@@ -97,21 +83,14 @@ export class TrainingService {
   async delete(id: string) {
     const training = await this.prisma.training.findUnique({ where: { id } });
     if (!training) throw new NotFoundException('Eğitim bulunamadı');
-    return this.prisma.training.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    return this.prisma.training.update({ where: { id }, data: { isActive: false } });
   }
 
   async assign(personnelId: string, dto: AssignTrainingDto) {
-    const personnel = await this.prisma.personnel.findUnique({
-      where: { id: personnelId },
-    });
+    const personnel = await this.prisma.personnel.findUnique({ where: { id: personnelId } });
     if (!personnel) throw new NotFoundException('Personel bulunamadı');
 
-    const training = await this.prisma.training.findUnique({
-      where: { id: dto.trainingId },
-    });
+    const training = await this.prisma.training.findUnique({ where: { id: dto.trainingId } });
     if (!training) throw new NotFoundException('Eğitim bulunamadı');
 
     const status = this.computeStatus(dto.expiryDate);
@@ -127,9 +106,7 @@ export class TrainingService {
       },
       include: {
         training: true,
-        personnel: {
-          select: { id: true, name: true, role: true, employeeNo: true },
-        },
+        personnel: { select: { id: true, name: true, role: true, employeeNo: true } },
       },
     });
   }
@@ -143,15 +120,12 @@ export class TrainingService {
   }
 
   async updateAssignment(id: string, dto: Partial<AssignTrainingDto>) {
-    const pt = await this.prisma.personnelTraining.findUnique({
-      where: { id },
-    });
+    const pt = await this.prisma.personnelTraining.findUnique({ where: { id } });
     if (!pt) throw new NotFoundException('Eğitim kaydı bulunamadı');
 
     const data: any = {};
     if (dto.issueDate !== undefined) data.issueDate = new Date(dto.issueDate);
-    if (dto.expiryDate !== undefined)
-      data.expiryDate = new Date(dto.expiryDate);
+    if (dto.expiryDate !== undefined) data.expiryDate = new Date(dto.expiryDate);
     if (dto.documentUrl !== undefined) data.documentUrl = dto.documentUrl;
     if (dto.status !== undefined) data.status = dto.status;
 
@@ -170,14 +144,9 @@ export class TrainingService {
   }
 
   async removeAssignment(id: string) {
-    const pt = await this.prisma.personnelTraining.findUnique({
-      where: { id },
-    });
+    const pt = await this.prisma.personnelTraining.findUnique({ where: { id } });
     if (!pt) throw new NotFoundException('Eğitim kaydı bulunamadı');
-    return this.prisma.personnelTraining.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    return this.prisma.personnelTraining.update({ where: { id }, data: { isActive: false } });
   }
 
   async getExpiringCertifications(daysThreshold = 30) {
@@ -190,9 +159,7 @@ export class TrainingService {
         expiryDate: { not: null, lte: threshold },
       },
       include: {
-        personnel: {
-          select: { id: true, name: true, role: true, employeeNo: true },
-        },
+        personnel: { select: { id: true, name: true, role: true, employeeNo: true } },
         training: true,
       },
       orderBy: { expiryDate: 'asc' },
@@ -204,41 +171,22 @@ export class TrainingService {
     const in30Days = new Date(now.getTime() + 30 * 86400000);
     const in90Days = new Date(now.getTime() + 90 * 86400000);
 
-    const total = await this.prisma.personnelTraining.count({
-      where: { isActive: true },
-    });
-    const valid = await this.prisma.personnelTraining.count({
-      where: { isActive: true, status: 'valid' },
-    });
+    const total = await this.prisma.personnelTraining.count({ where: { isActive: true } });
+    const valid = await this.prisma.personnelTraining.count({ where: { isActive: true, status: 'valid' } });
     const expired = await this.prisma.personnelTraining.count({
       where: { isActive: true, expiryDate: { not: null, lt: now } },
     });
     const expiring30 = await this.prisma.personnelTraining.count({
-      where: {
-        isActive: true,
-        expiryDate: { not: null, gte: now, lte: in30Days },
-      },
+      where: { isActive: true, expiryDate: { not: null, gte: now, lte: in30Days } },
     });
     const expiring90 = await this.prisma.personnelTraining.count({
-      where: {
-        isActive: true,
-        expiryDate: { not: null, gte: now, lte: in90Days },
-      },
+      where: { isActive: true, expiryDate: { not: null, gte: now, lte: in90Days } },
     });
     const noExpiry = await this.prisma.personnelTraining.count({
       where: { isActive: true, expiryDate: null },
     });
 
-    return {
-      total,
-      valid,
-      expired,
-      expiring30,
-      expiring90,
-      noExpiry,
-      riskScore:
-        total > 0 ? Math.round(((expired + expiring30) / total) * 100) : 0,
-    };
+    return { total, valid, expired, expiring30, expiring90, noExpiry, riskScore: total > 0 ? Math.round(((expired + expiring30) / total) * 100) : 0 };
   }
 
   async checkAndSendExpiryNotifications(organizationId: string) {
@@ -247,63 +195,37 @@ export class TrainingService {
     const in90Days = new Date(now.getTime() + 90 * 86400000);
 
     const expired = await this.prisma.personnelTraining.findMany({
-      where: {
-        isActive: true,
-        status: { not: 'expired' },
-        expiryDate: { not: null, lt: now },
-      },
+      where: { isActive: true, status: { not: 'expired' }, expiryDate: { not: null, lt: now } },
       include: { personnel: true, training: true },
     });
 
     for (const pt of expired) {
       if (!pt.training) continue;
-      await this.prisma.personnelTraining.update({
-        where: { id: pt.id },
-        data: { status: 'expired' },
-      });
+      await this.prisma.personnelTraining.update({ where: { id: pt.id }, data: { status: 'expired' } });
     }
 
     const expiring30 = await this.prisma.personnelTraining.findMany({
-      where: {
-        isActive: true,
-        status: 'valid',
-        expiryDate: { not: null, gte: now, lte: in30Days },
-      },
+      where: { isActive: true, status: 'valid', expiryDate: { not: null, gte: now, lte: in30Days } },
       include: { personnel: true, training: true },
     });
 
     for (const pt of expiring30) {
       if (!pt.training || !pt.expiryDate) continue;
-      const daysUntilExpiry = Math.ceil(
-        (pt.expiryDate.getTime() - now.getTime()) / 86400000,
-      );
-      await this.prisma.personnelTraining.update({
-        where: { id: pt.id },
-        data: { status: 'expiring' },
-      });
+      const daysUntilExpiry = Math.ceil((pt.expiryDate.getTime() - now.getTime()) / 86400000);
+      await this.prisma.personnelTraining.update({ where: { id: pt.id }, data: { status: 'expiring' } });
     }
 
     const expiring90 = await this.prisma.personnelTraining.findMany({
-      where: {
-        isActive: true,
-        status: 'valid',
-        expiryDate: { not: null, gte: in30Days, lte: in90Days },
-      },
+      where: { isActive: true, status: 'valid', expiryDate: { not: null, gte: in30Days, lte: in90Days } },
       include: { personnel: true, training: true },
     });
 
     for (const pt of expiring90) {
       if (!pt.training || !pt.expiryDate) continue;
-      const daysUntilExpiry = Math.ceil(
-        (pt.expiryDate.getTime() - now.getTime()) / 86400000,
-      );
+      const daysUntilExpiry = Math.ceil((pt.expiryDate.getTime() - now.getTime()) / 86400000);
     }
 
-    return {
-      expired: expired.length,
-      expiring30: expiring30.length,
-      expiring90: expiring90.length,
-    };
+    return { expired: expired.length, expiring30: expiring30.length, expiring90: expiring90.length };
   }
 
   private computeStatus(expiryDate: string | null | undefined): string {

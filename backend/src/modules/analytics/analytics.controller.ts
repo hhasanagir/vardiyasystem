@@ -1,10 +1,5 @@
 import { Controller, Get, Query, Request, UseGuards } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -12,14 +7,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { MinRole } from '../../guards/min-role';
 
 interface RequestWithUser {
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-    organizationId?: string;
-    unitId?: string;
-  };
+  user: { id: string; email: string; name: string; role: string; organizationId?: string; unitId?: string };
 }
 
 @ApiTags('analytics')
@@ -31,9 +19,7 @@ export class AnalyticsController {
 
   @Get('dashboard')
   @Roles(MinRole.VIEWER)
-  @ApiOperation({
-    summary: 'Get dashboard KPIs, alerts, upcoming shifts and unit summary',
-  })
+  @ApiOperation({ summary: 'Get dashboard KPIs, alerts, upcoming shifts and unit summary' })
   getDashboard(@Request() req: RequestWithUser) {
     return this.analyticsService.getDashboard(
       req?.user?.organizationId || '',
@@ -53,12 +39,7 @@ export class AnalyticsController {
     @Query('unitType') unitType?: string,
     @Request() req?: RequestWithUser,
   ) {
-    return this.analyticsService.getOverview(
-      req?.user?.organizationId || '',
-      month,
-      year,
-      unitType,
-    );
+    return this.analyticsService.getOverview(req?.user?.organizationId || '', month, year, unitType);
   }
 
   @Get('workload')
@@ -73,12 +54,7 @@ export class AnalyticsController {
     @Query('unitType') unitType?: string,
     @Request() req?: RequestWithUser,
   ) {
-    return this.analyticsService.getWorkload(
-      req?.user?.organizationId || '',
-      month,
-      year,
-      unitType,
-    );
+    return this.analyticsService.getWorkload(req?.user?.organizationId || '', month, year, unitType);
   }
 
   @Get('overtime')
@@ -93,12 +69,7 @@ export class AnalyticsController {
     @Query('unitType') unitType?: string,
     @Request() req?: RequestWithUser,
   ) {
-    return this.analyticsService.getOvertimeRanking(
-      req?.user?.organizationId || '',
-      month,
-      year,
-      unitType,
-    );
+    return this.analyticsService.getOvertimeRanking(req?.user?.organizationId || '', month, year, unitType);
   }
 
   @Get('device-utilization')
@@ -113,11 +84,6 @@ export class AnalyticsController {
     @Query('unitType') unitType?: string,
     @Request() req?: RequestWithUser,
   ) {
-    return this.analyticsService.getDeviceUtilization(
-      req?.user?.organizationId || '',
-      month,
-      year,
-      unitType,
-    );
+    return this.analyticsService.getDeviceUtilization(req?.user?.organizationId || '', month, year, unitType);
   }
 }

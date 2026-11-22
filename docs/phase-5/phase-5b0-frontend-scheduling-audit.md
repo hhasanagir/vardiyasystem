@@ -22,21 +22,19 @@
 
 ### 1. ConstraintSolverService (GENETIC ALGORITHM)
 
-| Field              | Value                                          |
-| ------------------ | ---------------------------------------------- |
-| File               | `core/scheduling/constraint-solver.service.ts` |
-| Lines              | 462                                            |
-| Purpose            | Genetic algorithm schedule optimizer           |
-| Backend Equivalent | **NONE**                                       |
-| Classification     | **A (Pure Domain) + B (Application)**          |
+| Field | Value |
+|---|---|
+| File | `core/scheduling/constraint-solver.service.ts` |
+| Lines | 462 |
+| Purpose | Genetic algorithm schedule optimizer |
+| Backend Equivalent | **NONE** |
+| Classification | **A (Pure Domain) + B (Application)** |
 
 **Methods:**
-
 - `solve(schedule, personnel, devices, config?): SolverResult` — runs GA
 - `optimize(schedule, personnel, devices): Schedule` — wraps solve()
 
 **GA Parameters:**
-
 - Population: 50 candidates
 - Max iterations: 500
 - Mutation types: reassign (40%), shift-change (30%), swap (30%)
@@ -46,7 +44,6 @@
 - Early stop: 50 generations without improvement
 
 **Fitness:** `rebalanceEngine.calculateScore().overall + penaltyScore`
-
 - Error violations: -1000 + (-10 per violation)
 - Warning violations: -5 per violation
 
@@ -56,17 +53,16 @@
 
 ### 2. ConstraintValidatorService (SIMPLE)
 
-| Field              | Value                                             |
-| ------------------ | ------------------------------------------------- |
-| File               | `core/scheduling/constraint-validator.service.ts` |
-| Lines              | 215                                               |
-| Purpose            | Basic constraint validation (5 checks)            |
-| Backend Equivalent | `ConstraintEngine` (12 constraints)               |
-| Classification     | **A (Pure Domain)** — DUPLICATE                   |
-| Duplicate?         | **YES** — backend is more comprehensive           |
+| Field | Value |
+|---|---|
+| File | `core/scheduling/constraint-validator.service.ts` |
+| Lines | 215 |
+| Purpose | Basic constraint validation (5 checks) |
+| Backend Equivalent | `ConstraintEngine` (12 constraints) |
+| Classification | **A (Pure Domain)** — DUPLICATE |
+| Duplicate? | **YES** — backend is more comprehensive |
 
 **Rules:**
-
 1. Min rest < 11h → error (backend uses 8h — **INCONSISTENT**)
 2. Night→Day violation → error
 3. Max weekly shifts ≥ 6 → error
@@ -77,17 +73,16 @@
 
 ### 3. ComprehensiveConstraintValidatorService
 
-| Field              | Value                                                            |
-| ------------------ | ---------------------------------------------------------------- |
-| File               | `core/scheduling/comprehensive-constraint-validator.service.ts`  |
-| Lines              | 639                                                              |
-| Purpose            | Full constraint validation with unit-specific rules              |
-| Backend Equivalent | `ConstraintEngine` (partial)                                     |
-| Classification     | **A (Pure Domain)** — PARTIAL DUPLICATE                          |
-| Duplicate?         | **PARTIAL** — backend lacks radiation/personnel-protection rules |
+| Field | Value |
+|---|---|
+| File | `core/scheduling/comprehensive-constraint-validator.service.ts` |
+| Lines | 639 |
+| Purpose | Full constraint validation with unit-specific rules |
+| Backend Equivalent | `ConstraintEngine` (partial) |
+| Classification | **A (Pure Domain)** — PARTIAL DUPLICATE |
+| Duplicate? | **PARTIAL** — backend lacks radiation/personnel-protection rules |
 
 **Unique rules NOT in backend:**
-
 - **Unit-specific:** MR consecutive night limits, BT radiation certificates, Nuclear Medicine shift restrictions
 - **Personnel protection:** Pregnancy in radiation units, under-18 restrictions, dosimeter requirements
 - **Radiation dose:** Monthly dose ≥80%/90% thresholds
@@ -97,14 +92,14 @@
 
 ### 4. ConflictDetectorService
 
-| Field              | Value                                          |
-| ------------------ | ---------------------------------------------- |
-| File               | `core/scheduling/conflict-detector.service.ts` |
-| Lines              | 188                                            |
-| Purpose            | Detect conflicts in existing schedules         |
-| Backend Equivalent | `Conflict` domain model + `ConflictCode` enum  |
-| Classification     | **A (Pure Domain)** — DUPLICATE                |
-| Duplicate?         | **YES** — backend has richer `Conflict` model  |
+| Field | Value |
+|---|---|
+| File | `core/scheduling/conflict-detector.service.ts` |
+| Lines | 188 |
+| Purpose | Detect conflicts in existing schedules |
+| Backend Equivalent | `Conflict` domain model + `ConflictCode` enum |
+| Classification | **A (Pure Domain)** — DUPLICATE |
+| Duplicate? | **YES** — backend has richer `Conflict` model |
 
 **Conflict Types:** REST_VIOLATION, DOUBLE_ASSIGNMENT, SKILL_GAP, COVERAGE_GAP
 
@@ -112,14 +107,14 @@
 
 ### 5. FairnessBalancerService
 
-| Field              | Value                                               |
-| ------------------ | --------------------------------------------------- |
-| File               | `core/scheduling/fairness-balancer.service.ts`      |
-| Lines              | 193                                                 |
-| Purpose            | Fairness metrics calculation                        |
-| Backend Equivalent | `FairnessEngine`                                    |
-| Classification     | **A (Pure Domain)** — DUPLICATE (different weights) |
-| Duplicate?         | **YES** — same algorithm, different weights         |
+| Field | Value |
+|---|---|
+| File | `core/scheduling/fairness-balancer.service.ts` |
+| Lines | 193 |
+| Purpose | Fairness metrics calculation |
+| Backend Equivalent | `FairnessEngine` |
+| Classification | **A (Pure Domain)** — DUPLICATE (different weights) |
+| Duplicate? | **YES** — same algorithm, different weights |
 
 **Frontend weights:** Night 30%, Weekend 25%, Holiday 20%, Device Rotation 25%
 **Backend weights:** Night 25%, Weekend 20%, Holiday 15%, Workload 40%
@@ -130,17 +125,16 @@ Formula: `max(0, 1 - stdDev / (mean + 1))` — identical implementation.
 
 ### 6. FatigueEngineService
 
-| Field              | Value                                       |
-| ------------------ | ------------------------------------------- |
-| File               | `core/scheduling/fatigue-engine.service.ts` |
-| Lines              | 462                                         |
-| Purpose            | Fatigue scoring per personnel               |
-| Backend Equivalent | **NONE**                                    |
-| Classification     | **A (Pure Domain)** — NO DUPLICATE          |
-| Duplicate?         | **NO** — entirely frontend-only             |
+| Field | Value |
+|---|---|
+| File | `core/scheduling/fatigue-engine.service.ts` |
+| Lines | 462 |
+| Purpose | Fatigue scoring per personnel |
+| Backend Equivalent | **NONE** |
+| Classification | **A (Pure Domain)** — NO DUPLICATE |
+| Duplicate? | **NO** — entirely frontend-only |
 
 **Fatigue Factors:**
-
 - Consecutive nights penalty
 - Weekend work penalty
 - Holiday work penalty
@@ -157,15 +151,15 @@ Formula: `max(0, 1 - stdDev / (mean + 1))` — identical implementation.
 
 ### 7. RebalanceEngineService
 
-| Field              | Value                                                       |
-| ------------------ | ----------------------------------------------------------- |
-| File               | `core/scheduling/rebalance-engine.service.ts`               |
-| Lines              | 564                                                         |
-| Purpose            | Swap-based schedule rebalancing                             |
-| Backend Equivalent | Stub only (`recommendations.service.ts`)                    |
-| Classification     | **B (Application Logic)** — NO DUPLICATE                    |
-| Duplicate?         | **NO** — frontend has full implementation, backend has stub |
-| **BUG**            | `improvementPercent` calculation always returns 0           |
+| Field | Value |
+|---|---|
+| File | `core/scheduling/rebalance-engine.service.ts` |
+| Lines | 564 |
+| Purpose | Swap-based schedule rebalancing |
+| Backend Equivalent | Stub only (`recommendations.service.ts`) |
+| Classification | **B (Application Logic)** — NO DUPLICATE |
+| Duplicate? | **NO** — frontend has full implementation, backend has stub |
+| **BUG** | `improvementPercent` calculation always returns 0 |
 
 **Score Dimensions:** Fairness 35%, Fatigue Safety 35%, Coverage 20%, Preference 10%
 **Algorithm:** Greedy swap search, max 100 iterations, stops when improvement < 0.5
@@ -176,14 +170,14 @@ Formula: `max(0, 1 - stdDev / (mean + 1))` — identical implementation.
 
 ### 8. RecommendationEngineService
 
-| Field              | Value                                                                    |
-| ------------------ | ------------------------------------------------------------------------ |
-| File               | `core/scheduling/recommendation-engine.service.ts`                       |
-| Lines              | 712                                                                      |
-| Purpose            | Generate swap/coverage/fairness/fatigue recommendations                  |
-| Backend Equivalent | `RecommendationsService` (partial, DB-focused)                           |
-| Classification     | **B (Application Logic)** — PARTIAL DUPLICATE                            |
-| Duplicate?         | **PARTIAL** — backend has DB persistence, frontend has richer generation |
+| Field | Value |
+|---|---|
+| File | `core/scheduling/recommendation-engine.service.ts` |
+| Lines | 712 |
+| Purpose | Generate swap/coverage/fairness/fatigue recommendations |
+| Backend Equivalent | `RecommendationsService` (partial, DB-focused) |
+| Classification | **B (Application Logic)** — PARTIAL DUPLICATE |
+| Duplicate? | **PARTIAL** — backend has DB persistence, frontend has richer generation |
 
 **Recommendation Types:** swap, coverage, fairness, fatigue
 **Data Structures:** Recommendation, SwapRecommendation, CoverageRecommendation, RecommendationImpact
@@ -192,40 +186,40 @@ Formula: `max(0, 1 - stdDev / (mean + 1))` — identical implementation.
 
 ### 9. SchedulingEngineService (ORCHESTRATOR)
 
-| Field              | Value                                                  |
-| ------------------ | ------------------------------------------------------ |
-| File               | `core/scheduling/scheduling-engine.service.ts`         |
-| Lines              | 186                                                    |
-| Purpose            | Orchestrate scheduling operations                      |
-| Backend Equivalent | Controller layer (NestJS)                              |
-| Classification     | **B (Application Logic)** — Frontend-only orchestrator |
-| Duplicate?         | **NO** — frontend-specific Angular service             |
+| Field | Value |
+|---|---|
+| File | `core/scheduling/scheduling-engine.service.ts` |
+| Lines | 186 |
+| Purpose | Orchestrate scheduling operations |
+| Backend Equivalent | Controller layer (NestJS) |
+| Classification | **B (Application Logic)** — Frontend-only orchestrator |
+| Duplicate? | **NO** — frontend-specific Angular service |
 
 ---
 
 ### 10. ScheduleGeneratorService
 
-| Field              | Value                                                               |
-| ------------------ | ------------------------------------------------------------------- |
-| File               | `core/scheduling/schedule-generator.service.ts`                     |
-| Lines              | 194                                                                 |
-| Purpose            | Greedy schedule generation                                          |
-| Backend Equivalent | `ScheduleAutoGeneratorService`                                      |
-| Classification     | **B (Application Logic)** — PARTIAL DUPLICATE                       |
-| Duplicate?         | **PARTIAL** — both generate greedily, different algorithms          |
-| **STUB**           | `validateSchedule()` always returns `{ isValid: true, score: 100 }` |
+| Field | Value |
+|---|---|
+| File | `core/scheduling/schedule-generator.service.ts` |
+| Lines | 194 |
+| Purpose | Greedy schedule generation |
+| Backend Equivalent | `ScheduleAutoGeneratorService` |
+| Classification | **B (Application Logic)** — PARTIAL DUPLICATE |
+| Duplicate? | **PARTIAL** — both generate greedily, different algorithms |
+| **STUB** | `validateSchedule()` always returns `{ isValid: true, score: 100 }` |
 
 ---
 
 ### 11. SolverValidationService (TEST HARNESS)
 
-| Field              | Value                                            |
-| ------------------ | ------------------------------------------------ |
-| File               | `core/scheduling/solver-validation.service.ts`   |
-| Lines              | 907                                              |
-| Purpose            | Test scenarios and solver performance validation |
-| Backend Equivalent | **NONE**                                         |
-| Classification     | **Test Infrastructure**                          |
+| Field | Value |
+|---|---|
+| File | `core/scheduling/solver-validation.service.ts` |
+| Lines | 907 |
+| Purpose | Test scenarios and solver performance validation |
+| Backend Equivalent | **NONE** |
+| Classification | **Test Infrastructure** |
 
 **Test Scenarios:** normal-week, staff-shortage, bayram-week, device-failure, sick-leaves, high-demand
 
@@ -233,27 +227,27 @@ Formula: `max(0, 1 - stdDev / (mean + 1))` — identical implementation.
 
 ### 12. scheduling.models.ts (TYPES)
 
-| Field              | Value                                     |
-| ------------------ | ----------------------------------------- |
-| File               | `core/scheduling/scheduling.models.ts`    |
-| Lines              | 158                                       |
-| Purpose            | Type definitions for scheduling domain    |
-| Backend Equivalent | Domain entities + value objects           |
-| Classification     | **DTO Types** — mirrors of backend domain |
+| Field | Value |
+|---|---|
+| File | `core/scheduling/scheduling.models.ts` |
+| Lines | 158 |
+| Purpose | Type definitions for scheduling domain |
+| Backend Equivalent | Domain entities + value objects |
+| Classification | **DTO Types** — mirrors of backend domain |
 
 ---
 
 ## Classification Summary
 
-| Category                            | Services                                                     | Action                       |
-| ----------------------------------- | ------------------------------------------------------------ | ---------------------------- |
-| **A — Pure Domain** (duplicates)    | ConstraintValidator, ConflictDetector, FairnessBalancer      | Delete when backend enriched |
-| **A — Pure Domain** (unique)        | FatigueEngine                                                | Migrate to backend           |
-| **B — Application** (unique)        | ConstraintSolver (GA), RebalanceEngine, RecommendationEngine | Migrate to backend           |
-| **B — Application** (partial)       | ComprehensiveConstraintValidator, ScheduleGenerator          | Merge into backend           |
-| **B — Application** (orchestration) | SchedulingEngine                                             | Frontend-only, keep          |
-| **Test Infrastructure**             | SolverValidation                                             | Move to backend tests        |
-| **DTO Types**                       | scheduling.models                                            | Align with backend DTOs      |
+| Category | Services | Action |
+|---|---|---|
+| **A — Pure Domain** (duplicates) | ConstraintValidator, ConflictDetector, FairnessBalancer | Delete when backend enriched |
+| **A — Pure Domain** (unique) | FatigueEngine | Migrate to backend |
+| **B — Application** (unique) | ConstraintSolver (GA), RebalanceEngine, RecommendationEngine | Migrate to backend |
+| **B — Application** (partial) | ComprehensiveConstraintValidator, ScheduleGenerator | Merge into backend |
+| **B — Application** (orchestration) | SchedulingEngine | Frontend-only, keep |
+| **Test Infrastructure** | SolverValidation | Move to backend tests |
+| **DTO Types** | scheduling.models | Align with backend DTOs |
 
 ---
 
@@ -266,4 +260,4 @@ Formula: `max(0, 1 - stdDev / (mean + 1))` — identical implementation.
 
 ---
 
-_Audit completed: 2026-08-25_
+*Audit completed: 2026-08-25*

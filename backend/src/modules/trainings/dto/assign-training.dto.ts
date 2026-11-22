@@ -21,10 +21,7 @@ export class AssignTrainingDto {
   @IsOptional()
   documentUrl?: string;
 
-  @ApiPropertyOptional({
-    description: 'Status',
-    enum: ['valid', 'expiring', 'expired'],
-  })
+  @ApiPropertyOptional({ description: 'Status', enum: ['valid', 'expiring', 'expired'] })
   @IsString()
   @IsOptional()
   @IsIn(['valid', 'expiring', 'expired'])

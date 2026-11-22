@@ -1,11 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsArray,
-  IsObject,
-  IsUUID,
-} from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray, IsObject, IsUUID } from 'class-validator';
 
 export class CreateNotificationDto {
   @IsUUID()

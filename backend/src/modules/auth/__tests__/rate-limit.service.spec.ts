@@ -296,7 +296,7 @@ describe('RefreshTokenService', () => {
     });
 
     it('should detect replay on second use with same jti', async () => {
-      await refreshTokenService.markUsed({
+      await refreshTokenService.recordRotation({
         jti: 'test-jti-1',
         userId: 'user-1',
         sessionId: 'session-1',
@@ -320,7 +320,7 @@ describe('RefreshTokenService', () => {
     });
 
     it('should not confuse different jtis', async () => {
-      await refreshTokenService.markUsed({
+      await refreshTokenService.recordRotation({
         jti: 'test-jti-1',
         userId: 'user-1',
         sessionId: 'session-1',

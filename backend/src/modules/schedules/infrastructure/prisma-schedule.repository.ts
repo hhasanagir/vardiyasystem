@@ -1,23 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma.service';
-import {
-  Schedule,
-  ScheduleStatus,
-  ScheduleProps,
-  ApprovalData,
-} from '../domain/aggregates/schedule.aggregate';
+import { Schedule, ScheduleStatus, ScheduleProps, ApprovalData } from '../domain/aggregates/schedule.aggregate';
 import { AssignmentCollection } from '../domain/entities/assignment-collection';
-import {
-  Assignment,
-  AssignmentSource,
-} from '../domain/entities/assignment.entity';
+import { Assignment, AssignmentSource } from '../domain/entities/assignment.entity';
 import {
   ScheduleRepositoryPort,
   ScheduleFilter,
+  ScheduleSaveOptions,
   VersionSnapshotRecord,
 } from '../domain/repositories/schedule-repository.port';
 import { Prisma, ScheduleStatus as PrismaScheduleStatus } from '@prisma/client';
 import { StaleVersionError } from '../domain/errors/schedule-errors';
+import { tenantContext } from '../../../infrastructure/prisma/middleware/tenant.middleware';
+import { normalizeExpectedVersion } from '../version-precondition';
 
 function sourceToDomain(prismaSource: string): AssignmentSource {
   const map: Record<string, AssignmentSource> = {
@@ -33,12 +28,12 @@ function sourceToDomain(prismaSource: string): AssignmentSource {
 
 function sourceToPrisma(domainSource: AssignmentSource): string {
   const map: Record<string, string> = {
-    manual: 'manual',
+    'manual': 'manual',
     'auto-generated': 'auto_generated',
-    override: 'override',
-    swap: 'swap',
-    template: 'template',
-    import: 'import',
+    'override': 'override',
+    'swap': 'swap',
+    'template': 'template',
+    'import': 'import',
   };
   return map[domainSource] || 'manual';
 }
@@ -59,11 +54,7 @@ export class PrismaScheduleRepository implements ScheduleRepositoryPort {
     return this.toDomain(record);
   }
 
-  async findByUnitMonthYear(
-    unitId: string,
-    month: number,
-    year: number,
-  ): Promise<Schedule | null> {
+  async findByUnitMonthYear(unitId: string, month: number, year: number): Promise<Schedule | null> {
     const record = await this.prisma.schedule.findUnique({
       where: { unitId_month_year: { unitId, month, year } },
       include: {
@@ -91,7 +82,7 @@ export class PrismaScheduleRepository implements ScheduleRepositoryPort {
       skip: filter.skip,
     });
 
-    return records.map((r) => this.toDomain(r));
+    return records.map(r => this.toDomain(r));
   }
 
   async findPendingApprovals(): Promise<Schedule[]> {
@@ -100,56 +91,130 @@ export class PrismaScheduleRepository implements ScheduleRepositoryPort {
       include: { assignments: true, approval: true },
       orderBy: { createdAt: 'desc' },
     });
-    return records.map((r) => this.toDomain(r));
+    return records.map(r => this.toDomain(r));
   }
 
-  async save(schedule: Schedule, expectedVersion?: number): Promise<void> {
+  async save(
+    schedule: Schedule,
+    expectedVersion?: number,
+    options?: ScheduleSaveOptions,
+  ): Promise<void> {
     const data = schedule;
     const approvalData = data.approvalData;
 
-    if (expectedVersion !== undefined) {
-      const current = await this.prisma.schedule.findUnique({
-        where: { id: data.id },
-        select: { version: true },
-      });
-      if (!current) {
-        throw new Error(`Schedule ${data.id} not found`);
+    // The tenant middleware injects `organizationId` for `create` only — not for
+    // `upsert` — and the Schedule aggregate does not carry the tenant. Without
+    // this, rows were written with a NULL organizationId and every tenant-scoped
+    // read (the middleware filters on organizationId) hid them as "not found".
+    // The owning organization is derived from the unit — server-side data, never
+    // client input — and is resolved lazily so pure status transitions do not pay
+    // for the extra lookup.
+    const tenantOrganizationId = tenantContext.getStore()?.organizationId;
+    let organizationId: string | null | undefined;
+    const resolveOrganizationId = async (): Promise<string | undefined> => {
+      if (organizationId === undefined) {
+        organizationId = (await this.resolveUnitOrganizationId(data.unitId)) ?? tenantOrganizationId;
       }
-      if (current.version !== expectedVersion) {
-        throw new StaleVersionError(data.id, expectedVersion, current.version);
-      }
-    }
+      return organizationId ?? undefined;
+    };
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.schedule.upsert({
-        where: { id: data.id },
-        create: {
-          id: data.id,
-          unitId: data.unitId,
-          month: data.month,
-          year: data.year,
-          status: data.status as PrismaScheduleStatus,
-          version: data.scheduleVersion,
-          createdById: data.createdById,
-          publishedAt: data.publishedAt,
-        },
-        update: {
-          status: data.status as PrismaScheduleStatus,
-          version: data.scheduleVersion,
-          publishedAt: data.publishedAt,
-          updatedAt: new Date(),
-        },
-      });
+      const precondition = normalizeExpectedVersion(expectedVersion);
+      if (precondition !== undefined) {
+        // PHASE 5C.25 P1-A6 — atomic compare-and-swap: the version predicate and
+        // the row write happen in a single statement (no read-then-write window).
+        const result = await tx.schedule.updateMany({
+          where: { id: data.id, version: precondition },
+          data: {
+            status: data.status as PrismaScheduleStatus,
+            version: data.scheduleVersion,
+            publishedAt: data.publishedAt,
+            updatedAt: new Date(),
+          },
+        });
+        if (result.count === 0) {
+          const current = await tx.schedule.findUnique({
+            where: { id: data.id },
+            select: { version: true },
+          });
+          if (!current) {
+            throw new Error(`Schedule ${data.id} not found`);
+          }
+          throw new StaleVersionError(data.id, precondition, current.version);
+        }
+      } else {
+        await tx.schedule.upsert({
+          where: tenantOrganizationId
+            ? { id: data.id, organizationId: tenantOrganizationId }
+            : { id: data.id },
+          create: {
+            id: data.id,
+            unitId: data.unitId,
+            organizationId: await resolveOrganizationId(),
+            month: data.month,
+            year: data.year,
+            status: data.status as PrismaScheduleStatus,
+            version: data.scheduleVersion,
+            createdById: data.createdById,
+            publishedAt: data.publishedAt,
+          },
+          update: {
+            status: data.status as PrismaScheduleStatus,
+            version: data.scheduleVersion,
+            publishedAt: data.publishedAt,
+            updatedAt: new Date(),
+          },
+        });
+      }
 
-      const existingIds = (
-        await tx.assignment.findMany({
-          where: { scheduleId: data.id },
+      // P2-08 — a rollback restores assignments in-place. SwapRequests that
+      // pointed at the replaced rows must be cancelled in the same transaction,
+      // otherwise they survive as dangling references.
+      if (options?.cancelSwapRequestsReason) {
+        const affectedSwapIds = (await tx.swapRequest.findMany({
+          where: {
+            OR: [
+              { fromAssignment: { scheduleId: data.id } },
+              { toAssignment: { scheduleId: data.id } },
+            ],
+          },
           select: { id: true },
-        })
-      ).map((a) => a.id);
+        })).map(s => s.id);
 
-      const currentIds = data.assignments.all.map((a) => a.id);
-      const toDelete = existingIds.filter((id) => !currentIds.includes(id));
+        if (affectedSwapIds.length > 0) {
+          await tx.swapRequest.updateMany({
+            where: { id: { in: affectedSwapIds } },
+            data: {
+              status: 'CANCELLED',
+              reason: options.cancelSwapRequestsReason,
+            },
+          });
+        }
+      }
+
+      // P2-07 — DDD publish writes the restorable version snapshot atomically
+      // with the status change. `upsert` keeps repeated publishes idempotent
+      // under the (scheduleId, version) uniqueness guard.
+      if (options?.snapshot) {
+        await tx.scheduleSnapshot.upsert({
+          where: { scheduleId_version: { scheduleId: data.id, version: data.scheduleVersion } },
+          create: {
+            scheduleId: data.id,
+            version: data.scheduleVersion,
+            data: { assignments: data.assignments.all.map(a => a.toSnapshot()) },
+            createdById: options.snapshot.userId,
+          },
+          update: {},
+        });
+      }
+
+      const existingIds = (await tx.assignment.findMany({
+        where: { scheduleId: data.id },
+        select: { id: true },
+      })).map(a => a.id);
+
+      const currentIds = data.assignments.all.map(a => a.id);
+      const toDelete = existingIds.filter(id => !currentIds.includes(id));
 
       if (toDelete.length > 0) {
         await tx.assignment.deleteMany({
@@ -164,6 +229,7 @@ export class PrismaScheduleRepository implements ScheduleRepositoryPort {
           create: {
             id: assignment.id,
             scheduleId: data.id,
+            organizationId: await resolveOrganizationId(),
             personnelId: snapshot.personnelId,
             deviceId: snapshot.deviceId,
             unitId: snapshot.unitId,
@@ -246,6 +312,11 @@ export class PrismaScheduleRepository implements ScheduleRepositoryPort {
     await this.prisma.schedule.delete({ where: { id } });
   }
 
+  private async resolveUnitOrganizationId(unitId: string): Promise<string | null> {
+    const unit = await this.prisma.unit.findUnique({ where: { id: unitId }, select: { organizationId: true } });
+    return unit?.organizationId ?? null;
+  }
+
   async count(filter?: ScheduleFilter): Promise<number> {
     const where: Record<string, unknown> = {};
     if (filter?.unitId) where.unitId = filter.unitId;
@@ -255,10 +326,7 @@ export class PrismaScheduleRepository implements ScheduleRepositoryPort {
     return this.prisma.schedule.count({ where });
   }
 
-  async getVersionSnapshot(
-    scheduleId: string,
-    version: number,
-  ): Promise<VersionSnapshotRecord | null> {
+  async getVersionSnapshot(scheduleId: string, version: number): Promise<VersionSnapshotRecord | null> {
     const snapshot = await this.prisma.scheduleSnapshot.findFirst({
       where: { scheduleId, version },
     });
@@ -318,7 +386,7 @@ export class PrismaScheduleRepository implements ScheduleRepositoryPort {
       archivedAt: Date | null;
     } | null;
   }): Schedule {
-    const domainAssignments = record.assignments.map((a) =>
+    const domainAssignments = record.assignments.map(a =>
       Assignment.create({
         id: a.id,
         scheduleId: a.scheduleId,

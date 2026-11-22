@@ -20,8 +20,8 @@ export class SupervisorService {
 
     const params = date ? { date } : undefined;
     return this.api.get<SupervisorDashboard>('/supervisor/dashboard', { params }).pipe(
-      tap((d) => this._data.set(d)),
-      catchError((err) => {
+      tap(d => this._data.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Dashboard yüklenemedi');
         return throwError(() => err);
       }),

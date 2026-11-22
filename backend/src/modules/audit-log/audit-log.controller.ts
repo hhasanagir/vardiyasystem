@@ -1,26 +1,14 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Param,
-  Query,
-  Body,
-  UseGuards,
-  Request,
-  Res,
-  BadRequestException,
+  Controller, Get, Post, Param, Query, Body, UseGuards,
+  Request, Res, BadRequestException, ForbiddenException,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { Response } from 'express';
 import { AuditLogService, AuditLogEntry } from './audit-log.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuditAccessGuard } from './audit.guard';
 import { AuditQueryDto, AuditExportQueryDto } from './audit.dto';
+import { UnitScopeService } from '../rbac/services/unit-scope.service';
 
 interface RequestWithUser {
   user: {
@@ -39,7 +27,24 @@ interface RequestWithUser {
 @UseGuards(JwtAuthGuard, AuditAccessGuard)
 @Controller('audit')
 export class AuditLogController {
-  constructor(private auditLogService: AuditLogService) {}
+  constructor(
+    private auditLogService: AuditLogService,
+    private unitScopeService?: UnitScopeService,
+  ) {}
+
+  private async resolveOrgOrDeny(req: RequestWithUser): Promise<string> {
+    if (!this.unitScopeService) {
+      throw new ForbiddenException('Erişim yetkisi çözümlenemedi');
+    }
+    const scope = await this.unitScopeService.resolveReadScope(req.user as any);
+    // Audit is a supervisor+/organization-level function. A unit-scoped actor
+    // (FIELD_SUPERVISOR / saha sorumlusu) or a null-scope actor is denied;
+    // everyone else is confined to their own organization (backend-authoritative).
+    if (scope.denyAll || scope.unitId) {
+      throw new ForbiddenException('Bu kapsamdaki denetim kayıtlarına erişim yetkiniz yok');
+    }
+    return scope.organizationId ?? '';
+  }
 
   @Get()
   @ApiOperation({ summary: 'List audit logs with filtering and pagination' })
@@ -56,15 +61,15 @@ export class AuditLogController {
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'limit', required: false })
   @ApiQuery({ name: 'offset', required: false })
-  findAll(@Query() query: AuditQueryDto) {
+  async findAll(@Query() query: AuditQueryDto, @Request() req: RequestWithUser) {
+    const org = await this.resolveOrgOrDeny(req);
     return this.auditLogService.findAll({
       userId: query.userId,
       actionType: query.actionType,
       entityType: query.entityType,
       entityId: query.entityId,
-      organizationId: query.organizationId,
+      organizationId: org || undefined,
       hospitalId: query.hospitalId,
-      unitId: query.unitId,
       startDate: query.startDate,
       endDate: query.endDate,
       search: query.search,
@@ -74,12 +79,47 @@ export class AuditLogController {
     });
   }
 
+  @Get('statistics')
+  @ApiOperation({ summary: 'Get audit statistics for date range' })
+  @ApiQuery({ name: 'startDate', required: true })
+  @ApiQuery({ name: 'endDate', required: true })
+  async getStatistics(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Request() req: RequestWithUser,
+  ) {
+    if (!startDate || !endDate) {
+      throw new BadRequestException('startDate and endDate are required');
+    }
+    const org = await this.resolveOrgOrDeny(req);
+    return this.auditLogService.getStatistics(startDate, endDate, org || undefined);
+  }
+
+  @Get('flagged')
+  @ApiOperation({ summary: 'Get all flagged audit log entries' })
+  async getFlagged(@Request() req: RequestWithUser) {
+    const org = await this.resolveOrgOrDeny(req);
+    return this.auditLogService.getFlaggedLogs(org || undefined);
+  }
+
+  @Get('suspicious')
+  @ApiOperation({ summary: 'Detect suspicious activity' })
+  @ApiQuery({ name: 'userId', required: false })
+  async detectSuspicious(@Query('userId') userId?: string, @Request() req?: RequestWithUser) {
+    const org = req ? await this.resolveOrgOrDeny(req) : '';
+    return this.auditLogService.detectSuspiciousActivity(userId, org || undefined);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a single audit log entry by ID' })
-  async findById(@Param('id') id: string) {
+  async findById(@Param('id') id: string, @Request() req: RequestWithUser) {
+    const org = await this.resolveOrgOrDeny(req);
     const log = await this.auditLogService.findById(id);
     if (!log) {
       throw new BadRequestException('Audit log not found');
+    }
+    if (org && log.organizationId !== org) {
+      throw new ForbiddenException('Bu denetim kaydına erişim yetkiniz yok');
     }
     return log;
   }
@@ -90,49 +130,25 @@ export class AuditLogController {
   @ApiQuery({ name: 'offset', required: false })
   @ApiQuery({ name: 'startDate', required: false })
   @ApiQuery({ name: 'endDate', required: false })
-  findByUser(@Param('userId') userId: string, @Query() query: AuditQueryDto) {
+  async findByUser(@Param('userId') userId: string, @Query() query: AuditQueryDto, @Request() req: RequestWithUser) {
+    const org = await this.resolveOrgOrDeny(req);
     return this.auditLogService.findByUser(userId, {
       limit: query.limit,
       offset: query.offset,
       startDate: query.startDate,
       endDate: query.endDate,
-    });
+    }, org || undefined);
   }
 
   @Get('entity/:entityType/:entityId')
   @ApiOperation({ summary: 'Get audit logs for a specific entity' })
-  findByEntity(
+  async findByEntity(
     @Param('entityType') entityType: string,
     @Param('entityId') entityId: string,
+    @Request() req: RequestWithUser,
   ) {
-    return this.auditLogService.findByEntity(entityType, entityId);
-  }
-
-  @Get('statistics')
-  @ApiOperation({ summary: 'Get audit statistics for date range' })
-  @ApiQuery({ name: 'startDate', required: true })
-  @ApiQuery({ name: 'endDate', required: true })
-  getStatistics(
-    @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string,
-  ) {
-    if (!startDate || !endDate) {
-      throw new BadRequestException('startDate and endDate are required');
-    }
-    return this.auditLogService.getStatistics(startDate, endDate);
-  }
-
-  @Get('flagged')
-  @ApiOperation({ summary: 'Get all flagged audit log entries' })
-  getFlagged() {
-    return this.auditLogService.getFlaggedLogs();
-  }
-
-  @Get('suspicious')
-  @ApiOperation({ summary: 'Detect suspicious activity' })
-  @ApiQuery({ name: 'userId', required: false })
-  detectSuspicious(@Query('userId') userId?: string) {
-    return this.auditLogService.detectSuspiciousActivity(userId);
+    const org = await this.resolveOrgOrDeny(req);
+    return this.auditLogService.findByEntity(entityType, entityId, org || undefined);
   }
 
   @Post(':id/flag')
@@ -156,15 +172,19 @@ export class AuditLogController {
 
   @Get('export/csv')
   @ApiOperation({ summary: 'Export audit logs as CSV' })
-  async exportCsv(@Res() res: Response, @Query() query: AuditExportQueryDto) {
+  async exportCsv(
+    @Res() res: Response,
+    @Query() query: AuditExportQueryDto,
+    @Request() req: RequestWithUser,
+  ) {
+    const org = await this.resolveOrgOrDeny(req);
     const logs = await this.auditLogService.findAll({
       userId: query.userId,
       actionType: query.actionType,
       entityType: query.entityType,
       entityId: query.entityId,
-      organizationId: query.organizationId,
+      organizationId: org || undefined,
       hospitalId: query.hospitalId,
-      unitId: query.unitId,
       startDate: query.startDate,
       endDate: query.endDate,
       status: query.status,
@@ -174,10 +194,7 @@ export class AuditLogController {
     const csv = this.generateCsv(logs.data);
     const bom = '\uFEFF';
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename=audit-log-export-${Date.now()}.csv`,
-    );
+    res.setHeader('Content-Disposition', `attachment; filename=audit-log-export-${Date.now()}.csv`);
     res.send(bom + csv);
   }
 
@@ -190,47 +207,35 @@ export class AuditLogController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query() query: AuditExportQueryDto,
+    @Request() req: RequestWithUser,
   ) {
     if (!startDate || !endDate) {
       throw new BadRequestException('startDate and endDate are required');
     }
+    const org = await this.resolveOrgOrDeny(req);
     const logs = await this.auditLogService.findAll({
       ...query,
       startDate,
       endDate,
+      organizationId: org || undefined,
+      unitId: undefined,
       limit: 500,
     });
 
-    const html = this.generateAuditReportHtml(logs.data, {
-      startDate,
-      endDate,
-    });
+    const html = this.generateAuditReportHtml(logs.data, { startDate, endDate });
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename=audit-report-${startDate}-${endDate}.html`,
-    );
+    res.setHeader('Content-Disposition', `attachment; filename=audit-report-${startDate}-${endDate}.html`);
     res.send(Buffer.from(html));
   }
 
   private generateCsv(entries: AuditLogEntry[]): string {
     const headers = [
-      'Tarih/Saat',
-      'Kullanıcı',
-      'Rol',
-      'İşlem',
-      'Varlık Türü',
-      'Varlık ID',
-      'IP Adresi',
-      'Durum',
-      'Açıklama',
-      'Bayrak',
+      'Tarih/Saat', 'Kullanıcı', 'Rol', 'İşlem', 'Varlık Türü',
+      'Varlık ID', 'IP Adresi', 'Durum', 'Açıklama', 'Bayrak',
     ];
 
-    const rows = entries.map((e) => [
-      e.timestamp instanceof Date
-        ? e.timestamp.toLocaleString('tr-TR')
-        : e.timestamp,
+    const rows = entries.map(e => [
+      e.timestamp instanceof Date ? e.timestamp.toLocaleString('tr-TR') : e.timestamp,
       e.userName,
       e.userRole,
       e.actionLabel,
@@ -244,18 +249,13 @@ export class AuditLogController {
 
     return [
       headers.join(','),
-      ...rows.map((r) =>
-        r.map((v) => `"${(v || '').toString().replace(/"/g, '""')}"`).join(','),
-      ),
+      ...rows.map(r => r.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',')),
     ].join('\n');
   }
 
-  private generateAuditReportHtml(
-    entries: AuditLogEntry[],
-    options: { startDate: string; endDate: string },
-  ): string {
+  private generateAuditReportHtml(entries: AuditLogEntry[], options: { startDate: string; endDate: string }): string {
     const totalLogs = entries.length;
-    const flaggedLogs = entries.filter((e) => e.isFlagged).length;
+    const flaggedLogs = entries.filter(e => e.isFlagged).length;
 
     return `
 <!DOCTYPE html>
@@ -294,16 +294,14 @@ export class AuditLogController {
   <div class="stats">
     <div class="stat-box"><div class="stat-value">${totalLogs}</div><div class="stat-label">TOPLAM İŞLEM</div></div>
     <div class="stat-box"><div class="stat-value">${flaggedLogs}</div><div class="stat-label">İŞARETLENEN</div></div>
-    <div class="stat-box"><div class="stat-value">${new Set(entries.map((e) => e.userId)).size}</div><div class="stat-label">AKTİF KULLANICI</div></div>
+    <div class="stat-box"><div class="stat-value">${new Set(entries.map(e => e.userId)).size}</div><div class="stat-label">AKTİF KULLANICI</div></div>
   </div>
   <table>
     <thead>
       <tr><th>Tarih/Saat</th><th>Kullanıcı</th><th>Rol</th><th>İşlem</th><th>Varlık</th><th>IP</th><th>Durum</th></tr>
     </thead>
     <tbody>
-      ${entries
-        .map(
-          (e) => `
+      ${entries.map(e => `
         <tr>
           <td>${e.timestamp instanceof Date ? e.timestamp.toLocaleString('tr-TR') : e.timestamp}</td>
           <td>${e.userName}</td>
@@ -313,9 +311,7 @@ export class AuditLogController {
           <td>${e.ipAddress || '-'}</td>
           <td>${e.isFlagged ? '<span class="flag">İşaretli</span>' : e.status}</td>
         </tr>
-      `,
-        )
-        .join('')}
+      `).join('')}
     </tbody>
   </table>
   <div class="footer">

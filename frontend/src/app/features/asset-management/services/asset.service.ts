@@ -47,8 +47,8 @@ export class AssetService {
     if (filters?.search) params.set('search', filters.search);
     const qs = params.toString();
     return this.api.get<EnterpriseAsset[]>(`/assets${qs ? '?' + qs : ''}`).pipe(
-      tap((d) => this._assets.set(d)),
-      catchError((err) => {
+      tap(d => this._assets.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Varlıklar yüklenemedi');
         return throwError(() => err);
       }),
@@ -60,8 +60,8 @@ export class AssetService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<AssetDashboard>('/assets/dashboard').pipe(
-      tap((d) => this._dashboard.set(d)),
-      catchError((err) => {
+      tap(d => this._dashboard.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Dashboard yüklenemedi');
         return throwError(() => err);
       }),
@@ -73,7 +73,7 @@ export class AssetService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<EnterpriseAsset>(`/assets/${id}`).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Varlık yüklenemedi');
         return throwError(() => err);
       }),
@@ -85,8 +85,8 @@ export class AssetService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<AssetDetail>(`/assets/${id}/detail`).pipe(
-      tap((d) => this._selectedAsset.set(d)),
-      catchError((err) => {
+      tap(d => this._selectedAsset.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Varlık detayı yüklenemedi');
         return throwError(() => err);
       }),
@@ -98,8 +98,8 @@ export class AssetService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<QRCodeResult>(`/assets/${id}/qr`).pipe(
-      tap((d) => this._qrResult.set(d)),
-      catchError((err) => {
+      tap(d => this._qrResult.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'QR kod oluşturulamadı');
         return throwError(() => err);
       }),
@@ -111,8 +111,8 @@ export class AssetService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<WarrantyStatus>('/assets/warranty-status').pipe(
-      tap((d) => this._warranty.set(d)),
-      catchError((err) => {
+      tap(d => this._warranty.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Garanti durumu yüklenemedi');
         return throwError(() => err);
       }),
@@ -132,7 +132,7 @@ export class AssetService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.post<EnterpriseAsset>('/assets', data).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Varlık oluşturulamadı');
         return throwError(() => err);
       }),
@@ -144,7 +144,7 @@ export class AssetService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.put<EnterpriseAsset>(`/assets/${id}`, data).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Varlık güncellenemedi');
         return throwError(() => err);
       }),
@@ -156,7 +156,7 @@ export class AssetService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.delete<void>(`/assets/${id}`).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Varlık silinemedi');
         return throwError(() => err);
       }),

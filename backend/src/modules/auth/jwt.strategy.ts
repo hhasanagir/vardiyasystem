@@ -22,9 +22,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey:
-        configService.get<string>('JWT_ACCESS_TOKEN_SECRET') ||
-        configService.get<string>('JWT_SECRET'),
+      secretOrKey: configService.get<string>('JWT_ACCESS_TOKEN_SECRET')
+        || configService.get<string>('JWT_SECRET'),
       algorithms: ['HS256'],
     });
 
@@ -33,26 +32,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: {
-    sub: string;
-    jti?: string;
-    email?: string;
-    role?: string;
-  }) {
-    if (
-      payload.jti &&
-      (await this.tokenBlacklistService.isBlacklisted(payload.jti))
-    ) {
+  async validate(payload: { sub: string; jti?: string; email?: string; role?: string }) {
+    if (payload.jti && await this.tokenBlacklistService.isBlacklisted(payload.jti)) {
       throw new UnauthorizedException('Token revoked');
     }
 
     const cached = userCache.get(payload.sub);
     if (cached && cached.expiresAt > Date.now()) {
-      return {
-        ...cached.user,
-        jti: payload.jti,
-        permissions: cached.user.permissions,
-      };
+      return { ...cached.user, jti: payload.jti, permissions: cached.user.permissions };
     }
 
     const user = await this.authService.validateUser(payload.sub);
@@ -66,10 +53,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       const oldestKey = userCache.keys().next().value;
       if (oldestKey) userCache.delete(oldestKey);
     }
-    userCache.set(payload.sub, {
-      user: enrichedUser,
-      expiresAt: Date.now() + CACHE_TTL_MS,
-    });
+    userCache.set(payload.sub, { user: enrichedUser, expiresAt: Date.now() + CACHE_TTL_MS });
     return { ...enrichedUser, jti: payload.jti };
   }
 }

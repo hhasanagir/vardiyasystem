@@ -26,10 +26,7 @@ export class DistributedLockService {
       }
       return { acquired: false, lockId: '' };
     } catch (err) {
-      this.logger.error(
-        `Lock acquire failed for ${resource}`,
-        (err as Error).message,
-      );
+      this.logger.error(`Lock acquire failed for ${resource}`, (err as Error).message);
       return { acquired: false, lockId: '' };
     }
   }
@@ -46,18 +43,10 @@ export class DistributedLockService {
     `;
 
     try {
-      const result = (await this.redis.eval(
-        luaScript,
-        1,
-        key,
-        lockId,
-      )) as number;
+      const result = await this.redis.eval(luaScript, 1, key, lockId) as number;
       return result === 1;
     } catch (err) {
-      this.logger.error(
-        `Lock release failed for ${resource}`,
-        (err as Error).message,
-      );
+      this.logger.error(`Lock release failed for ${resource}`, (err as Error).message);
       return false;
     }
   }
@@ -69,9 +58,7 @@ export class DistributedLockService {
   ): Promise<T> {
     const { acquired, lockId } = await this.acquire(resource, ttlMs);
     if (!acquired) {
-      throw new Error(
-        `Could not acquire lock for ${resource} — operation already in progress`,
-      );
+      throw new Error(`Could not acquire lock for ${resource} — operation already in progress`);
     }
 
     try {

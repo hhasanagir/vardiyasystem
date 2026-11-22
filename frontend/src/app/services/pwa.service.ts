@@ -16,8 +16,7 @@ export class PwaService {
 
   private deferredPrompt: any = null;
 
-  private readonly VAPID_PUBLIC_KEY =
-    'BJmBEUlEpzbxsHEWjAAFuI-iKEJ171-JUZYmtVYBc-V84pBMyvqLDGtCeW__3I3OjaKYQ7TLpqOTQKuzCHLKNOc';
+  private readonly VAPID_PUBLIC_KEY = 'BJmBEUlEpzbxsHEWjAAFuI-iKEJ171-JUZYmtVYBc-V84pBMyvqLDGtCeW__3I3OjaKYQ7TLpqOTQKuzCHLKNOc';
 
   constructor() {
     this.listenForInstallPrompt();
@@ -54,10 +53,7 @@ export class PwaService {
   }
 
   private checkStandalone() {
-    if (
-      (window.navigator as any).standalone === true ||
-      window.matchMedia('(display-mode: standalone)').matches
-    ) {
+    if ((window.navigator as any).standalone === true || window.matchMedia('(display-mode: standalone)').matches) {
       this.isInstalled.set(true);
       this.isInstallable.set(false);
     }
@@ -81,7 +77,7 @@ export class PwaService {
     if (!('Notification' in window)) return Promise.resolve(false);
     if (Notification.permission === 'granted') return Promise.resolve(true);
     if (Notification.permission === 'denied') return Promise.resolve(false);
-    return Notification.requestPermission().then((p) => p === 'granted');
+    return Notification.requestPermission().then(p => p === 'granted');
   }
 
   private subscribeToPush() {
@@ -95,16 +91,12 @@ export class PwaService {
 
   subscribeToNotifications(): Promise<boolean> {
     if (!this.swPush.isEnabled) return Promise.resolve(false);
-    return this.requestNotificationPermission().then((granted) => {
+    return this.requestNotificationPermission().then(granted => {
       if (!granted) return false;
-      return this.swPush
-        .requestSubscription({ serverPublicKey: this.VAPID_PUBLIC_KEY })
-        .then((sub) => {
+      return this.swPush.requestSubscription({ serverPublicKey: this.VAPID_PUBLIC_KEY })
+        .then(sub => {
           this.subscription.set(sub);
-          return this.http
-            .post('/api/v1/push-subscriptions', sub)
-            .toPromise()
-            .then(() => true);
+          return this.http.post('/api/v1/push-subscriptions', sub).toPromise().then(() => true);
         })
         .catch(() => false);
     });
@@ -112,26 +104,16 @@ export class PwaService {
 
   unsubscribeFromNotifications(): Promise<boolean> {
     if (!this.swPush.isEnabled) return Promise.resolve(false);
-    return this.swPush
-      .unsubscribe()
-      .then(() => {
-        this.subscription.set(null);
-        return true;
-      })
-      .catch(() => false);
+    return this.swPush.unsubscribe().then(() => {
+      this.subscription.set(null);
+      return true;
+    }).catch(() => false);
   }
 
   sendNotification(title: string, options?: NotificationOptions) {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     if (document.visibilityState === 'visible') return;
-    const n = new Notification(title, {
-      icon: '/icons/icon-192.svg',
-      badge: '/icons/icon-72.svg',
-      ...options,
-    });
-    n.onclick = () => {
-      n.close();
-      window.focus();
-    };
+    const n = new Notification(title, { icon: '/icons/icon-192.svg', badge: '/icons/icon-72.svg', ...options });
+    n.onclick = () => { n.close(); window.focus(); };
   }
 }

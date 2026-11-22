@@ -1,14 +1,12 @@
 import { ConstraintScore } from '../constraints/soft-constraint.interface';
-import {
-  CANONICAL_SCORING_WEIGHTS,
-  SOFT_CONSTRAINT_WEIGHTS,
-  validateCanonicalWeights,
-} from './canonical-scoring.config';
+import { CANONICAL_SCORING_WEIGHTS, SOFT_CONSTRAINT_WEIGHTS, validateCanonicalWeights } from './canonical-scoring.config';
 
 export interface ScoreWeights {
   fairness: number;
   workload: number;
   fatigue: number;
+  /** P2-02 — the canonical 0.15 coverage weight must not be discarded. */
+  coverage: number;
 }
 
 export interface AggregatedScore {
@@ -37,12 +35,13 @@ export class ScoreAggregator {
       fairness: weights?.fairness ?? CANONICAL_SCORING_WEIGHTS.fairness,
       workload: weights?.workload ?? CANONICAL_SCORING_WEIGHTS.workload,
       fatigue: weights?.fatigue ?? CANONICAL_SCORING_WEIGHTS.fatigue,
+      coverage: weights?.coverage ?? CANONICAL_SCORING_WEIGHTS.coverage,
     };
   }
 
   aggregate(scores: ConstraintScore[]): AggregatedScore {
     const explanations: string[] = [];
-    const breakdown: ScoreWeights = { fairness: 0, workload: 0, fatigue: 0 };
+    const breakdown: ScoreWeights = { fairness: 0, workload: 0, fatigue: 0, coverage: 0 };
 
     for (const score of scores) {
       const normalizedScore = this.normalizeScore(score.rawScore);
@@ -59,12 +58,15 @@ export class ScoreAggregator {
         case 'FATIGUE':
           breakdown.fatigue = weightedScore;
           break;
+        case 'COVERAGE':
+          breakdown.coverage = weightedScore;
+          break;
       }
 
       explanations.push(score.explanation);
     }
 
-    const total = breakdown.fairness + breakdown.workload + breakdown.fatigue;
+    const total = breakdown.fairness + breakdown.workload + breakdown.fatigue + breakdown.coverage;
 
     return {
       total: Math.round(total * 10) / 10,
@@ -72,6 +74,7 @@ export class ScoreAggregator {
         fairness: Math.round(breakdown.fairness * 10) / 10,
         workload: Math.round(breakdown.workload * 10) / 10,
         fatigue: Math.round(breakdown.fatigue * 10) / 10,
+        coverage: Math.round(breakdown.coverage * 10) / 10,
       },
       scores,
       explanations,
@@ -84,14 +87,11 @@ export class ScoreAggregator {
 
   private getWeight(constraintId: string): number {
     switch (constraintId) {
-      case 'FAIRNESS':
-        return this.weights.fairness;
-      case 'WORKLOAD_BALANCE':
-        return this.weights.workload;
-      case 'FATIGUE':
-        return this.weights.fatigue;
-      default:
-        return 0;
+      case 'FAIRNESS': return this.weights.fairness;
+      case 'WORKLOAD_BALANCE': return this.weights.workload;
+      case 'FATIGUE': return this.weights.fatigue;
+      case 'COVERAGE': return this.weights.coverage;
+      default: return 0;
     }
   }
 

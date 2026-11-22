@@ -1,14 +1,6 @@
-import { Component, inject, ChangeDetectionStrategy, computed } from '@angular/core';
-import { ScheduleStore } from '../../store/schedule.store';
-import type { Schedule } from '../../models';
-
-interface AuditEntry {
-  who: string;
-  what: string;
-  when: string;
-  fromVersion: number | null;
-  toVersion: number | null;
-}
+import { Component, inject, ChangeDetectionStrategy, OnInit, signal } from '@angular/core';
+import { ScheduleApiService } from '../../services/schedule-api.service';
+import { mapActivitiesToAuditEntries, type AuditEntry } from './audit-panel.mapper';
 
 @Component({
   selector: 'app-audit-panel',
@@ -17,12 +9,16 @@ interface AuditEntry {
   template: `
     <div class="audit-panel">
       <div class="panel-header">
-        <h4>Denetim Kaydi</h4>
+        <h4>Denetim Kaydı</h4>
       </div>
       <div class="panel-body">
-        @if (auditEntries().length > 0) {
+        @if (loading()) {
+          <div class="empty-audit">Denetim kayıtları yükleniyor…</div>
+        } @else if (error()) {
+          <div class="empty-audit">{{ error() }}</div>
+        } @else if (entries().length > 0) {
           <div class="audit-timeline">
-            @for (entry of auditEntries(); track entry.when + entry.what) {
+            @for (entry of entries(); track entry.when + entry.what + entry.who) {
               <div class="audit-entry">
                 <div class="entry-dot"></div>
                 <div class="entry-content">
@@ -31,17 +27,12 @@ interface AuditEntry {
                     <span class="entry-who">{{ entry.who }}</span>
                     <span class="entry-when">{{ entry.when }}</span>
                   </div>
-                  @if (entry.fromVersion !== null && entry.toVersion !== null) {
-                    <div class="entry-version">
-                      v{{ entry.fromVersion }} &#8594; v{{ entry.toVersion }}
-                    </div>
-                  }
                 </div>
               </div>
             }
           </div>
         } @else {
-          <div class="empty-audit">Denetim kaydi mevcut degil.</div>
+          <div class="empty-audit">Denetim kaydı mevcut değil.</div>
         }
       </div>
     </div>
@@ -59,37 +50,29 @@ interface AuditEntry {
     '.entry-meta { display: flex; gap: 8px; margin-top: 2px; }',
     '.entry-who { font-size: 11px; color: var(--color-text-secondary, #64748b); }',
     '.entry-when { font-size: 11px; color: var(--color-text-muted, #94a3b8); }',
-    '.entry-version { font-size: 10px; color: var(--color-primary, #6366f1); margin-top: 2px; }',
     '.empty-audit { padding: 40px 16px; text-align: center; color: var(--color-text-muted, #94a3b8); font-size: 13px; }',
   ],
 })
-export class AuditPanelComponent {
-  private readonly store = inject(ScheduleStore);
+export class AuditPanelComponent implements OnInit {
+  private readonly api = inject(ScheduleApiService);
 
-  readonly auditEntries = computed((): AuditEntry[] => {
-    const schedule = this.store.schedule();
-    if (!schedule) return [];
+  readonly entries = signal<AuditEntry[]>([]);
+  readonly loading = signal(false);
+  readonly error = signal<string | null>(null);
 
-    const entries: AuditEntry[] = [];
-    const statusLabels: Record<string, string> = {
-      draft: 'Olusturuldu',
-      generated: 'Vardiya uretildi',
-      validated: 'Dogrulandi',
-      under_review: 'Incelemeye gonderildi',
-      approved: 'Onaylandi',
-      published: 'Yayinlandi',
-      archived: 'Arslivlendi',
-      rejected: 'Reddedildi',
-    };
-
-    entries.push({
-      who: schedule.createdById ?? 'Sistem',
-      what: statusLabels[schedule.status] ?? schedule.status,
-      when: '',
-      fromVersion: null,
-      toVersion: schedule.version,
+  ngOnInit(): void {
+    this.loading.set(true);
+    this.error.set(null);
+    this.api.getActivities(10).subscribe({
+      next: activities => {
+        this.entries.set(mapActivitiesToAuditEntries(activities));
+        this.loading.set(false);
+      },
+      error: () => {
+        this.entries.set([]);
+        this.error.set('Denetim kayıtları yüklenemedi.');
+        this.loading.set(false);
+      },
     });
-
-    return entries;
-  });
+  }
 }

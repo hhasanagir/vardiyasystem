@@ -5,8 +5,7 @@ export const NOTIFICATION_PRIORITIES = {
   CRITICAL: 'CRITICAL',
 } as const;
 
-export type NotificationPriority =
-  (typeof NOTIFICATION_PRIORITIES)[keyof typeof NOTIFICATION_PRIORITIES];
+export type NotificationPriority = (typeof NOTIFICATION_PRIORITIES)[keyof typeof NOTIFICATION_PRIORITIES];
 
 export const PRIORITY_LEVELS: Record<NotificationPriority, number> = {
   LOW: 10,

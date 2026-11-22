@@ -1,7 +1,7 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { DomainEvent, EVENT_NAMES } from '../domain-event.interface';
+import { DomainEvent, EVENT_NAMES, deserializeDomainEvent } from '../domain-event.interface';
 import { DeadLetterQueueService } from '../dead-letter-queue.service';
 import { EventMonitoringService } from '../event-monitoring.service';
 
@@ -17,14 +17,14 @@ export class EventsConsumer extends WorkerHost {
   }
 
   async process(job: Job<DomainEvent, void, string>): Promise<void> {
-    const event = job.data;
+    // BullMQ persists the job payload as JSON: the Date field arrives as a
+    // string, and every timestamp read below would throw without this step.
+    const event = deserializeDomainEvent(job.data);
     const start = Date.now();
     const latency = Date.now() - event.timestamp.getTime();
 
     this.monitoring.recordLatency(event.eventName, latency);
-    this.logger.debug(
-      `Processing ${event.eventName}[${event.eventId}] (attempt ${job.attemptsMade + 1})`,
-    );
+    this.logger.debug(`Processing ${event.eventName}[${event.eventId}] (attempt ${job.attemptsMade + 1})`);
 
     try {
       switch (event.eventName) {
@@ -70,26 +70,18 @@ export class EventsConsumer extends WorkerHost {
   }
 
   private async handleScheduleEvent(event: DomainEvent): Promise<void> {
-    const { scheduleId, unitId, month, year, userId, status } =
-      event.payload as any;
-    this.logger.log(
-      `Schedule ${event.eventName}: ${scheduleId} (${month}/${year}), status=${status}`,
-    );
+    const { scheduleId, unitId, month, year, userId, status } = event.payload as any;
+    this.logger.log(`Schedule ${event.eventName}: ${scheduleId} (${month}/${year}), status=${status}`);
   }
 
   private async handleSwapEvent(event: DomainEvent): Promise<void> {
-    const { swapId, requesterId, targetPersonnelId, fromAssignmentId } =
-      event.payload as any;
-    this.logger.log(
-      `Shift swap ${swapId}: ${requesterId} ↔ ${targetPersonnelId}`,
-    );
+    const { swapId, requesterId, targetPersonnelId, fromAssignmentId } = event.payload as any;
+    this.logger.log(`Shift swap ${swapId}: ${requesterId} ↔ ${targetPersonnelId}`);
   }
 
   private async handleIncidentEvent(event: DomainEvent): Promise<void> {
     const { incidentId, unitId, issueType, severity } = event.payload as any;
-    this.logger.log(
-      `Device incident ${incidentId}: ${issueType} (${severity})`,
-    );
+    this.logger.log(`Device incident ${incidentId}: ${issueType} (${severity})`);
   }
 
   private async handlePersonnelEvent(event: DomainEvent): Promise<void> {
@@ -98,10 +90,7 @@ export class EventsConsumer extends WorkerHost {
   }
 
   private async handleNotificationEvent(event: DomainEvent): Promise<void> {
-    const { notificationId, type, userId, organizationId } =
-      event.payload as any;
-    this.logger.log(
-      `Notification sent ${notificationId}: type=${type}, userId=${userId}`,
-    );
+    const { notificationId, type, userId, organizationId } = event.payload as any;
+    this.logger.log(`Notification sent ${notificationId}: type=${type}, userId=${userId}`);
   }
 }

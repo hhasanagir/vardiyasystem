@@ -1,14 +1,4 @@
-import {
-  Component,
-  input,
-  output,
-  computed,
-  ChangeDetectionStrategy,
-  HostListener,
-  Inject,
-  PLATFORM_ID,
-  NgZone,
-} from '@angular/core';
+import { Component, input, output, computed, ChangeDetectionStrategy, HostListener, Inject, PLATFORM_ID, NgZone } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { CommonModule } from '@angular/common';
 import { type ShiftAssignment } from '../../domain/models';
@@ -45,13 +35,7 @@ interface DeviceInfo {
 
 interface DragState {
   isDragging: boolean;
-  sourceAssignment: {
-    deviceId: string;
-    date: string;
-    shiftType: string;
-    personnelId?: string;
-    personnelName?: string;
-  } | null;
+  sourceAssignment: { deviceId: string; date: string; shiftType: string; personnelId?: string; personnelName?: string } | null;
   targetSlot: { deviceId: string; date: string; shiftType: string } | null;
   isValid: boolean;
 }
@@ -77,12 +61,7 @@ export class ScheduleGridComponent {
   readonly assignments = input<ShiftAssignment[]>([]);
   readonly days = input<DayColumn[]>([]);
   readonly devices = input<DeviceInfo[]>([]);
-  readonly dragState = input<DragState>({
-    isDragging: false,
-    sourceAssignment: null,
-    targetSlot: null,
-    isValid: false,
-  });
+  readonly dragState = input<DragState>({ isDragging: false, sourceAssignment: null, targetSlot: null, isValid: false });
   readonly showOnboarding = input(false);
   readonly showLeftFade = input(false);
   readonly showRightFade = input(true);
@@ -95,6 +74,7 @@ export class ScheduleGridComponent {
   readonly showEmptyOnly = input(false);
   readonly density = input<'compact' | 'normal' | 'comfortable'>('normal');
   readonly allowPolyclinicSaturday = input(false);
+  readonly deviceOff = input<ReadonlySet<string>>(new Set());
 
   readonly scroll = output<Event>();
   readonly dismissOnboarding = output<void>();
@@ -110,14 +90,9 @@ export class ScheduleGridComponent {
   readonly hoverAssignment = output<{ event: MouseEvent } & SlotEvent>();
   readonly moveTooltip = output<MouseEvent>();
   readonly leaveTooltip = output<void>();
-  readonly contextMenu = output<
-    { event: MouseEvent } & SlotEvent & { personnelName: string; personnelId?: string }
-  >();
+  readonly contextMenu = output<{ event: MouseEvent } & SlotEvent & { personnelName: string; personnelId?: string }>();
 
-  constructor(
-    @Inject(PLATFORM_ID) private platformId: object,
-    private ngZone: NgZone,
-  ) {}
+  constructor(@Inject(PLATFORM_ID) private platformId: object, private ngZone: NgZone) {}
 
   private assignmentCache = computed(() => this.assignments());
 
@@ -125,10 +100,23 @@ export class ScheduleGridComponent {
     const q = this.deviceFilter().trim().toLocaleLowerCase('tr-TR');
     if (!q) return this.devices();
     return this.devices().filter(
-      (d) =>
+      d =>
         (d.code || '').toLocaleLowerCase('tr-TR').includes(q) ||
-        (d.name || '').toLocaleLowerCase('tr-TR').includes(q),
+        (d.name || '').toLocaleLowerCase('tr-TR').includes(q)
     );
+  });
+
+  readonly totalRowCount = computed(() => {
+    let rows = 1;
+    for (const device of this.visibleDevices()) {
+      if (device.shifts && device.shifts.length > 0) {
+        rows += device.shifts.filter(shift => this.isShiftVisible(shift)).length;
+      } else {
+        if (this.isShiftVisibleFallback(device)) rows += 1;
+        if (device.mode === 'vardiya') rows += 1;
+      }
+    }
+    return rows;
   });
 
   isShiftVisible(shift: { type: string; personnelType?: string | null }): boolean {
@@ -161,13 +149,7 @@ export class ScheduleGridComponent {
     return idx === device.shifts.length - 1;
   }
 
-  getShiftBadge(shift: {
-    type: string;
-    startTime: string;
-    endTime: string;
-    name?: string;
-    personnelType?: string | null;
-  }): string {
+  getShiftBadge(shift: { type: string; startTime: string; endTime: string; name?: string; personnelType?: string | null }): string {
     const t = shift.type.toLowerCase();
     let label = '';
     if (t === 'day') label = `GÜNDÜZ`;
@@ -178,13 +160,7 @@ export class ScheduleGridComponent {
     return `${label} ${shift.startTime}-${shift.endTime}`;
   }
 
-  isCellDimmed(
-    device: DeviceInfo,
-    day: DayColumn,
-    shiftType: string,
-    slotPt?: string | null,
-    slotIndex?: number,
-  ): boolean {
+  isCellDimmed(device: DeviceInfo, day: DayColumn, shiftType: string, slotPt?: string | null, slotIndex?: number): boolean {
     if (!this.showEmptyOnly()) return false;
     return this.getAssignment(device, day, shiftType, slotPt, slotIndex) !== null;
   }
@@ -194,49 +170,81 @@ export class ScheduleGridComponent {
     const s = slot.toLowerCase();
     if (s === 'gunduz' || s === 'day') return a === 'day' || a.includes('gunduz');
     if (s === 'gece' || s === 'night') return a === 'night' || a.includes('gece');
-    if (s === 'ikindi' || s === 'evening')
-      return a === 'evening' || a.includes('ogle') || a.includes('ikindi');
+    if (s === 'ikindi' || s === 'evening') return a === 'evening' || a.includes('ogle') || a.includes('ikindi');
     if (s === 'sabah' || s === 'morning') return a === 'morning' || a.includes('sabah');
     return a === s;
   }
 
-  private pickAssignment(
-    candidates: ShiftAssignment[],
-    slotPt: string | null | undefined,
-    device: DeviceInfo,
-    shiftType: string,
-    slotIndex: number | null,
-  ): ShiftAssignment | null {
+  onAssignmentKeydown(event: KeyboardEvent, device: DeviceInfo, day: DayColumn, shiftType: string, personnelId?: string, personnelName?: string): void {
+    if (event.defaultPrevented) return;
+    switch (event.key) {
+      case 'Enter':
+      case ' ':
+      case 'Spacebar':
+        event.preventDefault();
+        event.stopPropagation();
+        this.editAssignment.emit({ deviceId: device.id, date: day.dateStr, shiftType });
+        break;
+      case 'Delete':
+      case 'Backspace':
+        event.preventDefault();
+        event.stopPropagation();
+        if (personnelId) {
+          this.deleteAssignment.emit({ deviceId: device.id, date: day.dateStr, shiftType, personnelId });
+        }
+        break;
+      case 'c':
+      case 'C':
+        event.preventDefault();
+        event.stopPropagation();
+        if (personnelId && personnelName) {
+          this.copyAssignment.emit({ deviceId: device.id, date: day.dateStr, shiftType, personnelId, personnelName });
+        }
+        break;
+      case 'F10':
+      case 'ContextMenu':
+        event.preventDefault();
+        event.stopPropagation();
+        this.openKeyboardContextMenu(event, device, day, shiftType, personnelId, personnelName);
+        break;
+    }
+  }
+
+  private openKeyboardContextMenu(event: KeyboardEvent, device: DeviceInfo, day: DayColumn, shiftType: string, personnelId?: string, personnelName?: string): void {
+    const target = event.target as HTMLElement;
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const fake = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.bottom,
+      view: window,
+    });
+    this.contextMenu.emit({ event: fake, deviceId: device.id, date: day.dateStr, shiftType, personnelName: personnelName || '', personnelId });
+  }
+
+  private pickAssignment(candidates: ShiftAssignment[], slotPt: string | null | undefined, device: DeviceInfo, shiftType: string, slotIndex: number | null): ShiftAssignment | null {
     if (!slotPt) return candidates[0];
-    const exact = candidates.find((a) => (a.personnelType || '') === slotPt);
+    const exact = candidates.find(a => (a.personnelType || '') === slotPt);
     if (exact) return exact;
     const slotPts = device.shifts
-      .filter((s) => this.shiftTypeMatches(s.type, shiftType))
-      .map((s) => s.personnelType)
+      .filter(s => this.shiftTypeMatches(s.type, shiftType))
+      .map(s => s.personnelType)
       .filter((p): p is string => !!p);
-    const orphan = candidates.find((a) => a.personnelType && !slotPts.includes(a.personnelType));
-    if (orphan && slotIndex !== null && slotIndex === this.firstOfTypeIndex(device, shiftType))
-      return orphan;
+    const orphan = candidates.find(a => a.personnelType && !slotPts.includes(a.personnelType));
+    if (orphan && slotIndex !== null && slotIndex === this.firstOfTypeIndex(device, shiftType)) return orphan;
     return null;
   }
 
   private firstOfTypeIndex(device: DeviceInfo, shiftType: string): number {
-    return device.shifts.findIndex((s) => this.shiftTypeMatches(s.type, shiftType));
+    return device.shifts.findIndex(s => this.shiftTypeMatches(s.type, shiftType));
   }
 
-  getAssignment(
-    device: DeviceInfo,
-    day: DayColumn,
-    shiftType: string,
-    slotPt?: string | null,
-    slotIndex?: number,
-  ): { personnelId: string; personnelName: string } | null {
+  getAssignment(device: DeviceInfo, day: DayColumn, shiftType: string, slotPt?: string | null, slotIndex?: number): { personnelId: string; personnelName: string } | null {
     const assignments = this.assignmentCache();
-    const candidates = assignments.filter(
-      (a) =>
-        a.deviceId === device.id &&
-        a.date === day.dateStr &&
-        this.shiftTypeMatches(a.shiftType, shiftType),
+    const candidates = assignments.filter(a =>
+      a.deviceId === device.id && a.date === day.dateStr && this.shiftTypeMatches(a.shiftType, shiftType)
     );
     if (candidates.length === 0) return null;
     const match = this.pickAssignment(candidates, slotPt, device, shiftType, slotIndex ?? null);
@@ -256,16 +264,19 @@ export class ScheduleGridComponent {
   isDragTarget(deviceId: string, date: string, shiftType: string): boolean {
     const s = this.dragState();
     const t = s.targetSlot;
-    return (
-      s.isValid &&
-      t !== null &&
-      t.deviceId === deviceId &&
-      t.date === date &&
-      t.shiftType === shiftType
-    );
+    return s.isValid && t !== null && t.deviceId === deviceId && t.date === date && t.shiftType === shiftType;
   }
 
-  isShiftUnavailable(device: DeviceInfo, day: DayColumn, _shiftType: string): boolean {
+  isDeviceOff(device: DeviceInfo, day: DayColumn): boolean {
+    return this.deviceOff().has(`${device.id}:${day.dateStr}`);
+  }
+
+  isShiftUnavailable(device: DeviceInfo, day: DayColumn, _shiftType: string, _slotPt?: string | null, _slotIndex?: number | null): boolean {
+    return this.isShiftUnavailableTyped(device, day, _shiftType, _slotPt, _slotIndex);
+  }
+
+  private isShiftUnavailableTyped(device: DeviceInfo, day: DayColumn, shiftType: string, slotPt?: string | null, slotIndex?: number | null): boolean {
+    if (this.isDeviceOff(device, day)) return true;
     if (device.mode !== 'polyclinic') return false;
     if (day.isHoliday) return true;
     if (this.allowPolyclinicSaturday()) return day.dayNum === 0;
@@ -285,13 +296,7 @@ export class ScheduleGridComponent {
     return 'day';
   }
 
-  getShiftLabel(shift: {
-    type: string;
-    startTime: string;
-    endTime: string;
-    name?: string;
-    personnelType?: string | null;
-  }): string {
+  getShiftLabel(shift: { type: string; startTime: string; endTime: string; name?: string; personnelType?: string | null }): string {
     const t = shift.type.toLowerCase();
     let label = '';
     if (t === 'day') label = `GÜNDÜZ ${shift.startTime}-${shift.endTime}`;
@@ -307,18 +312,18 @@ export class ScheduleGridComponent {
   getPersonnelTypeLabel(shift: { personnelType?: string | null }): string {
     if (!shift.personnelType) return '';
     const map: Record<string, string> = {
-      assistant_technician: 'Yardımcı Tekniker',
-      technician: 'Tekniker',
-      technician_2: 'Tekniker',
-      technician_3: 'Tekniker',
-      technician_4: 'Tekniker',
-      senior_technician: 'Sorumlu Tekniker',
-      supervisor: 'Süpervizör',
-      medical_engineer: 'Medikal Mühendis',
-      medical_physicist: 'Sağlık Fizikçisi',
-      medical_physicist_2: 'Sağlık Fizikçisi',
-      medical_physicist_3: 'Sağlık Fizikçisi',
-      planning: 'Planlama',
+      'assistant_technician': 'Yardımcı Tekniker',
+      'technician': 'Tekniker',
+      'technician_2': 'Tekniker',
+      'technician_3': 'Tekniker',
+      'technician_4': 'Tekniker',
+      'senior_technician': 'Sorumlu Tekniker',
+      'supervisor': 'Süpervizör',
+      'medical_engineer': 'Medikal Mühendis',
+      'medical_physicist': 'Sağlık Fizikçisi',
+      'medical_physicist_2': 'Sağlık Fizikçisi',
+      'medical_physicist_3': 'Sağlık Fizikçisi',
+      'planning': 'Planlama',
     };
     return map[shift.personnelType] || shift.personnelType;
   }

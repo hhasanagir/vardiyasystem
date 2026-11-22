@@ -17,19 +17,13 @@ export class IncidentQueryDto {
   @IsString()
   issueType?: string;
 
-  @ApiPropertyOptional({
-    description: 'Filter by severity',
-    enum: ['low', 'medium', 'high', 'critical'],
-  })
+  @ApiPropertyOptional({ description: 'Filter by severity', enum: ['low', 'medium', 'high', 'critical'] })
   @IsOptional()
   @IsString()
   @IsIn(['low', 'medium', 'high', 'critical'])
   severity?: string;
 
-  @ApiPropertyOptional({
-    description: 'Filter by status',
-    enum: ['open', 'in_progress', 'resolved', 'closed'],
-  })
+  @ApiPropertyOptional({ description: 'Filter by status', enum: ['open', 'in_progress', 'resolved', 'closed'] })
   @IsOptional()
   @IsString()
   @IsIn(['open', 'in_progress', 'resolved', 'closed'])

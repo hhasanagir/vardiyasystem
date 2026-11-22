@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { FairnessEngine } from '../domain/models/fairness-engine';
-import {
-  FatigueEngine,
-  WORKLOAD_LIMITS,
-  DEFAULT_FATIGUE_COEFFICIENTS,
-} from '../domain/models/fatigue-engine';
+import { FatigueEngine, WORKLOAD_LIMITS, DEFAULT_FATIGUE_COEFFICIENTS } from '../domain/models/fatigue-engine';
 import { WorkloadCalculator } from '../domain/models/workload-calculator';
 import { ScoreAggregator } from '../domain/optimization/score-aggregator';
 import { AssignmentCollection } from '../domain/entities/assignment-collection';
@@ -48,9 +44,7 @@ describe('GATE 7 — Fairness Quality', () => {
   it('fairness score is always 0..100', () => {
     const result = engine.calculate({
       assignments: new AssignmentCollection(),
-      personnel: [
-        { id: 'p1', name: 'A', nightShiftEligible: true, maxWeeklyHours: 40 },
-      ],
+      personnel: [{ id: 'p1', name: 'A', nightShiftEligible: true, maxWeeklyHours: 40 }],
       holidays: new Set(),
       monthDays: 30,
     });
@@ -59,7 +53,7 @@ describe('GATE 7 — Fairness Quality', () => {
   });
 
   it('weights sum to 1.0: 0.25 + 0.20 + 0.15 + 0.40', () => {
-    expect(0.25 + 0.2 + 0.15 + 0.4).toBeCloseTo(1.0);
+    expect(0.25 + 0.20 + 0.15 + 0.40).toBeCloseTo(1.0);
   });
 
   it('details contain per-person breakdown', () => {
@@ -157,7 +151,7 @@ describe('GATE 9 — Fatigue Quality', () => {
       holidays: new Set(),
     });
     expect(result.score).toBeLessThan(100);
-    expect(result.factors.some((f) => f.type === 'weekend_work')).toBe(true);
+    expect(result.factors.some(f => f.type === 'weekend_work')).toBe(true);
   });
 
   it('holiday shift → penalty applied', () => {
@@ -171,7 +165,7 @@ describe('GATE 9 — Fatigue Quality', () => {
       holidays: new Set(['2026-01-01']),
     });
     expect(result.score).toBeLessThan(100);
-    expect(result.factors.some((f) => f.type === 'holiday_work')).toBe(true);
+    expect(result.factors.some(f => f.type === 'holiday_work')).toBe(true);
   });
 
   it('score never negative', () => {
@@ -242,51 +236,17 @@ describe('GATE 9 — Fatigue Quality', () => {
 describe('ScoreAggregator Quality', () => {
   it('higher fairness → higher total', () => {
     const agg = new ScoreAggregator({ fairness: 1.0, workload: 0, fatigue: 0 });
-    const high = agg.aggregate([
-      {
-        constraintId: 'FAIRNESS',
-        rawScore: 90,
-        weight: 1,
-        weightedScore: 90,
-        explanation: '',
-      },
-    ]);
-    const low = agg.aggregate([
-      {
-        constraintId: 'FAIRNESS',
-        rawScore: 30,
-        weight: 1,
-        weightedScore: 30,
-        explanation: '',
-      },
-    ]);
+    const high = agg.aggregate([{ constraintId: 'FAIRNESS', rawScore: 90, weight: 1, weightedScore: 90, explanation: '' }]);
+    const low = agg.aggregate([{ constraintId: 'FAIRNESS', rawScore: 30, weight: 1, weightedScore: 30, explanation: '' }]);
     expect(high.total).toBeGreaterThan(low.total);
   });
 
   it('deterministic: same input → same output', () => {
     const agg = new ScoreAggregator();
     const scores = [
-      {
-        constraintId: 'FAIRNESS',
-        rawScore: 80,
-        weight: 1,
-        weightedScore: 80,
-        explanation: 'f',
-      },
-      {
-        constraintId: 'WORKLOAD_BALANCE',
-        rawScore: 70,
-        weight: 1,
-        weightedScore: 70,
-        explanation: 'w',
-      },
-      {
-        constraintId: 'FATIGUE',
-        rawScore: 60,
-        weight: 1,
-        weightedScore: 60,
-        explanation: 'ft',
-      },
+      { constraintId: 'FAIRNESS', rawScore: 80, weight: 1, weightedScore: 80, explanation: 'f' },
+      { constraintId: 'WORKLOAD_BALANCE', rawScore: 70, weight: 1, weightedScore: 70, explanation: 'w' },
+      { constraintId: 'FATIGUE', rawScore: 60, weight: 1, weightedScore: 60, explanation: 'ft' },
     ];
     const r1 = agg.aggregate(scores);
     const r2 = agg.aggregate(scores);
@@ -303,13 +263,7 @@ describe('ScoreAggregator Quality', () => {
   it('scores clamped to 0..100', () => {
     const agg = new ScoreAggregator();
     const result = agg.aggregate([
-      {
-        constraintId: 'FAIRNESS',
-        rawScore: 200,
-        weight: 1,
-        weightedScore: 200,
-        explanation: '',
-      },
+      { constraintId: 'FAIRNESS', rawScore: 200, weight: 1, weightedScore: 200, explanation: '' },
     ]);
     expect(result.breakdown.fairness).toBeLessThanOrEqual(40);
   });

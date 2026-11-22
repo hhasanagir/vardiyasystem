@@ -43,10 +43,7 @@ export const winstonLogger = winston.createLogger({
   ],
 });
 
-export function recordException(
-  error: Error,
-  metadata?: Record<string, unknown>,
-) {
+export function recordException(error: Error, metadata?: Record<string, unknown>) {
   const span = trace.getSpan(context.active());
   if (span) {
     span.recordException(error);

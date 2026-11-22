@@ -2,7 +2,7 @@
 
 > **Version:** 1.0.0  
 > **Framework:** Angular 21 + PrimeNG Aura  
-> **Status:** Reference document for implementation
+> **Status:** Reference document for implementation  
 
 ---
 
@@ -22,19 +22,19 @@
 
 ```css
 /* Primary — Trust, professionalism */
---color-primary-50: #eff6ff;
+--color-primary-50:  #eff6ff;
 --color-primary-100: #dbeafe;
 --color-primary-200: #bfdbfe;
 --color-primary-300: #93c5fd;
 --color-primary-400: #60a5fa;
---color-primary-500: #3b82f6; /* Primary action */
---color-primary-600: #2563eb; /* Hover state */
+--color-primary-500: #3b82f6;  /* Primary action */
+--color-primary-600: #2563eb;  /* Hover state */
 --color-primary-700: #1d4ed8;
 --color-primary-800: #1e40af;
 --color-primary-900: #1e3a8a;
 
 /* Neutral — Scales for backgrounds, text, borders */
---color-neutral-50: #f8fafc;
+--color-neutral-50:  #f8fafc;
 --color-neutral-100: #f1f5f9;
 --color-neutral-200: #e2e8f0;
 --color-neutral-300: #cbd5e1;
@@ -42,8 +42,8 @@
 --color-neutral-500: #64748b;
 --color-neutral-600: #475569;
 --color-neutral-700: #334155;
---color-neutral-800: #1e293b; /* Default background */
---color-neutral-900: #0f172a; /* Darkest background */
+--color-neutral-800: #1e293b;  /* Default background */
+--color-neutral-900: #0f172a;  /* Darkest background */
 --color-neutral-950: #020617;
 ```
 
@@ -67,36 +67,36 @@
 --color-shift-off: #64748b;
 
 /* Unit accents (for radiology sections) */
---accent-mr: #3b82f6; /* Blue */
---accent-bt: #10b981; /* Green */
---accent-rontgen: #f59e0b; /* Amber */
---accent-nukleer: #8b5cf6; /* Purple */
---accent-onkoloji: #06b6d4; /* Cyan */
+--accent-mr:       #3b82f6;   /* Blue */
+--accent-bt:       #10b981;   /* Green */
+--accent-rontgen:  #f59e0b;   /* Amber */
+--accent-nukleer:  #8b5cf6;   /* Purple */
+--accent-onkoloji: #06b6d4;   /* Cyan */
 ```
 
 ### 2.3 Background System
 
 ```css
---bg-primary: var(--color-neutral-900); /* Page background */
---bg-secondary: var(--color-neutral-800); /* Card/surface background */
---bg-tertiary: var(--color-neutral-700); /* Elevated surface */
---bg-hover: rgba(255, 255, 255, 0.05); /* Hover overlay */
---bg-active: rgba(59, 130, 246, 0.1); /* Active/selected */
---bg-glass: rgba(30, 41, 59, 0.6); /* Glass morphism */
---bg-surface: var(--color-neutral-800); /* Card background */
---bg-float: rgba(30, 41, 59, 0.95); /* Modal/drawer background */
+--bg-primary:   var(--color-neutral-900);  /* Page background */
+--bg-secondary: var(--color-neutral-800);  /* Card/surface background */
+--bg-tertiary:  var(--color-neutral-700);  /* Elevated surface */
+--bg-hover:     rgba(255,255,255,0.05);    /* Hover overlay */
+--bg-active:    rgba(59,130,246,0.1);      /* Active/selected */
+--bg-glass:     rgba(30,41,59,0.6);        /* Glass morphism */
+--bg-surface:   var(--color-neutral-800);  /* Card background */
+--bg-float:     rgba(30,41,59,0.95);       /* Modal/drawer background */
 ```
 
 ### 2.4 Text System
 
 ```css
---text-primary: #f1f5f9; /* Headings, primary content */
---text-secondary: #94a3b8; /* Body text, descriptions */
---text-muted: #64748b; /* Placeholder, disabled, metadata */
---text-inverse: #0f172a; /* Text on bright backgrounds */
---text-disabled: #475569; /* Disabled text */
---text-link: #60a5fa; /* Link text */
---text-on-accent: #ffffff; /* Text on accent backgrounds */
+--text-primary:    #f1f5f9;   /* Headings, primary content */
+--text-secondary:  #94a3b8;   /* Body text, descriptions */
+--text-muted:      #64748b;   /* Placeholder, disabled, metadata */
+--text-inverse:    #0f172a;   /* Text on bright backgrounds */
+--text-disabled:   #475569;   /* Disabled text */
+--text-link:       #60a5fa;   /* Link text */
+--text-on-accent:  #ffffff;   /* Text on accent backgrounds */
 ```
 
 ---
@@ -106,49 +106,48 @@
 ### 3.1 Font Stack
 
 ```css
---font-family:
-  "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
---font-mono: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+--font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+--font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 ```
 
 ### 3.2 Type Scale
 
 ```css
 /* Desktop */
---text-xs: 0.625rem; /* 10px — Labels, badges */
---text-sm: 0.75rem; /* 12px — Metadata, table cells */
---text-base: 0.8125rem; /* 13px — Body text */
---text-md: 0.875rem; /* 14px — Large body, input text */
---text-lg: 1rem; /* 16px — Subheadings */
---text-xl: 1.125rem; /* 18px — Section headings */
---text-2xl: 1.25rem; /* 20px — Page titles */
---text-3xl: 1.5rem; /* 24px — Hero titles */
+--text-xs:   0.625rem;   /* 10px — Labels, badges */
+--text-sm:   0.75rem;    /* 12px — Metadata, table cells */
+--text-base: 0.8125rem;  /* 13px — Body text */
+--text-md:   0.875rem;   /* 14px — Large body, input text */
+--text-lg:   1rem;       /* 16px — Subheadings */
+--text-xl:   1.125rem;   /* 18px — Section headings */
+--text-2xl:  1.25rem;    /* 20px — Page titles */
+--text-3xl:  1.5rem;     /* 24px — Hero titles */
 
 /* Mobile (scale down slightly) */
 @media (max-width: 768px) {
-  --text-lg: 0.9375rem;
-  --text-xl: 1rem;
-  --text-2xl: 1.125rem;
-  --text-3xl: 1.25rem;
+  --text-lg:   0.9375rem;
+  --text-xl:   1rem;
+  --text-2xl:  1.125rem;
+  --text-3xl:  1.25rem;
 }
 ```
 
 ### 3.3 Font Weights
 
 ```css
---font-normal: 400; /* Body text */
---font-medium: 500; /* Strong body, labels */
---font-semibold: 600; /* Subheadings, button text */
---font-bold: 700; /* Headings, display text */
+--font-normal:   400;  /* Body text */
+--font-medium:   500;  /* Strong body, labels */
+--font-semibold: 600;  /* Subheadings, button text */
+--font-bold:     700;  /* Headings, display text */
 ```
 
 ### 3.4 Line Heights
 
 ```css
---leading-tight: 1.25; /* Headings */
---leading-normal: 1.5; /* Body text */
---leading-relaxed: 1.75; /* Long-form content */
---leading-dense: 1.15; /* Dense data tables */
+--leading-tight:   1.25;  /* Headings */
+--leading-normal:  1.5;   /* Body text */
+--leading-relaxed: 1.75;  /* Long-form content */
+--leading-dense:   1.15;  /* Dense data tables */
 ```
 
 ---
@@ -158,24 +157,24 @@
 ### 4.1 Spacing Scale
 
 ```css
---spacing-2xs: 0.125rem; /*  2px */
---spacing-xs: 0.25rem; /*  4px */
---spacing-sm: 0.5rem; /*  8px */
---spacing-md: 0.75rem; /* 12px */
---spacing-base: 1rem; /* 16px */
---spacing-lg: 1.25rem; /* 20px */
---spacing-xl: 1.5rem; /* 24px */
---spacing-2xl: 2rem; /* 32px */
---spacing-3xl: 2.5rem; /* 40px */
---spacing-4xl: 3rem; /* 48px */
+--spacing-2xs: 0.125rem;  /*  2px */
+--spacing-xs:  0.25rem;   /*  4px */
+--spacing-sm:  0.5rem;    /*  8px */
+--spacing-md:  0.75rem;   /* 12px */
+--spacing-base: 1rem;     /* 16px */
+--spacing-lg:  1.25rem;   /* 20px */
+--spacing-xl:  1.5rem;    /* 24px */
+--spacing-2xl: 2rem;      /* 32px */
+--spacing-3xl: 2.5rem;    /* 40px */
+--spacing-4xl: 3rem;      /* 48px */
 ```
 
 ### 4.2 Gap System (Grid/Flex)
 
 ```css
---gap-sm: var(--spacing-md); /* 12px — Tight grids */
---gap-md: var(--spacing-xl); /* 24px — Standard grids */
---gap-lg: var(--spacing-3xl); /* 40px — Section spacing */
+--gap-sm:  var(--spacing-md);    /* 12px — Tight grids */
+--gap-md:  var(--spacing-xl);    /* 24px — Standard grids */
+--gap-lg:  var(--spacing-3xl);   /* 40px — Section spacing */
 ```
 
 ---
@@ -183,16 +182,12 @@
 ## 5. Elevation System
 
 ```css
---shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
---shadow-md:
-  0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
---shadow-lg:
-  0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
---shadow-xl:
-  0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
---shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
---shadow-elevated:
-  0 0 0 1px rgba(255, 255, 255, 0.05), 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+--shadow-sm:     0 1px 2px 0 rgba(0,0,0,0.3);
+--shadow-md:     0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -2px rgba(0,0,0,0.3);
+--shadow-lg:     0 10px 15px -3px rgba(0,0,0,0.4), 0 4px 6px -4px rgba(0,0,0,0.3);
+--shadow-xl:     0 20px 25px -5px rgba(0,0,0,0.5), 0 8px 10px -6px rgba(0,0,0,0.3);
+--shadow-2xl:    0 25px 50px -12px rgba(0,0,0,0.6);
+--shadow-elevated: 0 0 0 1px rgba(255,255,255,0.05), 0 25px 50px -12px rgba(0,0,0,0.6);
 ```
 
 ---
@@ -200,18 +195,17 @@
 ## 6. Border Radius
 
 ```css
---radius-none: 0;
---radius-sm: 0.25rem; /*  4px */
---radius-md: 0.375rem; /*  6px */
---radius-lg: 0.5rem; /*  8px */
---radius-xl: 0.75rem; /* 12px */
---radius-2xl: 1rem; /* 16px */
---radius-3xl: 1.5rem; /* 24px */
---radius-full: 9999px; /* Pills, badges */
+--radius-none:   0;
+--radius-sm:     0.25rem;   /*  4px */
+--radius-md:     0.375rem;  /*  6px */
+--radius-lg:     0.5rem;    /*  8px */
+--radius-xl:     0.75rem;   /* 12px */
+--radius-2xl:    1rem;      /* 16px */
+--radius-3xl:    1.5rem;    /* 24px */
+--radius-full:   9999px;    /* Pills, badges */
 ```
 
 **Usage guidelines:**
-
 - Buttons: `--radius-md`
 - Cards: `--radius-xl`
 - Modals/Dialogs: `--radius-2xl`
@@ -230,18 +224,17 @@
 // Or:    <p-button severity="primary" [loading]="false">
 
 interface ButtonConfig {
-  variant: "primary" | "secondary" | "ghost" | "danger" | "success" | "warning";
-  size: "sm" | "md" | "lg";
+  variant: 'primary' | 'secondary' | 'ghost' | 'danger' | 'success' | 'warning';
+  size: 'sm' | 'md' | 'lg';
   loading?: boolean;
-  icon?: string; // PrimeIcon name
-  iconPos?: "left" | "right";
+  icon?: string;         // PrimeIcon name
+  iconPos?: 'left' | 'right';
   fullWidth?: boolean;
   disabled?: boolean;
 }
 ```
 
 **Sizes:**
-
 - `sm`: 32px height, `--text-sm`
 - `md`: 40px height, `--text-base` (default)
 - `lg`: 48px height, `--text-md`
@@ -254,26 +247,24 @@ interface ButtonConfig {
 .form-field {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm); /* 8px gap between label + input */
+  gap: var(--spacing-sm);        /* 8px gap between label + input */
 }
 
 .form-label {
-  font-size: var(--text-sm); /* 12px */
+  font-size: var(--text-sm);      /* 12px */
   font-weight: var(--font-medium);
   color: var(--text-secondary);
 }
 
 .form-input {
-  height: 40px; /* 40px standard */
+  height: 40px;                   /* 40px standard */
   padding: 0 var(--spacing-base); /* 16px horizontal */
-  font-size: var(--text-md); /* 14px */
+  font-size: var(--text-md);      /* 14px */
   border-radius: var(--radius-md);
   border: 1.5px solid var(--border-default);
   background: var(--bg-secondary);
   color: var(--text-primary);
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .form-input:focus {
@@ -290,7 +281,6 @@ interface ButtonConfig {
 ```
 
 **Validation states:**
-
 - Error: Red border + error message below
 - Success: Green border (optional, for confirmations)
 - Warning: Amber border (for soft validation)
@@ -335,9 +325,7 @@ interface ButtonConfig {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
   overflow: hidden;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .card-hoverable:hover {
@@ -407,12 +395,8 @@ interface ButtonConfig {
 }
 
 @keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 ```
 
@@ -468,40 +452,17 @@ interface ButtonConfig {
 
 ```css
 /* 2-column responsive grid */
-.grid-2 {
-  grid-template-columns: repeat(2, 1fr);
-}
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
 /* 3-column responsive grid */
-.grid-3 {
-  grid-template-columns: repeat(3, 1fr);
-}
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
 /* 4-column responsive grid */
-.grid-4 {
-  grid-template-columns: repeat(4, 1fr);
-}
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
 /* Auto-fill with minimum size */
-.grid-auto {
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-}
+.grid-auto { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
 
-@media (max-width: 1024px) {
-  .grid-4 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (max-width: 768px) {
-  .grid-3,
-  .grid-4 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (max-width: 480px) {
-  .grid-2,
-  .grid-3,
-  .grid-4 {
-    grid-template-columns: 1fr;
-  }
-}
+@media (max-width: 1024px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px)  { .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px)  { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
 ```
 
 ### 8.3 Responsive Breakpoints
@@ -524,14 +485,8 @@ $bp-wide: 1280px;
 
 /* Page transition */
 @keyframes pageEnter {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .animate-page {
@@ -544,12 +499,12 @@ $bp-wide: 1280px;
 ## 10. Z-Index System
 
 ```css
---z-dropdown: 100;
---z-sticky: 200;
---z-overlay: 300;
---z-modal: 400;
---z-toast: 500;
---z-tooltip: 600;
+--z-dropdown:   100;
+--z-sticky:     200;
+--z-overlay:    300;
+--z-modal:      400;
+--z-toast:      500;
+--z-tooltip:    600;
 ```
 
 ---
@@ -566,21 +521,18 @@ $bp-wide: 1280px;
 ## 12. Enterprise Patterns
 
 ### 12.1 Command Palette (Ctrl+K)
-
 - Modal overlay with search input
 - Fuzzy match on: page titles, actions, recent pages
 - Categories: Pages, Actions, Recent
 - Keyboard: `Ctrl+K` to open, `Esc` to close, `↑↓` to navigate, `Enter` to select
 
 ### 12.2 Global Search
-
 - Topbar search input with debounce (300ms)
 - Results grouped by entity type (Personnel, Schedules, Devices, Units)
 - Each result shows: name, type badge, context info
 - Click navigates to detail page
 
 ### 12.3 Breadcrumbs
-
 ```html
 <nav aria-label="Breadcrumb" class="breadcrumbs">
   <a routerLink="/app/dashboard">Dashboard</a>
@@ -592,13 +544,11 @@ $bp-wide: 1280px;
 ```
 
 ### 12.4 Profile Menu
-
 - User avatar + name trigger
 - Dropdown: Profile, Settings, Help, Logout
 - Shows role badge
 
 ### 12.5 Notification Drawer
-
 - Slide-out panel from right
 - Tabs: All, Unread, Mentions
 - Real-time counter
@@ -610,7 +560,6 @@ $bp-wide: 1280px;
 ## 13. Component Checklist
 
 Every new or refactored component must have:
-
 - [ ] `ChangeDetectionStrategy.OnPush`
 - [ ] Standalone with explicit `imports`
 - [ ] All text using `--text-*` tokens
@@ -630,20 +579,20 @@ Every new or refactored component must have:
 
 ## 14. Implementation Order
 
-| Step | Component                | Effort | Impact     |
-| ---- | ------------------------ | ------ | ---------- |
-| 1    | Breadcrumbs component    | 2h     | 🔥🔥🔥🔥   |
-| 2    | Profile dropdown menu    | 2h     | 🔥🔥🔥🔥   |
-| 3    | Empty state audit        | 4h     | 🔥🔥🔥🔥   |
-| 4    | Skeleton loader audit    | 6h     | 🔥🔥🔥🔥   |
-| 5    | Unsaved changes guard    | 4h     | 🔥🔥🔥     |
-| 6    | Notification drawer      | 8h     | 🔥🔥🔥🔥   |
-| 7    | Command palette (Ctrl+K) | 16h    | 🔥🔥🔥🔥🔥 |
-| 8    | Global search            | 24h    | 🔥🔥🔥🔥🔥 |
-| 9    | Table enhancements       | 16h    | 🔥🔥🔥🔥   |
-| 10   | Token cleanup            | 16h    | 🔥🔥🔥     |
-| 11   | Page transitions         | 4h     | 🔥🔥       |
-| 12   | Keyboard shortcuts       | 8h     | 🔥🔥       |
+| Step | Component | Effort | Impact |
+|------|-----------|--------|--------|
+| 1 | Breadcrumbs component | 2h | 🔥🔥🔥🔥 |
+| 2 | Profile dropdown menu | 2h | 🔥🔥🔥🔥 |
+| 3 | Empty state audit | 4h | 🔥🔥🔥🔥 |
+| 4 | Skeleton loader audit | 6h | 🔥🔥🔥🔥 |
+| 5 | Unsaved changes guard | 4h | 🔥🔥🔥 |
+| 6 | Notification drawer | 8h | 🔥🔥🔥🔥 |
+| 7 | Command palette (Ctrl+K) | 16h | 🔥🔥🔥🔥🔥 |
+| 8 | Global search | 24h | 🔥🔥🔥🔥🔥 |
+| 9 | Table enhancements | 16h | 🔥🔥🔥🔥 |
+| 10 | Token cleanup | 16h | 🔥🔥🔥 |
+| 11 | Page transitions | 4h | 🔥🔥 |
+| 12 | Keyboard shortcuts | 8h | 🔥🔥 |
 
 ---
 

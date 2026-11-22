@@ -2,17 +2,17 @@
 
 ## Environment Variables
 
-| Variable            | Required | Status       | Notes                        |
-| ------------------- | -------- | ------------ | ---------------------------- |
-| `DATABASE_URL`      | ✅       | ⬜ Verify    | PostgreSQL connection string |
-| `JWT_SECRET`        | ✅       | ⬜ Verify    | 256-bit minimum              |
-| `JWT_EXPIRES_IN`    | ✅       | ⬜ Verify    | e.g. `8h`                    |
-| `VAPID_PUBLIC_KEY`  | ✅       | ⬜ Verify    | Push notifications           |
-| `VAPID_PRIVATE_KEY` | ✅       | ⬜ Verify    | Push notifications           |
-| `REDIS_URL`         | ⚠️       | ⬜ Verify    | WebSocket/rate-limit         |
-| `VAULT_ADDR`        | 🔶       | ⬜ Optional  | Secret management            |
-| `VAULT_TOKEN`       | 🔶       | ⬜ Optional  | Secret management            |
-| `NODE_ENV`          | ✅       | `production` | Set                          |
+| Variable | Required | Status | Notes |
+|----------|----------|--------|-------|
+| `DATABASE_URL` | ✅ | ⬜ Verify | PostgreSQL connection string |
+| `JWT_SECRET` | ✅ | ⬜ Verify | 256-bit minimum |
+| `JWT_EXPIRES_IN` | ✅ | ⬜ Verify | e.g. `8h` |
+| `VAPID_PUBLIC_KEY` | ✅ | ⬜ Verify | Push notifications |
+| `VAPID_PRIVATE_KEY` | ✅ | ⬜ Verify | Push notifications |
+| `REDIS_URL` | ⚠️ | ⬜ Verify | WebSocket/rate-limit |
+| `VAULT_ADDR` | 🔶 | ⬜ Optional | Secret management |
+| `VAULT_TOKEN` | 🔶 | ⬜ Optional | Secret management |
+| `NODE_ENV` | ✅ | `production` | Set |
 
 ## Build & Deploy
 

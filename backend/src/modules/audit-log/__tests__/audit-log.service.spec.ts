@@ -30,12 +30,7 @@ describe('AuditLogService', () => {
     flagReason: null,
     flaggedAt: null,
     flaggedBy: null,
-    user: {
-      id: 'user-1',
-      name: 'Test User',
-      email: 'test@test.com',
-      role: 'hospital_admin',
-    },
+    user: { id: 'user-1', name: 'Test User', email: 'test@test.com', role: 'hospital_admin' },
   };
 
   const mockPrisma = {
@@ -53,18 +48,8 @@ describe('AuditLogService', () => {
       ]),
     },
     user: {
-      findMany: vi
-        .fn()
-        .mockResolvedValue([
-          { id: 'user-1', name: 'Test User', email: 'test@test.com' },
-        ]),
-      findUnique: vi
-        .fn()
-        .mockResolvedValue({
-          id: 'user-1',
-          name: 'Test User',
-          email: 'test@test.com',
-        }),
+      findMany: vi.fn().mockResolvedValue([{ id: 'user-1', name: 'Test User', email: 'test@test.com' }]),
+      findUnique: vi.fn().mockResolvedValue({ id: 'user-1', name: 'Test User', email: 'test@test.com' }),
     },
     schedule: {
       findMany: vi.fn().mockResolvedValue([]),
@@ -75,13 +60,7 @@ describe('AuditLogService', () => {
   };
 
   const mockCorrelationService = {
-    getContext: vi
-      .fn()
-      .mockReturnValue({
-        correlationId: 'req-1',
-        userId: 'user-1',
-        organizationId: 'org-1',
-      }),
+    getContext: vi.fn().mockReturnValue({ correlationId: 'req-1', userId: 'user-1', organizationId: 'org-1' }),
   };
 
   beforeEach(async () => {

@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Param,
-  Body,
-  UseGuards,
-  Request,
-} from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -15,14 +7,7 @@ import { MinRole } from '../../guards/min-role';
 import { RecommendationsService } from './recommendations.service';
 
 interface RequestWithUser {
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-    organizationId?: string;
-    unitId?: string;
-  };
+  user: { id: string; email: string; name: string; role: string; organizationId?: string; unitId?: string };
 }
 
 @ApiTags('recommendations')
@@ -57,9 +42,7 @@ export class RecommendationsController {
   @Roles(MinRole.VIEWER)
   @ApiOperation({ summary: 'Get all unresolved conflicts' })
   findAllConflicts(@Request() req: RequestWithUser) {
-    return this.recommendationsService.findAllConflicts(
-      req.user.organizationId || '',
-    );
+    return this.recommendationsService.findAllConflicts(req.user.organizationId || '');
   }
 
   @Post('conflicts/:id/resolve')
@@ -73,9 +56,7 @@ export class RecommendationsController {
   @Roles(MinRole.HEAD_TECHNICIAN)
   @ApiOperation({ summary: 'Run schedule validation' })
   runValidation(@Request() req: RequestWithUser) {
-    return this.recommendationsService.runValidation(
-      req.user.organizationId || '',
-    );
+    return this.recommendationsService.runValidation(req.user.organizationId || '');
   }
 
   @Post('actions/rebalance')
@@ -89,9 +70,6 @@ export class RecommendationsController {
   @Roles(MinRole.HEAD_TECHNICIAN)
   @ApiOperation({ summary: 'Generate recommendations from insights' })
   generate(@Request() req: RequestWithUser) {
-    return this.recommendationsService.generateAll(
-      req.user.organizationId || '',
-      req.user.id,
-    );
+    return this.recommendationsService.generateAll(req.user.organizationId || '', req.user.id);
   }
 }

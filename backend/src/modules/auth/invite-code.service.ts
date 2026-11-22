@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../../prisma.service';
 
@@ -10,11 +6,7 @@ import { PrismaService } from '../../prisma.service';
 export class InviteCodeService {
   constructor(private prisma: PrismaService) {}
 
-  async create(
-    organizationId: string,
-    createdById: string,
-    options?: { maxUses?: number; expiresInHours?: number },
-  ) {
+  async create(organizationId: string, createdById: string, options?: { maxUses?: number; expiresInHours?: number }) {
     const code = randomBytes(6).toString('hex').toUpperCase();
 
     const expiresAt = options?.expiresInHours
@@ -50,9 +42,7 @@ export class InviteCodeService {
     }
 
     if (invite.useCount >= invite.maxUses) {
-      throw new BadRequestException(
-        'Davet kodu maksimum kullanım sayısına ulaştı',
-      );
+      throw new BadRequestException('Davet kodu maksimum kullanım sayısına ulaştı');
     }
 
     return { organizationId: invite.organizationId };

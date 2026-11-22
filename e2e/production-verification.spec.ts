@@ -1,271 +1,155 @@
-import { test, expect } from "@playwright/test";
-import { login, reserveLoginSlot } from "./helpers";
+import { test, expect } from '@playwright/test';
+import { signedInContext } from './fixtures/auth';
 
-test.describe("Production Verification — Auth + Session", () => {
-  test("login page loads with form", async ({ page }) => {
-    await page.goto("/login");
-    await page.waitForLoadState("networkidle");
-    await expect(
-      page.locator('input[type="email"], input[name="email"]'),
-    ).toBeVisible();
-    await expect(page.locator('button[type="submit"]')).toBeVisible();
-  });
+/**
+ * Release smoke: the paths a support engineer hits first. Every assertion reads
+ * real rendered output — there is no `.catch()` pass, no "if the button exists"
+ * branch, and no fixed sleep standing in for a wait.
+ */
+test.describe('Release smoke — session and access', () => {
+  test('a signed-in session opens the dashboard and survives a reload', async ({ browser }) => {
+    const context = await signedInContext(browser, 'admin');
+    const page = await context.newPage();
 
-  test("invalid credentials show error", async ({ page }) => {
-    await page.goto("/login");
-    await page.waitForLoadState("networkidle");
-    const email = page.locator('input[type="email"], input[name="email"]');
-    const password = page.locator('input[type="password"]');
-    await email.fill("wrong@test.com");
-    await password.fill("wrongpass");
-    await reserveLoginSlot();
-    await page.locator('button[type="submit"]').click();
-    await expect(
-      page.locator(
-        ".p-toast-message-error, .error-message, .alert, .toast-error",
-      ),
-    ).toBeVisible({ timeout: 5000 });
-  });
+    await page.goto('/app/dashboard');
+    await expect(page).toHaveURL(/\/app\/dashboard$/);
+    await expect(page.locator('.dashboard-greeting')).toBeVisible();
 
-  test("unauthenticated redirect to login", async ({ page }) => {
-    await page.goto("/app/dashboard");
-    await page.waitForLoadState("networkidle");
-    expect(page.url()).not.toContain("/app/dashboard");
-  });
-
-  test("logout clears session", async ({ page }) => {
-    await page.goto("/login");
-    await page.waitForLoadState("networkidle");
-    const email = page.locator('input[type="email"], input[name="email"]');
-    const password = page.locator('input[type="password"]');
-    if ((await email.count()) > 0) {
-      await email.fill("admin@hospital.com");
-      await password.fill("admin123");
-      await reserveLoginSlot();
-      await page.locator('button[type="submit"]').click();
-      await page.waitForTimeout(2000);
-      const logoutBtn = page.locator(
-        'button:has-text("Çıkış"), button:has-text("Logout")',
-      );
-      if ((await logoutBtn.count()) > 0) {
-        await logoutBtn.click();
-        await page.waitForURL(/login/, { timeout: 5000 }).catch(() => {});
-        expect(page.url()).toContain("login");
-      }
-    }
-  });
-});
-
-test.describe("Production Verification — RBAC", () => {
-  test("admin can access approval center", async ({ page }) => {
-    await page.goto("/login");
-    await page.waitForLoadState("networkidle");
-    const email = page.locator('input[type="email"], input[name="email"]');
-    const password = page.locator('input[type="password"]');
-    if ((await email.count()) > 0) {
-      await email.fill("admin@hospital.com");
-      await password.fill("admin123");
-      await reserveLoginSlot();
-      await page.locator('button[type="submit"]').click();
-      await page.waitForURL(/\/app\//, { timeout: 15000 });
-    }
-    await page.goto("/app/approval-center");
-    await page.waitForLoadState("networkidle");
-    await expect(page.url()).toContain("approval-center");
-  });
-});
-
-test.describe("Production Verification — Dashboard + Metrics", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
-  });
-
-  test("dashboard loads with KPIs", async ({ page }) => {
-    await page.goto("/login");
-    await page.waitForLoadState("networkidle");
-    const email = page.locator('input[type="email"], input[name="email"]');
-    const password = page.locator('input[type="password"]');
-    if ((await email.count()) > 0) {
-      await email.fill("admin@hospital.com");
-      await password.fill("admin123");
-      await reserveLoginSlot();
-      await page.locator('button[type="submit"]').click();
-      await page.waitForURL(/dashboard/, { timeout: 10000 }).catch(() => {});
-    }
-    const kpi = page.locator(".kpi-card, .metric-card, .stat-card").first();
-    await expect(kpi).toBeVisible({ timeout: 10000 });
-  });
-
-  test("refresh button updates metrics", async ({ page }) => {
-    await page.goto("/app/dashboard");
-    await page.waitForLoadState("networkidle");
-    const refreshBtn = page
-      .locator('button:has-text("Yenile"), button[aria-label="Refresh"]')
-      .first();
-    if ((await refreshBtn.count()) > 0) {
-      await refreshBtn.click();
-      await page.waitForTimeout(2000);
-    }
-  });
-});
-
-test.describe("Production Verification — Personnel", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
-  });
-
-  test("personnel table loads", async ({ page }) => {
-    await page.goto("/app/employees");
-    await page.waitForLoadState("networkidle");
-    const firstCard = page.getByRole("heading", { level: 3 }).first();
-    await expect(firstCard).toBeVisible();
-  });
-
-  test("personnel search filter works", async ({ page }) => {
-    await page.goto("/app/employees");
-    await page.waitForLoadState("networkidle");
-    const search = page
-      .locator('input[placeholder*="Ara"], input[type="search"]')
-      .first();
-    if ((await search.count()) > 0) {
-      await search.fill("test");
-      await page.waitForTimeout(500);
-    }
-  });
-});
-
-test.describe("Production Verification — Schedule Engine", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
-  });
-
-  test("MR plan page loads calendar", async ({ page }) => {
-    await page.goto("/app/mr-plan");
-    await page.waitForLoadState("networkidle");
-    const calendar = page.locator(".schedule-shell");
-    await expect(calendar).toBeVisible();
-  });
-
-  test("schedule navigation controls present", async ({ page }) => {
-    await page.goto("/app/mr-plan");
-    await page.waitForLoadState("networkidle");
-    const nextBtn = page.locator('button[title="Sonraki Ay"]');
-    const prevBtn = page.locator('button[title="Önceki Ay"]');
-    await expect(nextBtn.first()).toBeVisible();
-    await expect(prevBtn.first()).toBeVisible();
-  });
-
-  test("schedule has month/year display", async ({ page }) => {
-    await page.goto("/app/mr-plan");
-    await page.waitForLoadState("networkidle");
-    const monthLabel = page.locator(".current-month").first();
-    await expect(monthLabel).toBeVisible();
-    await expect(monthLabel).toContainText(/202\d/);
-  });
-});
-
-test.describe("Production Verification — Refresh Persistence", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
-  });
-
-  test("page state persists after refresh", async ({ page }) => {
-    await page.goto("/app/mr-plan");
-    await page.waitForLoadState("networkidle");
-    const monthText = await page
-      .locator(".current-month, .month-label")
-      .textContent();
     await page.reload();
-    await page.waitForLoadState("networkidle");
-    if (monthText) {
-      await expect(page.locator(".current-month, .month-label")).toContainText(
-        monthText.trim(),
-      );
-    }
+    await expect(page).toHaveURL(/\/app\/dashboard$/);
+    await expect(page.locator('.dashboard-greeting')).toBeVisible();
+
+    await context.close();
+  });
+
+  test('a signed-in admin reaches the approval centre', async ({ browser }) => {
+    const context = await signedInContext(browser, 'admin');
+    const page = await context.newPage();
+
+    await page.goto('/app/approval-center');
+
+    await expect(page).toHaveURL(/\/app\/approval-center$/);
+    await expect(page.locator('.approval-layout')).toBeVisible();
+
+    await context.close();
+  });
+
+  test('a signed-in session survives in another tab', async ({ browser }) => {
+    const context = await signedInContext(browser, 'admin');
+    const first = await context.newPage();
+    await first.goto('/app/dashboard');
+    await expect(first.locator('.dashboard-greeting')).toBeVisible();
+
+    const second = await context.newPage();
+    await second.goto('/app/employees');
+
+    // A deep link in a fresh tab must not fall back to the login screen while
+    // the session is alive.
+    await expect(second).toHaveURL(/\/app\/employees$/);
+    await expect(second.locator('.personnel-page')).toBeVisible();
+
+    await context.close();
   });
 });
 
-test.describe("Production Verification — Notifications", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+test.describe('Release smoke — reports and export', () => {
+  test('the reports page renders and its tabs switch', async ({ browser }) => {
+    const context = await signedInContext(browser, 'admin');
+    const page = await context.newPage();
+
+    await page.goto('/app/reports');
+
+    await expect(page.getByRole('heading', { level: 1, name: 'Vardiya Raporları' })).toBeVisible();
+    const tabs = page.locator('.tab-btn');
+    await expect(tabs).toHaveCount(4);
+    await expect(page.locator('.tab-btn.active')).toHaveCount(1);
+
+    await tabs.nth(2).click();
+    await expect(tabs.nth(2)).toHaveClass(/active/);
+    await expect(page.locator('.tab-btn.active')).toHaveCount(1);
+
+    await context.close();
   });
 
-  test("notification panel accessible", async ({ page }) => {
-    await page.goto("/app/dashboard");
-    await page.waitForLoadState("networkidle");
-    const notifBtn = page
-      .locator('button:has-text("Bildirim"), .notification-bell, .notif-icon')
-      .first();
-    if ((await notifBtn.count()) > 0) {
-      await notifBtn.click();
-      await page.waitForTimeout(500);
-    }
-  });
-});
+  test('the export dialog names the month and can be cancelled', async ({ browser }) => {
+    const context = await signedInContext(browser, 'admin');
+    const page = await context.newPage();
+    await page.goto('/app/reports');
 
-test.describe("Production Verification — Export", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+    await page.locator('.export-btn').click();
+    await expect(page.locator('.export-form')).toBeVisible();
+    await expect(page.locator('.export-month')).toContainText(/\d{4}/);
+
+    await page.locator('.btn-cancel').click();
+    await expect(page.locator('.export-form')).toHaveCount(0);
+
+    await context.close();
   });
 
-  test("export button present on reports", async ({ page }) => {
-    await page.goto("/app/reports");
-    await page.waitForLoadState("networkidle");
-    const exportBtn = page
-      .locator(
-        'button:has-text("Dışa Aktar"), button:has-text("Export"), button:has-text("PDF")',
-      )
-      .first();
-    await expect(exportBtn).toBeVisible({ timeout: 5000 });
-  });
-});
+  test('the export produces a CSV download', async ({ browser }) => {
+    const context = await signedInContext(browser, 'admin');
+    const page = await context.newPage();
+    await page.goto('/app/reports');
 
-test.describe("Production Verification — Error Resilience", () => {
-  test("404 page does not crash", async ({ page }) => {
-    await page.goto("/app/nonexistent-route");
-    await page.waitForLoadState("networkidle");
-    const bodyText = await page.locator("body").textContent();
-    expect(bodyText?.length).toBeGreaterThan(0);
-  });
+    await page.locator('.export-btn').click();
+    await expect(page.locator('.export-form')).toBeVisible();
 
-  test("loading states render skeleton", async ({ page }) => {
-    await page.goto("/app/dashboard");
-    const skeleton = page
-      .locator(".skeleton, .loading-spinner, .shimmer")
-      .first();
-    await expect(skeleton)
-      .toBeVisible({ timeout: 3000 })
-      .catch(() => {
-        // Skeleton may already have resolved — not a failure
-      });
+    const download = page.waitForEvent('download');
+    await page.locator('.btn-export').click();
+    const file = await download;
+
+    expect(file.suggestedFilename()).toMatch(/\.csv$/i);
+
+    await context.close();
   });
 });
 
-test.describe("Production Verification — Schedule Units", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+test.describe('Release smoke — routing resilience', () => {
+  test('an unknown route resolves without crashing the app', async ({ browser }) => {
+    const context = await signedInContext(browser, 'admin');
+    const page = await context.newPage();
+
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+
+    // The route table ends with `**` → /login, and the guest guard then sends an
+    // authenticated visitor back to the dashboard. The important part is that
+    // the app settles on a working screen instead of a blank one.
+    await page.goto('/app/there-is-no-such-page');
+
+    await expect(page).toHaveURL(/\/app\/dashboard$/);
+    await expect(page.locator('.dashboard-greeting')).toBeVisible();
+    expect(errors).toEqual([]);
+
+    await context.close();
   });
 
-  const units = ["mr", "bt", "rontgen", "nukleer-tip", "onkoloji"];
-  for (const unit of units) {
-    test(`${unit} plan page loads`, async ({ page }) => {
+  test('an unknown route without a session lands on the login screen', async ({ browser }) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    await page.goto('/app/there-is-no-such-page');
+
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.locator('#email')).toBeVisible();
+
+    await context.close();
+  });
+
+  test('every unit plan route resolves to a rendered plan page', async ({ browser }) => {
+    const context = await signedInContext(browser, 'admin');
+    const units = ['mr', 'bt', 'rontgen', 'nukleer-tip', 'onkoloji'];
+
+    for (const unit of units) {
+      const page = await context.newPage();
       await page.goto(`/app/${unit}-plan`);
-      await page.waitForLoadState("networkidle");
-      const calendar = page.locator(".schedule-shell");
-      await expect(calendar).toBeVisible();
-    });
-  }
-});
 
-test.describe("Production Verification — Multi-Role Access", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
-  });
+      await expect(page).toHaveURL(new RegExp(`/app/${unit}-plan$`));
+      await expect(page.locator('.plan-page')).toBeVisible();
 
-  test("operations center loads with controls", async ({ page }) => {
-    await page.goto("/app/operations");
-    await page.waitForLoadState("networkidle");
-    const header = page.locator("header, .header-bar, .operations-header");
-    await expect(header).toBeVisible();
+      await page.close();
+    }
+
+    await context.close();
   });
 });

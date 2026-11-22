@@ -45,10 +45,7 @@ export class MetricsService implements OnModuleInit {
 
   onModuleInit() {
     this.registry = new prometheus.Registry();
-    prometheus.collectDefaultMetrics({
-      register: this.registry,
-      prefix: this.prefix,
-    });
+    prometheus.collectDefaultMetrics({ register: this.registry, prefix: this.prefix });
 
     this.httpRequestDuration = new prometheus.Histogram({
       name: `${this.prefix}http_request_duration_seconds`,
@@ -198,9 +195,7 @@ export class MetricsService implements OnModuleInit {
       registers: [this.registry],
     });
 
-    winstonLogger.info('metrics_registered', {
-      count: Object.keys(this.registry.getMetricsAsJSON()).length,
-    });
+    winstonLogger.info('metrics_registered', { count: Object.keys(this.registry.getMetricsAsJSON()).length });
   }
 
   getMetrics(): Promise<string> {
@@ -212,6 +207,9 @@ export class MetricsService implements OnModuleInit {
   }
 
   recordDbQuery(model: string, action: string, durationMs: number) {
+    if (!this.dbQueryDuration || !this.dbQueriesTotal || !this.dbSlowQueriesTotal) {
+      return;
+    }
     this.dbQueryDuration.observe({ model, action }, durationMs / 1000);
     this.dbQueriesTotal.inc({ model, action });
 

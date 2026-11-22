@@ -2,14 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ScheduleService, ScheduleAnalytics } from './schedule.service';
 
-export type OnboardingStep =
-  | 'welcome'
-  | 'demo'
-  | 'generate'
-  | 'interact'
-  | 'scenario'
-  | 'insights'
-  | 'cta';
+export type OnboardingStep = 'welcome' | 'demo' | 'generate' | 'interact' | 'scenario' | 'insights' | 'cta';
 
 @Injectable({ providedIn: 'root' })
 export class OnboardingService {

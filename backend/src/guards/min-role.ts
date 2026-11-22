@@ -14,17 +14,25 @@ export const MinRole = {
   SENIOR_TECHNICIAN: UserRole.SENIOR_TECHNICIAN,
   /** medical_engineer (400) - engineering operations */
   MEDICAL_ENGINEER: UserRole.MEDICAL_ENGINEER,
-  /** supervisor (500) - unit-scoped supervisor */
+  /** supervisor (500) - manages all subordinate operational units (not unit-scoped) */
   SUPERVISOR: UserRole.SUPERVISOR,
   /** imaging_director (600) - imaging directorate management */
   IMAGING_DIRECTOR: UserRole.IMAGING_DIRECTOR,
+  /** chief_technician (550) - üst operasyon yetkisi, tüm bağlı birimler */
+  CHIEF_TECHNICIAN: UserRole.CHIEF_TECHNICIAN,
+  /** project_manager (700) - sistem/proje seviyesinde en üst operasyon yetkisi */
+  PROJECT_MANAGER: UserRole.PROJECT_MANAGER,
+  /** hr (350) - personel/İK süreçleri, operasyon hiyerarşisi dışında */
+  HR: UserRole.HR,
   /** hospital_admin (800) - hospital-wide management */
   HOSPITAL_ADMIN: UserRole.HOSPITAL_ADMIN,
   /** system_admin (1000) - full access */
   SYSTEM_ADMIN: UserRole.SYSTEM_ADMIN,
   /** @deprecated Use SENIOR_TECHNICIAN */
   HEAD_TECHNICIAN: UserRole.SENIOR_TECHNICIAN,
-  /** @deprecated Use MEDICAL_ENGINEER */
+  /** Minimum access threshold for field supervisor (saha sorumlusu) work.
+   *  Kept at MEDICAL_ENGINEER level so both medical_engineer and the
+   *  first-class field_supervisor role satisfy @Roles(MinRole.FIELD_SUPERVISOR). */
   FIELD_SUPERVISOR: UserRole.MEDICAL_ENGINEER,
   /** @deprecated Use IMAGING_DIRECTOR */
   PLANNER: UserRole.IMAGING_DIRECTOR,
@@ -34,11 +42,18 @@ export const MinRole = {
   SUPER_ADMIN: UserRole.SYSTEM_ADMIN,
 } as const;
 
-/** Roles that are scoped to a single unit */
+/**
+ * Roles that are scoped to a single unit for READ list filtering.
+ *
+ * SUPERVISOR is deliberately NOT included: a supervisor manages all subordinate
+ * operational units and must never be restricted to a single unitId (Phase 5C.7).
+ * Only FIELD_SUPERVISOR (saha sorumlusu) and the legacy unit engineers remain unit
+ * confined for the legacy `/schedules` and `/personnel` list reads.
+ */
 export const UNIT_SCOPED_ROLES: ReadonlySet<UserRole> = new Set([
   UserRole.SENIOR_TECHNICIAN,
   UserRole.MEDICAL_ENGINEER,
-  UserRole.SUPERVISOR,
+  UserRole.FIELD_SUPERVISOR,
 ]);
 
 export function isUnitScopedRole(role: string): boolean {

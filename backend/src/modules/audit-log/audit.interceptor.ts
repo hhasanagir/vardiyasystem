@@ -11,10 +11,7 @@ import { PrismaService } from '../../prisma.service';
 import { AuditLogService } from './audit-log.service';
 import { CorrelationService } from '../../correlation/correlation.service';
 import { AUDIT_METADATA_KEY, AuditMetadata } from './audit.constants';
-import {
-  CLASSIFICATION_KEY,
-  DataClassification,
-} from '../data-classification/data-classification.decorator';
+import { CLASSIFICATION_KEY, DataClassification } from '../data-classification/data-classification.decorator';
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
@@ -30,11 +27,10 @@ export class AuditInterceptor implements NestInterceptor {
       AUDIT_METADATA_KEY,
       context.getHandler(),
     );
-    const dataClassification =
-      this.reflector.get<DataClassification>(
-        CLASSIFICATION_KEY,
-        context.getHandler(),
-      ) || 'UNCLASSIFIED';
+    const dataClassification = this.reflector.get<DataClassification>(
+      CLASSIFICATION_KEY,
+      context.getHandler(),
+    ) || 'UNCLASSIFIED';
 
     if (!auditMeta) {
       return next.handle();
@@ -46,12 +42,8 @@ export class AuditInterceptor implements NestInterceptor {
     const entityType = auditMeta.entityType;
     const entityId = request.params?.id;
 
-    const captureOldValue = async (): Promise<Record<
-      string,
-      unknown
-    > | null> => {
-      if (!entityId || !['PUT', 'PATCH', 'DELETE'].includes(method))
-        return null;
+    const captureOldValue = async (): Promise<Record<string, unknown> | null> => {
+      if (!entityId || !['PUT', 'PATCH', 'DELETE'].includes(method)) return null;
       try {
         const modelMap: Record<string, string> = {
           user: 'user',
@@ -72,9 +64,7 @@ export class AuditInterceptor implements NestInterceptor {
         };
         const model = modelMap[entityType];
         if (!model) return null;
-        const record = await (this.prisma as any)[model].findUnique({
-          where: { id: entityId },
-        });
+        const record = await (this.prisma as any)[model].findUnique({ where: { id: entityId } });
         if (!record) return null;
         const { password, ...safe } = record;
         return safe;
@@ -96,39 +86,31 @@ export class AuditInterceptor implements NestInterceptor {
             }
             const ctx = this.correlationService.getContext();
             const result = responseBody as Record<string, unknown> | null;
-            const responseStatus = context
-              .switchToHttp()
-              .getResponse().statusCode;
+            const responseStatus = context.switchToHttp().getResponse().statusCode;
 
-            this.auditLog
-              .log({
-                userId: user.id,
-                userName: user.name || 'Sistem',
-                userRole: user.role || 'SYSTEM',
-                organizationId: user.organizationId || ctx?.organizationId,
-                hospitalId: user.hospitalId,
-                unitId: user.unitId,
-                action: auditMeta.action,
-                entityType: entityType,
-                entityId: entityId || (result?.id as string | undefined),
-                oldValue: oldValue || undefined,
-                newValue: (['POST', 'PUT', 'PATCH'].includes(method)
-                  ? result
-                  : undefined) as Record<string, unknown> | undefined,
-                description: auditMeta.description,
-                ipAddress: request.ip,
-                userAgent: request.headers?.['user-agent'],
-                status: responseStatus >= 400 ? 'FAILURE' : 'SUCCESS',
-                metadata: {
-                  method: request.method,
-                  path: request.route?.path || request.url,
-                  responseStatus,
-                  responseTime: Date.now() - startTime,
-                },
-              })
-              .catch((err: Error) =>
-                console.error('Audit log error:', err.message),
-              );
+            this.auditLog.log({
+              userId: user.id,
+              userName: user.name || 'Sistem',
+              userRole: user.role || 'SYSTEM',
+              organizationId: user.organizationId || ctx?.organizationId,
+              hospitalId: user.hospitalId,
+              unitId: user.unitId,
+              action: auditMeta.action,
+              entityType: entityType,
+              entityId: entityId || (result?.id as string | undefined),
+              oldValue: oldValue || undefined,
+              newValue: (['POST', 'PUT', 'PATCH'].includes(method) ? result : undefined) as Record<string, unknown> | undefined,
+              description: auditMeta.description,
+              ipAddress: request.ip,
+              userAgent: request.headers?.['user-agent'],
+              status: responseStatus >= 400 ? 'FAILURE' : 'SUCCESS',
+              metadata: {
+                method: request.method,
+                path: request.route?.path || request.url,
+                responseStatus,
+                responseTime: Date.now() - startTime,
+              },
+            }).catch((err: Error) => console.error('Audit log error:', err.message));
           }),
           catchError((error) => {
             if (!user?.id) {
@@ -137,27 +119,25 @@ export class AuditInterceptor implements NestInterceptor {
             }
             const ctx = this.correlationService.getContext();
 
-            this.auditLog
-              .log({
-                userId: user.id,
-                userName: user.name || 'Sistem',
-                userRole: user.role || 'SYSTEM',
-                organizationId: user.organizationId || ctx?.organizationId,
-                unitId: user.unitId,
-                action: auditMeta.action,
-                entityType: entityType,
-                entityId: entityId,
-                description: `${auditMeta.description} - FAILED: ${error.message}`,
-                ipAddress: request.ip,
-                userAgent: request.headers?.['user-agent'],
-                status: 'FAILURE',
-                metadata: {
-                  method: request.method,
-                  path: request.route?.path || request.url,
-                  error: error.message,
-                },
-              })
-              .catch(() => {});
+            this.auditLog.log({
+              userId: user.id,
+              userName: user.name || 'Sistem',
+              userRole: user.role || 'SYSTEM',
+              organizationId: user.organizationId || ctx?.organizationId,
+              unitId: user.unitId,
+              action: auditMeta.action,
+              entityType: entityType,
+              entityId: entityId,
+              description: `${auditMeta.description} - FAILED: ${error.message}`,
+              ipAddress: request.ip,
+              userAgent: request.headers?.['user-agent'],
+              status: 'FAILURE',
+              metadata: {
+                method: request.method,
+                path: request.route?.path || request.url,
+                error: error.message,
+              },
+            }).catch(() => {});
             throw error;
           }),
         );

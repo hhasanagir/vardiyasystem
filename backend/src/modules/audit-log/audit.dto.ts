@@ -1,13 +1,4 @@
-import {
-  IsOptional,
-  IsString,
-  IsDateString,
-  IsInt,
-  Min,
-  Max,
-  IsBoolean,
-  IsEnum,
-} from 'class-validator';
+import { IsOptional, IsString, IsDateString, IsInt, Min, Max, IsBoolean, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 import { AuditEvent } from './audit.constants';
 

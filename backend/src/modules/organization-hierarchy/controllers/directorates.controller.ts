@@ -51,10 +51,7 @@ export class DirectoratesController {
   @Patch(':id')
   @Roles(MinRole.ADMIN)
   @ApiOperation({ summary: 'Update directorate' })
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateDirectorateDto,
-  ) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateDirectorateDto) {
     return this.service.update(id, dto);
   }
 

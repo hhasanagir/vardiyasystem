@@ -8,41 +8,41 @@
 
 ### Principle: ONE BUSINESS RULE → ONE CANONICAL IMPLEMENTATION
 
-| Business Rule                            | Current Location (Backend)                        | Current Location (Frontend)                                              | Duplicate?           | Canonical Future Location            | Migration Risk                   |
-| ---------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------ | -------------------- | ------------------------------------ | -------------------------------- |
-| **Hard constraint validation**           | `ConstraintEngine` (12 constraints)               | `ConstraintValidatorService` + `ComprehensiveConstraintValidatorService` | YES                  | Backend `ConstraintEngine`           | LOW — extend, don't replace      |
-| **Conflict code enum**                   | `domain/models/conflict.ts` (10 codes)            | `features/scheduling/models/conflict.models.ts` (10 codes)               | YES                  | Backend `conflict.ts`                | LOW — frontend uses DTO          |
-| **Conflict detection**                   | `Conflict` model + `createConflict()`             | `ConflictDetectorService`                                                | YES                  | Backend domain                       | LOW                              |
-| **Fairness calculation**                 | `FairnessEngine` (4 dimensions)                   | `FairnessBalancerService` (4 dimensions, different weights)              | YES (weights differ) | Backend `FairnessEngine`             | MEDIUM — weight alignment needed |
-| **Fatigue scoring**                      | `FatigueMetrics` interface only                   | `FatigueEngineService` (full implementation)                             | NO                   | **NEW** backend `FatigueEngine`      | HIGH — must create from scratch  |
-| **Rebalancing**                          | Stub in `recommendations.service.ts`              | `RebalanceEngineService` (full implementation)                           | NO                   | **NEW** backend `ScheduleRebalancer` | HIGH — must create from scratch  |
-| **Genetic algorithm**                    | NONE                                              | `ConstraintSolverService` (full GA)                                      | NO                   | **NEW** backend `ScheduleOptimizer`  | HIGH — must create from scratch  |
-| **Score calculation**                    | `ScoringModel` (weighted average)                 | `RebalanceEngineService.calculateScore()`                                | PARTIAL              | Backend `ScoringModel`               | LOW — already canonical          |
-| **Schedule generation**                  | `ScheduleAutoGeneratorService` (greedy)           | `ScheduleGeneratorService` (greedy, different algorithm)                 | PARTIAL              | Backend generator                    | MEDIUM — algorithm differences   |
-| **Recommendations**                      | `RecommendationsService` (DB-focused)             | `RecommendationEngineService` (rich generation)                          | PARTIAL              | Backend `SchedulingInsightsService`  | MEDIUM — merge generation logic  |
-| **Constraint types/models**              | `domain/constraints/` (DDD)                       | `core/scheduling/scheduling.models.ts` (flat)                            | YES                  | Backend domain entities              | LOW — frontend uses DTOs         |
-| **Validation result types**              | `domain/models/validation-result.ts`              | `features/scheduling/models/validation.models.ts`                        | YES                  | Backend types                        | LOW — frontend uses DTOs         |
-| **Personnel info**                       | `Personnel` Prisma model + `PersonnelInfo`        | `Personnel` interface (frontend)                                         | YES                  | Backend Prisma → DTO                 | LOW                              |
-| **Device info**                          | `Device` Prisma model + `DeviceInfo`              | `Device` interface (frontend)                                            | YES                  | Backend Prisma → DTO                 | LOW                              |
-| **Shift type logic**                     | `ShiftTypeVO` (value object)                      | `SHIFT_TYPES_OFF` constant                                               | YES                  | Backend value object                 | LOW                              |
-| **Holiday handling**                     | `Holiday` Prisma model                            | `TURKISH_HOLIDAYS_2026` constant                                         | PARTIAL              | Backend `Holiday` model              | LOW                              |
-| **Schedule status machine**              | `Schedule` aggregate (6 states)                   | Frontend status types                                                    | YES                  | Backend aggregate                    | LOW                              |
-| **Version management**                   | `ScheduleSnapshot` + `VersionDiff`                | None                                                                     | NO                   | Backend only                         | N/A                              |
-| **Override logic**                       | `ScheduleApplicationService.overrideAssignment()` | None                                                                     | NO                   | Backend only                         | N/A                              |
-| **Workflow transitions**                 | `Schedule` aggregate methods                      | Frontend status types                                                    | YES                  | Backend aggregate                    | LOW                              |
-| **Unit-specific rules (MR/BT/Nuclear)**  | NONE                                              | `ComprehensiveConstraintValidatorService`                                | NO                   | **NEW** backend constraints          | HIGH — must create               |
-| **Personnel protection (pregnancy/age)** | NONE                                              | `ComprehensiveConstraintValidatorService`                                | NO                   | **NEW** backend constraints          | HIGH — must create               |
-| **Radiation dose tracking**              | NONE                                              | `ComprehensiveConstraintValidatorService`                                | NO                   | **NEW** backend constraints          | HIGH — must create               |
+| Business Rule | Current Location (Backend) | Current Location (Frontend) | Duplicate? | Canonical Future Location | Migration Risk |
+|---|---|---|---|---|---|
+| **Hard constraint validation** | `ConstraintEngine` (12 constraints) | `ConstraintValidatorService` + `ComprehensiveConstraintValidatorService` | YES | Backend `ConstraintEngine` | LOW — extend, don't replace |
+| **Conflict code enum** | `domain/models/conflict.ts` (10 codes) | `features/scheduling/models/conflict.models.ts` (10 codes) | YES | Backend `conflict.ts` | LOW — frontend uses DTO |
+| **Conflict detection** | `Conflict` model + `createConflict()` | `ConflictDetectorService` | YES | Backend domain | LOW |
+| **Fairness calculation** | `FairnessEngine` (4 dimensions) | `FairnessBalancerService` (4 dimensions, different weights) | YES (weights differ) | Backend `FairnessEngine` | MEDIUM — weight alignment needed |
+| **Fatigue scoring** | `FatigueMetrics` interface only | `FatigueEngineService` (full implementation) | NO | **NEW** backend `FatigueEngine` | HIGH — must create from scratch |
+| **Rebalancing** | Stub in `recommendations.service.ts` | `RebalanceEngineService` (full implementation) | NO | **NEW** backend `ScheduleRebalancer` | HIGH — must create from scratch |
+| **Genetic algorithm** | NONE | `ConstraintSolverService` (full GA) | NO | **NEW** backend `ScheduleOptimizer` | HIGH — must create from scratch |
+| **Score calculation** | `ScoringModel` (weighted average) | `RebalanceEngineService.calculateScore()` | PARTIAL | Backend `ScoringModel` | LOW — already canonical |
+| **Schedule generation** | `ScheduleAutoGeneratorService` (greedy) | `ScheduleGeneratorService` (greedy, different algorithm) | PARTIAL | Backend generator | MEDIUM — algorithm differences |
+| **Recommendations** | `RecommendationsService` (DB-focused) | `RecommendationEngineService` (rich generation) | PARTIAL | Backend `SchedulingInsightsService` | MEDIUM — merge generation logic |
+| **Constraint types/models** | `domain/constraints/` (DDD) | `core/scheduling/scheduling.models.ts` (flat) | YES | Backend domain entities | LOW — frontend uses DTOs |
+| **Validation result types** | `domain/models/validation-result.ts` | `features/scheduling/models/validation.models.ts` | YES | Backend types | LOW — frontend uses DTOs |
+| **Personnel info** | `Personnel` Prisma model + `PersonnelInfo` | `Personnel` interface (frontend) | YES | Backend Prisma → DTO | LOW |
+| **Device info** | `Device` Prisma model + `DeviceInfo` | `Device` interface (frontend) | YES | Backend Prisma → DTO | LOW |
+| **Shift type logic** | `ShiftTypeVO` (value object) | `SHIFT_TYPES_OFF` constant | YES | Backend value object | LOW |
+| **Holiday handling** | `Holiday` Prisma model | `TURKISH_HOLIDAYS_2026` constant | PARTIAL | Backend `Holiday` model | LOW |
+| **Schedule status machine** | `Schedule` aggregate (6 states) | Frontend status types | YES | Backend aggregate | LOW |
+| **Version management** | `ScheduleSnapshot` + `VersionDiff` | None | NO | Backend only | N/A |
+| **Override logic** | `ScheduleApplicationService.overrideAssignment()` | None | NO | Backend only | N/A |
+| **Workflow transitions** | `Schedule` aggregate methods | Frontend status types | YES | Backend aggregate | LOW |
+| **Unit-specific rules (MR/BT/Nuclear)** | NONE | `ComprehensiveConstraintValidatorService` | NO | **NEW** backend constraints | HIGH — must create |
+| **Personnel protection (pregnancy/age)** | NONE | `ComprehensiveConstraintValidatorService` | NO | **NEW** backend constraints | HIGH — must create |
+| **Radiation dose tracking** | NONE | `ComprehensiveConstraintValidatorService` | NO | **NEW** backend constraints | HIGH — must create |
 
 ### Summary
 
-| Category                                          | Count   | Action                            |
-| ------------------------------------------------- | ------- | --------------------------------- |
-| **Backend is canonical** (frontend is duplicate)  | 8 rules | Delete frontend, use backend DTOs |
-| **Frontend is canonical** (no backend equivalent) | 5 rules | Create in backend                 |
-| **Both have different versions** (need merger)    | 6 rules | Align weights/algorithms          |
-| **Backend only** (no frontend logic)              | 4 rules | Already correct                   |
-| **Neither has full implementation**               | 3 rules | Create in backend                 |
+| Category | Count | Action |
+|---|---|---|
+| **Backend is canonical** (frontend is duplicate) | 8 rules | Delete frontend, use backend DTOs |
+| **Frontend is canonical** (no backend equivalent) | 5 rules | Create in backend |
+| **Both have different versions** (need merger) | 6 rules | Align weights/algorithms |
+| **Backend only** (no frontend logic) | 4 rules | Already correct |
+| **Neither has full implementation** | 3 rules | Create in backend |
 
 ---
 
@@ -128,9 +128,9 @@ interface DryRunRequest {
   unitId: string;
   month: number;
   year: number;
-  algorithm?: "greedy" | "genetic";
+  algorithm?: 'greedy' | 'genetic';
   configuration?: Partial<OptimizationConfig>;
-  existingAssignments?: AssignmentDTO[]; // Optional: include existing
+  existingAssignments?: AssignmentDTO[];  // Optional: include existing
 }
 ```
 
@@ -196,4 +196,4 @@ NO PERSISTENCE. NO EVENTS. NO WEBSOCKET BROADCAST.
 
 ---
 
-_Audit completed: 2026-08-25_
+*Audit completed: 2026-08-25*

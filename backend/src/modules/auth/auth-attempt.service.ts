@@ -37,10 +37,7 @@ export class AuthAttemptService {
         },
       });
     } catch (error) {
-      this.logger.error(
-        'Failed to record auth attempt',
-        (error as Error).message,
-      );
+      this.logger.error('Failed to record auth attempt', (error as Error).message);
     }
   }
 
@@ -67,9 +64,7 @@ export class AuthAttemptService {
             { success: false, createdAt: { gte: since } },
             {
               OR: [
-                ...(params.email
-                  ? [{ email: params.email.toLowerCase() }]
-                  : []),
+                ...(params.email ? [{ email: params.email.toLowerCase() }] : []),
                 ...(params.ipAddress ? [{ ipAddress: params.ipAddress }] : []),
               ],
             },
@@ -113,9 +108,7 @@ export class AuthAttemptService {
       return {
         locked: true,
         remainingMs: Math.max(0, remainingMs),
-        reason: emailLock
-          ? 'Too many failed login attempts for this account'
-          : 'Too many failed login attempts from this IP',
+        reason: emailLock ? 'Too many failed login attempts for this account' : 'Too many failed login attempts from this IP',
       };
     }
 
@@ -128,32 +121,18 @@ export class AuthAttemptService {
     failureCount: number;
     userAgent?: string;
   }) {
-    const threshold = this.configService.get<number>(
-      'AUTH_LOCKOUT_THRESHOLD',
-      5,
-    );
+    const threshold = this.configService.get<number>('AUTH_LOCKOUT_THRESHOLD', 5);
     if (params.failureCount < threshold) {
       return null;
     }
 
-    const baseDuration = this.configService.get<number>(
-      'AUTH_LOCKOUT_DURATION_MS',
-      900000,
-    );
-    const progressiveFactor = this.configService.get<number>(
-      'AUTH_LOCKOUT_PROGRESSIVE_FACTOR',
-      1.5,
-    );
-    const maxDuration = this.configService.get<number>(
-      'AUTH_LOCKOUT_MAX_DURATION_MS',
-      86400000,
-    );
+    const baseDuration = this.configService.get<number>('AUTH_LOCKOUT_DURATION_MS', 900000);
+    const progressiveFactor = this.configService.get<number>('AUTH_LOCKOUT_PROGRESSIVE_FACTOR', 1.5);
+    const maxDuration = this.configService.get<number>('AUTH_LOCKOUT_MAX_DURATION_MS', 86400000);
 
     const excessFailures = params.failureCount - threshold + 1;
     const duration = Math.min(
-      Math.floor(
-        baseDuration * Math.pow(progressiveFactor, excessFailures - 1),
-      ),
+      Math.floor(baseDuration * Math.pow(progressiveFactor, excessFailures - 1)),
       maxDuration,
     );
 
@@ -204,9 +183,7 @@ export class AuthAttemptService {
         this.logger.warn('Failed to log lockout audit event');
       }
 
-      this.logger.warn(
-        `Lockout applied to ${params.email || params.ipAddress} for ${duration}ms after ${params.failureCount} failures`,
-      );
+      this.logger.warn(`Lockout applied to ${params.email || params.ipAddress} for ${duration}ms after ${params.failureCount} failures`);
     } catch (error) {
       this.logger.error('Failed to apply lockout', (error as Error).message);
     }
@@ -253,10 +230,7 @@ export class AuthAttemptService {
     }
   }
 
-  async unlockAccount(params: {
-    email?: string;
-    ipAddress?: string;
-  }): Promise<boolean> {
+  async unlockAccount(params: { email?: string; ipAddress?: string }): Promise<boolean> {
     const email = params.email?.toLowerCase();
     let unlocked = false;
 
@@ -270,10 +244,7 @@ export class AuthAttemptService {
 
     if (params.ipAddress) {
       const result = await this.prisma.authAttempt.updateMany({
-        where: {
-          ipAddress: params.ipAddress,
-          lockoutUntil: { gt: new Date() },
-        },
+        where: { ipAddress: params.ipAddress, lockoutUntil: { gt: new Date() } },
         data: { lockoutUntil: new Date(0) },
       });
       if (result.count > 0) unlocked = true;

@@ -26,9 +26,7 @@ export class AssignmentSlotsService {
     return this.prisma.assignmentSlot.findMany({
       where: {
         ...(query?.date && { date: query.date }),
-        ...(query?.status && {
-          status: query.status.toUpperCase() as AssignmentSlotStatus,
-        }),
+        ...(query?.status && { status: query.status.toUpperCase() as AssignmentSlotStatus }),
       },
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
     });
@@ -41,26 +39,20 @@ export class AssignmentSlotsService {
     });
   }
 
-  async update(
-    id: string,
-    data: Partial<{
-      startTime: string;
-      endTime: string;
-      shiftType: ShiftType;
-      status: AssignmentSlotStatus;
-      assignedTo: string;
-      scheduleId: string;
-      isActive: boolean;
-    }>,
-  ) {
+  async update(id: string, data: Partial<{
+    startTime: string;
+    endTime: string;
+    shiftType: ShiftType;
+    status: AssignmentSlotStatus;
+    assignedTo: string;
+    scheduleId: string;
+    isActive: boolean;
+  }>) {
     return this.prisma.assignmentSlot.update({ where: { id }, data });
   }
 
   async remove(id: string) {
-    return this.prisma.assignmentSlot.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    return this.prisma.assignmentSlot.update({ where: { id }, data: { isActive: false } });
   }
 
   async findByDate(date: string) {

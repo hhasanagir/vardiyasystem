@@ -4,21 +4,21 @@
 
 ## Technology Stack
 
-| Layer        | Technology                           | Version |
-| ------------ | ------------------------------------ | ------- |
-| Frontend     | Angular                              | 21.2.x  |
-| Mobile       | Capacitor                            | 8.x     |
-| Backend      | NestJS                               | 10.4.x  |
-| ORM          | Prisma                               | 5.22.x  |
-| Database     | PostgreSQL                           | 14+     |
-| Cache        | Redis / ioredis                      | —       |
-| Queue        | BullMQ                               | —       |
-| WebSocket    | Socket.IO                            | 4.8.x   |
-| Auth         | JWT + Passport                       | —       |
-| Monitoring   | OpenTelemetry + Prometheus + Grafana | —       |
-| Logging      | Winston + Loki                       | —       |
-| Tracing      | Tempo                                | —       |
-| Load Testing | k6                                   | —       |
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Frontend | Angular | 21.2.x |
+| Mobile | Capacitor | 8.x |
+| Backend | NestJS | 10.4.x |
+| ORM | Prisma | 5.22.x |
+| Database | PostgreSQL | 14+ |
+| Cache | Redis / ioredis | — |
+| Queue | BullMQ | — |
+| WebSocket | Socket.IO | 4.8.x |
+| Auth | JWT + Passport | — |
+| Monitoring | OpenTelemetry + Prometheus + Grafana | — |
+| Logging | Winston + Loki | — |
+| Tracing | Tempo | — |
+| Load Testing | k6 | — |
 
 ## Backend Structure (52 modules)
 

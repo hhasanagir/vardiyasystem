@@ -12,23 +12,14 @@ import { EventsConsumer } from './handlers/events.consumer';
 function createRedisProvider(configService: ConfigService): Redis {
   const redisUrl = configService.get<string>('REDIS_URL');
   if (redisUrl) {
-    return new Redis(redisUrl, {
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
-    });
+    return new Redis(redisUrl, { maxRetriesPerRequest: null, enableReadyCheck: false });
   }
-  return new Redis({
-    host: 'localhost',
-    port: 6379,
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false,
-  });
+  return new Redis({ host: 'localhost', port: 6379, maxRetriesPerRequest: null, enableReadyCheck: false });
 }
 
 const redisClientProvider: Provider = {
   provide: REDIS_CLIENT,
-  useFactory: (configService: ConfigService) =>
-    createRedisProvider(configService),
+  useFactory: (configService: ConfigService) => createRedisProvider(configService),
   inject: [ConfigService],
 };
 
@@ -41,14 +32,15 @@ const redisClientProvider: Provider = {
       useFactory: (configService: ConfigService) => {
         const redisUrl = configService.get<string>('REDIS_URL');
         return {
-          connection: redisUrl
-            ? { url: redisUrl }
-            : { host: 'localhost', port: 6379 },
+          connection: redisUrl ? { url: redisUrl } : { host: 'localhost', port: 6379 },
         };
       },
       inject: [ConfigService],
     }),
-    BullModule.registerQueue({ name: 'events' }, { name: 'dead-letter' }),
+    BullModule.registerQueue(
+      { name: 'events' },
+      { name: 'dead-letter' },
+    ),
   ],
   providers: [
     redisClientProvider,

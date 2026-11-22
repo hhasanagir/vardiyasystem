@@ -27,10 +27,7 @@ export class SuppliersController {
   @Get()
   @Roles(MinRole.FIELD_SUPERVISOR)
   @ApiOperation({ summary: 'Get all suppliers' })
-  findAll(
-    @Query('category') category?: string,
-    @Query('search') search?: string,
-  ) {
+  findAll(@Query('category') category?: string, @Query('search') search?: string) {
     return this.suppliersService.findAll({ category, search });
   }
 

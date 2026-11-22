@@ -1,22 +1,9 @@
-import {
-  Component,
-  inject,
-  input,
-  signal,
-  computed,
-  effect,
-  ChangeDetectionStrategy,
-} from '@angular/core';
+import { Component, inject, input, signal, computed, effect, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ScheduleService } from '../../services/schedule.service';
 import { PersonAssignmentDialogComponent } from '../person-assignment-dialog/person-assignment-dialog.component';
-import type {
-  PersonShiftsResponse,
-  PersonShiftReportResponse,
-  PersonShiftTemplate,
-  PersonShiftAssignment,
-} from '../../domain/models';
+import type { PersonShiftsResponse, PersonShiftReportResponse, PersonShiftTemplate, PersonShiftAssignment } from '../../domain/models';
 import { ShiftTypeEnum } from '../../domain/enums';
 
 interface Cell {
@@ -32,13 +19,7 @@ interface TemplateRow {
 }
 
 interface GroupBlock {
-  group: {
-    id: string;
-    code: string;
-    name: string;
-    description?: string | null;
-    personnelCount: number;
-  };
+  group: { id: string; code: string; name: string; description?: string | null; personnelCount: number };
   rows: TemplateRow[];
   totalAssigned: number;
 }
@@ -74,14 +55,7 @@ export class PersonShiftViewComponent {
   readonly dialog = signal<DialogState | null>(null);
 
   readonly unitLabel = computed(() => {
-    const map: Record<string, string> = {
-      mr: 'MR',
-      bt: 'BT',
-      rontgen: 'Röntgen',
-      nukleer: 'Nükleer Tıp',
-      onkoloji: 'Onkoloji',
-      supervizor: 'Süpervizör',
-    };
+    const map: Record<string, string> = { mr: 'MR', bt: 'BT', rontgen: 'Röntgen', nukleer: 'Nükleer Tıp', onkoloji: 'Onkoloji', supervizor: 'Süpervizör' };
     return map[this.unit().toLowerCase()] || this.unit();
   });
 
@@ -90,13 +64,7 @@ export class PersonShiftViewComponent {
     const year = this.year();
     const count = new Date(year, month, 0).getDate();
     const dayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-    const out: Array<{
-      num: number;
-      name: string;
-      date: string;
-      isWeekend: boolean;
-      isToday: boolean;
-    }> = [];
+    const out: Array<{ num: number; name: string; date: string; isWeekend: boolean; isToday: boolean }> = [];
     const todayStr = new Date().toISOString().split('T')[0];
     for (let d = 1; d <= count; d++) {
       const dateObj = new Date(year, month - 1, d);
@@ -116,12 +84,11 @@ export class PersonShiftViewComponent {
   readonly blocks = computed<GroupBlock[]>(() => {
     const d = this.data();
     if (!d) return [];
-    return d.groups.map((g) => {
+    return d.groups.map(g => {
       const assignments = g.assignments || [];
-      const rows: TemplateRow[] = g.templates.map((t) => {
-        const cells: Cell[] = this.days().map((day) => {
-          const match =
-            assignments.find((a) => a.date === day.date && a.shiftType === t.shiftType) || null;
+      const rows: TemplateRow[] = g.templates.map(t => {
+        const cells: Cell[] = this.days().map(day => {
+          const match = assignments.find(a => a.date === day.date && a.shiftType === t.shiftType) || null;
           return {
             date: day.date,
             assignment: match,
@@ -132,28 +99,20 @@ export class PersonShiftViewComponent {
         return { template: t, cells };
       });
       return {
-        group: {
-          id: g.id,
-          code: g.code,
-          name: g.name,
-          description: g.description,
-          personnelCount: g.personnelCount,
-        },
+        group: { id: g.id, code: g.code, name: g.name, description: g.description, personnelCount: g.personnelCount },
         rows,
         totalAssigned: assignments.length,
       };
     });
   });
 
-  readonly totalAssignments = computed(
-    () => this.data()?.groups.reduce((s, g) => s + (g.assignments?.length || 0), 0) || 0,
-  );
+  readonly totalAssignments = computed(() => this.data()?.groups.reduce((s, g) => s + (g.assignments?.length || 0), 0) || 0);
 
   readonly filteredReportRows = computed(() => {
     const r = this.report();
     if (!r) return [];
     const gid = this.reportGroupFilter();
-    return r.rows.filter((row) => !gid || row.groupId === gid);
+    return r.rows.filter(row => !gid || row.groupId === gid);
   });
 
   readonly editable = computed(() => {
@@ -180,7 +139,7 @@ export class PersonShiftViewComponent {
     this.data.set(null);
     this.report.set(null);
     this.scheduleService.loadPersonShifts(unit, month, year).subscribe({
-      next: (res) => {
+      next: res => {
         this.data.set(res);
         this.reportGroupFilter.set('');
       },
@@ -199,7 +158,7 @@ export class PersonShiftViewComponent {
     const month = this.month();
     const year = this.year();
     this.scheduleService.loadPersonShiftReport(unit, month, year).subscribe({
-      next: (res) => this.report.set(res),
+      next: res => this.report.set(res),
       error: () => this.report.set(null),
     });
   }
@@ -224,21 +183,13 @@ export class PersonShiftViewComponent {
   }
 
   shiftLabel(t: string): string {
-    const map: Record<string, string> = {
-      day: 'Gündüz',
-      evening: 'Akşam',
-      night: 'Gece',
-      morning: 'Sabah',
-    };
+    const map: Record<string, string> = { day: 'Gündüz', evening: 'Akşam', night: 'Gece', morning: 'Sabah' };
     return map[t] || t;
   }
 
   shiftColor(t: string): string {
     const map: Record<string, string> = {
-      day: '#fbbf24',
-      evening: '#f97316',
-      night: '#6366f1',
-      morning: '#22d3ee',
+      day: '#fbbf24', evening: '#f97316', night: '#6366f1', morning: '#22d3ee',
     };
     return map[t] || '#64748b';
   }
@@ -248,62 +199,26 @@ export class PersonShiftViewComponent {
   }
 
   monthLabel(): string {
-    const months = [
-      'Ocak',
-      'Şubat',
-      'Mart',
-      'Nisan',
-      'Mayıs',
-      'Haziran',
-      'Temmuz',
-      'Ağustos',
-      'Eylül',
-      'Ekim',
-      'Kasım',
-      'Aralık',
-    ];
+    const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
     return `${months[this.month() - 1]} ${this.year()}`;
   }
 
   groupColor(id: string): string {
-    const colors = [
-      '#3b82f6',
-      '#8b5cf6',
-      '#10b981',
-      '#f59e0b',
-      '#ec4899',
-      '#14b8a6',
-      '#f97316',
-      '#06b6d4',
-    ];
+    const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#14b8a6', '#f97316', '#06b6d4'];
     let hash = 0;
     for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
     return colors[Math.abs(hash) % colors.length];
   }
 
   personBg(id: string): string {
-    const colors = [
-      '#3b82f6',
-      '#22c55e',
-      '#f59e0b',
-      '#ef4444',
-      '#8b5cf6',
-      '#ec4899',
-      '#14b8a6',
-      '#f97316',
-    ];
+    const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
     let hash = 0;
     for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
     return colors[Math.abs(hash) % colors.length];
   }
 
   initials(name: string): string {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase();
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   }
 
   cellTitle(cell: Cell, row: TemplateRow): string {

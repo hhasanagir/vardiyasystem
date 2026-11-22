@@ -52,7 +52,9 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/styles.scss"]
+            "styles": [
+              "src/styles.scss"
+            ]
           },
           "configurations": {
             "production": {
@@ -60,17 +62,17 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "700kB",
-                  "maximumError": "850kB"
+                  "maximumWarning": "660kB",
+                  "maximumError": "800kB"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "28kB",
+                  "maximumWarning": "26kB",
                   "maximumError": "40kB"
                 },
                 {
                   "type": "anyScript",
-                  "maximumWarning": "400kB",
+                  "maximumWarning": "340kB",
                   "maximumError": "500kB"
                 },
                 {
@@ -118,14 +120,6 @@
             }
           },
           "defaultConfiguration": "development"
-        },
-        "test": {
-          "builder": "@angular/build:unit-test",
-          "options": {
-            "tsConfig": "tsconfig.spec.json",
-            "runnerConfig": "vitest.config.ts",
-            "watch": false
-          }
         }
       }
     }

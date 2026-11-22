@@ -40,19 +40,19 @@ backend/
 
 ## Capacitor Plugins Installed
 
-| Plugin                              | Version | Purpose                          |
-| ----------------------------------- | ------- | -------------------------------- |
-| `@capacitor/app`                    | 8.1.0   | App lifecycle & deep links       |
-| `@capacitor/camera`                 | 8.2.0   | Camera & photo gallery           |
-| `@capacitor/device`                 | 8.0.2   | Device info & battery            |
-| `@capacitor/haptics`                | 8.0.2   | Haptic feedback                  |
-| `@capacitor/keyboard`               | 8.0.5   | Keyboard show/hide events        |
-| `@capacitor/local-notifications`    | 8.2.0   | Local (foreground) notifications |
-| `@capacitor/preferences`            | 8.0.1   | Encrypted key-value storage      |
-| `@capacitor/push-notifications`     | 8.1.1   | FCM push notifications           |
-| `@capacitor/splash-screen`          | 8.0.1   | Native splash screen             |
-| `@capacitor/status-bar`             | 8.0.2   | Status bar styling               |
-| `@capgo/capacitor-native-biometric` | 8.4.8   | Fingerprint/Face ID auth         |
+| Plugin | Version | Purpose |
+|--------|---------|---------|
+| `@capacitor/app` | 8.1.0 | App lifecycle & deep links |
+| `@capacitor/camera` | 8.2.0 | Camera & photo gallery |
+| `@capacitor/device` | 8.0.2 | Device info & battery |
+| `@capacitor/haptics` | 8.0.2 | Haptic feedback |
+| `@capacitor/keyboard` | 8.0.5 | Keyboard show/hide events |
+| `@capacitor/local-notifications` | 8.2.0 | Local (foreground) notifications |
+| `@capacitor/preferences` | 8.0.1 | Encrypted key-value storage |
+| `@capacitor/push-notifications` | 8.1.1 | FCM push notifications |
+| `@capacitor/splash-screen` | 8.0.1 | Native splash screen |
+| `@capacitor/status-bar` | 8.0.2 | Status bar styling |
+| `@capgo/capacitor-native-biometric` | 8.4.8 | Fingerprint/Face ID auth |
 
 ## Mobile Build Commands
 
@@ -69,7 +69,6 @@ npm run cap:run:ios               # Run on device
 ## Push Notification Setup
 
 ### Android
-
 1. Create Firebase project at https://console.firebase.google.com
 2. Add Android app with package `com.hospital.vardiya`
 3. Download `google-services.json` to `frontend/android/app/`
@@ -77,7 +76,6 @@ npm run cap:run:ios               # Run on device
 5. Apply Google Services plugin
 
 ### iOS
-
 1. Add iOS app with bundle ID `com.hospital.vardiya` in Firebase
 2. Download `GoogleService-Info.plist` to `frontend/ios/App/App/`
 3. Enable Push Notifications capability in Xcode
@@ -86,23 +84,19 @@ npm run cap:run:ios               # Run on device
 ## Biometric Authentication
 
 ### Android
-
 - Fingerprint scanner or Face Unlock (Android 10+)
 - No additional config needed
 
 ### iOS
-
 - Face ID or Touch ID
 - Add to Info.plist: `NSFaceIDUsageDescription` = "Vardiya uygulamasına giriş için yüz tanıma kullanılır"
 
 ## Offline Sync
-
 - Clock-in/out, handover notes, incidents, checklists work offline
 - Queued actions auto-sync when online
 - GET responses cached via ApiCacheService + IndexedDB
 
 ## API Changes for Mobile
-
 - CORS — allow Capacitor origins (`null`)
 - CSRF — skip for mobile requests
 - Compression — add middleware

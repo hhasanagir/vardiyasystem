@@ -34,24 +34,12 @@ export class CommandCenterService {
         select: { deviceId: true, status: true },
       }),
       this.prisma.deviceIncident.findMany({
-        where: {
-          unit: { organizationId },
-          status: { in: ['open', 'in_progress'] },
-        },
+        where: { unit: { organizationId }, status: { in: ['open', 'in_progress'] } },
         select: { id: true, severity: true, issueType: true, status: true },
       }),
       this.prisma.deviceIncident.findMany({
-        where: {
-          unit: { organizationId },
-          severity: 'critical',
-          status: 'open',
-        },
-        select: {
-          id: true,
-          issueType: true,
-          description: true,
-          reportedAt: true,
-        },
+        where: { unit: { organizationId }, severity: 'critical', status: 'open' },
+        select: { id: true, issueType: true, description: true, reportedAt: true },
       }),
       this.prisma.swapRequest.findMany({
         where: { status: 'PENDING' },
@@ -59,28 +47,14 @@ export class CommandCenterService {
       }),
       this.prisma.attendanceRecord.findMany({
         where: { date: today, user: { organizationId } },
-        select: {
-          id: true,
-          userId: true,
-          status: true,
-          clockIn: true,
-          clockOut: true,
-        },
+        select: { id: true, userId: true, status: true, clockIn: true, clockOut: true },
       }),
       this.prisma.assignment.findMany({
         where: {
           date: today,
-          schedule: {
-            unit: { organizationId },
-            status: { in: ['published', 'approved', 'under_review'] },
-          },
+          schedule: { unit: { organizationId }, status: { in: ['published', 'approved', 'under_review'] } },
         },
-        select: {
-          id: true,
-          deviceId: true,
-          personnelId: true,
-          shiftType: true,
-        },
+        select: { id: true, deviceId: true, personnelId: true, shiftType: true },
       }),
       this.prisma.device.findMany({
         where: { organizationId, isActive: true },
@@ -89,18 +63,14 @@ export class CommandCenterService {
     ]);
 
     // 1 — Active staff: personnel with at least one assignment today
-    const assignedPersonnelIds = new Set(assignments.map((a) => a.personnelId));
-    const activeStaff = personnelList.filter((p) =>
-      assignedPersonnelIds.has(p.id),
-    );
+    const assignedPersonnelIds = new Set(assignments.map(a => a.personnelId));
+    const activeStaff = personnelList.filter(p => assignedPersonnelIds.has(p.id));
     const totalStaff = personnelList.length;
 
     // 2 — Devices online/offline
-    const statusMap = new Map(statusLogs.map((l) => [l.deviceId, l.status]));
-    const onlineDevices = devices.filter(
-      (d) => statusMap.get(d.id) === 'active' || !statusMap.has(d.id),
-    ).length;
-    const offlineDevices = devices.filter((d) => {
+    const statusMap = new Map(statusLogs.map(l => [l.deviceId, l.status]));
+    const onlineDevices = devices.filter(d => statusMap.get(d.id) === 'active' || !statusMap.has(d.id)).length;
+    const offlineDevices = devices.filter(d => {
       const s = statusMap.get(d.id);
       return s && s !== 'active';
     }).length;
@@ -113,14 +83,11 @@ export class CommandCenterService {
     const criticalAlertCount = criticalAlerts.length;
 
     // 5 — Missing staffing: device slots minus assigned count
-    const modeMap = new Map(deviceModes.map((d) => [d.id, d.mode]));
+    const modeMap = new Map(deviceModes.map(d => [d.id, d.mode]));
     const assignedPerDevice = new Map<string, number>();
     for (const a of assignments) {
       if (a.deviceId) {
-        assignedPerDevice.set(
-          a.deviceId,
-          (assignedPerDevice.get(a.deviceId) || 0) + 1,
-        );
+        assignedPerDevice.set(a.deviceId, (assignedPerDevice.get(a.deviceId) || 0) + 1);
       }
     }
     let missingStaffing = 0;
@@ -134,12 +101,8 @@ export class CommandCenterService {
     const pendingSwapCount = pendingSwaps.length;
 
     // 7 — Attendance status
-    const clockedIn = attendanceRecords.filter(
-      (r) => r.status === 'clocked_in' || r.clockIn,
-    ).length;
-    const clockedOut = attendanceRecords.filter(
-      (r) => r.status === 'clocked_out' || r.clockOut,
-    ).length;
+    const clockedIn = attendanceRecords.filter(r => r.status === 'clocked_in' || r.clockIn).length;
+    const clockedOut = attendanceRecords.filter(r => r.status === 'clocked_out' || r.clockOut).length;
     const notClocked = totalStaff - clockedIn - clockedOut;
 
     // 8 — Shift coverage percentage
@@ -151,18 +114,13 @@ export class CommandCenterService {
       const filled = assignedPerDevice.get(d.id) || 0;
       filledSlots += Math.min(filled, required);
     }
-    const coveragePercent =
-      totalSlots > 0 ? Math.round((filledSlots / totalSlots) * 100) : 0;
+    const coveragePercent = totalSlots > 0 ? Math.round((filledSlots / totalSlots) * 100) : 0;
 
     return {
       timestamp: new Date().toISOString(),
       organizationId,
       activeStaff: { count: activeStaff.length, total: totalStaff },
-      devices: {
-        online: onlineDevices,
-        offline: offlineDevices,
-        total: totalDevices,
-      },
+      devices: { online: onlineDevices, offline: offlineDevices, total: totalDevices },
       openIncidents: { count: openIncidentCount },
       criticalAlerts: { count: criticalAlertCount, items: criticalAlerts },
       missingStaffing: { count: missingStaffing },

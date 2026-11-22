@@ -22,13 +22,9 @@ export class EncryptionService {
   private readonly keyDerivationSalt: Buffer;
 
   constructor(private configService: ConfigService) {
-    const masterKeyHex = this.configService.get<string>(
-      'ENCRYPTION_MASTER_KEY',
-    );
+    const masterKeyHex = this.configService.get<string>('ENCRYPTION_MASTER_KEY');
     if (!masterKeyHex || masterKeyHex.length < 64) {
-      throw new Error(
-        'ENCRYPTION_MASTER_KEY must be at least 64 hex characters (256 bits)',
-      );
+      throw new Error('ENCRYPTION_MASTER_KEY must be at least 64 hex characters (256 bits)');
     }
     this.masterKey = Buffer.from(masterKeyHex, 'hex');
     this.keyDerivationSalt = crypto.randomBytes(32);
@@ -36,15 +32,7 @@ export class EncryptionService {
   }
 
   private deriveKey(version: number): EncryptionKey {
-    const hkdf = Buffer.from(
-      crypto.hkdfSync(
-        'sha256',
-        this.masterKey,
-        this.keyDerivationSalt,
-        `vardiya-enc-key-v${version}`,
-        32,
-      ),
-    );
+    const hkdf = Buffer.from(crypto.hkdfSync('sha256', this.masterKey, this.keyDerivationSalt, `vardiya-enc-key-v${version}`, 32));
     return {
       id: `v${version}-${Date.now().toString(36)}`,
       key: hkdf,
@@ -55,16 +43,11 @@ export class EncryptionService {
   encrypt(plaintext: string, context?: string): string {
     const iv = crypto.randomBytes(IV_LENGTH);
     const aad = context ? Buffer.from(context, 'utf-8') : undefined;
-    const cipher = crypto.createCipheriv(ALGORITHM, this.currentKey.key, iv, {
-      authTagLength: TAG_LENGTH,
-    });
+    const cipher = crypto.createCipheriv(ALGORITHM, this.currentKey.key, iv, { authTagLength: TAG_LENGTH });
 
     if (aad) cipher.setAAD(aad);
 
-    const encrypted = Buffer.concat([
-      cipher.update(plaintext, 'utf-8'),
-      cipher.final(),
-    ]);
+    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf-8'), cipher.final()]);
     const tag = cipher.getAuthTag();
 
     const payload = Buffer.concat([iv, tag, encrypted]);
@@ -76,13 +59,9 @@ export class EncryptionService {
     if (colonIdx === -1) throw new Error('Invalid encrypted string format');
 
     const keyId = encryptedString.substring(0, colonIdx);
-    const payload = Buffer.from(
-      encryptedString.substring(colonIdx + 1),
-      'base64',
-    );
+    const payload = Buffer.from(encryptedString.substring(colonIdx + 1), 'base64');
 
-    if (payload.length < IV_LENGTH + TAG_LENGTH)
-      throw new Error('Invalid payload length');
+    if (payload.length < IV_LENGTH + TAG_LENGTH) throw new Error('Invalid payload length');
 
     const iv = payload.subarray(0, IV_LENGTH);
     const tag = payload.subarray(IV_LENGTH, IV_LENGTH + TAG_LENGTH);
@@ -90,14 +69,12 @@ export class EncryptionService {
 
     let key = this.currentKey;
     if (keyId !== this.currentKey.id) {
-      key = this.keyHistory.find((k) => k.id === keyId)!;
+      key = this.keyHistory.find(k => k.id === keyId)!;
       if (!key) throw new Error(`Encryption key ${keyId} not found in history`);
     }
 
     const aad = context ? Buffer.from(context, 'utf-8') : undefined;
-    const decipher = crypto.createDecipheriv(ALGORITHM, key.key, iv, {
-      authTagLength: TAG_LENGTH,
-    });
+    const decipher = crypto.createDecipheriv(ALGORITHM, key.key, iv, { authTagLength: TAG_LENGTH });
     if (aad) decipher.setAAD(aad);
     decipher.setAuthTag(tag);
 
@@ -110,9 +87,7 @@ export class EncryptionService {
 
   mask(value: string, visibleChars: number = 3): string {
     if (value.length <= visibleChars) return value;
-    return (
-      value.substring(0, visibleChars) + '*'.repeat(value.length - visibleChars)
-    );
+    return value.substring(0, visibleChars) + '*'.repeat(value.length - visibleChars);
   }
 
   pseudonymize(value: string, namespace: string = 'default'): string {

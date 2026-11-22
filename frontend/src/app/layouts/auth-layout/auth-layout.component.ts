@@ -12,17 +12,15 @@ import { RouterOutlet } from '@angular/router';
       <router-outlet />
     </div>
   `,
-  styles: [
-    `
-      .auth-layout {
-        min-height: 100vh;
-        width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--bg-primary);
-      }
-    `,
-  ],
+  styles: [`
+    .auth-layout {
+      min-height: 100vh;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-primary);
+    }
+  `]
 })
 export class AuthLayoutComponent {}

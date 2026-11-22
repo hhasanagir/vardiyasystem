@@ -9,9 +9,7 @@ export class UnitsService {
   async findAll(filters?: { organizationId?: string; type?: string }) {
     return this.prisma.unit.findMany({
       where: {
-        ...(filters?.organizationId && {
-          organizationId: filters.organizationId,
-        }),
+        ...(filters?.organizationId && { organizationId: filters.organizationId }),
         ...(filters?.type && { type: filters.type as UnitType }),
       },
       include: {
@@ -53,12 +51,7 @@ export class UnitsService {
     });
   }
 
-  async create(data: {
-    name: string;
-    code: string;
-    type: string;
-    organizationId?: string;
-  }) {
+  async create(data: { name: string; code: string; type: string; organizationId?: string }) {
     return this.prisma.unit.create({
       data: {
         name: data.name,

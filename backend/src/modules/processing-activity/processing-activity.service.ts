@@ -23,31 +23,23 @@ export class ProcessingActivityService {
     return this.prisma.processingActivity.create({ data: data as any });
   }
 
-  async update(
-    id: string,
-    data: Partial<{
-      controller: string;
-      processor: string;
-      purpose: string;
-      dataCategories: string[];
-      dataSubjects: string[];
-      legalBasis: string;
-      retentionPeriod: string;
-      securityMeasures: string[];
-      crossBorderTransfer: string;
-      dpiaRequired: boolean;
-      dpiaCompleted: boolean;
-      isActive: boolean;
-    }>,
-  ) {
-    const existing = await this.prisma.processingActivity.findUnique({
-      where: { id },
-    });
+  async update(id: string, data: Partial<{
+    controller: string;
+    processor: string;
+    purpose: string;
+    dataCategories: string[];
+    dataSubjects: string[];
+    legalBasis: string;
+    retentionPeriod: string;
+    securityMeasures: string[];
+    crossBorderTransfer: string;
+    dpiaRequired: boolean;
+    dpiaCompleted: boolean;
+    isActive: boolean;
+  }>) {
+    const existing = await this.prisma.processingActivity.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Processing activity not found');
-    return this.prisma.processingActivity.update({
-      where: { id },
-      data: data as any,
-    });
+    return this.prisma.processingActivity.update({ where: { id }, data: data as any });
   }
 
   async findAll(activeOnly = true) {
@@ -59,9 +51,7 @@ export class ProcessingActivityService {
   }
 
   async findById(id: string) {
-    const activity = await this.prisma.processingActivity.findUnique({
-      where: { id },
-    });
+    const activity = await this.prisma.processingActivity.findUnique({ where: { id } });
     if (!activity) throw new NotFoundException('Processing activity not found');
     return activity;
   }
@@ -76,35 +66,26 @@ export class ProcessingActivityService {
       controller: 'VardiyaOS',
       lastUpdated: new Date().toISOString(),
       totalActivities: activities.length,
-      activities: activities.map((a) => ({
+      activities: activities.map(a => ({
         id: a.activityId,
         purpose: a.purpose,
         dataCategories: a.dataCategories,
         dataSubjects: a.dataSubjects,
         legalBasis: a.legalBasis,
         retentionPeriod: a.retentionPeriod,
-        dpiaStatus: a.dpiaRequired
-          ? a.dpiaCompleted
-            ? 'COMPLETED'
-            : 'REQUIRED'
-          : 'NOT_REQUIRED',
+        dpiaStatus: a.dpiaRequired ? (a.dpiaCompleted ? 'COMPLETED' : 'REQUIRED') : 'NOT_REQUIRED',
         crossBorderTransfer: a.crossBorderTransfer || 'None',
       })),
     };
   }
 
-  async conductDpia(
-    activityId: string,
-    data: {
-      assessor: string;
-      risks: Record<string, unknown>;
-      mitigations: Record<string, unknown>;
-      residualRisk: string;
-    },
-  ) {
-    const activity = await this.prisma.processingActivity.findUnique({
-      where: { id: activityId },
-    });
+  async conductDpia(activityId: string, data: {
+    assessor: string;
+    risks: Record<string, unknown>;
+    mitigations: Record<string, unknown>;
+    residualRisk: string;
+  }) {
+    const activity = await this.prisma.processingActivity.findUnique({ where: { id: activityId } });
     if (!activity) throw new NotFoundException('Processing activity not found');
 
     const dpia = await this.prisma.dataProtectionImpactAssessment.create({
@@ -159,14 +140,11 @@ export class ProcessingActivityService {
 
     return {
       totalProcessingActivities: activities.length,
-      activeActivities: activities.filter((a) => a.isActive).length,
-      dpiaRequired: activities.filter((a) => a.dpiaRequired).length,
-      dpiaCompleted: activities.filter((a) => a.dpiaCompleted).length,
-      dpiaPending: activities.filter((a) => a.dpiaRequired && !a.dpiaCompleted)
-        .length,
-      crossBorderTransfers: activities.filter(
-        (a) => a.crossBorderTransfer && a.crossBorderTransfer !== 'None',
-      ).length,
+      activeActivities: activities.filter(a => a.isActive).length,
+      dpiaRequired: activities.filter(a => a.dpiaRequired).length,
+      dpiaCompleted: activities.filter(a => a.dpiaCompleted).length,
+      dpiaPending: activities.filter(a => a.dpiaRequired && !a.dpiaCompleted).length,
+      crossBorderTransfers: activities.filter(a => a.crossBorderTransfer && a.crossBorderTransfer !== 'None').length,
       byLegalBasis: this.groupBy(activities, 'legalBasis'),
       byPurpose: this.groupBy(activities, 'purpose'),
       dpiasByStatus: this.groupBy(dpias, 'status'),

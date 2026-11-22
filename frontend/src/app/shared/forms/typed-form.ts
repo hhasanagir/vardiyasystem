@@ -1,7 +1,9 @@
 import { FormControl, FormGroup, FormArray, ValidatorFn, AsyncValidatorFn } from '@angular/forms';
 
 type ControlsOf<T extends Record<string, any>> = {
-  [K in keyof T]: T[K] extends Array<infer U> ? FormArray<FormControl<U>> : FormControl<T[K]>;
+  [K in keyof T]: T[K] extends Array<infer U>
+    ? FormArray<FormControl<U>>
+    : FormControl<T[K]>;
 };
 
 export function typedFormGroup<T extends Record<string, any>>(

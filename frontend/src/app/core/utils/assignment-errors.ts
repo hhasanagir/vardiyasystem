@@ -62,8 +62,36 @@ export function translateAssignmentError(raw: string | null | undefined): Transl
   if (/rest violation/i.test(m) || /night shift on previous day/i.test(m)) {
     return { title: 'Dinlenme Kuralı', message: 'Önceki gün gece vardiyası çalışan personel, ertesi gün gündüz vardiyasına atanamaz.' };
   }
+  if (/devre dışı/i.test(m) || /device is off/i.test(m) || /deviceOff/i.test(m)) {
+    return { title: 'Cihaz Kapalı', message: m };
+  }
+  if (/kapalı/i.test(m) || /is closed/i.test(m) || /UNIT_CLOSED/i.test(m)) {
+    return { title: 'Birim Kapalı', message: m };
+  }
   return null;
 }
+
+export interface AssignmentErrorPayload {
+  message?: string;
+  violations?: Array<{ message?: string; rule?: string; severity?: string }>;
+  hasBlocking?: boolean;
+}
+
+export function translateAssignmentErrorPayload(payload: AssignmentErrorPayload | null | undefined): TranslatedError | null {
+  if (!payload) return null;
+  const rules = payload.violations;
+  if (Array.isArray(rules) && rules.length > 0) {
+    const blocking = rules.find(v => v.severity === 'BLOCKING') || rules[0];
+    const reason = blocking?.message || payload.message;
+    if (reason) {
+      const translated = translateAssignmentError(reason);
+      if (translated) return translated;
+      return { title: 'Atama Engellendi', message: reason };
+    }
+  }
+  return translateAssignmentError(payload.message);
+}
+
 
 export function conflictMessageFor(
   existingAssignments: Array<{ personnelId: string; personnelName?: string; date: string; shiftType: string }>,

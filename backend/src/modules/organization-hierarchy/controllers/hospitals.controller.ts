@@ -9,6 +9,8 @@ import {
   Query,
   ParseUUIDPipe,
   UseGuards,
+  NotFoundException,
+  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { HospitalsService } from '../services/hospitals.service';
@@ -19,6 +21,22 @@ import { MinRole } from '../../../guards/min-role';
 import { CreateHospitalDto } from '../dto/create-hospital.dto';
 import { UpdateHospitalDto } from '../dto/update-hospital.dto';
 import { HospitalQueryDto } from '../dto/hospital-query.dto';
+
+interface HospitalScopeUser {
+  id?: string;
+  role?: string | null;
+  organizationId?: string | null;
+  rbacRoles?: Array<{
+    roleName?: string;
+    organizationId?: string | null;
+    hospitalGroupId?: string | null;
+    hospitalId?: string | null;
+  }>;
+}
+
+interface RequestWithHospitalScope {
+  user?: HospitalScopeUser;
+}
 
 @ApiTags('hospitals')
 @ApiBearerAuth()
@@ -36,25 +54,26 @@ export class HospitalsController {
 
   @Get()
   @Roles(MinRole.VIEWER)
-  @ApiOperation({ summary: 'Get all hospitals' })
-  findAll(@Query() query: HospitalQueryDto) {
-    return this.service.findAll();
+  @ApiOperation({ summary: 'Get all hospitals scoped to the caller tenant' })
+  findAll(@Query() query: HospitalQueryDto, @Request() req: RequestWithHospitalScope) {
+    return this.service.findAllScoped(req.user);
   }
 
   @Get(':id')
   @Roles(MinRole.VIEWER)
-  @ApiOperation({ summary: 'Get hospital by ID' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.findOne(id);
+  @ApiOperation({ summary: 'Get hospital by ID (tenant scoped)' })
+  async findOne(@Param('id', ParseUUIDPipe) id: string, @Request() req: RequestWithHospitalScope) {
+    const hospital = await this.service.findOneScoped(id, req.user);
+    if (!hospital) {
+      throw new NotFoundException('Hastane bulunamadı');
+    }
+    return hospital;
   }
 
   @Patch(':id')
   @Roles(MinRole.ADMIN)
   @ApiOperation({ summary: 'Update hospital' })
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateHospitalDto,
-  ) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateHospitalDto) {
     return this.service.update(id, dto);
   }
 

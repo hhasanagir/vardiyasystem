@@ -32,13 +32,13 @@
 
 ## Summary Table
 
-| Check                                  | Result  | Notes                                             |
-| -------------------------------------- | ------- | ------------------------------------------------- |
-| Hardcoded secrets in source            | ✅ Pass | None found                                        |
-| `.env.example` placeholders            | ✅ Pass | `change-me` patterns only                         |
-| `.env.production.example` placeholders | ✅ Pass | `CHANGE_ME` patterns only                         |
-| JWT secret handling in auth code       | ✅ Pass | Via `configService`, no defaults with real values |
-| Secrets in git-tracked files           | ✅ Pass | Clean                                             |
+| Check | Result | Notes |
+|---|---|---|
+| Hardcoded secrets in source | ✅ Pass | None found |
+| `.env.example` placeholders | ✅ Pass | `change-me` patterns only |
+| `.env.production.example` placeholders | ✅ Pass | `CHANGE_ME` patterns only |
+| JWT secret handling in auth code | ✅ Pass | Via `configService`, no defaults with real values |
+| Secrets in git-tracked files | ✅ Pass | Clean |
 
 ## Recommendations
 

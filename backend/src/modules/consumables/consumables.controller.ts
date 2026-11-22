@@ -27,10 +27,7 @@ export class ConsumablesController {
   @Get()
   @Roles(MinRole.FIELD_SUPERVISOR)
   @ApiOperation({ summary: 'Get all consumables' })
-  findAll(
-    @Query('category') category?: string,
-    @Query('search') search?: string,
-  ) {
+  findAll(@Query('category') category?: string, @Query('search') search?: string) {
     return this.consumablesService.findAll({ category, search });
   }
 
@@ -83,3 +80,4 @@ export class ConsumablesController {
     return this.consumablesService.getTransactions(id);
   }
 }
+

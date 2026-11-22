@@ -11,23 +11,23 @@ VardiyaOS uses a **single database, shared schema** model with row-level tenant 
 
 The tenant hierarchy is `Organization` (`backend/prisma/schema.prisma:359`) → `Unit` (`schema.prisma:462`) → operational rows (`Schedule`, `Assignment`, …). Of the 95 models in `schema.prisma`, **15 carry a direct `organizationId` column**:
 
-| Model                 | Schema location    | Column    |
-| --------------------- | ------------------ | --------- |
-| `UserRoleAssignment`  | schema.prisma:259  | `String?` |
-| `User`                | schema.prisma:290  | `String?` |
-| `Unit`                | schema.prisma:467  | `String?` |
-| `DutyRoster`          | schema.prisma:564  | `String`  |
-| `Device`              | schema.prisma:679  | `String?` |
-| `Shifts`              | schema.prisma:718  | `String`  |
-| `PersonnelGroup`      | schema.prisma:760  | `String?` |
-| `PersonShiftTemplate` | schema.prisma:783  | `String?` |
-| `Schedule`            | schema.prisma:808  | `String?` |
-| `AuditLog`            | schema.prisma:948  | `String?` |
-| `Recommendation`      | schema.prisma:1034 | `String`  |
-| `Conflict`            | schema.prisma:1071 | `String`  |
-| `InviteCode`          | schema.prisma:1096 | `String`  |
-| `Notification`        | schema.prisma:1169 | `String`  |
-| `EnterpriseAsset`     | schema.prisma:2063 | `String?` |
+| Model | Schema location | Column |
+|---|---|---|
+| `UserRoleAssignment` | schema.prisma:259 | `String?` |
+| `User` | schema.prisma:290 | `String?` |
+| `Unit` | schema.prisma:467 | `String?` |
+| `DutyRoster` | schema.prisma:564 | `String` |
+| `Device` | schema.prisma:679 | `String?` |
+| `Shifts` | schema.prisma:718 | `String` |
+| `PersonnelGroup` | schema.prisma:760 | `String?` |
+| `PersonShiftTemplate` | schema.prisma:783 | `String?` |
+| `Schedule` | schema.prisma:808 | `String?` |
+| `AuditLog` | schema.prisma:948 | `String?` |
+| `Recommendation` | schema.prisma:1034 | `String` |
+| `Conflict` | schema.prisma:1071 | `String` |
+| `InviteCode` | schema.prisma:1096 | `String` |
+| `Notification` | schema.prisma:1169 | `String` |
+| `EnterpriseAsset` | schema.prisma:2063 | `String?` |
 
 Isolation is enforced in **four layers**, each independently verifying tenancy:
 
@@ -46,9 +46,7 @@ The context is a module-level `AsyncLocalStorage<{ organizationId: string }>` ex
 
 ```ts
 // backend/src/infrastructure/prisma/middleware/tenant.middleware.ts:4
-export const tenantContext = new AsyncLocalStorage<{
-  organizationId: string;
-}>();
+export const tenantContext = new AsyncLocalStorage<{ organizationId: string }>();
 ```
 
 ### Activation per HTTP request
@@ -68,7 +66,7 @@ Behavior (`tenant-context.interceptor.ts:17-36`):
 - No store → unconditional pass-through (`tenant.middleware.ts:19-20`). **Fail-open by design.**
 - Model not in `TENANT_MODELS` → pass-through (`tenant.middleware.ts:22-23`).
 - `create` → force-injects `data.organizationId`, overriding any caller-supplied value (lines 27-34).
-- Read/update/delete/count/aggregate → injects `where.organizationId` **only if the caller did not specify one** (lines 36-52). Callers can therefore _narrow_ (e.g., repo passing both `organizationId` and `unitId`, see `backend/src/modules/schedules/infrastructure/prisma-schedule.repository.ts:67-72`) but never _widen_ beyond their own tenant.
+- Read/update/delete/count/aggregate → injects `where.organizationId` **only if the caller did not specify one** (lines 36-52). Callers can therefore *narrow* (e.g., repo passing both `organizationId` and `unitId`, see `backend/src/modules/schedules/infrastructure/prisma-schedule.repository.ts:67-72`) but never *widen* beyond their own tenant.
 
 `tenantContext.run` is invoked from exactly one place — the interceptor (verified by grep). WebSocket handlers, cron jobs, queue workers, and seed scripts run with **no store**, relying entirely on explicit filtering (see Known Limitations).
 
@@ -81,21 +79,9 @@ Behavior (`tenant-context.interceptor.ts:17-36`):
 ```ts
 // backend/src/infrastructure/prisma/middleware/tenant.middleware.ts:6-10
 const TENANT_MODELS = new Set([
-  "Schedule",
-  "Assignment",
-  "Personnel",
-  "Device",
-  "Unit",
-  "ShiftTask",
-  "HandoverNote",
-  "DeviceIncident",
-  "AttendanceRecord",
-  "SwapRequest",
-  "Notification",
-  "Training",
-  "Skill",
-  "Shifts",
-  "AssignmentSlot",
+  'Schedule', 'Assignment', 'Personnel', 'Device', 'Unit', 'ShiftTask',
+  'HandoverNote', 'DeviceIncident', 'AttendanceRecord', 'SwapRequest',
+  'Notification', 'Training', 'Skill', 'Shifts', 'AssignmentSlot',
 ]);
 ```
 
@@ -130,9 +116,9 @@ There is **no Postgres RLS**; the middleware is the only automatic DB-level cont
 Decision flow:
 
 1. Unauthenticated → `ForbiddenException` (guard:20-22).
-2. `system_admin` bypasses entirely, before any DB hit (guard:24-26) — verified by test that asserts `findUnique` is _not_ called (security-invariants.spec.ts:174-177).
+2. `system_admin` bypasses entirely, before any DB hit (guard:24-26) — verified by test that asserts `findUnique` is *not* called (security-invariants.spec.ts:174-177).
 3. Loads `{ unitId, organizationId }` for `params.id` (guard:33-36); unknown id → 404 (guard:38-40).
-4. **Primary check:** if both parties have an `organizationId`, they must match or access is denied with _"schedule belongs to another organization"_ (guard:42-47).
+4. **Primary check:** if both parties have an `organizationId`, they must match or access is denied with *"schedule belongs to another organization"* (guard:42-47).
 5. **Fallback for legacy null-org rows:** compares `unitId`; on mismatch it resolves the schedule's unit → organization and rejects cross-org again (guard:49-61). This two-hop verification covers rows created before the backfill migration.
 
 Controller-level tenant propagation complements the guard: `findAll` passes `user.organizationId` into the repository filter (schedules.controller.ts:95, consumed at prisma-schedule.repository.ts:72), and analytics/dashboard endpoints derive their entire dataset from the token identity rather than client input (schedules.controller.ts:323, 330).
@@ -158,7 +144,7 @@ The realtime plane (`/realtime` namespace, `backend/src/modules/websocket/schedu
 
 ### Room-level filtering
 
-All fan-out is room-scoped: lock events target `schedule:{id}` rooms (e.g., `emitWithDedup(\`schedule:${id}\`, ...)`at gateway:315-319, 417+), personal events target`user:{userId}` (join at gateway:275), and presence broadcasts are addressed per organization (`broadcastPresenceUpdate(orgId)` on connect/disconnect, gateway:284-286, 322-324). A socket can therefore never receive another tenant's events without having passed the subscription checks above.
+All fan-out is room-scoped: lock events target `schedule:{id}` rooms (e.g., `emitWithDedup(\`schedule:${id}\`, ...)` at gateway:315-319, 417+), personal events target `user:{userId}` (join at gateway:275), and presence broadcasts are addressed per organization (`broadcastPresenceUpdate(orgId)` on connect/disconnect, gateway:284-286, 322-324). A socket can therefore never receive another tenant's events without having passed the subscription checks above.
 
 On disconnect, per-user edit locks held in any schedule room are released and the release event is re-broadcast to the owning room (gateway:308-320), preventing lock leakage across tenants sharing a Redis-backed lock registry.
 
@@ -168,12 +154,12 @@ On disconnect, per-user edit locks held in any schedule room are released and th
 
 Unit is a sub-tenant boundary (department within a hospital). It is enforced differently at each layer:
 
-| Layer               | Mechanism                                                                                                                                                                                     | Reference                           |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| Controller (list)   | Unit-scoped roles (`isUnitScopedRole`, `backend/src/guards/min-role.ts:38-45`) get `unitId` **forced** to their own unit; supplying another unit's id → 403 `"Bu birime erişim yetkiniz yok"` | schedules.controller.ts:88-93       |
-| Repository (query)  | `where.unitId` composed with `where.organizationId`                                                                                                                                           | prisma-schedule.repository.ts:68,72 |
-| REST resource guard | Unit comparison only in the legacy fallback branch (when schedule/org ids are null); when organizations match, the guard approves regardless of unit                                          | schedule-access.guard.ts:42-61      |
-| WebSocket           | Hard unit check on schedule subscription, admin roles exempted                                                                                                                                | schedule.gateway.ts:369-373         |
+| Layer | Mechanism | Reference |
+|---|---|---|
+| Controller (list) | Unit-scoped roles (`isUnitScopedRole`, `backend/src/guards/min-role.ts:38-45`) get `unitId` **forced** to their own unit; supplying another unit's id → 403 `"Bu birime erişim yetkiniz yok"` | schedules.controller.ts:88-93 |
+| Repository (query) | `where.unitId` composed with `where.organizationId` | prisma-schedule.repository.ts:68,72 |
+| REST resource guard | Unit comparison only in the legacy fallback branch (when schedule/org ids are null); when organizations match, the guard approves regardless of unit | schedule-access.guard.ts:42-61 |
+| WebSocket | Hard unit check on schedule subscription, admin roles exempted | schedule.gateway.ts:369-373 |
 
 Design implication: for same-organization requests, unit isolation on REST is enforced through **query narrowing** (users can only list/see their unit's data) rather than through the resource guard, while WebSocket subscriptions enforce it positively. The guard's early return on org match (guard:46) means a same-org user who knows a foreign-unit schedule UUID can address single-resource endpoints subject to downstream business rules — see Findings (#3).
 
@@ -212,8 +198,8 @@ Tests live in `backend/src/modules/schedules/__tests__/security-invariants.spec.
 
 **F73: Tenant Isolation Invariants** (spec:112-148):
 
-- _Repository scoping_ (spec:113-124): instantiates the real `PrismaScheduleRepository` against a mocked Prisma client and asserts `findAll({ organizationId })` produces `where: { organizationId }` — locking in the repo-layer contract consumed by the controller (schedules.controller.ts:95).
-- _Same-tenant child rows_ (spec:126-148): drives `repo.save()` through a mocked `$transaction` and asserts assignment lookups are keyed by `scheduleId` and the schedule upsert targets `where.id` — i.e., children are managed strictly within their parent's scope. Note this test asserts schedule-scoped (not org-scoped) child access, matching the transitive inheritance design described above.
+- *Repository scoping* (spec:113-124): instantiates the real `PrismaScheduleRepository` against a mocked Prisma client and asserts `findAll({ organizationId })` produces `where: { organizationId }` — locking in the repo-layer contract consumed by the controller (schedules.controller.ts:95).
+- *Same-tenant child rows* (spec:126-148): drives `repo.save()` through a mocked `$transaction` and asserts assignment lookups are keyed by `scheduleId` and the schedule upsert targets `where.id` — i.e., children are managed strictly within their parent's scope. Note this test asserts schedule-scoped (not org-scoped) child access, matching the transitive inheritance design described above.
 
 **F61: Cross-Unit Authorization** (spec:151-178):
 
@@ -239,17 +225,17 @@ Tests live in `backend/src/modules/schedules/__tests__/security-invariants.spec.
 
 ## Findings & Risk Classification
 
-| #   | Finding                                                                                                                                                                               | Severity            | Evidence                                                                                             |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------- |
-| 1   | `TENANT_MODELS` whitelist diverged from schema: 10 whitelisted models lack the column (runtime validation errors once store active); 10 column-bearing models receive no auto-scoping | **HIGH**            | tenant.middleware.ts:6-10 vs schema.prisma:873-920 et al.; interceptor live at app.module.ts:175-178 |
-| 2   | WS handshake expects `id`/`name`/`unitId` claims the JWT signer never emits → WS unit-isolation check is a no-op; presence/edit-lock attribution keyed to `undefined` userId          | **HIGH**            | gateway:233-237 vs auth.service.ts:457-464                                                           |
-| 3   | Same-org requests skip unit verification in `ScheduleAccessGuard`; unit boundary on REST depends solely on query narrowing                                                            | MEDIUM              | schedule-access.guard.ts:42-47                                                                       |
-| 4   | Fail-open tenant context outside HTTP scope; no opt-in scoping for jobs/WS                                                                                                            | MEDIUM              | tenant.middleware.ts:19-20; sole `tenantContext.run` call site is the interceptor                    |
-| 5   | `upsert`/`createMany`/`*OrThrow` actions bypass middleware injection; save path relies on them                                                                                        | MEDIUM              | tenant.middleware.ts:36-45; prisma-schedule.repository.ts:97-155                                     |
-| 6   | Stale duplicated source trees include a pre-isolation repository copy without org filter — silent-regression hazard                                                                   | MEDIUM              | `backend/src/modules/schedules/schedules/infrastructure/prisma-schedule.repository.ts:65-69`         |
-| 7   | Nullable `organizationId` columns + null-org users fully bypass context propagation                                                                                                   | LOW–MEDIUM          | schema.prisma:808; tenant-context.interceptor.ts:23-25                                               |
-| 8   | Distributed-lock keys are global, not tenant-namespaced                                                                                                                               | LOW (accepted)      | distributed-lock.service.ts:9; schedule-application.service.ts:126,167                               |
-| 9   | No Postgres RLS; isolation is purely application-layer                                                                                                                                | LOW (architectural) | —                                                                                                    |
+| # | Finding | Severity | Evidence |
+|---|---|---|---|
+| 1 | `TENANT_MODELS` whitelist diverged from schema: 10 whitelisted models lack the column (runtime validation errors once store active); 10 column-bearing models receive no auto-scoping | **HIGH** | tenant.middleware.ts:6-10 vs schema.prisma:873-920 et al.; interceptor live at app.module.ts:175-178 |
+| 2 | WS handshake expects `id`/`name`/`unitId` claims the JWT signer never emits → WS unit-isolation check is a no-op; presence/edit-lock attribution keyed to `undefined` userId | **HIGH** | gateway:233-237 vs auth.service.ts:457-464 |
+| 3 | Same-org requests skip unit verification in `ScheduleAccessGuard`; unit boundary on REST depends solely on query narrowing | MEDIUM | schedule-access.guard.ts:42-47 |
+| 4 | Fail-open tenant context outside HTTP scope; no opt-in scoping for jobs/WS | MEDIUM | tenant.middleware.ts:19-20; sole `tenantContext.run` call site is the interceptor |
+| 5 | `upsert`/`createMany`/`*OrThrow` actions bypass middleware injection; save path relies on them | MEDIUM | tenant.middleware.ts:36-45; prisma-schedule.repository.ts:97-155 |
+| 6 | Stale duplicated source trees include a pre-isolation repository copy without org filter — silent-regression hazard | MEDIUM | `backend/src/modules/schedules/schedules/infrastructure/prisma-schedule.repository.ts:65-69` |
+| 7 | Nullable `organizationId` columns + null-org users fully bypass context propagation | LOW–MEDIUM | schema.prisma:808; tenant-context.interceptor.ts:23-25 |
+| 8 | Distributed-lock keys are global, not tenant-namespaced | LOW (accepted) | distributed-lock.service.ts:9; schedule-application.service.ts:126,167 |
+| 9 | No Postgres RLS; isolation is purely application-layer | LOW (architectural) | — |
 
 **Verified strengths:** server-side overwrite of client-supplied `organizationId` on creates (tenant.middleware.ts:29-32); compose-don't-replace `where` injection (tenant.middleware.ts:49-51); guard + middleware + WS triple verification on schedule access; HS256-pinned WS auth with deny-before-join ordering (gateway:363-375); owner-checked distributed lock release (distributed-lock.service.ts:37-43); regression tests pinning repo scoping and the guard's cross-org rejection (security-invariants.spec.ts:112-178).
 

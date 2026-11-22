@@ -6,11 +6,7 @@ import { PrismaService } from '../../prisma.service';
 export class ConsumablesService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(filters?: {
-    category?: string;
-    search?: string;
-    isActive?: boolean;
-  }) {
+  async findAll(filters?: { category?: string; search?: string; isActive?: boolean }) {
     const where: Prisma.ConsumableCatalogWhereInput = {};
 
     if (filters?.category) where.category = filters.category as any;
@@ -80,9 +76,7 @@ export class ConsumablesService {
   }
 
   async update(id: string, data: any) {
-    const existing = await this.prisma.consumableCatalog.findUnique({
-      where: { id },
-    });
+    const existing = await this.prisma.consumableCatalog.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Consumable not found');
     }
@@ -94,21 +88,15 @@ export class ConsumablesService {
     if (data.qrCode !== undefined) updateData.qrCode = data.qrCode;
     if (data.name !== undefined) updateData.name = data.name;
     if (data.category !== undefined) updateData.category = data.category;
-    if (data.manufacturer !== undefined)
-      updateData.manufacturer = data.manufacturer;
+    if (data.manufacturer !== undefined) updateData.manufacturer = data.manufacturer;
     if (data.brand !== undefined) updateData.brand = data.brand;
     if (data.supplierId !== undefined) updateData.supplierId = data.supplierId;
-    if (data.unitOfMeasure !== undefined)
-      updateData.unitOfMeasure = data.unitOfMeasure;
-    if (data.packageSize !== undefined)
-      updateData.packageSize = data.packageSize;
-    if (data.description !== undefined)
-      updateData.description = data.description;
+    if (data.unitOfMeasure !== undefined) updateData.unitOfMeasure = data.unitOfMeasure;
+    if (data.packageSize !== undefined) updateData.packageSize = data.packageSize;
+    if (data.description !== undefined) updateData.description = data.description;
     if (data.assetId !== undefined) updateData.assetId = data.assetId;
-    if (data.compatibleDeviceIds !== undefined)
-      updateData.compatibleDeviceIds = data.compatibleDeviceIds;
-    if (data.compatibleExamTypes !== undefined)
-      updateData.compatibleExamTypes = data.compatibleExamTypes;
+    if (data.compatibleDeviceIds !== undefined) updateData.compatibleDeviceIds = data.compatibleDeviceIds;
+    if (data.compatibleExamTypes !== undefined) updateData.compatibleExamTypes = data.compatibleExamTypes;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
 
     return this.prisma.consumableCatalog.update({
@@ -123,9 +111,7 @@ export class ConsumablesService {
   async getAllStock() {
     const stocks = await this.prisma.consumableStock.findMany({
       include: {
-        catalog: {
-          select: { id: true, name: true, code: true, unitOfMeasure: true },
-        },
+        catalog: { select: { id: true, name: true, code: true, unitOfMeasure: true } },
         warehouse: { select: { id: true, name: true } },
       },
       orderBy: { updatedAt: 'desc' },
@@ -133,7 +119,7 @@ export class ConsumablesService {
 
     stocks.sort((a, b) => a.catalog.name.localeCompare(b.catalog.name));
 
-    return stocks.map((s) => ({
+    return stocks.map(s => ({
       id: s.id,
       catalogId: s.catalogId,
       catalogName: s.catalog.name,
@@ -148,9 +134,7 @@ export class ConsumablesService {
   }
 
   async getStock(id: string) {
-    const consumable = await this.prisma.consumableCatalog.findUnique({
-      where: { id },
-    });
+    const consumable = await this.prisma.consumableCatalog.findUnique({ where: { id } });
     if (!consumable) {
       throw new NotFoundException('Consumable not found');
     }
@@ -162,9 +146,7 @@ export class ConsumablesService {
   }
 
   async getTransactions(id: string) {
-    const consumable = await this.prisma.consumableCatalog.findUnique({
-      where: { id },
-    });
+    const consumable = await this.prisma.consumableCatalog.findUnique({ where: { id } });
     if (!consumable) {
       throw new NotFoundException('Consumable not found');
     }
@@ -185,7 +167,7 @@ export class ConsumablesService {
       take: 100,
     });
 
-    return transactions.map((t) => ({
+    return transactions.map(t => ({
       id: t.id,
       catalogId: t.catalogId,
       catalogName: t.catalog.name,

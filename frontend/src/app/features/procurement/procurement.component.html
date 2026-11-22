@@ -2,27 +2,13 @@
 
 <div class="page-header">
   <h1>
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-    >
-      <circle cx="9" cy="21" r="1" />
-      <circle cx="20" cy="21" r="1" />
-      <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/>
     </svg>
     Satın Alma
   </h1>
   <div class="header-actions">
-    <p-button
-      icon="pi pi-refresh"
-      label="Yenile"
-      severity="secondary"
-      (onClick)="loadRequests(); loadOrders()"
-    ></p-button>
+    <p-button icon="pi pi-refresh" label="Yenile" severity="secondary" (onClick)="loadRequests(); loadOrders()"></p-button>
   </div>
 </div>
 
@@ -43,15 +29,10 @@
         </div>
       }
 
-      <p-table
-        [value]="requests()"
-        [paginator]="true"
-        [rows]="10"
-        [tableStyle]="{ 'min-width': '50rem' }"
-      >
+      <p-table [value]="requests()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '50rem' }">
         <ng-template pTemplate="header">
           <tr>
-            <th style="width: 130px">Talep No</th>
+            <th style="width:130px">Talep No</th>
             <th>Başlık</th>
             <th>Durum</th>
             <th>Öncelik</th>
@@ -63,28 +44,19 @@
         </ng-template>
         <ng-template pTemplate="body" let-request>
           <tr>
-            <td>
-              <strong>{{ request.requestNumber }}</strong>
-            </td>
+            <td><strong>{{ request.requestNumber }}</strong></td>
             <td>{{ request.title }}</td>
-            <td>
-              <p-tag
-                [value]="request.status"
-                [severity]="getStatusSeverity(request.status)"
-              ></p-tag>
-            </td>
+            <td><p-tag [value]="request.status" [severity]="getStatusSeverity(request.status)"></p-tag></td>
             <td><p-tag [value]="request.priority" [rounded]="true"></p-tag></td>
             <td>{{ request.requestedByName }}</td>
             <td>{{ request.department }}</td>
-            <td>{{ request.totalEstimatedCost | number: '1.2-2' }} TL</td>
-            <td>{{ request.createdAt | date: 'dd.MM.yyyy' }}</td>
+            <td>{{ request.totalEstimatedCost | number:'1.2-2' }} TL</td>
+            <td>{{ request.createdAt | date:'dd.MM.yyyy' }}</td>
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="8" style="text-align: center; padding: 2rem; opacity: 0.5">
-              Kayıt bulunamadı
-            </td>
+            <td colspan="8" style="text-align:center;padding:2rem;opacity:0.5">Kayıt bulunamadı</td>
           </tr>
         </ng-template>
       </p-table>
@@ -101,15 +73,10 @@
         </div>
       }
 
-      <p-table
-        [value]="orders()"
-        [paginator]="true"
-        [rows]="10"
-        [tableStyle]="{ 'min-width': '50rem' }"
-      >
+      <p-table [value]="orders()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '50rem' }">
         <ng-template pTemplate="header">
           <tr>
-            <th style="width: 130px">Sipariş No</th>
+            <th style="width:130px">Sipariş No</th>
             <th>Başlık</th>
             <th>Durum</th>
             <th>Tedarikçi</th>
@@ -121,25 +88,19 @@
         </ng-template>
         <ng-template pTemplate="body" let-order>
           <tr>
-            <td>
-              <strong>{{ order.orderNumber }}</strong>
-            </td>
+            <td><strong>{{ order.orderNumber }}</strong></td>
             <td>{{ order.title }}</td>
-            <td>
-              <p-tag [value]="order.status" [severity]="getStatusSeverity(order.status)"></p-tag>
-            </td>
+            <td><p-tag [value]="order.status" [severity]="getStatusSeverity(order.status)"></p-tag></td>
             <td>{{ order.supplierName || '-' }}</td>
-            <td>{{ order.totalAmount | number: '1.2-2' }} {{ order.currency }}</td>
-            <td>{{ order.expectedDeliveryDate | date: 'dd.MM.yyyy' }}</td>
-            <td>{{ order.actualDeliveryDate | date: 'dd.MM.yyyy' }}</td>
-            <td>{{ order.createdAt | date: 'dd.MM.yyyy' }}</td>
+            <td>{{ order.totalAmount | number:'1.2-2' }} {{ order.currency }}</td>
+            <td>{{ order.expectedDeliveryDate | date:'dd.MM.yyyy' }}</td>
+            <td>{{ order.actualDeliveryDate | date:'dd.MM.yyyy' }}</td>
+            <td>{{ order.createdAt | date:'dd.MM.yyyy' }}</td>
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="8" style="text-align: center; padding: 2rem; opacity: 0.5">
-              Kayıt bulunamadı
-            </td>
+            <td colspan="8" style="text-align:center;padding:2rem;opacity:0.5">Kayıt bulunamadı</td>
           </tr>
         </ng-template>
       </p-table>

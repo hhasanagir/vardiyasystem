@@ -20,8 +20,8 @@ export class ProcurementService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<ProcurementRequest[]>('/procurement/requests').pipe(
-      tap((d) => this._requests.set(d)),
-      catchError((err) => {
+      tap(d => this._requests.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Talepler yüklenemedi');
         return throwError(() => err);
       }),
@@ -33,7 +33,7 @@ export class ProcurementService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.post<ProcurementRequest>('/procurement/requests', data).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Talep oluşturulamadı');
         return throwError(() => err);
       }),
@@ -45,8 +45,8 @@ export class ProcurementService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<ProcurementOrder[]>('/procurement/orders').pipe(
-      tap((d) => this._orders.set(d)),
-      catchError((err) => {
+      tap(d => this._orders.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Siparişler yüklenemedi');
         return throwError(() => err);
       }),
@@ -58,7 +58,7 @@ export class ProcurementService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.post<ProcurementOrder>('/procurement/orders', data).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Sipariş oluşturulamadı');
         return throwError(() => err);
       }),

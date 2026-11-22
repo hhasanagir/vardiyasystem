@@ -23,13 +23,7 @@ export interface DashboardMetrics {
 
 export interface RecentActivity {
   id: string;
-  type:
-    | 'shift_assigned'
-    | 'swap_request'
-    | 'leave_created'
-    | 'schedule_updated'
-    | 'approval_accepted'
-    | 'approval_rejected';
+  type: 'shift_assigned' | 'swap_request' | 'leave_created' | 'schedule_updated' | 'approval_accepted' | 'approval_rejected';
   message: string;
   timestamp: Date;
   employeeName?: string;
@@ -124,7 +118,7 @@ export interface DashboardData {
 }
 
 @Injectable({
-  providedIn: 'root',
+  providedIn: 'root'
 })
 export class DashboardService {
   private readonly apiUrl = environment.apiUrl;
@@ -160,7 +154,7 @@ export class DashboardService {
   private getHeaders(): HttpHeaders {
     const token = this.authService.getToken();
     return new HttpHeaders({
-      Authorization: `Bearer ${token}`,
+      'Authorization': `Bearer ${token}`
     });
   }
 
@@ -173,9 +167,7 @@ export class DashboardService {
         const payload = JSON.parse(atob(token.split('.')[1]));
         if (payload?.organizationId) return payload.organizationId;
       }
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
     return '';
   }
 
@@ -201,7 +193,7 @@ export class DashboardService {
       code: error.error?.code || 'DASHBOARD_ERROR',
       message: errorMessage,
       operation,
-      originalError: error,
+      originalError: error
     }));
   }
 
@@ -209,208 +201,173 @@ export class DashboardService {
     this._isLoading.set(true);
     this._error.set(null);
 
-    return this.http
-      .get<DashboardData>(`${this.apiUrl}/analytics/dashboard`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        tap((data) => {
-          this._dashboard.set(data);
-          this._lastUpdated.set(data.lastUpdated || new Date().toISOString());
-          this._lastSuccessfulLoad.set(new Date());
-          this._error.set(null);
-        }),
-        map((data) => data),
-        catchError((err) => {
-          const message = 'Kontrol paneli verileri yüklenemedi';
-          console.error(`[Dashboard] GET /analytics/dashboard failed:`, err);
-          this._error.set(message);
-          return throwError(() => ({ code: 'DASHBOARD_DATA_ERROR', message, err }));
-        }),
-        finalize(() => this._isLoading.set(false)),
-      );
+    return this.http.get<DashboardData>(`${this.apiUrl}/analytics/dashboard`, {
+      headers: this.getHeaders()
+    }).pipe(
+      tap(data => {
+        this._dashboard.set(data);
+        this._lastUpdated.set(data.lastUpdated || new Date().toISOString());
+        this._lastSuccessfulLoad.set(new Date());
+        this._error.set(null);
+      }),
+      map(data => data),
+      catchError(err => {
+        const message = 'Kontrol paneli verileri yüklenemedi';
+        console.error(`[Dashboard] GET /analytics/dashboard failed:`, err);
+        this._error.set(message);
+        return throwError(() => ({ code: 'DASHBOARD_DATA_ERROR', message, err }));
+      }),
+      finalize(() => this._isLoading.set(false))
+    );
   }
 
   loadDashboardMetrics(): Observable<DashboardMetrics | null> {
     this._isLoading.set(true);
     this._error.set(null);
 
-    return this.http
-      .get<DashboardMetrics>(`${this.apiUrl}/schedules/dashboard/stats`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        tap((metrics) => {
-          this._metrics.set(metrics);
-        }),
-        map((metrics) => metrics),
-        catchError((err) => {
-          if (err.status === 404) {
-            console.warn('[Dashboard] /schedules/dashboard/stats endpoint not available yet');
-            this._isLoading.set(false);
-            return [null];
-          }
-          const message = 'Dashboard metrikleri yüklenemedi';
-          console.error(`[Dashboard] GET /schedules/dashboard/stats failed:`, err);
-          this._error.set(message);
-          return throwError(() => ({ code: 'DASHBOARD_METRICS_ERROR', message, err }));
-        }),
-        finalize(() => this._isLoading.set(false)),
-      );
+    return this.http.get<DashboardMetrics>(`${this.apiUrl}/schedules/dashboard/stats`, {
+      headers: this.getHeaders()
+    }).pipe(
+      tap(metrics => {
+        this._metrics.set(metrics);
+      }),
+      map(metrics => metrics),
+      catchError(err => {
+        if (err.status === 404) {
+          console.warn('[Dashboard] /schedules/dashboard/stats endpoint not available yet');
+          this._isLoading.set(false);
+          return [null];
+        }
+        const message = 'Dashboard metrikleri yüklenemedi';
+        console.error(`[Dashboard] GET /schedules/dashboard/stats failed:`, err);
+        this._error.set(message);
+        return throwError(() => ({ code: 'DASHBOARD_METRICS_ERROR', message, err }));
+      }),
+      finalize(() => this._isLoading.set(false))
+    );
   }
 
   loadDepartmentStatus(): Observable<DepartmentStatus[] | null> {
     const orgId = this.getOrganizationId();
 
-    return this.http
-      .get<any[]>(`${this.apiUrl}/devices?organizationId=${orgId}`, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        map((devices) => {
-          const mrDevices = devices.filter(
-            (d: any) => d.department?.code === 'MR' || d.departmentId?.includes('MR'),
-          );
-          const btDevices = devices.filter(
-            (d: any) => d.department?.code === 'BT' || d.departmentId?.includes('BT'),
-          );
+    return this.http.get<any[]>(`${this.apiUrl}/devices?organizationId=${orgId}`, {
+      headers: this.getHeaders()
+    }).pipe(
+      map(devices => {
+        const mrDevices = devices.filter((d: any) =>
+          d.department?.code === 'MR' || d.departmentId?.includes('MR')
+        );
+        const btDevices = devices.filter((d: any) =>
+          d.department?.code === 'BT' || d.departmentId?.includes('BT')
+        );
 
-          return [
-            {
-              name: 'MR' as const,
-              totalDevices: mrDevices.length,
-              assignedToday: mrDevices.filter((d: any) => d.isActive).length,
-              assignedPercent:
-                mrDevices.length > 0
-                  ? Math.round(
-                      (mrDevices.filter((d: any) => d.isActive).length / mrDevices.length) * 100,
-                    )
-                  : 0,
-              missingCount: Math.max(
-                0,
-                mrDevices.length - mrDevices.filter((d: any) => d.isActive).length,
-              ),
-            },
-            {
-              name: 'BT' as const,
-              totalDevices: btDevices.length,
-              assignedToday: btDevices.filter((d: any) => d.isActive).length,
-              assignedPercent:
-                btDevices.length > 0
-                  ? Math.round(
-                      (btDevices.filter((d: any) => d.isActive).length / btDevices.length) * 100,
-                    )
-                  : 0,
-              missingCount: Math.max(
-                0,
-                btDevices.length - btDevices.filter((d: any) => d.isActive).length,
-              ),
-            },
-          ];
-        }),
-        tap((status) => {
-          this._departmentStatus.set(status);
-        }),
-        catchError((err) => {
-          const message = 'Birim durumu yüklenemedi';
-          console.error(`[Dashboard] GET /devices failed:`, err);
-          this._error.set(message);
-          this.notification.error('Yükleme Hatası', message);
-          return throwError(() => ({ code: 'DEPARTMENT_STATUS_ERROR', message, err }));
-        }),
-        finalize(() => this._isLoading.set(false)),
-      );
+        return [
+          {
+            name: 'MR' as const,
+            totalDevices: mrDevices.length,
+            assignedToday: mrDevices.filter((d: any) => d.isActive).length,
+            assignedPercent: mrDevices.length > 0
+              ? Math.round((mrDevices.filter((d: any) => d.isActive).length / mrDevices.length) * 100)
+              : 0,
+            missingCount: Math.max(0, mrDevices.length - mrDevices.filter((d: any) => d.isActive).length)
+          },
+          {
+            name: 'BT' as const,
+            totalDevices: btDevices.length,
+            assignedToday: btDevices.filter((d: any) => d.isActive).length,
+            assignedPercent: btDevices.length > 0
+              ? Math.round((btDevices.filter((d: any) => d.isActive).length / btDevices.length) * 100)
+              : 0,
+            missingCount: Math.max(0, btDevices.length - btDevices.filter((d: any) => d.isActive).length)
+          }
+        ];
+      }),
+      tap(status => {
+        this._departmentStatus.set(status);
+      }),
+      catchError(err => {
+        const message = 'Birim durumu yüklenemedi';
+        console.error(`[Dashboard] GET /devices failed:`, err);
+        this._error.set(message);
+        this.notification.error('Yükleme Hatası', message);
+        return throwError(() => ({ code: 'DEPARTMENT_STATUS_ERROR', message, err }));
+      }),
+      finalize(() => this._isLoading.set(false))
+    );
   }
 
   loadRecentActivities(): Observable<RecentActivity[] | null> {
     const orgId = this.getOrganizationId();
 
-    return this.http
-      .get<any[]>(`${this.apiUrl}/schedules/activities?organizationId=${orgId}&limit=10`, {
-        headers: this.getHeaders(),
+    return this.http.get<any[]>(`${this.apiUrl}/schedules/activities?organizationId=${orgId}&limit=10`, {
+      headers: this.getHeaders()
+    }).pipe(
+      map(activities => activities.map((a: any) => ({
+        id: a.id,
+        type: a.type,
+        message: a.message,
+        timestamp: new Date(a.timestamp || a.createdAt),
+        employeeName: a.employeeName
+      }))),
+      tap(activities => {
+        this._activities.set(activities);
+      }),
+      catchError(err => {
+        const message = 'Son aktiviteler yüklenemedi';
+        console.error(`[Dashboard] GET /schedules/activities failed:`, err);
+        this._error.set(message);
+        this.notification.warning('Kısmi Yükleme', 'Son aktiviteler yüklenemedi, diğer veriler yüklendi');
+        return throwError(() => ({ code: 'RECENT_ACTIVITIES_ERROR', message, err }));
       })
-      .pipe(
-        map((activities) =>
-          activities.map((a: any) => ({
-            id: a.id,
-            type: a.type,
-            message: a.message,
-            timestamp: new Date(a.timestamp || a.createdAt),
-            employeeName: a.employeeName,
-          })),
-        ),
-        tap((activities) => {
-          this._activities.set(activities);
-        }),
-        catchError((err) => {
-          const message = 'Son aktiviteler yüklenemedi';
-          console.error(`[Dashboard] GET /schedules/activities failed:`, err);
-          this._error.set(message);
-          this.notification.warning(
-            'Kısmi Yükleme',
-            'Son aktiviteler yüklenemedi, diğer veriler yüklendi',
-          );
-          return throwError(() => ({ code: 'RECENT_ACTIVITIES_ERROR', message, err }));
-        }),
-      );
+    );
   }
 
   loadDeviceStatus(department: 'MR' | 'BT'): Observable<DeviceStatus[] | null> {
     const orgId = this.getOrganizationId();
 
-    return this.http
-      .get<any[]>(`${this.apiUrl}/devices?organizationId=${orgId}&department=${department}`, {
-        headers: this.getHeaders(),
+    return this.http.get<any[]>(`${this.apiUrl}/devices?organizationId=${orgId}&department=${department}`, {
+      headers: this.getHeaders()
+    }).pipe(
+      map(devices => devices.map((d: any) => ({
+        id: d.id,
+        name: d.name,
+        department: department,
+        todayShifts: d.todayShifts || 0,
+        assigned: d.assignedShifts || 0,
+        remaining: Math.max(0, (d.totalShifts || 0) - (d.assignedShifts || 0)),
+        status: d.isActive ? 'assigned' as const : 'missing' as const
+      }))),
+      tap(devices => {
+        const current = this._deviceStatus();
+        current.set(department, devices);
+        this._deviceStatus.set(new Map(current));
+      }),
+      catchError(err => {
+        const message = `${department} cihaz durumu yüklenemedi`;
+        console.error(`[Dashboard] GET /devices?department=${department} failed:`, err);
+        this._error.set(message);
+        this.notification.error('Yükleme Hatası', message);
+        return throwError(() => ({ code: 'DEVICE_STATUS_ERROR', message, err }));
       })
-      .pipe(
-        map((devices) =>
-          devices.map((d: any) => ({
-            id: d.id,
-            name: d.name,
-            department: department,
-            todayShifts: d.todayShifts || 0,
-            assigned: d.assignedShifts || 0,
-            remaining: Math.max(0, (d.totalShifts || 0) - (d.assignedShifts || 0)),
-            status: d.isActive ? ('assigned' as const) : ('missing' as const),
-          })),
-        ),
-        tap((devices) => {
-          const current = this._deviceStatus();
-          current.set(department, devices);
-          this._deviceStatus.set(new Map(current));
-        }),
-        catchError((err) => {
-          const message = `${department} cihaz durumu yüklenemedi`;
-          console.error(`[Dashboard] GET /devices?department=${department} failed:`, err);
-          this._error.set(message);
-          this.notification.error('Yükleme Hatası', message);
-          return throwError(() => ({ code: 'DEVICE_STATUS_ERROR', message, err }));
-        }),
-      );
+    );
   }
 
   loadLiveMetrics(): Observable<LiveMetrics | null> {
     const orgId = this.getOrganizationId();
 
-    return this.http
-      .get<LiveMetrics>(`${this.apiUrl}/schedules/live-metrics?organizationId=${orgId}`, {
-        headers: this.getHeaders(),
+    return this.http.get<LiveMetrics>(`${this.apiUrl}/schedules/live-metrics?organizationId=${orgId}`, {
+      headers: this.getHeaders()
+    }).pipe(
+      tap(metrics => {
+        this._liveMetrics.set({ ...metrics, online: true });
+      }),
+      map(metrics => ({ ...metrics, online: true })),
+      catchError(err => {
+        console.error(`[Dashboard] GET /schedules/live-metrics failed:`, err);
+        this._liveMetrics.set(null);
+        return throwError(() => ({ code: 'LIVE_METRICS_ERROR', message: 'Canlı metrikler yüklenemedi', err }));
       })
-      .pipe(
-        tap((metrics) => {
-          this._liveMetrics.set({ ...metrics, online: true });
-        }),
-        map((metrics) => ({ ...metrics, online: true })),
-        catchError((err) => {
-          console.error(`[Dashboard] GET /schedules/live-metrics failed:`, err);
-          this._liveMetrics.set(null);
-          return throwError(() => ({
-            code: 'LIVE_METRICS_ERROR',
-            message: 'Canlı metrikler yüklenemedi',
-            err,
-          }));
-        }),
-      );
+    );
   }
 
   refreshDashboard(): void {

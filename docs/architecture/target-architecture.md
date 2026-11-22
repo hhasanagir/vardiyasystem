@@ -154,7 +154,7 @@ Frontend:
       ├── ConflictPanelComponent
       ├── ValidationPanelComponent
       └── SummaryComponent
-
+  
   schedule-api.service.ts (~200 lines)
   constraint-engine.service.ts (~300 lines)
 ```
