@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
@@ -17,8 +18,9 @@ let appCounter = 0;
  * main.ts also enables `trust proxy`. CI shares throttler state through Redis,
  * so without it every app keys on 127.0.0.1 and a suite of logins exhausts the
  * login bucket. Mirroring main.ts plus a per-app X-Forwarded-For gives each app
- * its own bucket. The 10.1.x range is deliberately distinct from test-app.ts
- * (10.0.x) so the two helper modules cannot collide.
+ * its own bucket. Vitest re-evaluates modules for every spec file, so a plain
+ * counter repeats in each file; random octets keep buckets distinct across
+ * files. The 10.0.x range stays reserved for test-app.ts.
  */
 export async function createTestApp(): Promise<INestApplication> {
   const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -34,7 +36,7 @@ export async function createTestApp(): Promise<INestApplication> {
   await app.init();
 
   appCounter += 1;
-  ipByApp.set(app, `10.1.${appCounter}.1`);
+  ipByApp.set(app, `10.${randomInt(1, 255)}.${randomInt(1, 255)}.${appCounter}`);
   return app;
 }
 
