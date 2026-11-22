@@ -1,10 +1,12 @@
 name: PR Validation
-run-name: "PR #${{ github.event.pull_request.number }} — ${{ github.event.pull_request.title }}"
+run-name: "${{ github.event_name == 'pull_request' && format('PR #{0} — {1}', github.event.pull_request.number, github.event.pull_request.title) || format('main {0}', github.sha) }}"
 
 on:
   pull_request:
     branches: [main, develop]
     types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
 
 concurrency:
   group: pr-${{ github.event.pull_request.number || github.ref }}
@@ -19,25 +21,28 @@ env:
   REDIS_URL: redis://localhost:6379
   JWT_ACCESS_TOKEN_SECRET: ci-validation-secret
   JWT_REFRESH_TOKEN_SECRET: ci-validation-secret
-  # Prisma only needs the variable to be present when generating the client; it
-  # never dials the database during `generate`.
-  PRISMA_STUB_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
-  # The schema declares `directUrl = env("DATABASE_DIRECT_URL")`. `prisma
-  # validate`/`migrate deploy` resolve the datasource fully, so the variable
-  # must exist. CI has no connection pooler, so the direct URL is the same local
-  # test database; production supply keeps URL (pooler) and direct URL separate.
+  # prisma/schema.prisma:10 reads directUrl = env("DATABASE_DIRECT_URL").
+  # `generate` never needs it, but `prisma validate` and every `prisma migrate
+  # deploy` step exit 1 with P1012 "Environment variable not found" without it.
   DATABASE_DIRECT_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
+  # EncryptionService throws during Nest bootstrap unless this is >= 64 hex
+  # chars, so no job that boots the API can start without it. Test-only value.
+  ENCRYPTION_MASTER_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+  # Prisma only needs this stub present when generating the client; it never
+  # dials the database during `generate`.
+  PRISMA_STUB_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
 
 jobs:
   lint-typecheck:
     name: Lint & Type Check
     runs-on: ubuntu-24.04
+    if: ${{ !cancelled() }}
     strategy:
       fail-fast: false
       matrix:
         workspace: [backend, frontend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -55,6 +60,8 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-24.04
+    needs: [lint-typecheck]
+    if: ${{ !cancelled() && needs.lint-typecheck.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
@@ -83,7 +90,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -103,6 +110,27 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: ${{ env.PRISMA_STUB_URL }}
+      - name: Migration drift check
+        # Release gate 26: replay the full migration history into a shadow
+        # database on the job's Postgres service and fail if `schema.prisma`
+        # and the migrations disagree (D17/D18 provenance).
+        #
+        # The shadow must be a database of its own: `migrate diff` leaves the
+        # replayed schema behind, and pointed at the app database that residue
+        # (tables without `_prisma_migrations`) makes the next
+        # `npx prisma migrate deploy` exit 1 with P3005 "database schema is
+        # not empty". Recreated on every run so a previous replay cannot
+        # poison it either.
+        if: matrix.workspace == 'backend'
+        run: |
+          set -euo pipefail
+          PG=$(docker ps -qf ancestor=postgres:15-alpine)
+          docker exec "$PG" psql -U postgres -c 'DROP DATABASE IF EXISTS vardiya_drift_shadow'
+          docker exec "$PG" createdb -U postgres vardiya_drift_shadow
+          npm run check:migration-drift
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vardiya_drift_shadow
       - name: Run migrations
         if: matrix.workspace == 'backend'
         run: npx prisma migrate deploy
@@ -132,6 +160,8 @@ jobs:
     # provider installed. Track it; do not let it silently gate a release.
     name: Coverage Report (advisory)
     runs-on: ubuntu-24.04
+    needs: [unit-tests]
+    if: ${{ !cancelled() && needs.unit-tests.result == 'success' }}
     continue-on-error: true
     services:
       postgres:
@@ -157,7 +187,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -199,12 +229,14 @@ jobs:
   build-check:
     name: Build Check
     runs-on: ubuntu-24.04
+    needs: [unit-tests, backend-e2e]
+    if: ${{ !cancelled() && needs.unit-tests.result == 'success' && needs.backend-e2e.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
         workspace: [backend, frontend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -229,6 +261,8 @@ jobs:
   backend-e2e:
     name: Backend E2E
     runs-on: ubuntu-24.04
+    needs: [unit-tests]
+    if: ${{ !cancelled() && needs.unit-tests.result == 'success' }}
     services:
       postgres:
         image: postgres:15-alpine
@@ -253,7 +287,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -298,6 +332,8 @@ jobs:
     # both started by playwright.config.ts (CI never reuses a running server).
     name: Browser Acceptance
     runs-on: ubuntu-24.04
+    needs: [build-check]
+    if: ${{ !cancelled() && needs.build-check.result == 'success' }}
     services:
       postgres:
         image: postgres:15-alpine
@@ -322,7 +358,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -384,28 +420,153 @@ jobs:
     name: Docker Build Validation
     runs-on: ubuntu-24.04
     needs: [build-check, lint-typecheck]
+    if: ${{ !cancelled() && needs.build-check.result == 'success' && needs.lint-typecheck.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
         service: [backend, frontend]
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: ${{ env.DB_USER }}
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Build ${{ matrix.service }} image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./${{ matrix.service }}
           push: false
-          tags: vardiya/${{ matrix.service }}:pr-${{ github.event.pull_request.number }}
+          # Without load: true buildx only caches the image and `docker run`
+          # finds nothing. The smoke steps below cannot exist without it.
+          load: true
+          tags: vardiya/${{ matrix.service }}:pr-${{ github.event.pull_request.number || github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Smoke test backend image
+        # Release gate 32: a gate that only builds images validates nothing.
+        # Boot the image against the same Postgres/Redis services every backend
+        # job gets, probe the liveness endpoint, and prove the non-root runtime.
+        #
+        # The command mirrors docker-compose.yml: the image ships no migration
+        # step of its own, so booting it bare against a fresh database dies in
+        # SeedService with "The table `public.units` does not exist" and the
+        # health probe never succeeds. Migrate first, then start.
+        if: matrix.service == 'backend'
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          IMAGE="vardiya/backend:pr-${{ github.event.pull_request.number || github.sha }}"
+          # Throwaway smoke literals only. Production meaning comes from the
+          # strong-secret checks in backend/src/config/env.config.ts; these are
+          # never the deployment values.
+          CID=$(docker run -d --name smoke-backend --network host \
+            -e NODE_ENV=production \
+            -e DATABASE_URL=${{ env.DATABASE_URL }} \
+            -e DATABASE_DIRECT_URL=${{ env.DATABASE_DIRECT_URL }} \
+            -e REDIS_URL=${{ env.REDIS_URL }} \
+            -e JWT_ACCESS_TOKEN_SECRET=0123456789abcdef0123456789abcdef \
+            -e JWT_REFRESH_TOKEN_SECRET=fedcba9876543210fedcba9876543210 \
+            -e ENCRYPTION_MASTER_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+            -e COOKIE_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef \
+            -e FRONTEND_URL=http://frontend:80 \
+            -e VAPID_PUBLIC_KEY=BJmBEUlEpzbxsHEWjAAFuI-iKEJ171-JUZYmtVYBc-V84pBMyvqLDGtCeW__3I3OjaKYQ7TLpqOTQKuzCHLKNOc \
+            -e VAPID_PRIVATE_KEY=LCOGiaom9OORU7nWAZoBeNgtFVGdf-bCjRuKBkUE-Iw \
+            "$IMAGE" sh -c "npx prisma migrate deploy && node dist/src/main")
+          trap 'docker rm -f smoke-backend >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost:3000/api/v1/health/live -o /tmp/health.json; then
+              if grep -q '"status":"ok"' /tmp/health.json; then
+                echo "backend healthy on attempt $i"
+                ok=1
+                break
+              fi
+            fi
+            sleep 2
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::backend container never became healthy"
+            docker logs smoke-backend --tail 100 2>&1 || true
+            exit 1
+          fi
+          uid=$(docker exec smoke-backend id)
+          echo "$uid"
+          case "$uid" in
+            *uid=100*) echo "backend runs as uid 100" ;;
+            *) echo "::error::backend not running as uid 100: $uid"; exit 1 ;;
+          esac
+          echo "backend smoke test passed"
+      - name: Smoke test frontend image
+        # Release gate 32: prove the nginx image starts, serves the SPA on /,
+        # answers /health, does not serve the default page, and drops to the
+        # non-root user. No backend is required for these assertions.
+        if: matrix.service == 'frontend'
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          IMAGE="vardiya/frontend:pr-${{ github.event.pull_request.number || github.sha }}"
+          docker run -d --name smoke-frontend \
+            --add-host backend:127.0.0.1 \
+            -p 8080:80 \
+            "$IMAGE"
+          trap 'docker rm -f smoke-frontend >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/health -o /tmp/fhealth.txt; then
+              echo "frontend up on attempt $i"
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::frontend container never served /health"
+            docker logs smoke-frontend --tail 100 2>&1 || true
+            exit 1
+          fi
+          grep -q 'ok' /tmp/fhealth.txt
+          curl -sf http://localhost:8080/ -o /tmp/findex.html
+          grep -q '<app-root' /tmp/findex.html
+          if curl -s http://localhost:8080/ | grep -qi 'Welcome to nginx!'; then
+            echo "::error::default nginx page is being served instead of the SPA"
+            exit 1
+          fi
+          uid=$(docker exec smoke-frontend id)
+          echo "$uid"
+          case "$uid" in
+            *uid=100*) echo "frontend runs as uid 100" ;;
+            *) echo "::error::frontend not running as uid 100: $uid"; exit 1 ;;
+          esac
+          echo "frontend smoke test passed"
 
   security-scan:
     name: Security Scan
     runs-on: ubuntu-24.04
+    needs: [lint-typecheck]
+    if: ${{ !cancelled() && needs.lint-typecheck.result == 'success' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: actions/setup-node@v4
@@ -443,7 +604,8 @@ jobs:
           fi
 
           # 3) the runtime secrets/ directory, documentation only
-          if grep -E '^secrets/' /tmp/tracked.txt | grep -vE '^secrets/README\.md$'; then
+          # (.gitkeep only exists to keep the empty directory in git)
+          if grep -E '^secrets/' /tmp/tracked.txt | grep -vE '^secrets/(README\.md|\.gitkeep)$'; then
             echo "::error::runtime secret files above must not be committed"
             fail=1
           fi
@@ -457,6 +619,8 @@ jobs:
   security-tests:
     name: Security Invariant Tests
     runs-on: ubuntu-24.04
+    needs: [unit-tests]
+    if: ${{ !cancelled() && needs.unit-tests.result == 'success' }}
     services:
       postgres:
         image: postgres:15-alpine
@@ -481,7 +645,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -518,8 +682,9 @@ jobs:
     name: Docker Compose Validation
     runs-on: ubuntu-24.04
     needs: [docker-build-validation]
+    if: ${{ !cancelled() && needs.docker-build-validation.result == 'success' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Create placeholder environment and secret files
         # `config -q` fails on a missing env_file or secret file, so the gate
         # needs stand-ins. These are throwaway literals, not credentials.
@@ -531,12 +696,22 @@ jobs:
           POSTGRES_DB=vardiyasystem
           LOG_LEVEL=info
           GRAFANA_ROOT_URL=https://grafana.example.invalid
+          FRONTEND_URL=http://frontend:80
+          VAPID_PUBLIC_KEY=BJmBEUlEpzbxsHEWjAAFuI-iKEJ171-JUZYmtVYBc-V84pBMyvqLDGtCeW__3I3OjaKYQ7TLpqOTQKuzCHLKNOc
+          VAPID_PRIVATE_KEY=LCOGiaom9OORU7nWAZoBeNgtFVGdf-bCjRuKBkUE-Iw
           ENVEOF
           mkdir -p secrets
-          for f in db_password jwt_access_secret jwt_refresh_secret jwt_secret grafana_admin_password; do
+          # Both compose files reference secrets: docker-compose.yml uses
+          # db_password+jwt_secret, the prod file the six credential files plus
+          # the slack webhook. Missing any file makes its config -q exit 1.
+          for f in db_password jwt_secret jwt_access_secret jwt_refresh_secret cookie_secret encryption_master_key grafana_admin_password; do
             printf 'placeholder-not-a-real-secret\n' > "secrets/${f}.txt"
           done
           printf 'https://hooks.slack.invalid/services/placeholder\n' > secrets/slack_webhook.txt
+          # docker-compose.yml mounts backend/.env via env_file, so the gate
+          # must provide it. config -q only parses KEY=VALUE lines, so the
+          # committed template satisfies it without carrying real values.
+          cp backend/.env.example backend/.env
       - name: Validate docker-compose.yml
         run: docker compose -f docker-compose.yml config -q
       - name: Validate docker-compose.prod.yml
@@ -560,20 +735,27 @@ jobs:
         # The preflight has to prove its own gates work (a gate that cannot go
         # red is not a gate); same command the deploy path runs.
         run: node --test scripts/release-preflight.test.mjs
+      - name: Pre-commit gate test suite
+        # The pre-commit typecheck gate routes staged files to workspaces and
+        # resolves tsconfig projects. Either can silently check nothing, which
+        # is how the frontend typecheck gate passed while real type errors sat
+        # in src. Same reasoning as the preflight suite above.
+        run: node --test scripts/lint-staged-typecheck.test.mjs
 
   manifest-render:
     name: Manifest Render (Kustomize + Helm)
     runs-on: ubuntu-24.04
     needs: [docker-compose-validation]
+    if: ${{ !cancelled() && needs.docker-compose-validation.result == 'success' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
       - name: Install Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
       - name: Render and validate the release chain
         # One script, one source of truth: compose config, kustomize renders,
         # helm templates for production and staging, and the image/sealed
