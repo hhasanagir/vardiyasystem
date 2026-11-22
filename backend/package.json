@@ -13,7 +13,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "check:migration-drift": "node scripts/migration-drift.mjs",
-    "seed": "ts-node prisma/seed.ts",
+    "seed": "ts-node prisma/seed.ts && ts-node prisma/seed-personnel.ts",
     "test": "vitest run",
     "lint": "node scripts/lint-gate.mjs",
     "lint:strict": "eslint src/",
