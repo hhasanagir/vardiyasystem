@@ -399,6 +399,7 @@ async function main() {
         id: `personnel-${i + 1}`,
         name: personnelNames[i],
         email: `${personnelNames[i].toLowerCase().replace(/ /g, '.').replace(/[ı]/g, 'i').replace(/[ş]/g, 's').replace(/[ö]/g, 'o').replace(/[ç]/g, 'c').replace(/[ü]/g, 'u').replace(/[ğ]/g, 'g')}@hospital.com`,
+        organizationId: org.id,
         unitId: unit.id,
         skills: [skill],
         seniority: Math.floor(Math.random() * 15) + 1,

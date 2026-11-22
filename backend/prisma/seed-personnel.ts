@@ -87,12 +87,12 @@ async function main() {
     if (existing) {
       await prisma.personnel.update({
         where: { id: existing.id },
-        data: { name: p.name, role, unitId: unit.id, employeeNo, specialization: unit.name, isActive: true },
+        data: { name: p.name, role, unitId: unit.id, organizationId: org.id, employeeNo, specialization: unit.name, isActive: true },
       });
     } else {
       await prisma.personnel.create({
         data: {
-          name: p.name, role, unitId: unit.id, email, employeeNo,
+          name: p.name, role, unitId: unit.id, organizationId: org.id, email, employeeNo,
           phone: `05${String(5000000000 + idx).slice(0, 9)}`,
           skills: [], seniority: 1, specialization: unit.name, experienceYears: 1,
           deviceSkills: [], nightShiftEligible: true, employmentStatus: 'active',
