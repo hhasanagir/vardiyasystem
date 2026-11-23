@@ -1,8 +1,8 @@
 # Phase 5c48 — Commit / Push / PR / CI Kapanış Raporu
 
-**Tarih:** 2026-11-22
+**Tarih:** 2026-11-22 / 2026-11-23 (audit flake düzeltmesi)
 **Kapsam:** Batch I (I-A / I-B / I-C / I-D) canonical remediation ağacının commit/push/PR süreci, CI follow-up düzeltmeleri, staging doğrulama durumu ve kalan blocker’lar.
-**Karar:** Commit, push, PR ve tüm fonksiyonel CI kapıları tamamlandı. Security Scan ve advisory Coverage hâlâ FAIL; gerçek staging/production doğrulaması da yapılmadığı için **GO-LIVE: NOT READY**.
+**Karar:** Commit, push, PR ve tüm fonksiyonel CI kapıları tamamlandı; gece koşularındaki audit flake’i de giderildi. Security Scan ve advisory Coverage hâlâ FAIL; gerçek staging/production doğrulaması da yapılmadığı için **GO-LIVE: NOT READY**.
 
 ---
 
@@ -11,19 +11,19 @@
 | Öğe | Değer |
 |---|---|
 | Branch | `remediation/phase-5-20261122` |
-| Final HEAD (local = remote tip) | `439daaacf85989190c3911b4449adc7a28160800` |
+| Son fonksiyonel HEAD (c57) | `8f783c84af3c3bf0f4a044e49f5a210d87c1dbeb` |
 | Push | Tüm follow-up commit’leri `git push origin remediation/phase-5-20261122` → exit 0 |
 | Upstream | `origin/remediation/phase-5-20261122` |
 | `origin/main` (değişmedi) | `ef1277f6c61c765129ec1a35f09194d4d1b89613` |
 | PR | https://github.com/hhasanagir/vardiyasystem/pull/75 |
 | PR durumu | `open`, `mergeable: true`, `mergeable_state: blocked` (kalan 2 FAIL check) |
-| PR içeriği | **10 commit**, **1070 changed file** |
+| PR içeriği | 10 remediation commit’i + docs/e2e follow-up commit’leri, **1070 changed file** |
 | Strateji | Kullanıcı onayı: `Remote dosyalarını koru` — 40 remote-özgü dosya HEAD’den geri yüklendi, 22 çakışan dosyada kanonik sürüm kazandı. Doğrudan `main` push/force-push yok. |
 
 Commit dışında kalan 7 debug artifact’i untracked olarak korundu (ayrı onay olmadan silinmeyecek):
 `$null`, `api`, `backend/probe-err.txt`, `dump.rdb`, `query`, `real-check-b5a6ec/onWheel.txt`, `server_log.txt`.
 
-### 1.1 Commit zinciri (c48 → c56)
+### 1.1 Commit zinciri (c48 → c57)
 
 | # | SHA | Konu | Kapsam |
 |---|---|---|---|
@@ -37,11 +37,13 @@ Commit dışında kalan 7 debug artifact’i untracked olarak korundu (ayrı ona
 | c54 | `2a3b907` | `fix(ci): restore pre-commit typecheck gate files and spec project reference` | `scripts/lint-staged-typecheck*.mjs` + `frontend/tsconfig.json` spec referansı |
 | c55 | `cfb6f43` | `fix(seed): set organizationId on seeded personnel rows` | `seed.ts` / `seed-personnel.ts` tenant alanı |
 | c56 | `439daaa` | `fix(ci): stage throwaway backend/.env in release dry run CI mode` | `scripts/release-dry-run.sh` CI-only geçici env bloğu |
+| rapor | `649833b` | `docs(phase5): close out commit/push/PR and CI remediation report` | Kapanış raporu güncellemesi (docs-only) |
+| c57 | `8f783c8` | `test(e2e): scope audit assertion to the rapid-change flag` | Gece koşularındaki OFF_HOURS + RAPID_CHANGES flag çakışması |
 
 Her grup için ayrı kaynak yedeği/MANIFEST ve ayrı git-dir yedeği alındı:
-- Son kaynak yedeği: `vardiyasystem-c56-release-dryrun-backup-20261122` (1790 dosya + MANIFEST)
-- Son git-dir yedeği: `vardiya-system-git-c56-release-dryrun-backup-20261122`
-- Önceki prefix’ler: `precommit`, `c48-sourcefix`, `c49-workflow`, `c50-script`, `c51-xff`, `c52-xff`, `c53-seed`, `c54-scripts`, `c55-seed-org`, `c56-release-dryrun`.
+- Son kaynak yedeği: `vardiyasystem-c57-audit-flake-backup-20261123` (1790 dosya + MANIFEST)
+- Son git-dir yedeği: `vardiya-system-git-c57-audit-flake-backup-20261123`
+- Önceki prefix’ler: `precommit`, `c48-sourcefix`, `c49-workflow`, `c50-script`, `c51-xff`, `c52-xff`, `c53-seed`, `c54-scripts`, `c55-seed-org`, `c56-release-dryrun`, `report-closeout`.
 
 ---
 
@@ -58,13 +60,13 @@ Her grup için ayrı kaynak yedeği/MANIFEST ve ayrı git-dir yedeği alındı:
 | Backend build | PASS |
 | Frontend build | PASS |
 | DB e2e (Redis’li) | **11 dosya / 93/93** PASS — skip yok |
-| Tarayıcı e2e (`TZ=UTC`, CI ile aynı saat dilimi) | **44/44** PASS |
+| Tarayıcı e2e (`TZ=UTC`, hem 20:xx hem 05:xx UTC) | **44/44** PASS |
 | `node --test scripts/lint-staged-typecheck.test.mjs` | **14/14** PASS |
 | `node --test scripts/release-preflight.test.mjs` | **32/32** PASS |
 | `bash scripts/release-dry-run.sh --ci` | exit 0 — tüm katmanlar render edildi, `.env` hash’leri değişmedi |
 | k6 smoke / baseline comparator | exit 0, 869 istek, checks 869/869, p95 108 ms |
 
-> Yerel tarayıcı koşusunda `TZ` varsayılanıyla 43/44 görüldü: 23:xx yerel saatte “mesai dışı aktivite” detector’ı da tetiklenip aynı kullanıcı için 2 flag üretiyor. `TZ=UTC` (CI saati) ile 44/44 PASS. **Test iddiası, eşik veya skip değiştirilmedi.**
+> **Audit flake’i (c57):** 05:18 UTC’de `TZ=UTC` ile izole audit testi `Expected 1 / Received 2` vererek CI’yı tekrarladı. Sebep: OFF_HOURS detector’ı (22:00–06:00) ile RAPID_CHANGES aynı kullanıcı için iki flag üretiyor. Locator rapid-change mesajına sabitlendi; **4 iddianın tamamı, eşik ve skip ayarları değişmedi**. Sonrasında izole 1/1 ve tüm suite 05:28 UTC’de **44/44 PASS**. Daha önce 20:xx UTC’de de 44/44 PASS’ti; düzeltme gündüz davranışını değiştirmiyor.
 
 ### 2.1 Shadow DB — seed tenant doğrulaması (c55)
 
@@ -105,9 +107,13 @@ Bu kanıtlar yalnızca yerel Docker stack’ini kapsar; staging/production dağ�
 | `45063846170` | `f5eb28b` | XFF benzersizliği |
 | `45064741429` | `5d42d54` | seed script kapsamı |
 | `45068216920` | `cfb6f43` | Browser Acceptance + Docker Compose PASS; Manifest Render FAIL |
-| **`45069418455`** | **`439daaa`** | **13 SUCCESS / 2 FAILURE / 0 SKIPPED** |
+| `45069418455` | `439daaa` | 13 SUCCESS / 2 FAILURE / 0 SKIPPED |
+| `45115794020` | `649833b` (docs-only) | 12 SUCCESS / 3 FAILURE — **Browser Acceptance gece flake’i** (05:15 UTC, `Expected 1 / Received 2`) |
+| **`45118345763`** | **`8f783c8`** | **13 SUCCESS / 2 FAILURE / 0 SKIPPED** — Browser Acceptance 05:xx UTC’de de PASS |
 
-### 4.2 Nihai koşu `45069418455` — 15 check
+### 4.2 Son fonksiyonel doğrulama koşusu `45118345763` — 15 check
+
+> `649833b` ve bu rapor commit’i docs-only olduğundan aynı check setini yeniden tetikler; fonksiyonel kod `8f783c8` ile sabittir.
 
 | Check | Sonuç |
 |---|---|
@@ -141,6 +147,7 @@ Bu kanıtlar yalnızca yerel Docker stack’ini kapsar; staging/production dağ�
 | `scripts/lint-staged-typecheck*.mjs` eksik + `tsconfig.spec.json` referansı düşmüş | Docker Compose Validation, Manifest Render (SKIP) | remote blob’ları birebir (c54) |
 | Seed personellerinde `organizationId` yok; v18 backfill seed’den önce çalışıyor → supervisor 1 kişi görüyor | Browser Acceptance | seed’lerde org alanı (c55) |
 | `release-dry-run.sh` CI modunda geçici `backend/.env` üretmiyor → compose config FAIL | Manifest Render | remote 3 satırlık blok (c56) |
+| 05:xx UTC koşusunda OFF_HOURS + RAPID_CHANGES aynı kullanıcı için 2 flag → `toHaveCount(1)` FAIL | Browser Acceptance | locator rapid-change mesajına sabitlendi; 4 iddia korundu (c57) |
 
 ---
 
@@ -188,13 +195,12 @@ Kritik yollar:
 
 ## 7. Açık onaylar ve sonraki adımlar
 
-1. **Onay bekliyor (rapor):** Bu raporun commit + push edilmesi.
-2. **Onay bekliyor (security):** 4 critical advisory için strateji — kullanıcı “Şimdilik dokunma” dedi; mevcut karar korunuyor.
-3. **Onay bekliyor (coverage):** 80% eşiğine ulaşmak için test/kapsam çalışması (eşik düşürülmeyecek).
-4. **Erişim bekliyor:** staging/production kubecontext + env; ardından DB/Redis/worker/API/smoke doğrulaması.
-5. **Onay bekliyor:** P3-01 (`scoring-model.ts` GATE 5 pin’i) hâlâ PARTIAL.
-6. **Onay bekliyor:** eski klon arşivleme/silme (`C:\Users\Hasan\OneDrive\Belgeler\GitHub\vardiyasystem` — `M LICENSE` ve `?? bin/gh.exe` korunacak).
-7. **Onay bekliyor:** 7 untracked junk dosyasının silinmesi.
+1. **Onay bekliyor (security):** 4 critical advisory için strateji — kullanıcı “Şimdilik dokunma” dedi; mevcut karar korunuyor.
+2. **Onay bekliyor (coverage):** 80% eşiğine ulaşmak için test/kapsam çalışması (eşik düşürülmeyecek).
+3. **Erişim bekliyor:** staging/production kubecontext + env; ardından DB/Redis/worker/API/smoke doğrulaması.
+4. **Onay bekliyor:** P3-01 (`scoring-model.ts` GATE 5 pin’i) hâlâ PARTIAL.
+5. **Onay bekliyor:** eski klon arşivleme/silme (`C:\Users\Hasan\OneDrive\Belgeler\GitHub\vardiyasystem` — `M LICENSE` ve `?? bin/gh.exe` korunacak).
+6. **Onay bekliyor:** 7 untracked junk dosyasının silinmesi.
 
 **GO-LIVE DEĞERLENDİRMESİ: NOT READY** — CI tamamen yeşil olmadan (2 FAIL açık) ve gerçek staging/production DB, Redis ve worker doğrulaması yapılmadan bu karar değiştirilmeyecek.
 
@@ -202,10 +208,11 @@ Kritik yollar:
 
 ## 8. Kanıt dosyaları
 
-- `C:\Users\Hasan\AppData\Local\Temp\opencode\run9-failed-logs.txt` — nihai run `45069418455` Security/Coverage log’ları
+- `C:\Users\Hasan\AppData\Local\Temp\opencode\run9-failed-logs.txt` — run `45069418455` Security/Coverage log’ları
+- `C:\Users\Hasan\AppData\Local\Temp\opencode\run10-failed-logs.txt` — run `45115794020` Browser Acceptance gece flake’i log’u
 - `C:\Users\Hasan\AppData\Local\Temp\opencode\run8-failed-logs.txt` — run `45068216920` Manifest Render log’u
-- `C:\Users\Hasan\AppData\Local\Temp\opencode\watch-checks-auth.ps1` — token’lı check izleme (son SHA `439daaa`)
+- `C:\Users\Hasan\AppData\Local\Temp\opencode\watch-checks-auth.ps1` — token’lı check izleme (son SHA `8f783c8`)
 - `C:\Users\Hasan\AppData\Local\Temp\opencode\shadow-seed-check.sql`, `roster-scope-check.sql` — seed tenant doğrulama sorguları
-- `C:\Users\Hasan\AppData\Local\Temp\opencode\vardiyasystem-c56-release-dryrun-backup-20261122\MANIFEST.txt`
-- `C:\Users\Hasan\AppData\Local\Temp\opencode\vardiya-system-git-c56-release-dryrun-backup-20261122`
+- `C:\Users\Hasan\AppData\Local\Temp\opencode\vardiyasystem-c57-audit-flake-backup-20261123\MANIFEST.txt`
+- `C:\Users\Hasan\AppData\Local\Temp\opencode\vardiya-system-git-c57-audit-flake-backup-20261123`
 - `docs/phase-5/phase-5c44…5c47` batch kapanış raporları
