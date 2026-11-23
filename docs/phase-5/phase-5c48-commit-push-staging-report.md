@@ -196,11 +196,67 @@ Kritik yollar:
 ## 7. Açık onaylar ve sonraki adımlar
 
 1. **Onay bekliyor (security):** 4 critical advisory için strateji — kullanıcı “Şimdilik dokunma” dedi; mevcut karar korunuyor.
-2. **Onay bekliyor (coverage):** 80% eşiğine ulaşmak için test/kapsam çalışması (eşik düşürülmeyecek).
-3. **Erişim bekliyor:** staging/production kubecontext + env; ardından DB/Redis/worker/API/smoke doğrulaması.
-4. **Onay bekliyor:** P3-01 (`scoring-model.ts` GATE 5 pin’i) hâlâ PARTIAL.
+2. **Planlandı (coverage):** 80% eşiğine ulaşmak için hedefli test planı çıkarıldı (bkz. §7.2); test eklemeden önce ayrı onay alınacak, eşik düşürülmeyecek.
+3. **Erişim bekliyor:** kullanıcı kubeconfig sağlayacak; ardından staging DB/Redis/worker/API/smoke doğrulaması yapılacak.
+4. **KAPANDI (P3-01):** `scoring-model.ts` kanonik ağırlık invariant’larının test oracle’i olarak sınıflandırıldı (bkz. §7.1). Kod/test değişikliği yok.
 5. **Onay bekliyor:** eski klon arşivleme/silme (`C:\Users\Hasan\OneDrive\Belgeler\GitHub\vardiyasystem` — `M LICENSE` ve `?? bin/gh.exe` korunacak).
 6. **Onay bekliyor:** 7 untracked junk dosyasının silinmesi.
+
+### 7.1 P3-01 karar kaydı — kanonik referans / invariant oracle (2026-11-23)
+
+**Karar:** P3-01 “güvenli ölü kod temizliği” olarak bırakılmadı; kalan dosya kanonik skorlama invariant’larının çalıştırılabilir referansı (**test oracle’i**) olarak sınıflandırıldı ve kalem kapatıldı.
+
+**Kod taraması (2026-11-23):**
+
+| c40 raporundaki dosya | Mevcut durum |
+|---|---|
+| `schedules/domain/models/seeded-random.ts` | yok |
+| `schedules/domain/models/generation.ts` | yok |
+| `schedules/domain/services/scheduling-logger.ts` | yok |
+| `schedules/domain/models/scoring-model.ts` | mevcut — barrel export + 2 spec import’u |
+
+**Oracle kanıtları:**
+
+- `backend/src/modules/schedules/domain/optimization/canonical-scoring.config.ts:32-37` tek kaynak: `fairness=0.35`, `workload=0.25`, `fatigue=0.25`, `coverage=0.15` (toplam `1.00`).
+- `backend/src/modules/schedules/domain/models/scoring-model.ts:46-53` `DEFAULT_CONFIGURATION` değerleri doğrudan bu sabitlerden türetiyor; `preference → fatigue` eşlemesi, `version: '2.0.0'` ve `penaltyMultiplier: 2.0` (`PENALTY_MULTIPLIER` ile aynı) sabit.
+- `backend/src/modules/schedules/__tests__/5b4-preseeding.spec.ts:166-188` GATE 5: ağırlıklar, sürüm ve toplam=1.0 için **3 test**; `conflict-validation.spec.ts:5` ikinci spec importer’ı.
+- `docs/phase-5/phase-5b4-score-invariants.md` Invariant 1 (ScoreAggregator = ScoringModel hizası) ve Invariant 5 (ağırlık toplamı) bu davranışı zaten tanımlıyor.
+
+**Kapsam dışı / yapılmadı:** üretim koduna wire etme (davranış + mimari karar), test silme veya zayıflatma, eşik/severity değişikliği, migration/DB/secret değişikliği. `docs/phase-5/phase-5c40-p3-readonly-audit-report.md` tarihsel anlık görüntü olarak OPEN satırını korur; bu bölüm sonraki karar kaydıdır.
+
+### 7.2 Coverage 80% — hedefli test planı (read-only, 2026-11-23)
+
+**Kaynak veri:** CI run `45069418455` / `45119405759` coverage tablosu. Global: statements 53.87%, branches 45.23%, functions 48.74%, lines 55.77%. `backend/vitest.config.ts:21-26` eşikleri **80%** — sabit kalacak. Bu adımda **test eklenmedi, skip/eşik/severity değiştirilmedi**; aşağıda somut senaryolar planlandı.
+
+**Öncelik sırası:** düşük kapsam × yüksek dosya ağırlığı → (1) events, notifications, push-subscriptions; (2) websocket, asset-management, rbac; (3) shifts ve kalan servisler. İlk dalga tek başına 80% garanti etmez; her dalga sonunda ölçüm yapılacak.
+
+#### Dalga 1 — en zayıf modüller
+
+| Modül (lines %) | Hedef dosyalar | Yeni test senaryoları (davranış odaklı) | Mevcut testler / mock notu |
+|---|---|---|---|
+| `src/events` **15.62%** | `event-bus.service.ts`, `event-store.service.ts`, `event-monitoring.service.ts`, `dead-letter-queue.service.ts`, `event-replay.service.ts`, `handlers/events.consumer.ts` | `publish`: `recordPublished` → `store` → `eventsQueue.add(event.eventName, event, {attempts:3, backoff exponential 1000ms, removeOnComplete:false, removeOnFail:false})` sırası; `publishBatch` her olay için bir `publish`. Store: `events:{Type}:{id}` / `event:{id}` (TTL 604800) / `events:all` key'leri, `replayByType` filtresi, timestamp sıralaması, Redis hatasında swallow. Consumer: her `EVENT_NAMES` dalı → `recordProcessed`, hata attempt<2 ise rethrow, `attemptsMade>=2` ise DLQ + rethrow yok. DLQ: retry/flush/count. Monitoring: ms→s `observe`. | Yalnız `domain-event.interface.spec.ts` var. `FakeRedis` deseni `schedules/__tests__/p2-batch-e-infrastructure.spec.ts:19-77`; `getQueueToken('events'/'dead-letter')` fake Queue. Gerçek BullMQ/Redis ve gerçek `prom-client` registry kullanılmaz. |
+| `src/modules/notifications` **13.75%** | `notifications.service.ts`, `notification-orchestrator.service.ts`, `channel-dispatcher.service.ts`, `notification-event.service.ts` | `create` varsayılan `PENDING`/`NORMAL`; `getUserNotifications` filtre `where` + `{data,total,limit,offset}`; `markAllAsRead` aynı `readAt` değerini recipient+delivery'a yazar; `markAsRead`/`delete`/`markClicked` başka kullanıcıya dokunmaz. Orchestrator: recipient×channel `createDelivery`, `NOTIFICATION_SENT` event payload'u, `sendToAllUsers` sadece aktif kullanıcılar, `sendEmergency` → CRITICAL + 4 kanal. Dispatcher: kanal→sender eşlemesi, tercih kapalıyken skip, `bypassPrefs`, başarısızlıkta `FAILED`+`failedAt`, bir kanalın reddi diğerini durdurmaz. | `notification-event.service.spec.ts` (personnelId→user çözümü, `addRecipients`) ve 2 route-order spec'i var; tekrar edilmez. SMTP/Firebase/VAPID/SMS gerçek çağrıları ve cron timer'lar dışlanır. |
+| `src/modules/push-subscriptions` **24.07%** | `push-subscriptions.service.ts`, `push-subscriptions.controller.ts` | `subscribe`: mevcut endpoint → `update`, yoksa `create`; `unsubscribe` endpoint'li/siz `deleteMany` where; `getSubscriptions`/`getAllSubscriptions` Map gruplaması. VAPID keys var → `setVapidDetails(mailto:vardiyaos@hospital.com, pub, priv)`; yok → `sendPush` false. `sendPush`: 2 abonelikten biri 410 → stale silinir, diğer korunur, payload/TTL 86400 sabit. `broadcastPush` başarı sayısı ve 404/410 temizliği. | Mevcut spec yalnız `toBeDefined()` + `getEndpointCount()===0`; genişletilecek. `web-push`, ConfigService ve Prisma fake; **gerçek VAPID key/.env okunmaz**, gerçek push ağı çağrılmaz. |
+
+#### Dalga 2 — orta kapsam, yüksek satır hacmi
+
+| Modül (lines %) | Hedef dosyalar | Yeni test senaryoları | Mevcut testler / mock notu |
+|---|---|---|---|
+| `src/modules/websocket` **28.54%** | `schedule.gateway.ts` (`getMissedEvents`, broadcast/full-sync, cleanup, `disconnectSession`, `authorizeScheduleAccess`, `getUnitIdFromSchedule`) | `lastEventId` sonrası olaylar + boş/geçersiz id; `schedule:sync`, `personnel:update` (org zorunlu), alert/incident oda hedefleri; `vi.useFakeTimers()` ile 30 sn cleanup → `setOffline`/`lockExpired`/TTL prune; oturum iptali map dolu/boş; yetkilendirme red yolları. | `schedule.gateway.authz.spec.ts` cross-tenant/unit/role/lock senaryolarını zaten kapsıyor; tekrar edilmez. `makeClient` + 10 constructor double'ı reuse; gerçek socket.io/JWT/Redis yok, heartbeat timer'ları temizlenir. `isDuplicateEvent` çağrısız — saf satır için bile olsa üretime bağlamadan test edilmez. |
+| `src/modules/asset-management` **29.48%** | `asset-management.service.ts` (`findAll` filtreleri, `getFullDetail`, `getDashboard`, `generateQR`, CRUD, `getDocuments`, `getMovements`, `getWarrantyStatus`) | 6 alanlı `OR` insensitive `contains` where; include limitleri (20/10/50/20/30); `$queryRaw`/`count`/`groupBy` çağrılarında org+unit where ve 90 günlük warranty penceresi; QR payload JSON + sha256 ilk 16 hane + `vardiya://asset/<n>?v=<hash>` + DB update; auto-number `VAR-000001`, tarih dönüşümü, sadece gönderilen alanların update'i. | `5c15-sec-c-asset-scope.spec.ts` org/unit red yollarını kapsıyor; tekrar edilmez. `$queryRaw` da mock'lanır; gerçek SQL/QR dosyası/UnitScope yok. |
+| `src/modules/rbac` **33.74%** | `rbac.service.ts` (`getAvailableRoles`, `getAllPermissions`, `getRolePermissions`, `getPermissionMatrix`, permission cache, `ensureUserHasRbacRole`) | Sıralı rol/permission sorguları ve `{role,label,permissions:{name:boolean}}` matrisi; child permission inheritance (level ≤ role.level), 5 scope OR kombinasyonu, cache key/15 sn TTL/fail-closed `[]`; legacy role eşlemesi (`system_admin`→SYSTEM_ADMIN, bilinmeyen→GUEST), aktif atama varsa yazma yok; prefix'li invalidation. | `rbac-enterprise`, `5c12-ownership-hardening`, `unit-scope-*` spec'leri dominance/scope/guard yollarını kapsıyor; tekrar edilmez. Gerçek seed DB/JWT callback yok; TTL fake timer ile. |
+
+#### Dalga 3 — kalan
+
+| Modül (lines %) | Hedef dosyalar | Yeni test senaryoları | Mevcut testler / mock notu |
+|---|---|---|---|
+| `src/modules/shifts` **47.43%** | `shifts.service.ts` (`findLiveShifts` L161-248, master koruması, `create` masterCollision, `findAll` ek filtreler) | `isMaster` update/remove → `ForbiddenException` + yazma yok; user/org yok → `[]`; `published/approved` + unit/month/year where; upcoming/active/completed + progress; `ShiftType` etiketleri ve `'Personel Nöbeti'` fallback; aynı gün `date: today.toISOString().slice(0,10)`. | `shifts.service.spec.ts` create/find/update/remove happy-path'leri var; genişletilecek. `TZ` sabitlenir (UTC dateStr vs yerel `getHours()`); `endTime < startTime` gece vardiyası product kararı gerektirdiğinden test edilmez. |
+
+#### Uygulama kapıları
+
+1. Her dalga öncesi ayrı kaynak yedeği/MANIFEST + ayrı git-dir yedeği; dalga sonunda `npm run test:coverage --prefix backend` (mevcut 1298 test + yenileri, 0 skip), backend lint/typecheck/build, DB e2e, gerekirse tarayıcı e2e.
+2. Test ekleme/commit/push için **ayrı açık onay** alınacak; eşik 80% değiştirilmeyecek, test zayıflatma/skip/severity değişikliği yok.
+3. Security Scan advisory’leri “Şimdilik dokunma” kararıyla açık kalır; coverage 80%’e ulaşmadan ve staging doğrulaması yapılmadan **GO-LIVE: NOT READY** korunur.
 
 **GO-LIVE DEĞERLENDİRMESİ: NOT READY** — CI tamamen yeşil olmadan (2 FAIL açık) ve gerçek staging/production DB, Redis ve worker doğrulaması yapılmadan bu karar değiştirilmeyecek.
 
