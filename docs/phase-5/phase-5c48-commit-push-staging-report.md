@@ -304,6 +304,18 @@ Commit/push bu adımda yapılmadı; ayrı açık onay bekleniyor. Security advis
 
 **GO-LIVE DEĞERLENDİRMESİ: NOT READY** — CI tamamen yeşil olmadan (Security Scan + Coverage advisory FAIL) ve gerçek staging/production DB, Redis ve worker doğrulaması yapılmadan bu karar değiştirilmeyecek.
 
+### 7.5 Commit/push, CI ve staging durumu (anlık görüntü, 2026-11-23)
+
+**Commit/push:** Dalga 2 açık onayla `a529daecfd4434b72b854f212aabc0a23b08c1ea` (`test(backend): add coverage wave 2 for websocket, asset-management and rbac`, 4 dosya / 969 ekleme) olarak commit edildi ve `origin/remediation/phase-5-20261122`’ye push edildi. Working tree’de yalnızca 7 korunan junk dosyası kaldı; üretim kodu/yapılandırma değişmedi.
+
+**PR #75:** `open`, `mergeable: true`, `mergeable_state: blocked`, HEAD `a529dae…`, **16 commit / 1085 changed file**.
+
+**CI (yeni HEAD, sorgu anı):** toplam 5 check — `Lint & Type Check (backend)` **SUCCESS**, `Lint & Type Check (frontend)` **SUCCESS**; `Security Scan`, `Unit Tests (backend)`, `Unit Tests (frontend)` **IN_PROGRESS**. Check izleme `watch-checks-auth.ps1` ile sürüyor; Security advisory’leri “Şimdilik dokunma” kararıyla açık, Coverage advisory FAIL eşiği 80% sabit.
+
+**Staging:** doğrulama başlatılamadı — `kubectl config current-context` boş, `kubectl config get-contexts` boş, `KUBECONFIG` unset, `~/.kube/config` yok; `DATABASE_URL`/`REDIS_URL`/staging endpoint değişkenleri unset. Repodaki `staging.vardiya.example.com` placeholder; gerçek endpoint/kubeconfig kullanıcıdan bekleniyor. `staging-verification-checklist.md` adımları (workload/image tag, migration + `prisma migrate status`, Redis `PONG`, `events`/`dead-letter`/`schedule-jobs` kuyrukları ve worker, port-forward readiness/smoke) uygulanmadı. Yerel production-like kanıt staging kanıtı sayılmaz.
+
+**GO-LIVE DEĞERLENDİRMESİ: NOT READY** — CI tam yeşil değil ve gerçek staging/production DB, Redis, worker doğrulaması yapılmadı. Kubeconfig sağlandığında kontrol listesi uygulanıp bu bölüm güncellenecek.
+
 ---
 
 ## 8. Kanıt dosyaları
@@ -311,7 +323,7 @@ Commit/push bu adımda yapılmadı; ayrı açık onay bekleniyor. Security advis
 - `C:\Users\Hasan\AppData\Local\Temp\opencode\run9-failed-logs.txt` — run `45069418455` Security/Coverage log’ları
 - `C:\Users\Hasan\AppData\Local\Temp\opencode\run10-failed-logs.txt` — run `45115794020` Browser Acceptance gece flake’i log’u
 - `C:\Users\Hasan\AppData\Local\Temp\opencode\run8-failed-logs.txt` — run `45068216920` Manifest Render log’u
-- `C:\Users\Hasan\AppData\Local\Temp\opencode\watch-checks-auth.ps1` — token’lı check izleme (son SHA `8f783c8`)
+- `C:\Users\Hasan\AppData\Local\Temp\opencode\watch-checks-auth.ps1` — token’lı check izleme (son SHA `a529dae`)
 - `C:\Users\Hasan\AppData\Local\Temp\opencode\shadow-seed-check.sql`, `roster-scope-check.sql` — seed tenant doğrulama sorguları
 - `C:\Users\Hasan\AppData\Local\Temp\opencode\vardiyasystem-c57-audit-flake-backup-20261123\MANIFEST.txt`
 - `C:\Users\Hasan\AppData\Local\Temp\opencode\vardiya-system-git-c57-audit-flake-backup-20261123`
