@@ -75,7 +75,12 @@ test.describe('Audit timeline', () => {
     // suite, so other accounts may legitimately appear flagged here too; the
     // assertion is scoped to the fixture account's own rapid-change item instead
     // of assuming the panel is globally empty.
-    const supervisorFlag = page.locator('.suspicious-item', { hasText: 'E2E Süpervizör' });
+    // OFF_HOURS (22:00-06:00) adds a second flag for the same account, so scope
+    // the locator to the rapid-change detector this test is about. All of the
+    // assertions below stay independent checks on the matched item.
+    const supervisorFlag = page
+      .locator('.suspicious-item', { hasText: 'E2E Süpervizör' })
+      .filter({ hasText: 'hızlı değişiklik' });
     await expect(supervisorFlag).toHaveCount(1);
     await expect(supervisorFlag.locator('.suspicious-message')).toContainText(
       'E2E Süpervizör'
