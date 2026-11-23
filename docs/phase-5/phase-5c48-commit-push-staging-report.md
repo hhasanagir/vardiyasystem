@@ -281,6 +281,29 @@ Commit/push bu adımda yapılmadı; ayrı açık onay bekleniyor. Security advis
 
 **GO-LIVE DEĞERLENDİRMESİ: NOT READY** — CI tamamen yeşil olmadan (2 FAIL açık) ve gerçek staging/production DB, Redis ve worker doğrulaması yapılmadan bu karar değiştirilmeyecek.
 
+### 7.4 Dalga 2 uygulama sonucu (2026-11-23)
+
+**Kapsam:** yalnızca 3 yeni test dosyası / 50 yeni test. Üretim kodu, migration/schema, yapılandırma, 80% eşik, skip veya severity değişmedi. Gerçek socket.io/JWT/Redis/SQL/QR dosyası/seed kullanılmadı; tüm bağımlılıklar fake. `schedule.gateway.authz.spec.ts`, `5c15-sec-c-asset-scope.spec.ts` ve RBAC dominance/scope spec’lerinde bulunan senaryolar tekrar edilmedi.
+
+| Alan | Yeni spec | Hedeflenen davranış |
+|---|---|---|
+| `src/modules/websocket` | `schedule.gateway.behaviour.spec.ts` (18 test) | `lastEventId` sonrası olaylar/geçersiz id, `schedule:sync` payload’u, forceSync/unsubscribe, personel/alert/incident/handover oda hedefleri, `vi.useFakeTimers()` ile 30 sn cleanup (offline/lockExpired/TTL prune), oturum iptali map durumları, yetkilendirme giriş noktasının boş kimlik/id/schedule ve global-admin yolları |
+| `src/modules/asset-management` | `asset-management.service.behaviour.spec.ts` (18 test) | 6 alanlı insensitive `OR` araması + filtreler, include limitleri (20/10/50/20/30), dashboard count/groupBy ve 90 günlük pencere, QR payload/sha256/`vardiya://asset` + DB update, auto-number `VAR-000006`, tarih dönüşümleri, sadece gönderilen alanların update’i, doküman/hareket sıralaması, `$queryRaw` org/unit scope |
+| `src/modules/rbac` | `rbac.service.behaviour.spec.ts` (14 test) | sıralı rol/permission okumaları, permission matrisi, 5 scope OR grubu, child inheritance (level ≤ role.level), cache key/15 sn TTL/fail-closed `[]`, legacy rol eşlemesi (`system_admin`→SYSTEM_ADMIN, bilinmeyen→GUEST), aktif atamada yazma yok, prefix invalidation |
+
+**Kapılar:**
+
+- Yeni 3 spec: **50/50 PASS**, 0 skip. Hedef 3 dizin: **14 dosya / 245 test PASS**, 0 skip.
+- Tam backend suite: **136 dosya / 1430 test PASS** (Dalga 1 sonrası 1380; +50 net yeni test), 0 skip.
+- Coverage (80% eşik sabit, değişiklik yok): lines **59.31 → 62.12%**, statements **57.31 → 60.12%**, functions **52.97 → 54.73%**, branches **46.87 → 49.59%**. Dosya bazında lines: `schedule.gateway.ts` **67.46%**, `asset-management.service.ts` **93.66%**, `rbac.service.ts` **84.93%**. `npm run test:coverage` advisory FAIL (4 metrik 80% altında) — beklenen; eşik düşürülmedi.
+- Backend lint gate **4074 error ≤ 4075 baseline** (re-baseline yok), `tsc --noEmit` PASS, `nest build` PASS.
+- İlk tam coverage koşusunda 2 geçici başarısızlık görüldü: yeni asset spec’inde `Date.now()` kaynaklı 1 ms fark (fake timer ile deterministikleştirildi) ve mevcut `5b3-performance-failure.spec.ts` performans benchmark’ında coverage yükü altında 3097 ms < 3000 ms iddiası. Benchmark tek başına 12/12 PASS, ikinci tam koşuda 1430/1430 PASS; **eşik/test değiştirilmedi**.
+- Yedek: `vardiyasystem-coverage-wave2-backup-20261123` + ayrı git-dir yedeği `vardiya-system-git-coverage-wave2-backup-20261123` (`MANIFEST.txt` ile, 2129 dosya).
+
+Commit/push bu adımda yapılmadı; ayrı açık onay bekleniyor. Security advisory’leri “Şimdilik dokunma” kararıyla açık; staging kubeconfig gelmedi.
+
+**GO-LIVE DEĞERLENDİRMESİ: NOT READY** — CI tamamen yeşil olmadan (Security Scan + Coverage advisory FAIL) ve gerçek staging/production DB, Redis ve worker doğrulaması yapılmadan bu karar değiştirilmeyecek.
+
 ---
 
 ## 8. Kanıt dosyaları
