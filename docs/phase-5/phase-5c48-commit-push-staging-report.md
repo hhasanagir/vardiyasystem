@@ -258,6 +258,27 @@ Kritik yollar:
 2. Test ekleme/commit/push için **ayrı açık onay** alınacak; eşik 80% değiştirilmeyecek, test zayıflatma/skip/severity değişikliği yok.
 3. Security Scan advisory’leri “Şimdilik dokunma” kararıyla açık kalır; coverage 80%’e ulaşmadan ve staging doğrulaması yapılmadan **GO-LIVE: NOT READY** korunur.
 
+### 7.3 Dalga 1 uygulama sonucu (2026-11-23)
+
+**Kapsam:** yalnızca yeni test dosyaları — 12 spec (6 events, 4 notifications, 2 push-subscriptions). Üretim kodu, migration/schema, yapılandırma, eşik, skip veya severity değişmedi; gerçek Redis/BullMQ/SMTP/Firebase/VAPID ağı ve secret kullanılmadı.
+
+| Alan | Yeni spec'ler | Hedeflenen davranış |
+|---|---|---|
+| `src/events` | `event-bus`, `event-store`, `dead-letter-queue`, `event-replay`, `event-monitoring`, `events.consumer` | publish sırası/options, Redis key layout + TTL, DLQ retry/flush, replay yeniden yayın, metrik ms→s, consumer routing/retry/DLQ |
+| `src/modules/notifications` | `notifications.service`, `notification-orchestrator.service`, `channel-dispatcher.service`, `notification-event.mappings` | filtre/ tenant-scoped mutation, recipient×channel fan-out + `NOTIFICATION_SENT`, kanal yönlendirme/tercih/başarısızlık izolasyonu, event alias eşlemeleri |
+| `src/modules/push-subscriptions` | `push-subscriptions.service.behaviour`, `push-subscriptions.controller` | VAPID init, subscribe/unsubscribe, Map gruplama, 410/404 temizliği, payload/TTL, controller DTO varsayılanları |
+
+**Kapılar:**
+
+- Hedeflenen 3 dizin: **17 test dosyası / 101 test PASS**, 0 skip.
+- Tam backend suite: **133 dosya / 1380 test PASS** (önce 1298; +82 net yeni test), 0 skip.
+- Coverage (aynı 80% eşik, değişiklik yok): lines **55.77 → 59.31%**, statements **53.87 → 57.31%**, functions **48.74 → 52.97%**, branches **45.23 → 46.87%**. Modül bazında: `src/events` lines/functions **100% / 100%**, push-subscriptions **98.43% / 100%**, notifications **46.28% / 45.45%**.
+- `npm run test:coverage` hâlâ advisory FAIL (4 metrik 80% altında) — beklenen; eşik düşürülmedi.
+- Backend lint gate **4074 error ≤ 4075 baseline** (1 daha az; re-baseline yok), `tsc --noEmit` PASS, `nest build` PASS.
+- Yedek: `vardiyasystem-coverage-wave1-backup-20261123` + ayrı git-dir yedeği (`MANIFEST.txt` ile).
+
+Commit/push bu adımda yapılmadı; ayrı açık onay bekleniyor. Security advisory’leri “Şimdilik dokunma” kararıyla açık; staging kubeconfig gelmedi.
+
 **GO-LIVE DEĞERLENDİRMESİ: NOT READY** — CI tamamen yeşil olmadan (2 FAIL açık) ve gerçek staging/production DB, Redis ve worker doğrulaması yapılmadan bu karar değiştirilmeyecek.
 
 ---
