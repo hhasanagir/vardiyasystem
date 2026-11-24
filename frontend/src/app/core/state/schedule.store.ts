@@ -38,14 +38,9 @@ export interface PublishedSchedule {
 }
 
 @Injectable({
-  providedIn: 'root',
+  providedIn: 'root'
 })
 export class ScheduleStore {
-  // The month/year a user navigated to is part of their working context; the
-  // store already serialised it (toJSON) but nothing ever restored it, so a
-  // reload always snapped back to the current month.
-  private static readonly UI_MONTH_KEY = 'vardiyasystem.ui.month';
-
   private readonly deviceApi = inject(DeviceApiService);
   private readonly state = signal<ScheduleState>({
     selectedMonth: new Date().getMonth() + 1,
@@ -57,42 +52,8 @@ export class ScheduleStore {
     fairness: null,
     status: 'idle',
     lastError: null,
-    lastUpdated: null,
+    lastUpdated: null
   });
-
-  constructor() {
-    const stored = ScheduleStore.readUiMonth();
-    if (stored) {
-      this.state.update((s) => ({ ...s, ...stored }));
-    }
-  }
-
-  private static readUiMonth(): { selectedMonth: number; selectedYear: number } | null {
-    try {
-      if (typeof localStorage === 'undefined') return null;
-      const raw = localStorage.getItem(ScheduleStore.UI_MONTH_KEY);
-      if (!raw) return null;
-      const ui = JSON.parse(raw) as { selectedMonth?: number; selectedYear?: number };
-      if (typeof ui.selectedMonth === 'number' && typeof ui.selectedYear === 'number') {
-        return { selectedMonth: ui.selectedMonth, selectedYear: ui.selectedYear };
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  }
-
-  private static writeUiMonth(selectedMonth: number, selectedYear: number): void {
-    try {
-      if (typeof localStorage === 'undefined') return;
-      localStorage.setItem(
-        ScheduleStore.UI_MONTH_KEY,
-        JSON.stringify({ selectedMonth, selectedYear }),
-      );
-    } catch {
-      // best-effort persistence
-    }
-  }
 
   readonly selectedMonth = computed(() => this.state().selectedMonth);
   readonly selectedYear = computed(() => this.state().selectedYear);
@@ -124,12 +85,13 @@ export class ScheduleStore {
   });
 
   readonly violationsCount = computed(() => {
-    return this.conflicts().filter((c) => c.severity === 'critical' || c.severity === 'high')
-      .length;
+    return this.conflicts().filter(c => 
+      c.severity === 'critical' || c.severity === 'high'
+    ).length;
   });
 
   readonly criticalConflicts = computed(() => {
-    return this.conflicts().filter((c) => c.severity === 'critical');
+    return this.conflicts().filter(c => c.severity === 'critical');
   });
 
   readonly isValid = computed(() => {
@@ -159,13 +121,13 @@ export class ScheduleStore {
   }
 
   getHeatmapMetrics(devices: Device[], assignments: ShiftAssignment[]): HeatmapMetrics {
-    const activeDevices = devices.filter((d) => d.isActive);
+    const activeDevices = devices.filter(d => d.isActive);
     const today = new Date().toISOString().split('T')[0];
-    const todayAssignments = assignments.filter((a) => a.date === today);
+    const todayAssignments = assignments.filter(a => a.date === today);
 
-    const occupiedDevices = new Set(todayAssignments.map((a) => a.deviceId));
-    const criticalDevices = activeDevices.filter((d) => {
-      const dayAssignments = todayAssignments.filter((a) => a.deviceId === d.id);
+    const occupiedDevices = new Set(todayAssignments.map(a => a.deviceId));
+    const criticalDevices = activeDevices.filter(d => {
+      const dayAssignments = todayAssignments.filter(a => a.deviceId === d.id);
       return d.mode === 'vardiya' && dayAssignments.length < 2;
     });
 
@@ -176,40 +138,37 @@ export class ScheduleStore {
     return {
       active: activeDevices.length - criticalDevices.length,
       idle: Math.max(0, activeDevices.length - occupiedDevices.size),
-      maintenance: activeDevices.length - activeDevices.filter((d) => d.isActive).length,
+      maintenance: activeDevices.length - activeDevices.filter(d => d.isActive).length,
       critical: criticalDevices.length,
-      occupancyRate,
+      occupancyRate
     };
   }
 
   getAssignmentsForDate(date: string): ShiftAssignment[] {
-    return this.assignments().filter((a) => a.date === date);
+    return this.assignments().filter(a => a.date === date);
   }
 
   getAssignmentsForDevice(deviceId: string): ShiftAssignment[] {
-    return this.assignments().filter((a) => a.deviceId === deviceId);
+    return this.assignments().filter(a => a.deviceId === deviceId);
   }
 
   getAssignmentsForPersonnel(personnelId: string): ShiftAssignment[] {
-    return this.assignments().filter((a) => a.personnelId === personnelId);
+    return this.assignments().filter(a => a.personnelId === personnelId);
   }
 
   getAssignmentByType(deviceId: string, date: string, shiftType: string): ShiftAssignment | null {
     const assignments = this.getAssignmentsForDevice(deviceId);
     const normalizedShiftType = this.normalizeShiftType(shiftType);
-    return (
-      assignments.find(
-        (a) => a.date === date && this.normalizeShiftType(a.shiftType) === normalizedShiftType,
-      ) || null
-    );
+    return assignments.find(a => 
+      a.date === date && 
+      this.normalizeShiftType(a.shiftType) === normalizedShiftType
+    ) || null;
   }
 
   normalizeShiftType(type: string): ShiftType {
     const lower = type.toLowerCase();
-    if (lower.includes('gündüz') || lower.includes('gunduz') || lower === 'day')
-      return ShiftTypeEnum.DAY;
-    if (lower.includes('akşam') || lower.includes('aksam') || lower === 'evening')
-      return ShiftTypeEnum.EVENING;
+    if (lower.includes('gündüz') || lower.includes('gunduz') || lower === 'day') return ShiftTypeEnum.DAY;
+    if (lower.includes('akşam') || lower.includes('aksam') || lower === 'evening') return ShiftTypeEnum.EVENING;
     if (lower.includes('gece') || lower === 'night') return ShiftTypeEnum.NIGHT;
     return ShiftTypeEnum.DAY;
   }
@@ -218,26 +177,26 @@ export class ScheduleStore {
     const assignments = this.getAssignmentsForPersonnel(personnelId);
     return {
       total: assignments.length,
-      night: assignments.filter((a) => this.normalizeShiftType(a.shiftType) === ShiftTypeEnum.NIGHT)
-        .length,
-      weekend: assignments.filter((a) => {
+      night: assignments.filter(a => 
+        this.normalizeShiftType(a.shiftType) === ShiftTypeEnum.NIGHT
+      ).length,
+      weekend: assignments.filter(a => {
         const day = new Date(a.date).getDay();
         return day === 0 || day === 6;
-      }).length,
+      }).length
     };
   }
 
   setSelectedUnit(unit: UnitType): void {
-    this.state.update((s) => ({ ...s, selectedUnit: unit }));
+    this.state.update(s => ({ ...s, selectedUnit: unit }));
   }
 
   setSelectedMonth(month: number, year?: number): void {
-    this.state.update((s) => ({
+    this.state.update(s => ({
       ...s,
       selectedMonth: month,
-      selectedYear: year ?? s.selectedYear,
+      selectedYear: year ?? s.selectedYear
     }));
-    ScheduleStore.writeUiMonth(this.state().selectedMonth, this.state().selectedYear);
   }
 
   nextMonth(): void {
@@ -263,20 +222,7 @@ export class ScheduleStore {
   }
 
   getMonthLabel(): string {
-    const months = [
-      'Ocak',
-      'Şubat',
-      'Mart',
-      'Nisan',
-      'Mayıs',
-      'Haziran',
-      'Temmuz',
-      'Ağustos',
-      'Eylül',
-      'Ekim',
-      'Kasım',
-      'Aralık',
-    ];
+    const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
     const { selectedMonth, selectedYear } = this.state();
     return `${months[selectedMonth - 1]} ${selectedYear}`;
   }
@@ -285,7 +231,7 @@ export class ScheduleStore {
 
   setSchedule(schedule: Schedule): void {
     const key = this.getScheduleKey(schedule.unit, schedule.year, schedule.month);
-    this.state.update((s) => {
+    this.state.update(s => {
       const newSchedules = new Map(s.schedules);
       newSchedules.set(key, schedule);
       return { ...s, schedules: newSchedules, lastUpdated: new Date() };
@@ -296,13 +242,13 @@ export class ScheduleStore {
   updateAssignments(assignments: ShiftAssignment[]): void {
     const current = this.currentSchedule();
     const { selectedUnit, selectedMonth, selectedYear } = this.state();
-
+    
     if (current) {
       this.setSchedule({
         ...current,
         assignments,
         version: current.version + 1,
-        updatedAt: new Date(),
+        updatedAt: new Date()
       });
     } else {
       const newSchedule: Schedule = {
@@ -314,7 +260,7 @@ export class ScheduleStore {
         version: 1,
         createdAt: new Date(),
         updatedAt: new Date(),
-        status: 'draft',
+        status: 'draft'
       };
       this.setSchedule(newSchedule);
     }
@@ -325,26 +271,26 @@ export class ScheduleStore {
   }
 
   removeAssignment(assignmentId: string): void {
-    this.updateAssignments(this.assignments().filter((a) => a.id !== assignmentId));
+    this.updateAssignments(this.assignments().filter(a => a.id !== assignmentId));
   }
 
   setConflicts(conflicts: Conflict[]): void {
-    this.state.update((s) => ({ ...s, conflicts }));
+    this.state.update(s => ({ ...s, conflicts }));
   }
 
   setValidation(validation: ValidationResult): void {
-    this.state.update((s) => ({ ...s, validation }));
+    this.state.update(s => ({ ...s, validation }));
   }
 
   setFairness(fairness: FairnessMetrics): void {
-    this.state.update((s) => ({ ...s, fairness }));
+    this.state.update(s => ({ ...s, fairness }));
   }
 
   setStatus(status: GenerationStatus, error?: string): void {
-    this.state.update((s) => ({
+    this.state.update(s => ({
       ...s,
       status,
-      lastError: error || null,
+      lastError: error || null
     }));
   }
 
@@ -358,13 +304,13 @@ export class ScheduleStore {
       year: current.year,
       assignments: [...current.assignments],
       publishedAt: new Date(),
-      publishedBy,
+      publishedBy
     };
 
     this.setSchedule({
       ...current,
       status: 'published',
-      updatedAt: new Date(),
+      updatedAt: new Date()
     });
 
     this.schedulePublished.next(publishedSchedule);
@@ -377,7 +323,7 @@ export class ScheduleStore {
     this.setSchedule({
       ...current,
       status: 'draft',
-      updatedAt: new Date(),
+      updatedAt: new Date()
     });
   }
 
@@ -389,7 +335,7 @@ export class ScheduleStore {
   }
 
   clearSchedule(): void {
-    this.state.update((s) => ({ ...s, schedules: new Map() }));
+    this.state.update(s => ({ ...s, schedules: new Map() }));
   }
 
   clearState(): void {
@@ -403,7 +349,7 @@ export class ScheduleStore {
       fairness: null,
       status: 'idle',
       lastError: null,
-      lastUpdated: null,
+      lastUpdated: null
     });
   }
 
@@ -422,7 +368,7 @@ export class ScheduleStore {
       conflicts: s.conflicts,
       validation: s.validation,
       fairness: s.fairness,
-      lastUpdated: s.lastUpdated,
+      lastUpdated: s.lastUpdated
     };
   }
 
@@ -443,7 +389,7 @@ export class ScheduleStore {
       fairness: (data['fairness'] as FairnessMetrics) || null,
       status: 'idle',
       lastError: null,
-      lastUpdated: (data['lastUpdated'] as Date) || null,
+      lastUpdated: (data['lastUpdated'] as Date) || null
     });
   }
 

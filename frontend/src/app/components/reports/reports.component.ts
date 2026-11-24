@@ -1,69 +1,30 @@
-import {
-  Component,
-  OnInit,
-  OnDestroy,
-  signal,
-  computed,
-  inject,
-  ChangeDetectionStrategy,
-} from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
 import { MessageService } from 'primeng/api';
 import { Subject, forkJoin } from 'rxjs';
 import { finalize } from 'rxjs/operators';
-import {
-  ScheduleService,
-  ScheduleAnalytics,
-  DetailedEmployeeWorkload,
-} from '../../services/schedule.service';
+import { ScheduleService, ScheduleAnalytics, DetailedEmployeeWorkload } from '../../services/schedule.service';
+import { buildDailyReportCsv, reportsCsvFileName } from './reports-csv';
 
 interface DailyStats {
-  date: string;
-  dayName: string;
-  dayNum: number;
-  totalShifts: number;
-  filledShifts: number;
-  emptyShifts: number;
-  coveragePercent: number;
-  mrFilled: number;
-  mrEmpty: number;
-  btFilled: number;
-  btEmpty: number;
+  date: string; dayName: string; dayNum: number; totalShifts: number;
+  filledShifts: number; emptyShifts: number; coveragePercent: number;
+  mrFilled: number; mrEmpty: number; btFilled: number; btEmpty: number;
 }
 
 interface EmployeeStats {
-  id: string;
-  name: string;
-  color: string;
-  totalShifts: number;
-  dayShifts: number;
-  nightShifts: number;
-  weekendShifts: number;
-  coveragePercent: number;
+  id: string; name: string; color: string; totalShifts: number;
+  dayShifts: number; nightShifts: number; weekendShifts: number; coveragePercent: number;
 }
 
 interface UnitStats {
-  unit: string;
-  totalDevices: number;
-  totalShifts: number;
-  filled: number;
-  empty: number;
-  coverage: number;
-  avgPerDevice: number;
+  unit: string; totalDevices: number; totalShifts: number;
+  filled: number; empty: number; coverage: number; avgPerDevice: number;
 }
 
-const EMPLOYEE_COLORS = [
-  '#3b82f6',
-  '#06b6d4',
-  '#10b981',
-  '#f59e0b',
-  '#ef4444',
-  '#8b5cf6',
-  '#ec4899',
-  '#14b8a6',
-];
+const EMPLOYEE_COLORS = ['#3b82f6','#06b6d4','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
 
 @Component({
   selector: 'app-reports',
@@ -72,7 +33,7 @@ const EMPLOYEE_COLORS = [
   imports: [CommonModule, ToastModule, DialogModule],
   providers: [MessageService],
   templateUrl: './reports.component.html',
-  styleUrl: './reports.component.scss',
+  styleUrl: './reports.component.scss'
 })
 export class ReportsComponent implements OnInit, OnDestroy {
   private messageService = inject(MessageService);
@@ -127,60 +88,45 @@ export class ReportsComponent implements OnInit, OnDestroy {
 
     forkJoin({
       analytics: this.scheduleService.getAnalytics(startDate, endDate).pipe(finalize(() => {})),
-      employeeWl: this.scheduleService
-        .getEmployeeWorkload(startDate, endDate)
-        .pipe(finalize(() => {})),
-      schedules: this.scheduleService
-        .loadSchedules({ month: month.getMonth() + 1, year: month.getFullYear() })
-        .pipe(finalize(() => {})),
-    })
-      .pipe(finalize(() => this.loading.set(false)))
-      .subscribe({
-        next: ({ analytics, employeeWl, schedules }) => {
-          this.analytics.set(analytics);
+      employeeWl: this.scheduleService.getEmployeeWorkload(startDate, endDate).pipe(finalize(() => {})),
+      schedules: this.scheduleService.loadSchedules({ month: month.getMonth() + 1, year: month.getFullYear() }).pipe(finalize(() => {})),
+    }).pipe(finalize(() => this.loading.set(false))).subscribe({
+      next: ({ analytics, employeeWl, schedules }) => {
+        this.analytics.set(analytics);
 
-          const empStats: EmployeeStats[] = (Array.isArray(employeeWl) ? employeeWl : []).map(
-            (e, i) => ({
-              id: e.employeeId,
-              name: e.employeeName,
-              color: EMPLOYEE_COLORS[i % EMPLOYEE_COLORS.length],
-              totalShifts: e.totalShifts,
-              dayShifts: e.dayShifts,
-              nightShifts: e.nightShifts,
-              weekendShifts: e.weekendShifts,
-              coveragePercent: Math.min(
-                100,
-                Math.round((e.totalShifts / Math.max(1, e.totalShifts + e.nightShifts)) * 100),
-              ),
-            }),
-          );
-          this.employeeStats.set(empStats.sort((a, b) => b.totalShifts - a.totalShifts));
+        const empStats: EmployeeStats[] = (Array.isArray(employeeWl) ? employeeWl : []).map((e, i) => ({
+          id: e.employeeId,
+          name: e.employeeName,
+          color: EMPLOYEE_COLORS[i % EMPLOYEE_COLORS.length],
+          totalShifts: e.totalShifts,
+          dayShifts: e.dayShifts,
+          nightShifts: e.nightShifts,
+          weekendShifts: e.weekendShifts,
+          coveragePercent: Math.min(100, Math.round((e.totalShifts / Math.max(1, (e.totalShifts + e.nightShifts))) * 100)),
+        }));
+        this.employeeStats.set(empStats.sort((a, b) => b.totalShifts - a.totalShifts));
 
-          const units = (schedules?.schedules || []).map((s: any) => {
-            const totalSlots = (s.devices?.length || 1) * 2;
-            const filled = s.assignments?.length || 0;
-            return {
-              unit: s.unit || s.unitId || 'Bilinmeyen',
-              totalDevices: s.devices?.length || 1,
-              totalShifts: totalSlots,
-              filled,
-              empty: totalSlots - filled,
-              coverage: totalSlots > 0 ? Math.round((filled / totalSlots) * 100) : 0,
-              avgPerDevice: Math.round(filled / Math.max(1, s.devices?.length || 1)),
-            };
-          });
-          this.unitStats.set(units);
+        const units = (schedules?.schedules || []).map((s: any) => {
+          const totalSlots = (s.devices?.length || 1) * 2;
+          const filled = s.assignments?.length || 0;
+          return {
+            unit: s.unit || s.unitId || 'Bilinmeyen',
+            totalDevices: s.devices?.length || 1,
+            totalShifts: totalSlots,
+            filled,
+            empty: totalSlots - filled,
+            coverage: totalSlots > 0 ? Math.round((filled / totalSlots) * 100) : 0,
+            avgPerDevice: Math.round(filled / Math.max(1, s.devices?.length || 1)),
+          };
+        });
+        this.unitStats.set(units);
 
-          this.deriveDailyStats(schedules?.schedules || [], analytics);
-        },
-        error: () => {
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Hata',
-            detail: 'Rapor verileri yüklenemedi',
-          });
-        },
-      });
+        this.deriveDailyStats(schedules?.schedules || [], analytics);
+      },
+      error: () => {
+        this.messageService.add({ severity: 'error', summary: 'Hata', detail: 'Rapor verileri yüklenemedi' });
+      },
+    });
   }
 
   private deriveDailyStats(schedules: any[], analytics: ScheduleAnalytics) {
@@ -203,10 +149,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
         filledShifts: 0,
         emptyShifts: 0,
         coveragePercent: 0,
-        mrFilled: 0,
-        mrEmpty: 0,
-        btFilled: 0,
-        btEmpty: 0,
+        mrFilled: 0, mrEmpty: 0, btFilled: 0, btEmpty: 0,
       });
     }
 
@@ -214,7 +157,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
       const unitKey = schedule.unit || schedule.unitId || '';
       if (unitKey !== 'mr' && unitKey !== 'bt') continue;
       for (const a of schedule.assignments || []) {
-        const dayIdx = daily.findIndex((d) => d.date === a.date);
+        const dayIdx = daily.findIndex(d => d.date === a.date);
         if (dayIdx === -1) continue;
         daily[dayIdx].totalShifts += 1;
         daily[dayIdx].filledShifts += 1;
@@ -224,12 +167,10 @@ export class ReportsComponent implements OnInit, OnDestroy {
     }
 
     for (const d of daily) {
-      const assumedTotal =
-        (daily.length > 0 ? Math.round(analytics.totalShifts / daily.length) : 8) * 2;
+      const assumedTotal = (daily.length > 0 ? Math.round(analytics.totalShifts / daily.length) : 8) * 2;
       d.totalShifts = Math.max(d.totalShifts, d.filledShifts);
       d.emptyShifts = d.totalShifts - d.filledShifts;
-      d.coveragePercent =
-        d.totalShifts > 0 ? Math.round((d.filledShifts / d.totalShifts) * 100) : 0;
+      d.coveragePercent = d.totalShifts > 0 ? Math.round((d.filledShifts / d.totalShifts) * 100) : 0;
     }
 
     this.dailyStats.set(daily);
@@ -246,21 +187,46 @@ export class ReportsComponent implements OnInit, OnDestroy {
     this.activeReport.set(report);
   }
 
+  /**
+   * Exports the daily shift report that the dialog names. The button promises a
+   * download, so it builds the CSV from the same rows that are on screen rather
+   * than only reporting that an export was "prepared".
+   */
   exportToExcel(): void {
+    const rows = this.dailyStats();
+    if (rows.length === 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Dışa Aktar',
+        detail: 'Seçili ay için rapor verisi yok',
+      });
+      return;
+    }
+
+    const csv = buildDailyReportCsv(rows, this.totalSummary());
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = reportsCsvFileName(this.monthKey());
+    anchor.click();
+    URL.revokeObjectURL(url);
+
+    this.showExportDialog.set(false);
     this.messageService.add({
-      severity: 'info',
+      severity: 'success',
       summary: 'Dışa Aktar',
-      detail: 'Dışa aktarma hazırlanıyor...',
+      detail: `${this.monthLabel()} raporu indirildi`,
     });
   }
 
+  private monthKey(): string {
+    const month = this.selectedMonth();
+    return `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
+  }
+
   getInitials(name: string): string {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase();
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   }
 
   ngOnDestroy(): void {

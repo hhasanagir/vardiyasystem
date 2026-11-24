@@ -561,24 +561,24 @@ flowchart TB
 
 ## 3. Key Technology Versions
 
-| Component     | Version | Detail                                 |
-| ------------- | ------- | -------------------------------------- |
-| Angular       | 21.2.0  | Standalone components, Signals, OnPush |
-| PrimeNG       | 21.1.6  | UI component library                   |
-| Capacitor     | 8.x     | Mobile wrapper                         |
-| NestJS        | Latest  | 44 backend modules                     |
-| Prisma        | Latest  | ORM with 11 compliance models          |
-| PostgreSQL    | 16      | Primary database                       |
-| Redis         | 7       | Cache + BullMQ queues                  |
-| Istio         | Latest  | Service mesh, mTLS, traffic mgmt       |
-| ArgoCD        | Latest  | GitOps operator                        |
-| Argo Rollouts | Latest  | Blue-green + canary deployments        |
-| cert-manager  | Latest  | ACME DNS-01 (Cloudflare)               |
-| Unleash       | Latest  | Feature flags (2-6 HPA)                |
-| Prometheus    | Latest  | 30d metric retention                   |
-| Loki          | Latest  | 30d log retention                      |
-| Tempo         | Latest  | 48h trace retention                    |
-| Grafana       | Latest  | Dark-mode, auto-provisioned            |
+| Component | Version | Detail |
+|-----------|---------|--------|
+| Angular | 21.2.0 | Standalone components, Signals, OnPush |
+| PrimeNG | 21.1.6 | UI component library |
+| Capacitor | 8.x | Mobile wrapper |
+| NestJS | Latest | 44 backend modules |
+| Prisma | Latest | ORM with 11 compliance models |
+| PostgreSQL | 16 | Primary database |
+| Redis | 7 | Cache + BullMQ queues |
+| Istio | Latest | Service mesh, mTLS, traffic mgmt |
+| ArgoCD | Latest | GitOps operator |
+| Argo Rollouts | Latest | Blue-green + canary deployments |
+| cert-manager | Latest | ACME DNS-01 (Cloudflare) |
+| Unleash | Latest | Feature flags (2-6 HPA) |
+| Prometheus | Latest | 30d metric retention |
+| Loki | Latest | 30d log retention |
+| Tempo | Latest | 48h trace retention |
+| Grafana | Latest | Dark-mode, auto-provisioned |
 
 ## 4. Data Flow Summary
 

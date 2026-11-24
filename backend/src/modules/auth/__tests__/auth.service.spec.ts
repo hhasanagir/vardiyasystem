@@ -14,6 +14,7 @@ import { TokenBlacklistService } from '../token-blacklist.service';
 import { AuditLogService } from '../../audit-log/audit-log.service';
 import { MetricsService } from '../../../metrics/metrics.service';
 import { RbacService } from '../../rbac/rbac.service';
+import { DistributedLockService } from '../../../infrastructure/distributed-lock.service';
 
 vi.mock('bcrypt');
 
@@ -36,12 +37,7 @@ describe('AuthService', () => {
 
   const mockConfigService = {
     get: vi.fn((key: string, defaultValue?: any) => {
-      if (
-        key === 'JWT_REFRESH_TOKEN_SECRET' ||
-        key === 'JWT_REFRESH_SECRET' ||
-        key === 'JWT_SECRET'
-      )
-        return 'test-refresh-secret';
+      if (key === 'JWT_REFRESH_TOKEN_SECRET' || key === 'JWT_REFRESH_SECRET' || key === 'JWT_SECRET') return 'test-refresh-secret';
       if (key === 'JWT_REFRESH_TOKEN_EXPIRES_IN') return '7d';
       if (key === 'AUTH_LOGIN_WINDOW_MS') return 60000;
       if (key === 'AUTH_LOCKOUT_THRESHOLD') return 5;
@@ -61,15 +57,13 @@ describe('AuthService', () => {
   };
 
   const mockRefreshTokenService = {
-    markUsed: vi.fn().mockResolvedValue(undefined),
+    recordRotation: vi.fn().mockResolvedValue(undefined),
     detectReplay: vi.fn().mockResolvedValue({ replay: false }),
     checkPriorRefresh: vi.fn().mockResolvedValue(0),
   };
 
   const mockSessionService = {
-    createSession: vi
-      .fn()
-      .mockResolvedValue({ id: 'session-1', userId: 'user-1' }),
+    createSession: vi.fn().mockResolvedValue({ id: 'session-1', userId: 'user-1' }),
     linkTokenToSession: vi.fn().mockResolvedValue(undefined),
     findByToken: vi.fn().mockResolvedValue(null),
     revoke: vi.fn().mockResolvedValue(undefined),
@@ -136,6 +130,12 @@ describe('AuthService', () => {
         { provide: AuditLogService, useValue: mockAuditLog },
         { provide: MetricsService, useValue: mockMetrics },
         { provide: RbacService, useValue: mockRbacService },
+        {
+          provide: DistributedLockService,
+          useValue: {
+            acquire: vi.fn().mockResolvedValue({ acquired: true, lockId: 'test-lock', release: vi.fn().mockResolvedValue(undefined) }),
+          },
+        },
       ],
     }).compile();
 
@@ -173,28 +173,16 @@ describe('AuthService', () => {
     });
 
     it('should throw BadRequestException if email exists', async () => {
-      const dto = {
-        email: 'existing@example.com',
-        password: 'Password1',
-        name: 'Test',
-        inviteCode: 'CODE',
-      };
+      const dto = { email: 'existing@example.com', password: 'Password1', name: 'Test', inviteCode: 'CODE' };
       mockPrisma.user.findUnique.mockResolvedValue({ id: 'existing' });
 
       await expect(service.register(dto)).rejects.toThrow(BadRequestException);
     });
 
     it('should reject registration with invalid invite code', async () => {
-      const dto = {
-        email: 'test@example.com',
-        password: 'password',
-        name: 'Test',
-        inviteCode: 'INVALID',
-      };
+      const dto = { email: 'test@example.com', password: 'password', name: 'Test', inviteCode: 'INVALID' };
       mockPrisma.user.findUnique.mockResolvedValue(null);
-      mockInviteCodeService.validate.mockRejectedValue(
-        new BadRequestException('Geçersiz davet kodu'),
-      );
+      mockInviteCodeService.validate.mockRejectedValue(new BadRequestException('Geçersiz davet kodu'));
 
       await expect(service.register(dto)).rejects.toThrow(BadRequestException);
     });
@@ -223,9 +211,9 @@ describe('AuthService', () => {
     it('should throw UnauthorizedException for invalid email', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.login({ email: 'invalid', password: 'pass' }),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.login({ email: 'invalid', password: 'pass' })).rejects.toThrow(
+        UnauthorizedException
+      );
     });
 
     it('should throw UnauthorizedException for invalid password', async () => {
@@ -237,7 +225,7 @@ describe('AuthService', () => {
       vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
 
       await expect(
-        service.login({ email: 'test@example.com', password: 'wrong' }),
+        service.login({ email: 'test@example.com', password: 'wrong' })
       ).rejects.toThrow(UnauthorizedException);
     });
   });

@@ -17,15 +17,9 @@ import type { ServiceContract } from './models/contract.models';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
-    FormsModule,
-    TableModule,
-    ButtonModule,
-    TagModule,
-    ToastModule,
-    CardModule,
-    ProgressSpinnerModule,
-    TooltipModule,
+    CommonModule, FormsModule,
+    TableModule, ButtonModule, TagModule, ToastModule, CardModule,
+    ProgressSpinnerModule, TooltipModule,
   ],
   providers: [MessageService],
   templateUrl: './contracts.component.html',
@@ -38,15 +32,9 @@ export class ContractsComponent implements OnInit {
   readonly contracts = this.contractsService.contracts;
   readonly isLoading = this.contractsService.isLoading;
 
-  readonly activeCount = computed(
-    () => this.contracts().filter((c) => c.status === 'active').length,
-  );
-  readonly expiringCount = computed(
-    () => this.contracts().filter((c) => this.isExpiringSoon(c)).length,
-  );
-  readonly expiredCount = computed(
-    () => this.contracts().filter((c) => c.status === 'expired').length,
-  );
+  readonly activeCount = computed(() => this.contracts().filter(c => c.status === 'active').length);
+  readonly expiringCount = computed(() => this.contracts().filter(c => this.isExpiringSoon(c)).length);
+  readonly expiredCount = computed(() => this.contracts().filter(c => c.status === 'expired').length);
 
   ngOnInit(): void {
     this.loadContracts();
@@ -54,30 +42,17 @@ export class ContractsComponent implements OnInit {
 
   loadContracts(): void {
     this.contractsService.getContracts().subscribe({
-      error: () =>
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Hata',
-          detail: 'Sözleşmeler yüklenemedi',
-          life: 3000,
-        }),
+      error: () => this.messageService.add({ severity: 'error', summary: 'Hata', detail: 'Sözleşmeler yüklenemedi', life: 3000 }),
     });
   }
 
-  getStatusSeverity(
-    status: string,
-  ): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
+  getStatusSeverity(status: string): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
     switch (status) {
-      case 'active':
-        return 'success';
-      case 'pending':
-        return 'warn';
-      case 'expired':
-        return 'danger';
-      case 'terminated':
-        return 'secondary';
-      default:
-        return 'info';
+      case 'active': return 'success';
+      case 'pending': return 'warn';
+      case 'expired': return 'danger';
+      case 'terminated': return 'secondary';
+      default: return 'info';
     }
   }
 
@@ -94,20 +69,10 @@ export class ContractsComponent implements OnInit {
   }
 
   onCreate(): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Bilgi',
-      detail: 'Yeni sözleşme oluşturulacak',
-      life: 3000,
-    });
+    this.messageService.add({ severity: 'info', summary: 'Bilgi', detail: 'Yeni sözleşme oluşturulacak', life: 3000 });
   }
 
   onEdit(contract: ServiceContract): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Bilgi',
-      detail: `${contract.title} düzenleniyor`,
-      life: 3000,
-    });
+    this.messageService.add({ severity: 'info', summary: 'Bilgi', detail: `${contract.title} düzenleniyor`, life: 3000 });
   }
 }

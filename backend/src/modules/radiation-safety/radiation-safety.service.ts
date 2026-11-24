@@ -43,11 +43,7 @@ export class RadiationSafetyService {
     });
   }
 
-  async listMeasurements(filters?: {
-    dosimeterId?: string;
-    type?: string;
-    result?: string;
-  }) {
+  async listMeasurements(filters?: { dosimeterId?: string; type?: string; result?: string }) {
     const where: Prisma.RadiationMeasurementWhereInput = {};
 
     if (filters?.dosimeterId) where.dosimeterId = filters.dosimeterId;
@@ -70,9 +66,7 @@ export class RadiationSafetyService {
         dosimeterId: data.dosimeterId,
         assetId: data.assetId,
         type: data.type,
-        measurementDate: data.measurementDate
-          ? new Date(data.measurementDate)
-          : new Date(),
+        measurementDate: data.measurementDate ? new Date(data.measurementDate) : new Date(),
         value: data.value,
         unit: data.unit || 'mSv',
         location: data.location,

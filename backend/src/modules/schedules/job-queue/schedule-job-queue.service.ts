@@ -1,13 +1,8 @@
-import {
-  Injectable,
-  Logger,
-  ConflictException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
-import { Queue, Job } from 'bullmq';
+import { Queue } from 'bullmq';
 import { randomUUID } from 'crypto';
-import { ScheduleJobType, ScheduleJobStatus } from './schedule-job.types';
+import { ScheduleJobType } from './schedule-job.types';
 import { ScheduleJobStatusService } from './schedule-job-status.service';
 
 @Injectable()
@@ -19,37 +14,12 @@ export class ScheduleJobQueueService {
     private readonly jobStatusService: ScheduleJobStatusService,
   ) {}
 
-  async enqueueGenerate(
-    scheduleId: string,
-    unitId: string,
-    month: number,
-    year: number,
-    organizationId: string,
-    userId: string,
-  ): Promise<string> {
-    if (
-      this.jobStatusService.isDuplicate(scheduleId, ScheduleJobType.GENERATE)
-    ) {
-      throw new ConflictException(
-        `A generation job for schedule ${scheduleId} is already queued or running`,
-      );
-    }
-
+  async enqueueGenerate(scheduleId: string, unitId: string, month: number, year: number, organizationId: string, userId: string): Promise<string> {
     const jobId = randomUUID();
-    const data = {
-      jobId,
-      scheduleId,
-      unitId,
-      month,
-      year,
-      organizationId,
-      userId,
-      type: ScheduleJobType.GENERATE,
-      requestTime: new Date().toISOString(),
-    };
+    // P2-09 — the Redis SET NX claim inside create() is the atomic dedupe gate.
+    await this.jobStatusService.create(jobId, scheduleId, ScheduleJobType.GENERATE, organizationId, userId);
 
-    this.jobStatusService.create(jobId, scheduleId, ScheduleJobType.GENERATE);
-
+    const data = { jobId, scheduleId, unitId, month, year, organizationId, userId, type: ScheduleJobType.GENERATE, requestTime: new Date().toISOString() };
     await this.scheduleQueue.add(ScheduleJobType.GENERATE, data, {
       jobId,
       attempts: 3,
@@ -58,33 +28,15 @@ export class ScheduleJobQueueService {
       removeOnFail: { age: 86400 },
     });
 
-    this.logger.log(
-      `Enqueued generate job ${jobId} for schedule ${scheduleId}`,
-    );
+    this.logger.log(`Enqueued generate job ${jobId} for schedule ${scheduleId}`);
     return jobId;
   }
 
-  async enqueueExport(
-    scheduleId: string,
-    format: 'pdf' | 'excel' | 'csv',
-    includeStats: boolean,
-    organizationId: string,
-    userId: string,
-  ): Promise<string> {
+  async enqueueExport(scheduleId: string, format: 'pdf' | 'excel' | 'csv', includeStats: boolean, organizationId: string, userId: string): Promise<string> {
     const jobId = randomUUID();
-    const data = {
-      jobId,
-      scheduleId,
-      format,
-      includeStats,
-      organizationId,
-      userId,
-      type: ScheduleJobType.EXPORT,
-      requestTime: new Date().toISOString(),
-    };
+    await this.jobStatusService.create(jobId, scheduleId, ScheduleJobType.EXPORT, organizationId, userId);
 
-    this.jobStatusService.create(jobId, scheduleId, ScheduleJobType.EXPORT);
-
+    const data = { jobId, scheduleId, format, includeStats, organizationId, userId, type: ScheduleJobType.EXPORT, requestTime: new Date().toISOString() };
     await this.scheduleQueue.add(ScheduleJobType.EXPORT, data, {
       jobId,
       attempts: 2,
@@ -97,23 +49,11 @@ export class ScheduleJobQueueService {
     return jobId;
   }
 
-  async enqueueReport(
-    scheduleId: string,
-    organizationId: string,
-    userId: string,
-  ): Promise<string> {
+  async enqueueReport(scheduleId: string, organizationId: string, userId: string): Promise<string> {
     const jobId = randomUUID();
-    const data = {
-      jobId,
-      scheduleId,
-      organizationId,
-      userId,
-      type: ScheduleJobType.REPORT,
-      requestTime: new Date().toISOString(),
-    };
+    await this.jobStatusService.create(jobId, scheduleId, ScheduleJobType.REPORT, organizationId, userId);
 
-    this.jobStatusService.create(jobId, scheduleId, ScheduleJobType.REPORT);
-
+    const data = { jobId, scheduleId, organizationId, userId, type: ScheduleJobType.REPORT, requestTime: new Date().toISOString() };
     await this.scheduleQueue.add(ScheduleJobType.REPORT, data, {
       jobId,
       attempts: 2,
@@ -127,10 +67,10 @@ export class ScheduleJobQueueService {
   }
 
   async cancelJob(jobId: string): Promise<boolean> {
-    const record = this.jobStatusService.getByJobId(jobId);
+    const record = await this.jobStatusService.getByJobId(jobId);
     if (!record) throw new NotFoundException(`Job ${jobId} not found`);
 
-    const cancelled = this.jobStatusService.cancel(jobId);
+    const cancelled = await this.jobStatusService.cancel(jobId);
     if (cancelled) {
       const job = await this.scheduleQueue.getJob(jobId);
       if (job) await job.remove();
@@ -138,11 +78,11 @@ export class ScheduleJobQueueService {
     return cancelled;
   }
 
-  getJobStatus(jobId: string) {
+  async getJobStatus(jobId: string) {
     return this.jobStatusService.getByJobId(jobId);
   }
 
-  getJobsBySchedule(scheduleId: string) {
-    return this.jobStatusService.getByScheduleId(scheduleId);
+  async getJobsBySchedule(scheduleId: string, organizationId?: string) {
+    return this.jobStatusService.getByScheduleId(scheduleId, organizationId);
   }
 }

@@ -57,34 +57,10 @@ export const ONK_MASTER_DEVICES: OncologyDeviceDef[] = [
     deviceName: 'Linak-1',
     mode: 'vardiya',
     shifts: [
-      {
-        name: 'Tekniker-1',
-        type: ShiftType.morning,
-        startTime: '07:30',
-        endTime: '15:30',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker-2',
-        type: ShiftType.day,
-        startTime: '10:00',
-        endTime: '18:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker-3',
-        type: ShiftType.evening,
-        startTime: '15:00',
-        endTime: '23:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker-4',
-        type: ShiftType.night,
-        startTime: '22:00',
-        endTime: '06:00',
-        personnelType: 'technician',
-      },
+      { name: 'Tekniker-1', type: ShiftType.morning, startTime: '07:30', endTime: '15:30', personnelType: 'technician' },
+      { name: 'Tekniker-2', type: ShiftType.day, startTime: '10:00', endTime: '18:00', personnelType: 'technician' },
+      { name: 'Tekniker-3', type: ShiftType.evening, startTime: '15:00', endTime: '23:00', personnelType: 'technician' },
+      { name: 'Tekniker-4', type: ShiftType.night, startTime: '22:00', endTime: '06:00', personnelType: 'technician' },
     ],
   },
   {
@@ -93,27 +69,9 @@ export const ONK_MASTER_DEVICES: OncologyDeviceDef[] = [
     deviceName: 'Linak-2',
     mode: 'vardiya',
     shifts: [
-      {
-        name: 'Tekniker-1',
-        type: ShiftType.morning,
-        startTime: '07:30',
-        endTime: '15:30',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker-2',
-        type: ShiftType.day,
-        startTime: '10:00',
-        endTime: '18:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker-3',
-        type: ShiftType.evening,
-        startTime: '15:00',
-        endTime: '23:00',
-        personnelType: 'technician',
-      },
+      { name: 'Tekniker-1', type: ShiftType.morning, startTime: '07:30', endTime: '15:30', personnelType: 'technician' },
+      { name: 'Tekniker-2', type: ShiftType.day, startTime: '10:00', endTime: '18:00', personnelType: 'technician' },
+      { name: 'Tekniker-3', type: ShiftType.evening, startTime: '15:00', endTime: '23:00', personnelType: 'technician' },
     ],
   },
   {
@@ -122,13 +80,7 @@ export const ONK_MASTER_DEVICES: OncologyDeviceDef[] = [
     deviceName: 'Tomoterapi',
     mode: 'vardiya',
     shifts: [
-      {
-        name: 'Tekniker',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '16:00',
-        personnelType: 'technician',
-      },
+      { name: 'Tekniker', type: ShiftType.day, startTime: '08:00', endTime: '16:00', personnelType: 'technician' },
     ],
   },
   {
@@ -137,20 +89,8 @@ export const ONK_MASTER_DEVICES: OncologyDeviceDef[] = [
     deviceName: 'BT Simülatör',
     mode: 'polyclinic',
     shifts: [
-      {
-        name: 'Tekniker',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '20:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Planlama',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '16:00',
-        personnelType: 'planning',
-      },
+      { name: 'Tekniker', type: ShiftType.day, startTime: '08:00', endTime: '20:00', personnelType: 'technician' },
+      { name: 'Planlama', type: ShiftType.day, startTime: '08:00', endTime: '16:00', personnelType: 'planning' },
     ],
   },
 ];
@@ -208,16 +148,13 @@ export async function applyOnkolojiMasterConfig(
       });
       wantedKeys.add(key);
 
-      const match = existingShifts.find(
-        (s) =>
-          shiftMatchKey({
-            deviceId: s.deviceId as string,
-            type: s.type,
-            personnelType: s.personnelType,
-            startTime: s.startTime,
-            endTime: s.endTime,
-          }) === key,
-      );
+      const match = existingShifts.find(s => shiftMatchKey({
+        deviceId: s.deviceId as string,
+        type: s.type,
+        personnelType: s.personnelType,
+        startTime: s.startTime,
+        endTime: s.endTime,
+      }) === key);
 
       const data = {
         name: shiftDef.name,
@@ -262,16 +199,13 @@ export async function applyOnkolojiMasterConfig(
     }
 
     const stale = existingShifts.filter(
-      (s) =>
-        !wantedKeys.has(
-          shiftMatchKey({
-            deviceId: s.deviceId as string,
-            type: s.type,
-            personnelType: s.personnelType,
-            startTime: s.startTime,
-            endTime: s.endTime,
-          }),
-        ),
+      s => !wantedKeys.has(shiftMatchKey({
+        deviceId: s.deviceId as string,
+        type: s.type,
+        personnelType: s.personnelType,
+        startTime: s.startTime,
+        endTime: s.endTime,
+      })),
     );
     for (const s of stale) {
       if (s.isActive) {

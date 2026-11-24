@@ -101,13 +101,8 @@ describe('DeviceIncidentsService', () => {
 
     it('should create notification for critical incidents', async () => {
       const created = {
-        id: 'incident-2',
-        ...createDto,
-        userId: 'user-1',
-        status: 'open',
-        reportedAt: new Date(),
-        unit: mockUnit,
-        device: mockDevice,
+        id: 'incident-2', ...createDto, userId: 'user-1', status: 'open', reportedAt: new Date(),
+        unit: mockUnit, device: mockDevice,
         user: { id: 'user-1', name: 'Tekniker', role: 'technician' },
       };
 
@@ -128,13 +123,8 @@ describe('DeviceIncidentsService', () => {
     it('should not create notification for low severity incidents', async () => {
       const lowDto = { ...createDto, severity: 'low' };
       const created = {
-        id: 'incident-3',
-        ...lowDto,
-        userId: 'user-1',
-        status: 'open',
-        reportedAt: new Date(),
-        unit: mockUnit,
-        device: mockDevice,
+        id: 'incident-3', ...lowDto, userId: 'user-1', status: 'open', reportedAt: new Date(),
+        unit: mockUnit, device: mockDevice,
         user: { id: 'user-1', name: 'Tekniker', role: 'technician' },
       };
 
@@ -157,10 +147,7 @@ describe('DeviceIncidentsService', () => {
       mockPrisma.deviceIncident.findMany.mockResolvedValue(mockIncidents);
       mockPrisma.deviceIncident.count.mockResolvedValue(2);
 
-      const result = await service.findAll(undefined, {
-        status: 'open',
-        severity: 'high',
-      } as any);
+      const result = await service.findAll(undefined, { status: 'open', severity: 'high' } as any);
 
       expect(result).toBeDefined();
       expect(result.data).toHaveLength(2);

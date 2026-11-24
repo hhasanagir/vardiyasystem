@@ -13,28 +13,20 @@ export class DeadLetterQueueService {
     private readonly monitoring: EventMonitoringService,
   ) {}
 
-  async sendToDlq(
-    event: DomainEvent,
-    error: Error,
-    attemptsMade: number,
-  ): Promise<void> {
+  async sendToDlq(event: DomainEvent, error: Error, attemptsMade: number): Promise<void> {
     this.logger.error(
       `DLQ: ${event.eventName}[${event.eventId}] failed after ${attemptsMade} attempts: ${error.message}`,
     );
     this.monitoring.recordDlq(event.eventName);
-    await this.dlq.add(
-      `dlq:${event.eventName}`,
-      {
-        event,
-        error: { message: error.message, stack: error.stack },
-        failedAt: new Date().toISOString(),
-        attemptsMade,
-      },
-      {
-        removeOnComplete: false,
-        removeOnFail: false,
-      },
-    );
+    await this.dlq.add(`dlq:${event.eventName}`, {
+      event,
+      error: { message: error.message, stack: error.stack },
+      failedAt: new Date().toISOString(),
+      attemptsMade,
+    }, {
+      removeOnComplete: false,
+      removeOnFail: false,
+    });
   }
 
   async listDlqEvents(limit = 100): Promise<Job[]> {
@@ -64,8 +56,6 @@ export class DeadLetterQueueService {
   }
 
   async getDlqCount(): Promise<number> {
-    return this.dlq
-      .getJobCounts()
-      .then((c) => (c.failed || 0) + (c.completed || 0));
+    return this.dlq.getJobCounts().then(c => (c.failed || 0) + (c.completed || 0));
   }
 }

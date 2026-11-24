@@ -5,20 +5,10 @@ import { ChannelDispatcherService } from './channel-dispatcher.service';
 import { DeliveryTrackerService } from './delivery-tracker.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { EventBusService } from '../../events/event-bus.service';
-import {
-  createEvent,
-  EVENT_NAMES,
-  AGGREGATE_TYPES,
-} from '../../events/domain-event.interface';
+import { createEvent, EVENT_NAMES, AGGREGATE_TYPES } from '../../events/domain-event.interface';
 import { NotificationType } from './interfaces/notification-type.enum';
-import {
-  NotificationPriority,
-  PRIORITY_BYPASS_PREFS,
-} from './interfaces/notification-priority.enum';
-import {
-  DeliveryChannel,
-  DELIVERY_CHANNELS,
-} from './interfaces/channel-type.enum';
+import { NotificationPriority, PRIORITY_BYPASS_PREFS } from './interfaces/notification-priority.enum';
+import { DeliveryChannel, DELIVERY_CHANNELS } from './interfaces/channel-type.enum';
 
 @Injectable()
 export class NotificationOrchestratorService {
@@ -46,8 +36,7 @@ export class NotificationOrchestratorService {
   }) {
     const priority = data.priority || 'NORMAL';
     const bypassPrefs = PRIORITY_BYPASS_PREFS[priority];
-    const channels =
-      data.channels || this.getDefaultChannels(data.type, priority);
+    const channels = data.channels || this.getDefaultChannels(data.type, priority);
 
     const notification = await this.notificationsService.create({
       organizationId: data.organizationId,
@@ -59,53 +48,39 @@ export class NotificationOrchestratorService {
       senderId: data.senderId,
     });
 
-    const validRecipientIds = await this.notificationsService.addRecipients(
-      notification.id,
-      data.recipientIds,
-    );
+    const validRecipientIds = await this.notificationsService.addRecipients(notification.id, data.recipientIds);
 
     for (const recipientId of validRecipientIds) {
       for (const channel of channels) {
-        await this.notificationsService.createDelivery(
-          notification.id,
-          recipientId,
-          channel,
-        );
+        await this.notificationsService.createDelivery(notification.id, recipientId, channel);
       }
     }
 
     await this.notificationsService.updateStatus(notification.id, 'SENT');
 
-    await this.channelDispatcher.dispatch(
-      notification.id,
-      validRecipientIds,
-      channels,
-      {
-        type: data.type,
-        title: data.title,
-        message: data.message,
-        data: data.data,
-        priority,
-        bypassPrefs,
-      },
-    );
+    await this.channelDispatcher.dispatch(notification.id, validRecipientIds, channels, {
+      type: data.type,
+      title: data.title,
+      message: data.message,
+      data: data.data,
+      priority,
+      bypassPrefs,
+    });
 
-    this.eventBus.publish(
-      createEvent(
-        EVENT_NAMES.NOTIFICATION_SENT,
-        notification.id,
-        AGGREGATE_TYPES.NOTIFICATION,
-        {
-          notificationId: notification.id,
-          type: data.type,
-          priority,
-          recipientCount: validRecipientIds.length,
-          channels: channels.join(','),
-          organizationId: data.organizationId,
-        },
-        data.senderId || 'system',
-      ),
-    );
+    this.eventBus.publish(createEvent(
+      EVENT_NAMES.NOTIFICATION_SENT,
+      notification.id,
+      AGGREGATE_TYPES.NOTIFICATION,
+      {
+        notificationId: notification.id,
+        type: data.type,
+        priority,
+        recipientCount: validRecipientIds.length,
+        channels: channels.join(','),
+        organizationId: data.organizationId,
+      },
+      data.senderId || 'system',
+    ));
 
     return notification;
   }
@@ -139,19 +114,11 @@ export class NotificationOrchestratorService {
       ...data,
       type: 'EMERGENCY_ALERT' as NotificationType,
       priority: 'CRITICAL' as NotificationPriority,
-      channels: [
-        DELIVERY_CHANNELS.IN_APP,
-        DELIVERY_CHANNELS.FCM,
-        DELIVERY_CHANNELS.EMAIL,
-        DELIVERY_CHANNELS.WEB_PUSH,
-      ],
+      channels: [DELIVERY_CHANNELS.IN_APP, DELIVERY_CHANNELS.FCM, DELIVERY_CHANNELS.EMAIL, DELIVERY_CHANNELS.WEB_PUSH],
     });
   }
 
-  private getDefaultChannels(
-    type: NotificationType,
-    priority: NotificationPriority,
-  ): DeliveryChannel[] {
+  private getDefaultChannels(type: NotificationType, priority: NotificationPriority): DeliveryChannel[] {
     return [DELIVERY_CHANNELS.IN_APP];
   }
 }

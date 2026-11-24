@@ -20,8 +20,8 @@ export class SupervisorCenterService {
     const params: Record<string, string> = {};
     if (date) params['date'] = date;
     return this.api.get<SupervisorCenterDashboard>('/supervisor-center/dashboard', { params }).pipe(
-      tap((d) => this._data.set(d)),
-      catchError((err) => {
+      tap(d => this._data.set(d)),
+      catchError(err => {
         this._error.set(err?.message || 'Süpervizör Merkezi verileri yüklenemedi');
         return throwError(() => err);
       }),

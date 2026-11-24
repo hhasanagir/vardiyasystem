@@ -1,17 +1,10 @@
-import {
-  SoftConstraint,
-  ConstraintScore,
-} from '../constraints/soft-constraint.interface';
+import { SoftConstraint, ConstraintScore } from '../constraints/soft-constraint.interface';
 import { ConstraintContext } from '../constraints/constraint.interface';
-import {
-  WorkloadCalculator,
-  WorkloadPersonnelInfo,
-} from '../models/workload-calculator';
+import { WorkloadCalculator, WorkloadPersonnelInfo } from '../models/workload-calculator';
 
 export class WorkloadBalanceSoftConstraint implements SoftConstraint {
   id = 'WORKLOAD_BALANCE';
-  description =
-    'Balanced distribution of total hours, shifts, and types across personnel';
+  description = 'Balanced distribution of total hours, shifts, and types across personnel';
 
   private readonly calculator: WorkloadCalculator;
 
@@ -26,13 +19,11 @@ export class WorkloadBalanceSoftConstraint implements SoftConstraint {
     }
     personnelIds.add(context.assignment.personnelId.value);
 
-    const personnel: WorkloadPersonnelInfo[] = Array.from(personnelIds).map(
-      (id) => ({
-        id,
-        name: id,
-        maxWeeklyHours: 40,
-      }),
-    );
+    const personnel: WorkloadPersonnelInfo[] = Array.from(personnelIds).map(id => ({
+      id,
+      name: id,
+      maxWeeklyHours: 40,
+    }));
 
     const result = this.calculator.calculate({
       assignments: context.existingAssignments,

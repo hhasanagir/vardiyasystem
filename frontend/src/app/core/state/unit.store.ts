@@ -1,4 +1,4 @@
-import { Injectable, signal, computed } from '@angular/core';
+﻿import { Injectable, signal, computed } from '@angular/core';
 import { UnitType, UNIT_CONFIG } from './state.models';
 
 export interface NavItem {
@@ -10,7 +10,7 @@ export interface NavItem {
 }
 
 @Injectable({
-  providedIn: 'root',
+  providedIn: 'root'
 })
 export class UnitStore {
   private readonly _activeUnit = signal<UnitType>('mr');
@@ -25,48 +25,12 @@ export class UnitStore {
   readonly heatmapUnitConfig = computed(() => UNIT_CONFIG[this._heatmapView()]);
 
   readonly navItems: NavItem[] = [
-    {
-      path: '/app/mr-plan',
-      label: 'MR Plan',
-      unit: 'mr',
-      icon: UNIT_CONFIG.mr.icon,
-      color: UNIT_CONFIG.mr.color,
-    },
-    {
-      path: '/app/bt-plan',
-      label: 'BT Plan',
-      unit: 'bt',
-      icon: UNIT_CONFIG.bt.icon,
-      color: UNIT_CONFIG.bt.color,
-    },
-    {
-      path: '/app/rontgen-plan',
-      label: 'Röntgen Plan',
-      unit: 'rontgen',
-      icon: UNIT_CONFIG.rontgen.icon,
-      color: UNIT_CONFIG.rontgen.color,
-    },
-    {
-      path: '/app/nukleer-tip-plan',
-      label: 'Nükleer Tıp',
-      unit: 'nukleer',
-      icon: UNIT_CONFIG.nukleer.icon,
-      color: UNIT_CONFIG.nukleer.color,
-    },
-    {
-      path: '/app/onkoloji-plan',
-      label: 'Radyasyon Onkolojisi',
-      unit: 'onkoloji',
-      icon: UNIT_CONFIG.onkoloji.icon,
-      color: UNIT_CONFIG.onkoloji.color,
-    },
-    {
-      path: '/app/supervizor-plan',
-      label: 'Süpervizör',
-      unit: 'supervizor',
-      icon: UNIT_CONFIG.supervizor.icon,
-      color: UNIT_CONFIG.supervizor.color,
-    },
+    { path: '/app/mr-plan', label: 'MR Plan', unit: 'mr', icon: UNIT_CONFIG.mr.icon, color: UNIT_CONFIG.mr.color },
+    { path: '/app/bt-plan', label: 'BT Plan', unit: 'bt', icon: UNIT_CONFIG.bt.icon, color: UNIT_CONFIG.bt.color },
+    { path: '/app/rontgen-plan', label: 'Röntgen Plan', unit: 'rontgen', icon: UNIT_CONFIG.rontgen.icon, color: UNIT_CONFIG.rontgen.color },
+    { path: '/app/nukleer-tip-plan', label: 'Nükleer Tıp', unit: 'nukleer', icon: UNIT_CONFIG.nukleer.icon, color: UNIT_CONFIG.nukleer.color },
+    { path: '/app/onkoloji-plan', label: 'Radyasyon Onkolojisi', unit: 'onkoloji', icon: UNIT_CONFIG.onkoloji.icon, color: UNIT_CONFIG.onkoloji.color },
+    { path: '/app/supervizor-plan', label: 'Süpervizör', unit: 'supervizor', icon: UNIT_CONFIG.supervizor.icon, color: UNIT_CONFIG.supervizor.color },
   ];
 
   readonly unitColors: Record<UnitType, string> = {
@@ -92,7 +56,7 @@ export class UnitStore {
   }
 
   toggleSidebar(): void {
-    this._sidebarExpanded.update((v) => !v);
+    this._sidebarExpanded.update(v => !v);
   }
 
   setSidebarExpanded(expanded: boolean): void {

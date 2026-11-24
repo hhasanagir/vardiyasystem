@@ -24,11 +24,17 @@ export class ImagingSchedulingStrategy implements SchedulingStrategy {
   serviceLine = ServiceLine.IMAGING;
 
   getExtraHardConstraints(): string[] {
-    return ['IMAGING_MODALITY_MATCH', 'IMAGING_DEVICE_CAPABILITY'];
+    return [
+      'IMAGING_MODALITY_MATCH',
+      'IMAGING_DEVICE_CAPABILITY',
+    ];
   }
 
   getExtraSoftConstraints(): string[] {
-    return ['IMAGING_MODALITY_ROTATION', 'IMAGING_DEVICE_FAMILIARITY'];
+    return [
+      'IMAGING_MODALITY_ROTATION',
+      'IMAGING_DEVICE_FAMILIARITY',
+    ];
   }
 
   evaluateDomainSpecific(context: SchedulingContext): ConstraintScore[] {
@@ -52,7 +58,10 @@ export class RadiationOncologySchedulingStrategy implements SchedulingStrategy {
   }
 
   getExtraSoftConstraints(): string[] {
-    return ['RT_PATIENT_CONTINUITY', 'RT_MACHINE_UTILIZATION'];
+    return [
+      'RT_PATIENT_CONTINUITY',
+      'RT_MACHINE_UTILIZATION',
+    ];
   }
 
   evaluateDomainSpecific(context: SchedulingContext): ConstraintScore[] {
@@ -64,9 +73,7 @@ export class RadiationOncologySchedulingStrategy implements SchedulingStrategy {
   }
 }
 
-export function createSchedulingStrategy(
-  serviceLine: ServiceLine,
-): SchedulingStrategy {
+export function createSchedulingStrategy(serviceLine: ServiceLine): SchedulingStrategy {
   switch (serviceLine) {
     case ServiceLine.IMAGING:
       return new ImagingSchedulingStrategy();

@@ -48,13 +48,10 @@ export class WebSocketService implements OnDestroy {
   private socket: Socket | null = null;
   private authService = inject(AuthService);
   private notificationService = inject(NotificationService);
-
+  
   private connectionStatus = new BehaviorSubject<boolean>(false);
   private scheduleEvents = new Subject<ScheduleEvent>();
-  private lockEvents = new Subject<{
-    action: 'acquired' | 'released' | 'expired';
-    lock: LockInfo;
-  }>();
+  private lockEvents = new Subject<{ action: 'acquired' | 'released' | 'expired'; lock: LockInfo }>();
   private presenceEvents = new Subject<{ users: any[] }>();
   private concurrencyEvents = new Subject<{ conflict: boolean; serverVersion?: number }>();
   private alertEvents = new Subject<{ scheduleId: string; unitId: string }>();
@@ -102,7 +99,7 @@ export class WebSocketService implements OnDestroy {
       this.connectionStatus.next(true);
       this.reconnectAttempts = 0;
       this.notificationService.show('Bağlantı kuruldu', 'WebSocket bağlantısı aktif', 'success');
-
+      
       const user = this.authService.user();
       if (user?.organizationId) {
         this.subscribeOrg(user.organizationId);
@@ -115,11 +112,7 @@ export class WebSocketService implements OnDestroy {
     this.socket.on('disconnect', (reason) => {
       this.connectionStatus.next(false);
       if (reason !== 'io client disconnect') {
-        this.notificationService.show(
-          'Bağlantı Kesildi',
-          'Sunucu ile bağlantı kayboldu',
-          'warning',
-        );
+        this.notificationService.show('Bağlantı Kesildi', 'Sunucu ile bağlantı kayboldu', 'warning');
       }
     });
 
@@ -129,7 +122,8 @@ export class WebSocketService implements OnDestroy {
       console.error('WebSocket connection error:', error);
     });
 
-    this.socket.on('connected', (data) => {});
+    this.socket.on('connected', (data) => {
+    });
 
     this.socket.on('schedule:sync', (data) => {
       if (data.lock) {
@@ -147,20 +141,17 @@ export class WebSocketService implements OnDestroy {
 
     this.socket.on('lockExpired', (data) => {
       this.lockEvents.next({ action: 'expired', lock: data });
-      this.notificationService.show(
-        'Kilit Süresi Doldu',
-        'Düzenleme kilidi otomatik olarak kaldırıldı',
-        'info',
-      );
+      this.notificationService.show('Kilit Süresi Doldu', 'Düzenleme kilidi otomatik olarak kaldırıldı', 'info');
     });
 
-    this.socket.on('lock:acquired', (data) => {});
+    this.socket.on('lock:acquired', (data) => {
+    });
 
     this.socket.on('lock:denied', (data) => {
       this.notificationService.show(
         'Kilit Alınamadı',
         `${data.lockedByName} şu anda düzenliyor`,
-        'warning',
+        'warning'
       );
     });
 
@@ -169,7 +160,7 @@ export class WebSocketService implements OnDestroy {
       this.notificationService.show(
         'Güncelleme Çakışması',
         'Başka bir kullanıcı değişiklik yaptı. Sayfa yenileniyor...',
-        'error',
+        'error'
       );
     });
 
@@ -181,7 +172,7 @@ export class WebSocketService implements OnDestroy {
       this.notificationService.show(
         'Program Güncellendi',
         `${data.updatedBy} programı güncelledi`,
-        'info',
+        'info'
       );
     });
 
@@ -189,9 +180,11 @@ export class WebSocketService implements OnDestroy {
       this.presenceEvents.next(data);
     });
 
-    this.socket.on('presence:userTyping', (data) => {});
+    this.socket.on('presence:userTyping', (data) => {
+    });
 
-    this.socket.on('heartbeat:ack', (data) => {});
+    this.socket.on('heartbeat:ack', (data) => {
+    });
 
     this.socket.on('alerts:updated', (data: { scheduleId: string; unitId: string }) => {
       this.alertEvents.next(data);
@@ -210,9 +203,9 @@ export class WebSocketService implements OnDestroy {
   private startHeartbeat(): void {
     this.heartbeatSub = interval(this.heartbeatInterval).subscribe(() => {
       if (this.socket?.connected && this.currentScheduleId) {
-        this.socket.emit('schedule:heartbeat', {
+        this.socket.emit('schedule:heartbeat', { 
           scheduleId: this.currentScheduleId,
-          entityId: this.currentScheduleId,
+          entityId: this.currentScheduleId
         });
       }
     });
@@ -250,10 +243,10 @@ export class WebSocketService implements OnDestroy {
   }
 
   acquireLock(scheduleId: string, entityId?: string, entityType?: string): void {
-    this.socket?.emit('schedule:acquireLock', {
-      scheduleId,
+    this.socket?.emit('schedule:acquireLock', { 
+      scheduleId, 
       entityId,
-      entityType,
+      entityType 
     });
   }
 
@@ -262,27 +255,27 @@ export class WebSocketService implements OnDestroy {
   }
 
   sendUpdate(scheduleId: string, version: number, changes: any, reason?: string): void {
-    this.socket?.emit('schedule:update', {
-      scheduleId,
-      version,
+    this.socket?.emit('schedule:update', { 
+      scheduleId, 
+      version, 
       changes,
-      reason,
+      reason 
     });
   }
 
   sendAssignmentUpdate(
-    scheduleId: string,
-    assignmentId: string,
-    personnelId: string,
-    version: number,
-    reason: string,
+    scheduleId: string, 
+    assignmentId: string, 
+    personnelId: string, 
+    version: number, 
+    reason: string
   ): void {
     this.socket?.emit('schedule:assignmentUpdate', {
       scheduleId,
       assignmentId,
       personnelId,
       version,
-      reason,
+      reason
     });
   }
 

@@ -15,22 +15,22 @@ Phase 4 hardened VardiyaOS from a functional system to an enterprise-grade platf
 
 ### P0: Critical Security (from audit)
 
-| ID   | Feature                  | Status | Details                                                                                                                                        |
-| ---- | ------------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| P0-1 | TenantContextInterceptor | DONE   | Activates dormant `tenantContext.run()` in Prisma middleware. All Schedule/Assignment/Personnel/Device queries now scoped by `organizationId`. |
-| P0-2 | ScheduleAccessGuard      | DONE   | Resource-level org boundary check on DDD + legacy schedule controllers. Verifies `organizationId` match on schedule access.                    |
-| P0-3 | RBAC permission seed     | DONE   | 6 missing schedule permissions (generate, validate, submit, reject, rollback, override) added with role mappings.                              |
-| P0-4 | Password policy          | DONE   | MinLength 10, special character requirement, 30+ common password blacklist via `StrongPasswordValidator`.                                      |
+| ID | Feature | Status | Details |
+|----|---------|--------|---------|
+| P0-1 | TenantContextInterceptor | DONE | Activates dormant `tenantContext.run()` in Prisma middleware. All Schedule/Assignment/Personnel/Device queries now scoped by `organizationId`. |
+| P0-2 | ScheduleAccessGuard | DONE | Resource-level org boundary check on DDD + legacy schedule controllers. Verifies `organizationId` match on schedule access. |
+| P0-3 | RBAC permission seed | DONE | 6 missing schedule permissions (generate, validate, submit, reject, rollback, override) added with role mappings. |
+| P0-4 | Password policy | DONE | MinLength 10, special character requirement, 30+ common password blacklist via `StrongPasswordValidator`. |
 
 ### P1: High Priority Security
 
-| ID    | Feature                       | Status | Details                                                                                              |
-| ----- | ----------------------------- | ------ | ---------------------------------------------------------------------------------------------------- |
-| P1-5  | @Permissions on DDD endpoints | DONE   | All 16 DDD schedule controller endpoints have appropriate `@Permissions()` decorators.               |
-| P1-6  | Account unlock mechanism      | DONE   | `unlockAccount()` in auth-attempt service + POST `/auth/unlock` endpoint (admin-only, rate-limited). |
-| P1-7  | Rate limit schedule mutations | DONE   | `@Throttle()` on approve (10/min), reject (10/min), publish (5/min), rollback (5/min).               |
-| P1-8  | JWT cache invalidation        | DONE   | Role changes immediately invalidate JWT user cache via `registerJwtCacheInvalidator` pattern.        |
-| P2-11 | Sanitize permission errors    | DONE   | `ForbiddenException` no longer leaks permission list or missing permissions to client.               |
+| ID | Feature | Status | Details |
+|----|---------|--------|---------|
+| P1-5 | @Permissions on DDD endpoints | DONE | All 16 DDD schedule controller endpoints have appropriate `@Permissions()` decorators. |
+| P1-6 | Account unlock mechanism | DONE | `unlockAccount()` in auth-attempt service + POST `/auth/unlock` endpoint (admin-only, rate-limited). |
+| P1-7 | Rate limit schedule mutations | DONE | `@Throttle()` on approve (10/min), reject (10/min), publish (5/min), rollback (5/min). |
+| P1-8 | JWT cache invalidation | DONE | Role changes immediately invalidate JWT user cache via `registerJwtCacheInvalidator` pattern. |
+| P2-11 | Sanitize permission errors | DONE | `ForbiddenException` no longer leaks permission list or missing permissions to client. |
 
 ### F21: Four-Eyes Principle
 
@@ -54,12 +54,12 @@ Phase 4 hardened VardiyaOS from a functional system to an enterprise-grade platf
 
 ### F24-26: Audit System Hardening
 
-| Sub-feature              | Details                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Event enums**          | Added 16 new audit events: USER_CREATED, USER_UPDATED, USER_DISABLED, ROLE_CHANGED, PERMISSION_CHANGED, SCHEDULE_GENERATED, SCHEDULE_SUBMITTED, SCHEDULE_REJECTED, SCHEDULE_PUBLISHED, SCHEDULE_ROLLED_BACK, ASSIGNMENT_CREATED, ASSIGNMENT_UPDATED, ASSIGNMENT_REMOVED, plus 8 security events (ACCOUNT_LOCKED, ACCOUNT_UNLOCKED, REFRESH_TOKEN_REUSE, SESSION_REVOKED, UNAUTHORIZED_ACCESS, CROSS_TENANT_ACCESS_ATTEMPT, PERMISSION_DENIED, RATE_LIMIT_TRIGGERED). |
-| **IP/UserAgent hashing** | Audit logs now store SHA-256 hashed (truncated to 16 chars) IP addresses and user agents instead of plaintext.                                                                                                                                                                                                                                                                                                                                                       |
-| **Append-only**          | Audit controller is already read-only (GET + flag/unflag only). No PUT/DELETE endpoints exist.                                                                                                                                                                                                                                                                                                                                                                       |
-| **Turkish labels**       | All 40+ events have Turkish display labels.                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Sub-feature | Details |
+|-------------|---------|
+| **Event enums** | Added 16 new audit events: USER_CREATED, USER_UPDATED, USER_DISABLED, ROLE_CHANGED, PERMISSION_CHANGED, SCHEDULE_GENERATED, SCHEDULE_SUBMITTED, SCHEDULE_REJECTED, SCHEDULE_PUBLISHED, SCHEDULE_ROLLED_BACK, ASSIGNMENT_CREATED, ASSIGNMENT_UPDATED, ASSIGNMENT_REMOVED, plus 8 security events (ACCOUNT_LOCKED, ACCOUNT_UNLOCKED, REFRESH_TOKEN_REUSE, SESSION_REVOKED, UNAUTHORIZED_ACCESS, CROSS_TENANT_ACCESS_ATTEMPT, PERMISSION_DENIED, RATE_LIMIT_TRIGGERED). |
+| **IP/UserAgent hashing** | Audit logs now store SHA-256 hashed (truncated to 16 chars) IP addresses and user agents instead of plaintext. |
+| **Append-only** | Audit controller is already read-only (GET + flag/unflag only). No PUT/DELETE endpoints exist. |
+| **Turkish labels** | All 40+ events have Turkish display labels. |
 
 ### F28: Before/After Diff
 
@@ -90,16 +90,16 @@ Phase 4 hardened VardiyaOS from a functional system to an enterprise-grade platf
 
 **Verified existing implementation is solid:**
 
-| Control                      | Status | Details                                                                       |
-| ---------------------------- | ------ | ----------------------------------------------------------------------------- |
-| Helmet CSP                   | DONE   | defaultSrc 'self', scriptSrc 'self', frameAncestors 'none', formAction 'self' |
-| HSTS                         | DONE   | Production only, 1 year, includeSubDomains, preload                           |
-| Referrer-Policy              | DONE   | strict-origin-when-cross-origin                                               |
-| X-Frame-Options              | DONE   | deny                                                                          |
-| Cross-Origin-Resource-Policy | DONE   | same-origin                                                                   |
-| CORS                         | DONE   | Whitelist origin (FRONTEND_URL), credentials, limited methods/headers         |
-| CSRF                         | DONE   | Double-submit cookie, SameSite=strict, Secure in production                   |
-| ValidationPipe               | DONE   | whitelist=true, forbidNonWhitelisted=true, forbidUnknownValues=true           |
+| Control | Status | Details |
+|---------|--------|---------|
+| Helmet CSP | DONE | defaultSrc 'self', scriptSrc 'self', frameAncestors 'none', formAction 'self' |
+| HSTS | DONE | Production only, 1 year, includeSubDomains, preload |
+| Referrer-Policy | DONE | strict-origin-when-cross-origin |
+| X-Frame-Options | DONE | deny |
+| Cross-Origin-Resource-Policy | DONE | same-origin |
+| CORS | DONE | Whitelist origin (FRONTEND_URL), credentials, limited methods/headers |
+| CSRF | DONE | Double-submit cookie, SameSite=strict, Secure in production |
+| ValidationPipe | DONE | whitelist=true, forbidNonWhitelisted=true, forbidUnknownValues=true |
 
 ### F35-36: Input Validation + Mass Assignment
 
@@ -130,14 +130,12 @@ Phase 4 hardened VardiyaOS from a functional system to an enterprise-grade platf
 ## Files Modified
 
 ### New Files
-
 - `backend/src/infrastructure/tenant-context.interceptor.ts` — Activates dormant Prisma tenant middleware
 - `backend/src/modules/schedules/guards/schedule-access.guard.ts` — Resource-level org boundary check
 - `backend/src/modules/auth/jwt-cache-invalidation.ts` — Cross-module JWT cache invalidation
 - `backend/src/correlation/correlation.interceptor.ts` — Correlation ID wiring for all requests
 
 ### Modified Files
-
 - `backend/src/app.module.ts` — Registered CorrelationInterceptor + TenantContextInterceptor
 - `backend/src/modules/auth/auth.controller.ts` — Added unlock endpoint
 - `backend/src/modules/auth/auth.service.ts` — Added unlockAccount method + self-registration role whitelist
@@ -165,13 +163,13 @@ Phase 4 hardened VardiyaOS from a functional system to an enterprise-grade platf
 
 ## Known Remaining Items
 
-| Item                             | Priority | Notes                                                                                     |
-| -------------------------------- | -------- | ----------------------------------------------------------------------------------------- |
-| F27: Audit viewer UI             | Medium   | Backend API complete. Frontend viewer deferred to Phase 5.                                |
-| P2-9: JWT payload reduction      | Medium   | Still includes email — can be removed in next iteration.                                  |
-| P2-10: check-user.js removal     | Low      | Debug script exists — should be cleaned up.                                               |
-| Legacy workflow transaction      | Medium   | submit→approve→publish chain in legacy path lacks wrapping transaction. DDD path is safe. |
-| `schedules/schedules/` duplicate | Low      | Pre-existing duplicate directory with ~200 TS errors. Dead code — should be removed.      |
+| Item | Priority | Notes |
+|------|----------|-------|
+| F27: Audit viewer UI | Medium | Backend API complete. Frontend viewer deferred to Phase 5. |
+| P2-9: JWT payload reduction | Medium | Still includes email — can be removed in next iteration. |
+| P2-10: check-user.js removal | Low | Debug script exists — should be cleaned up. |
+| Legacy workflow transaction | Medium | submit→approve→publish chain in legacy path lacks wrapping transaction. DDD path is safe. |
+| `schedules/schedules/` duplicate | Low | Pre-existing duplicate directory with ~200 TS errors. Dead code — should be removed. |
 
 ---
 

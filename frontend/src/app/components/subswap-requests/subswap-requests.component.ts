@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CardModule } from 'primeng/card';
@@ -16,6 +16,8 @@ import { Employee } from '../../domain/models';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
+import { AuthorizationService } from '../../services/authorization.service';
+import { translateAssignmentErrorPayload } from '../../core/utils/assignment-errors';
 
 @Component({
   selector: 'app-swap-requests',
@@ -49,18 +51,18 @@ import { AuthService } from '../../services/auth.service';
 
       <p-card>
         <div class="table-responsive scroll-container">
-        <p-table [value]="requests()" styleClass="p-datatable-sm">
+        <p-table [value]="filteredRequests()" styleClass="p-datatable-sm">
           <ng-template #header>
             <tr>
               <th>Tarih</th>
               <th>Vardiya</th>
               <th>Talep Eden</th>
               <th>Hedef</th>
+              <th>Birim</th>
+              <th>Kurum</th>
               <th>Sebep</th>
               <th>Durum</th>
-              @if (isAdmin()) {
-                <th>İşlem</th>
-              }
+              <th>İşlem</th>
             </tr>
           </ng-template>
           <ng-template #body let-req>
@@ -69,22 +71,26 @@ import { AuthService } from '../../services/auth.service';
               <td>{{ req.requesterShift?.shift?.name }}</td>
               <td>{{ req.requesterShift?.employee?.name }}</td>
               <td>{{ req.targetShift?.employee?.name || '-' }}</td>
+              <td>{{ req.unitId || req.requesterShift?.unitId || '-' }}</td>
+              <td>{{ req.organizationId || req.requesterShift?.organizationId || '-' }}</td>
               <td>{{ req.reason || '-' }}</td>
               <td>
                 <p-tag [value]="req.status" [severity]="getSeverity(req.status)"></p-tag>
               </td>
-              @if (isAdmin() && req.status === 'pending') {
-                <td>
+              <td>
+                @if (req.status === 'pending' && isActionable(req)) {
                   <div class="action-buttons">
-                    <p-button icon="pi pi-check" severity="success" [text]="true" (onClick)="approve(req.id)"></p-button>
-                    <p-button icon="pi pi-times" severity="danger" [text]="true" (onClick)="reject(req.id)"></p-button>
+                    <p-button icon="pi pi-check" severity="success" [text]="true" title="Onayla" (onClick)="approve(req.id)"></p-button>
+                    <p-button icon="pi pi-times" severity="danger" [text]="true" title="Reddet" (onClick)="reject(req.id)"></p-button>
                   </div>
-                </td>
-              }
+                } @else {
+                  <span class="text-muted">—</span>
+                }
+              </td>
             </tr>
           </ng-template>
           <ng-template #emptymessage>
-            <tr><td colspan="7" class="text-center">Henüz talep yok</td></tr>
+            <tr><td colspan="9" class="text-center">Henüz talep yok</td></tr>
           </ng-template>
         </p-table>
         </div>
@@ -137,6 +143,7 @@ import { AuthService } from '../../services/auth.service';
     }
     .w-full { width: 100%; }
     .text-center { text-align: center; }
+    .text-muted { color: #94a3b8; }
     .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -1px; }
     .table-responsive .p-datatable-table { min-width: max-content; }
   `]
@@ -145,6 +152,7 @@ export class SwapRequestsComponent implements OnInit, OnDestroy {
   private swapService = inject(SwapRequestService);
   private scheduleService = inject(ScheduleService);
   private authService = inject(AuthService);
+  private authz = inject(AuthorizationService);
   private messageService = inject(MessageService);
   private destroy$ = new Subject<void>();
 
@@ -166,6 +174,29 @@ export class SwapRequestsComponent implements OnInit, OnDestroy {
   isAdmin() {
     return this.authService.isAdmin();
   }
+
+  /**
+   * Whether the current actor may action this swap request.
+   * SUPERVISOR+ → any request in their organization (backend enforces org).
+   * FIELD_SUPERVISOR → only their own unit (defense-in-depth; backend enforces).
+   */
+  isActionable(req: any): boolean {
+    if (this.authz.isFieldSupervisor()) {
+      const ownUnit = this.authz.getScopedUnit();
+      if (!ownUnit) return false;
+      const reqUnit = req?.unitId || req?.requesterShift?.unitId;
+      return !!reqUnit && reqUnit === ownUnit;
+    }
+    return this.authz.isSupervisor() || this.isAdmin();
+  }
+
+  readonly filteredRequests = computed(() => {
+    const list = this.requests();
+    if (!this.authz.isFieldSupervisor()) return list;
+    const ownUnit = this.authz.getScopedUnit();
+    if (!ownUnit) return [];
+    return list.filter(req => (req?.unitId || req?.requesterShift?.unitId) === ownUnit);
+  });
 
   loadData() {
     this.isLoading.set(true);
@@ -213,6 +244,11 @@ export class SwapRequestsComponent implements OnInit, OnDestroy {
       next: () => {
         this.messageService.add({ severity: 'success', summary: 'Onaylandı', detail: 'Talep onaylandı' });
         this.loadData();
+      },
+      error: (err: any) => {
+        const reason = this.swapErrorReason(err);
+        this.messageService.add({ severity: 'error', summary: 'Onay Başarısız', detail: reason });
+        this.loadData();
       }
     });
   }
@@ -222,8 +258,25 @@ export class SwapRequestsComponent implements OnInit, OnDestroy {
       next: () => {
         this.messageService.add({ severity: 'info', summary: 'Reddedildi', detail: 'Talep reddedildi' });
         this.loadData();
+      },
+      error: (err: any) => {
+        const reason = this.swapErrorReason(err);
+        this.messageService.add({ severity: 'error', summary: 'Red İşlemi Başarısız', detail: reason });
+        this.loadData();
       }
     });
+  }
+
+  private swapErrorReason(err: any): string {
+    const body = err?.error && typeof err?.error === 'object' ? err.error : null;
+    const payload = {
+      message: body?.message || err?.message,
+      violations: body?.violations || err?.violations
+    };
+    return translateAssignmentErrorPayload(payload)?.message ||
+      body?.message ||
+      err?.message ||
+      'İşlem gerçekleştirilemedi.';
   }
 
   getSeverity(status: string): 'success' | 'warn' | 'danger' {

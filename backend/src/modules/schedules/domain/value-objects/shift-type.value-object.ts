@@ -1,41 +1,14 @@
 import { ValueObject } from '../../../../ddd/value-object.base';
 
-export type ShiftTypeValue =
-  | 'day'
-  | 'evening'
-  | 'night'
-  | 'morning'
-  | 'off'
-  | 'leave'
-  | 'sick'
-  | 'training'
-  | 'backup';
+export type ShiftTypeValue = 'day' | 'evening' | 'night' | 'morning' | 'off' | 'leave' | 'sick' | 'training' | 'backup';
 
 export class ShiftTypeVO extends ValueObject<ShiftTypeValue> {
-  static readonly WORKING_TYPES: ShiftTypeValue[] = [
-    'day',
-    'evening',
-    'night',
-    'morning',
-  ];
-  static readonly NON_WORKING_TYPES: ShiftTypeValue[] = [
-    'off',
-    'leave',
-    'sick',
-    'training',
-  ];
+  static readonly WORKING_TYPES: ShiftTypeValue[] = ['day', 'evening', 'night', 'morning'];
+  static readonly NON_WORKING_TYPES: ShiftTypeValue[] = ['off', 'leave', 'sick', 'training'];
   static readonly SPECIAL_TYPES: ShiftTypeValue[] = ['backup'];
 
   private static readonly VALID_TYPES: ShiftTypeValue[] = [
-    'day',
-    'evening',
-    'night',
-    'morning',
-    'off',
-    'leave',
-    'sick',
-    'training',
-    'backup',
+    'day', 'evening', 'night', 'morning', 'off', 'leave', 'sick', 'training', 'backup',
   ];
 
   private constructor(value: ShiftTypeValue) {
@@ -44,9 +17,7 @@ export class ShiftTypeVO extends ValueObject<ShiftTypeValue> {
 
   static create(value: string): ShiftTypeVO {
     if (!ShiftTypeVO.VALID_TYPES.includes(value as ShiftTypeValue)) {
-      throw new Error(
-        `Invalid shift type: ${value}. Valid types: ${ShiftTypeVO.VALID_TYPES.join(', ')}`,
-      );
+      throw new Error(`Invalid shift type: ${value}. Valid types: ${ShiftTypeVO.VALID_TYPES.join(', ')}`);
     }
     return new ShiftTypeVO(value as ShiftTypeValue);
   }

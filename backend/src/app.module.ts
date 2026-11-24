@@ -85,12 +85,7 @@ import { validationSchema } from './config/env.config';
           ? new ThrottlerStorageRedisService(new Redis(redisUrl))
           : undefined;
         return {
-          throttlers: [
-            {
-              ttl: seconds(60),
-              limit: config.get<number>('GLOBAL_THROTTLE_LIMIT', 200),
-            },
-          ],
+          throttlers: [{ ttl: seconds(60), limit: config.get<number>('GLOBAL_THROTTLE_LIMIT', 200) }],
           storage,
         };
       },

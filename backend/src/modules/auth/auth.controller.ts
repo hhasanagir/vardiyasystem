@@ -1,36 +1,12 @@
-import {
-  Controller,
-  Post,
-  Body,
-  Get,
-  UseGuards,
-  Request,
-  HttpCode,
-  Req,
-  Delete,
-  Param,
-  ParseUUIDPipe,
-  Res,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiTooManyRequestsResponse,
-  ApiBody,
-} from '@nestjs/swagger';
+import { Controller, Post, Body, Get, UseGuards, Request, HttpCode, Req, Delete, Param, ParseUUIDPipe, Res } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiTooManyRequestsResponse, ApiBody } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Request as ExpressRequest, Response } from 'express';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { CreateInviteDto } from './dto/create-invite.dto';
-import {
-  RefreshTokenDto,
-  LogoutAllResponseDto,
-  RevokeSessionResponseDto,
-  SessionListResponseDto,
-} from './dto/refresh.dto';
+import { RefreshTokenDto, LogoutAllResponseDto, RevokeSessionResponseDto, SessionListResponseDto } from './dto/refresh.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { Roles } from './decorators/roles.decorator';
@@ -76,11 +52,7 @@ export class AuthController {
   @Post('register')
   @SkipCsrf()
   @Throttle({ default: { limit: 3, ttl: 60000 } })
-  @Log({
-    action: 'REGISTER',
-    entityType: 'user',
-    description: 'Yeni kullanıcı kaydı',
-  })
+  @Log({ action: 'REGISTER', entityType: 'user', description: 'Yeni kullanıcı kaydı' })
   @ApiOperation({ summary: 'Register new user with invite code' })
   @ApiTooManyRequestsResponse({ description: 'Too many registration attempts' })
   register(@Body() dto: CreateUserDto) {
@@ -93,15 +65,15 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Log({ action: 'LOGIN', entityType: 'user', description: 'Kullanıcı girişi' })
   @ApiOperation({ summary: 'Login user' })
-  @ApiTooManyRequestsResponse({
-    description: 'Too many login attempts. Try again later.',
-  })
+  @ApiTooManyRequestsResponse({ description: 'Too many login attempts. Try again later.' })
   @ApiBody({ type: LoginDto })
-  login(@Body() dto: LoginDto, @Req() req: ExpressRequest) {
-    const ip =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      req.socket?.remoteAddress ||
-      'unknown';
+  login(
+    @Body() dto: LoginDto,
+    @Req() req: ExpressRequest,
+  ) {
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
+      || req.socket?.remoteAddress
+      || 'unknown';
     const userAgent = req.headers['user-agent'] || undefined;
     return this.authService.login(dto, ip, userAgent);
   }
@@ -112,11 +84,13 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Refresh access token' })
   @ApiTooManyRequestsResponse({ description: 'Too many refresh attempts' })
-  refreshToken(@Body() body: RefreshTokenDto, @Req() req: ExpressRequest) {
-    const ip =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      req.socket?.remoteAddress ||
-      'unknown';
+  refreshToken(
+    @Body() body: RefreshTokenDto,
+    @Req() req: ExpressRequest,
+  ) {
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
+      || req.socket?.remoteAddress
+      || 'unknown';
     const userAgent = req.headers['user-agent'] || undefined;
     return this.authService.refreshToken(body.refreshToken, ip, userAgent);
   }
@@ -140,11 +114,7 @@ export class AuthController {
   @HttpCode(200)
   @UseGuards(JwtAuthGuard)
   @Throttle({ default: { limit: 20, ttl: 60000 } })
-  @Log({
-    action: 'LOGOUT',
-    entityType: 'user',
-    description: 'Kullanıcı çıkışı',
-  })
+  @Log({ action: 'LOGOUT', entityType: 'user', description: 'Kullanıcı çıkışı' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout user (revoke current session)' })
   logout(
@@ -178,9 +148,7 @@ export class AuthController {
   @Throttle({ default: { limit: 30, ttl: 60000 } })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List all active sessions for current user' })
-  async listSessions(
-    @Request() req: RequestWithUser,
-  ): Promise<SessionListResponseDto> {
+  async listSessions(@Request() req: RequestWithUser): Promise<SessionListResponseDto> {
     const sessions = await this.authService.getSessions(req.user.id);
     return { sessions, total: sessions.length };
   }

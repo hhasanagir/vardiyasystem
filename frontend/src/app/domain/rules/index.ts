@@ -1,4 +1,4 @@
-import type { UnitType } from '../enums';
+﻿import type { UnitType } from '../enums';
 import type { HolidayInfo } from '../models';
 import { ShiftTypeEnum, type ShiftType } from '../enums';
 
@@ -44,27 +44,9 @@ export const UNIT_SHIFT_CONFIGS: Record<UnitType, ShiftDefinition[]> = {
     { type: ShiftTypeEnum.DAY, label: 'Gündüz', startHour: 8, endHour: 20, shortLabel: 'G' },
   ],
   onkoloji: [
-    {
-      type: 'sabah' as unknown as ShiftType,
-      label: 'Sabah',
-      startHour: 8,
-      endHour: 14,
-      shortLabel: 'S',
-    },
-    {
-      type: 'ogle' as unknown as ShiftType,
-      label: 'Öğleden',
-      startHour: 14,
-      endHour: 20,
-      shortLabel: 'Ö',
-    },
-    {
-      type: 'aksam' as unknown as ShiftType,
-      label: 'Akşam',
-      startHour: 20,
-      endHour: 2,
-      shortLabel: 'A',
-    },
+    { type: 'sabah' as unknown as ShiftType, label: 'Sabah', startHour: 8, endHour: 14, shortLabel: 'S' },
+    { type: 'ogle' as unknown as ShiftType, label: 'Öğleden', startHour: 14, endHour: 20, shortLabel: 'Ö' },
+    { type: 'aksam' as unknown as ShiftType, label: 'Akşam', startHour: 20, endHour: 2, shortLabel: 'A' },
   ],
   supervizor: [
     { type: ShiftTypeEnum.DAY, label: 'Gündüz', startHour: 8, endHour: 20, shortLabel: 'G' },
@@ -76,11 +58,7 @@ export function getShiftConfigForUnit(unit: UnitType): ShiftDefinition[] {
   return UNIT_SHIFT_CONFIGS[unit] || UNIT_SHIFT_CONFIGS.mr;
 }
 
-export function getShiftConfigForDevice(device: {
-  mode: 'vardiya' | 'polyclinic';
-  tripleShift?: boolean;
-  unit: UnitType;
-}): ShiftDefinition[] {
+export function getShiftConfigForDevice(device: { mode: 'vardiya' | 'polyclinic'; tripleShift?: boolean; unit: UnitType }): ShiftDefinition[] {
   if (device.unit === 'onkoloji') {
     return UNIT_SHIFT_CONFIGS.onkoloji;
   }
@@ -91,17 +69,17 @@ export function getShiftConfigForDevice(device: {
 }
 
 export const SHIFT_TYPE_LABELS: Record<string, string> = {
-  Gündüz: 'Gündüz',
-  Gece: 'Gece',
-  Akşam: 'Akşam',
-  Sabah: 'Sabah',
-  Öğleden: 'Öğleden',
-  day: 'Gündüz',
-  night: 'Gece',
-  evening: 'Akşam',
-  sabah: 'Sabah',
-  ogle: 'Öğleden',
-  aksam: 'Akşam',
+  'Gündüz': 'Gündüz',
+  'Gece': 'Gece',
+  'Akşam': 'Akşam',
+  'Sabah': 'Sabah',
+  'Öğleden': 'Öğleden',
+  'day': 'Gündüz',
+  'night': 'Gece',
+  'evening': 'Akşam',
+  'sabah': 'Sabah',
+  'ogle': 'Öğleden',
+  'aksam': 'Akşam',
 };
 
 export const UNIT_COLORS: Record<UnitType, string> = {

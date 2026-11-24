@@ -1,11 +1,7 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { Observable, tap, catchError, throwError, finalize } from 'rxjs';
 import { ApiService } from '../../../core/api/api.service';
-import type {
-  ConsumableCatalog,
-  ConsumableStock,
-  ConsumableTransaction,
-} from '../models/consumable.models';
+import type { ConsumableCatalog, ConsumableStock, ConsumableTransaction } from '../models/consumable.models';
 
 @Injectable({ providedIn: 'root' })
 export class ConsumablesService {
@@ -26,8 +22,8 @@ export class ConsumablesService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<ConsumableCatalog[]>('/consumables').pipe(
-      tap((d) => this._catalog.set(d)),
-      catchError((err) => {
+      tap(d => this._catalog.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Sarf malzemeleri yüklenemedi');
         return throwError(() => err);
       }),
@@ -39,7 +35,7 @@ export class ConsumablesService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<ConsumableCatalog>(`/consumables/${id}`).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Sarf malzemesi yüklenemedi');
         return throwError(() => err);
       }),
@@ -51,7 +47,7 @@ export class ConsumablesService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.post<ConsumableCatalog>('/consumables', data).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Sarf malzemesi oluşturulamadı');
         return throwError(() => err);
       }),
@@ -63,8 +59,8 @@ export class ConsumablesService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<ConsumableStock[]>('/consumables/stock').pipe(
-      tap((d) => this._stock.set(d)),
-      catchError((err) => {
+      tap(d => this._stock.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Stok bilgileri yüklenemedi');
         return throwError(() => err);
       }),
@@ -76,8 +72,8 @@ export class ConsumablesService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<ConsumableTransaction[]>('/consumables/transactions').pipe(
-      tap((d) => this._transactions.set(d)),
-      catchError((err) => {
+      tap(d => this._transactions.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'İşlem geçmişi yüklenemedi');
         return throwError(() => err);
       }),

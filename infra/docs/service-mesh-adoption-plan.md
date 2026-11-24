@@ -23,7 +23,7 @@ istioctl install -y --set profile=default \
 1. Deploy Gateway + VirtualService
 2. Add Telemetry resource for tracing
 3. Verify traces appear in Tempo/Grafana
-4. Verify metrics (envoy\_\*) appear in Prometheus
+4. Verify metrics (envoy_*) appear in Prometheus
 5. Outcome: **No traffic routing changes, only observability**
 
 ### Phase 2: Security (Week 2)
@@ -84,12 +84,12 @@ kubectl get pods -n vardiya -l app.kubernetes.io/part-of=vardiya \
 
 ## Performance Impact
 
-| Metric         | Without Istio | With Istio | Delta            |
-| -------------- | ------------- | ---------- | ---------------- |
-| p50 latency    | 45ms          | 52ms       | +7ms             |
-| p95 latency    | 120ms         | 145ms      | +25ms            |
-| p99 latency    | 350ms         | 420ms      | +70ms            |
-| Memory per pod | —             | +40MB      | sidecar overhead |
-| CPU per pod    | —             | +0.1 core  | sidecar overhead |
+| Metric | Without Istio | With Istio | Delta |
+|--------|--------------|------------|-------|
+| p50 latency | 45ms | 52ms | +7ms |
+| p95 latency | 120ms | 145ms | +25ms |
+| p99 latency | 350ms | 420ms | +70ms |
+| Memory per pod | — | +40MB | sidecar overhead |
+| CPU per pod | — | +0.1 core | sidecar overhead |
 
 Istio EnvoyFilter can be used to optimize if thresholds are exceeded.

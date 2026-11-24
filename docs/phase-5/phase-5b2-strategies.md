@@ -42,8 +42,8 @@ OptimizationStrategy (interface)
 
 ### Fairness Modes
 
-| Mode      | Selection Criteria       |
-| --------- | ------------------------ |
-| balanced  | Lowest workload first    |
+| Mode | Selection Criteria |
+|---|---|
+| balanced | Lowest workload first |
 | seniority | Position-based weighting |
-| skill     | Skills count weighting   |
+| skill | Skills count weighting |

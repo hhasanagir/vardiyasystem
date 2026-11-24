@@ -1,17 +1,9 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Reflector } from '@nestjs/core';
 import { EncryptionService } from '../encryption/encryption.service';
-import {
-  CLASSIFICATION_KEY,
-  DataClassification,
-} from './data-classification.decorator';
+import { CLASSIFICATION_KEY, DataClassification } from './data-classification.decorator';
 
 @Injectable()
 export class DataClassificationInterceptor implements NestInterceptor {
@@ -25,11 +17,7 @@ export class DataClassificationInterceptor implements NestInterceptor {
       CLASSIFICATION_KEY,
       context.getHandler(),
     );
-    if (
-      !classification ||
-      classification === 'UNCLASSIFIED' ||
-      classification === 'SYSTEM'
-    ) {
+    if (!classification || classification === 'UNCLASSIFIED' || classification === 'SYSTEM') {
       return next.handle();
     }
 
@@ -38,25 +26,14 @@ export class DataClassificationInterceptor implements NestInterceptor {
     const userClassification = user?.dataAccessLevel || 'INTERNAL';
 
     const canAccess = (required: string, userLevel: string): boolean => {
-      const levels = [
-        'PUBLIC',
-        'INTERNAL',
-        'CONFIDENTIAL',
-        'RESTRICTED',
-        'HIGHLY_RESTRICTED',
-      ];
+      const levels = ['PUBLIC', 'INTERNAL', 'CONFIDENTIAL', 'RESTRICTED', 'HIGHLY_RESTRICTED'];
       return levels.indexOf(userLevel) >= levels.indexOf(required);
     };
 
     if (!canAccess(classification, userClassification)) {
-      return next
-        .handle()
-        .pipe(
-          map((data) => ({
-            message: 'Access restricted',
-            classificationRequired: classification,
-          })),
-        );
+      return next.handle().pipe(
+        map((data) => ({ message: 'Access restricted', classificationRequired: classification })),
+      );
     }
 
     return next.handle();

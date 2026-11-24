@@ -1,9 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import {
-  DeliveryChannel,
-  DELIVERY_CHANNELS,
-} from './interfaces/channel-type.enum';
+import { DeliveryChannel, DELIVERY_CHANNELS } from './interfaces/channel-type.enum';
 import { WebPushSenderService } from './web-push-sender.service';
 import { FcmSenderService } from './fcm-sender.service';
 import { EmailSenderService } from './email-sender.service';
@@ -47,29 +44,19 @@ export class ChannelDispatcherService {
     for (const channel of channels) {
       switch (channel) {
         case DELIVERY_CHANNELS.IN_APP:
-          dispatchPromises.push(
-            this.dispatchInApp(notificationId, recipientIds, context),
-          );
+          dispatchPromises.push(this.dispatchInApp(notificationId, recipientIds, context));
           break;
         case DELIVERY_CHANNELS.WEB_PUSH:
-          dispatchPromises.push(
-            this.dispatchWebPush(notificationId, recipientIds, context),
-          );
+          dispatchPromises.push(this.dispatchWebPush(notificationId, recipientIds, context));
           break;
         case DELIVERY_CHANNELS.FCM:
-          dispatchPromises.push(
-            this.dispatchFcm(notificationId, recipientIds, context),
-          );
+          dispatchPromises.push(this.dispatchFcm(notificationId, recipientIds, context));
           break;
         case DELIVERY_CHANNELS.EMAIL:
-          dispatchPromises.push(
-            this.dispatchEmail(notificationId, recipientIds, context),
-          );
+          dispatchPromises.push(this.dispatchEmail(notificationId, recipientIds, context));
           break;
         case DELIVERY_CHANNELS.SMS:
-          dispatchPromises.push(
-            this.dispatchSms(notificationId, recipientIds, context),
-          );
+          dispatchPromises.push(this.dispatchSms(notificationId, recipientIds, context));
           break;
       }
     }
@@ -77,48 +64,31 @@ export class ChannelDispatcherService {
     const results = await Promise.allSettled(dispatchPromises);
     const failed = results.filter((r) => r.status === 'rejected');
     if (failed.length > 0) {
-      this.logger.warn(
-        `${failed.length} channel dispatches failed for notification ${notificationId}`,
-      );
+      this.logger.warn(`${failed.length} channel dispatches failed for notification ${notificationId}`);
     }
   }
 
-  private async dispatchInApp(
-    notificationId: string,
-    recipientIds: string[],
-    context: DispatchContext,
-  ) {
+  private async dispatchInApp(notificationId: string, recipientIds: string[], context: DispatchContext) {
     for (const userId of recipientIds) {
-      this.gateway
-        .broadcastNotification({
-          userId,
-          organizationId: '',
-          notification: {
-            id: notificationId,
-            type: context.type,
-            title: context.title,
-            message: context.message,
-            data: context.data,
-            isRead: false,
-            createdAt: new Date().toISOString(),
-          },
-        })
-        .catch(() => {});
-
-      await this.updateDeliveryStatus(
-        notificationId,
+      this.gateway.broadcastNotification({
         userId,
-        DELIVERY_CHANNELS.IN_APP,
-        'SENT',
-      );
+        organizationId: '',
+        notification: {
+          id: notificationId,
+          type: context.type,
+          title: context.title,
+          message: context.message,
+          data: context.data,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+        },
+      }).catch(() => {});
+
+      await this.updateDeliveryStatus(notificationId, userId, DELIVERY_CHANNELS.IN_APP, 'SENT');
     }
   }
 
-  private async dispatchWebPush(
-    notificationId: string,
-    recipientIds: string[],
-    context: DispatchContext,
-  ) {
+  private async dispatchWebPush(notificationId: string, recipientIds: string[], context: DispatchContext) {
     for (const userId of recipientIds) {
       if (!context.bypassPrefs) {
         const prefs = await this.preferenceService.getPreferences(userId);
@@ -132,20 +102,14 @@ export class ChannelDispatcherService {
       });
 
       await this.updateDeliveryStatus(
-        notificationId,
-        userId,
-        DELIVERY_CHANNELS.WEB_PUSH,
+        notificationId, userId, DELIVERY_CHANNELS.WEB_PUSH,
         sent ? 'SENT' : 'FAILED',
         sent ? undefined : 'Web push send failed',
       );
     }
   }
 
-  private async dispatchFcm(
-    notificationId: string,
-    recipientIds: string[],
-    context: DispatchContext,
-  ) {
+  private async dispatchFcm(notificationId: string, recipientIds: string[], context: DispatchContext) {
     if (!this.fcmSender.isEnabled()) return;
 
     for (const userId of recipientIds) {
@@ -161,20 +125,14 @@ export class ChannelDispatcherService {
       });
 
       await this.updateDeliveryStatus(
-        notificationId,
-        userId,
-        DELIVERY_CHANNELS.FCM,
+        notificationId, userId, DELIVERY_CHANNELS.FCM,
         sent ? 'SENT' : 'FAILED',
         sent ? undefined : 'FCM send failed',
       );
     }
   }
 
-  private async dispatchEmail(
-    notificationId: string,
-    recipientIds: string[],
-    context: DispatchContext,
-  ) {
+  private async dispatchEmail(notificationId: string, recipientIds: string[], context: DispatchContext) {
     for (const userId of recipientIds) {
       if (!context.bypassPrefs) {
         const prefs = await this.preferenceService.getPreferences(userId);
@@ -188,20 +146,14 @@ export class ChannelDispatcherService {
       });
 
       await this.updateDeliveryStatus(
-        notificationId,
-        userId,
-        DELIVERY_CHANNELS.EMAIL,
+        notificationId, userId, DELIVERY_CHANNELS.EMAIL,
         sent ? 'SENT' : 'FAILED',
         sent ? undefined : 'Email send failed',
       );
     }
   }
 
-  private async dispatchSms(
-    notificationId: string,
-    recipientIds: string[],
-    context: DispatchContext,
-  ) {
+  private async dispatchSms(notificationId: string, recipientIds: string[], context: DispatchContext) {
     for (const userId of recipientIds) {
       if (!context.bypassPrefs) {
         const prefs = await this.preferenceService.getPreferences(userId);
@@ -214,9 +166,7 @@ export class ChannelDispatcherService {
       });
 
       await this.updateDeliveryStatus(
-        notificationId,
-        userId,
-        DELIVERY_CHANNELS.SMS,
+        notificationId, userId, DELIVERY_CHANNELS.SMS,
         sent ? 'SENT' : 'FAILED',
         sent ? undefined : 'SMS send failed',
       );
@@ -224,19 +174,13 @@ export class ChannelDispatcherService {
   }
 
   private async updateDeliveryStatus(
-    notificationId: string,
-    recipientId: string,
-    channel: DeliveryChannel,
-    status: string,
-    errorMessage?: string,
+    notificationId: string, recipientId: string, channel: DeliveryChannel,
+    status: string, errorMessage?: string,
   ) {
     try {
       const updateData: any = { status: status as any };
       if (status === 'SENT') updateData.deliveredAt = new Date();
-      if (status === 'FAILED') {
-        updateData.failedAt = new Date();
-        updateData.errorMessage = errorMessage;
-      }
+      if (status === 'FAILED') { updateData.failedAt = new Date(); updateData.errorMessage = errorMessage; }
       updateData.attemptCount = { increment: 1 };
 
       await this.prisma.notificationDelivery.updateMany({
@@ -244,9 +188,7 @@ export class ChannelDispatcherService {
         data: updateData,
       });
     } catch (err) {
-      this.logger.warn(
-        `Failed to update delivery status: ${(err as Error).message}`,
-      );
+      this.logger.warn(`Failed to update delivery status: ${(err as Error).message}`);
     }
   }
 }

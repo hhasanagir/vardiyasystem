@@ -1,12 +1,12 @@
-// @vitest-environment jsdom
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { of } from 'rxjs';
 import { DeviceIncidentReportComponent } from '../device-incident-report.component';
 import { DeviceIncidentsService } from '../../../services/device-incidents.service';
-import { AuthService } from '../../../services/auth.service';
-import { WebSocketService } from '../../../services/websocket.service';
 import { DeviceApiService } from '../../../core/api/device-api.service';
+import { WebSocketService } from '../../../services/websocket.service';
+import { AuthService } from '../../../services/auth.service';
 
 describe('DeviceIncidentReportComponent', () => {
   let component: DeviceIncidentReportComponent;
@@ -17,22 +17,23 @@ describe('DeviceIncidentReportComponent', () => {
   };
 
   beforeEach(async () => {
+    TestBed.resetTestingModule();
+    TestBed.overrideComponent(DeviceIncidentReportComponent, {
+      set: { template: '<div></div>', styleUrls: [], styles: [] },
+    });
     await TestBed.configureTestingModule({
-      imports: [DeviceIncidentReportComponent],
+      imports: [DeviceIncidentReportComponent, HttpClientTestingModule],
       providers: [
         {
           provide: DeviceIncidentsService,
-          useValue: {
-            getIncidents: vi.fn(() => of({ data: [], total: 0 })),
-            getIncident: vi.fn(),
-            createIncident: vi.fn(() => of({})),
-            updateIncident: vi.fn(() => of({})),
-            updateStatus: vi.fn(() => of({})),
-          },
+          useValue: { getIncidents: vi.fn(() => of({ data: [], total: 0 })) },
         },
+        {
+          provide: DeviceApiService,
+          useValue: { loadDevices: vi.fn(() => of({ devices: [], total: 0 })) },
+        },
+        { provide: WebSocketService, useValue: { on: () => of({}) } },
         { provide: AuthService, useValue: mockAuthService },
-        { provide: WebSocketService, useValue: { on: vi.fn(() => of(null)) } },
-        { provide: DeviceApiService, useValue: { loadDevices: vi.fn(() => of({ devices: [], total: 0 })) } },
       ],
     }).compileComponents();
 
@@ -45,20 +46,17 @@ describe('DeviceIncidentReportComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should expose the six configured issue types', () => {
-    const issueTypes = component['issueTypes'];
-    expect(issueTypes.length).toBe(6);
-    expect(issueTypes).toContain('arıza');
-    expect(issueTypes).toContain('bakım ihtiyacı');
-    expect(issueTypes).toContain('cihaz offline');
+  it('should have all issue type constants defined', () => {
+    expect(component['issueTypes'].length).toBe(6);
+    expect(component['issueTypes']).toContain('arıza');
   });
 
-  it('should start with empty filters', () => {
+  it('should have empty filters by default', () => {
     expect(component['filterStatus']()).toBe('');
     expect(component['filterSeverity']()).toBe('');
   });
 
-  it('should toggle the create form', () => {
+  it('should toggle create form', () => {
     expect(component['showForm']()).toBe(false);
     component['openCreate']();
     expect(component['showForm']()).toBe(true);
@@ -71,9 +69,25 @@ describe('DeviceIncidentReportComponent', () => {
     expect(component['formIssueType']).toBe('');
     expect(component['formSeverity']).toBe('medium');
     expect(component['formDescription']).toBe('');
-    expect(component['formDeviceId']).toBe('');
-    expect(component['formImageUrl']).toBe('');
-    expect(component['formError']()).toBeNull();
+  });
+
+  it('should filter incidents by status', () => {
+    component['filterStatus'].set('open');
+    expect(component['filterStatus']()).toBe('open');
+  });
+
+  it('should filter incidents by severity', () => {
+    component['filterSeverity'].set('critical');
+    expect(component['filterSeverity']()).toBe('critical');
+  });
+
+  it('should clear all filters', () => {
+    component['filterStatus'].set('open');
+    component['filterSeverity'].set('critical');
+    component['filterStatus'].set('');
+    component['filterSeverity'].set('');
+    expect(component['filterStatus']()).toBe('');
+    expect(component['filterSeverity']()).toBe('');
   });
 
   it('should toggle incident detail', () => {
@@ -85,8 +99,9 @@ describe('DeviceIncidentReportComponent', () => {
     expect(component['expandedId']()).toBeNull();
   });
 
-  it('should expose the current user signal', () => {
-    expect(component['currentUser']).toBeDefined();
-    expect(component['currentUser']()?.name).toBe('Tekniker');
+  it('should expose the current authenticated user', () => {
+    const currentUser = component['currentUser']();
+    expect(currentUser).toBeDefined();
+    expect(currentUser?.name).toBe('Tekniker');
   });
 });

@@ -38,77 +38,24 @@ describe('GATE 1 — Hard Constraint Quality', () => {
 
   it('Scenario D: inactive personnel excluded', () => {
     const result = optimizer.optimize(scenarioD_personnelUnavailable());
-    const assignedIds = result.candidate.assignments.map((a) => a.personnelId);
+    const assignedIds = result.candidate.assignments.map(a => a.personnelId);
     expect(assignedIds).not.toContain('p1');
   });
 
   it('Scenario F: personnel without required skills not assigned to incompatible device', () => {
     const problem: SchedulingProblem = {
-      scheduleId: 'test-schedule',
-      unitId: 'unit-1',
-      unitType: 'mr',
-      serviceLine: 'IMAGING',
-      year: 2026,
-      month: 1,
-      devices: [
-        {
-          id: 'd1',
-          code: 'MRI-1',
-          name: 'MRI 1',
-          mode: 'continuous',
-          requiredSkills: ['MRI'],
-          workDays: [1, 2, 3, 4, 5],
-          startHour: 8,
-          endHour: 16,
-        },
-      ],
-      shiftDefinitions: [
-        {
-          deviceId: 'd1',
-          shiftType: 'day',
-          startTime: '08:00',
-          endTime: '16:00',
-          personnelType: 'technician',
-        },
-      ],
+      scheduleId: 'test-schedule', unitId: 'unit-1', unitType: 'mr', serviceLine: 'IMAGING',
+      year: 2026, month: 1,
+      devices: [{ id: 'd1', code: 'MRI-1', name: 'MRI 1', mode: 'continuous', requiredSkills: ['MRI'], workDays: [1, 2, 3, 4, 5], startHour: 8, endHour: 16 }],
+      shiftDefinitions: [{ deviceId: 'd1', shiftType: 'day', startTime: '08:00', endTime: '16:00', personnelType: 'technician' }],
       personnel: [
-        {
-          id: 'p1',
-          name: 'Ali',
-          role: 'technician',
-          skills: ['US'],
-          deviceSkills: ['US'],
-          nightShiftEligible: true,
-          employmentStatus: 'active',
-          offDays: [],
-          maxWeeklyHours: 40,
-          isActive: true,
-        },
-        {
-          id: 'p2',
-          name: 'Veli',
-          role: 'technician',
-          skills: ['MRI'],
-          deviceSkills: ['MRI'],
-          nightShiftEligible: true,
-          employmentStatus: 'active',
-          offDays: [],
-          maxWeeklyHours: 40,
-          isActive: true,
-        },
+        { id: 'p1', name: 'Ali', role: 'technician', skills: ['US'], deviceSkills: ['US'], nightShiftEligible: true, employmentStatus: 'active', offDays: [], maxWeeklyHours: 40, isActive: true },
+        { id: 'p2', name: 'Veli', role: 'technician', skills: ['MRI'], deviceSkills: ['MRI'], nightShiftEligible: true, employmentStatus: 'active', offDays: [], maxWeeklyHours: 40, isActive: true },
       ],
       existingAssignments: new AssignmentCollection(),
       holidays: new Set(),
-      
-      configuration: {
-        fairnessMode: 'balanced',
-        maxOvertime: 20,
-        includeWeekends: false,
-        includeNightShifts: false,
-        minRestHours: 11,
-        maxConsecutiveDays: 6,
-        maxConsecutiveNights: 3,
-      },
+      deviceOffDates: new Set(),
+      configuration: { fairnessMode: 'balanced', maxOvertime: 20, includeWeekends: false, includeNightShifts: false, minRestHours: 11, maxConsecutiveDays: 6, maxConsecutiveNights: 3 },
     };
     const result = optimizer.optimize(problem);
     for (const a of result.candidate.assignments) {
@@ -174,9 +121,7 @@ describe('GATE — Score Quality', () => {
   it('ScoreAggregator weights are explicit and documented (canonical: 0.35 + 0.25 + 0.25 = 0.85, coverage 0.15 separate)', () => {
     const agg = new ScoreAggregator();
     const weights = agg.getWeights();
-    expect(weights.fairness + weights.workload + weights.fatigue).toBeCloseTo(
-      0.85,
-    );
+    expect(weights.fairness + weights.workload + weights.fatigue).toBeCloseTo(0.85);
     expect(weights.fairness).toBe(0.35);
     expect(weights.workload).toBe(0.25);
     expect(weights.fatigue).toBe(0.25);
@@ -200,9 +145,7 @@ describe('GATE 3 — Determinism', () => {
       const problem = fn();
       const r1 = optimizer.optimize(problem);
       const r2 = optimizer.optimize(problem);
-      expect(r1.candidate.assignments.length).toBe(
-        r2.candidate.assignments.length,
-      );
+      expect(r1.candidate.assignments.length).toBe(r2.candidate.assignments.length);
       expect(r1.summary.totalScore).toBe(r2.summary.totalScore);
       expect(r1.summary.totalAssignments).toBe(r2.summary.totalAssignments);
       expect(r1.metadata.deterministic).toBe(true);
@@ -216,23 +159,19 @@ describe('GATE 3 — Determinism', () => {
 describe('GATE 5 — Service Line Separation', () => {
   it('Imaging strategy selected for non-onkoloji', () => {
     const result = optimizer.optimize(scenarioK_imaging());
-    expect(result.explanations.some((e) => e.includes('IMAGING'))).toBe(true);
+    expect(result.explanations.some(e => e.includes('IMAGING'))).toBe(true);
   });
 
   it('RT strategy selected for onkoloji', () => {
     const result = optimizer.optimize(scenarioL_radiationOncology());
-    expect(
-      result.explanations.some((e) => e.includes('RADIATION_ONCOLOGY')),
-    ).toBe(true);
+    expect(result.explanations.some(e => e.includes('RADIATION_ONCOLOGY'))).toBe(true);
   });
 
   it('Imaging and RT produce different service lines', () => {
     const imaging = optimizer.optimize(scenarioK_imaging());
     const rt = optimizer.optimize(scenarioL_radiationOncology());
-    const imagingLine = imaging.explanations.find((e) =>
-      e.includes('Service line:'),
-    );
-    const rtLine = rt.explanations.find((e) => e.includes('Service line:'));
+    const imagingLine = imaging.explanations.find(e => e.includes('Service line:'));
+    const rtLine = rt.explanations.find(e => e.includes('Service line:'));
     expect(imagingLine).not.toBe(rtLine);
   });
 });
@@ -244,7 +183,7 @@ describe('Device/Resource Safety', () => {
   it('all assigned devices exist in problem', () => {
     const problem = scenarioK_imaging();
     const result = optimizer.optimize(problem);
-    const deviceIds = problem.devices.map((d) => d.id);
+    const deviceIds = problem.devices.map(d => d.id);
     for (const a of result.candidate.assignments) {
       expect(deviceIds).toContain(a.deviceId);
     }
@@ -252,9 +191,7 @@ describe('Device/Resource Safety', () => {
 
   it('no duplicate device+date+shift assignments', () => {
     const result = optimizer.optimize(scenarioA_simpleValidSchedule());
-    const keys = result.candidate.assignments.map(
-      (a) => `${a.deviceId}|${a.date}|${a.shiftType}`,
-    );
+    const keys = result.candidate.assignments.map(a => `${a.deviceId}|${a.date}|${a.shiftType}`);
     const uniqueKeys = new Set(keys);
     expect(keys.length).toBe(uniqueKeys.size);
   });
@@ -279,12 +216,12 @@ describe('Explainability', () => {
 
   it('result contains strategy name in explanations', () => {
     const result = optimizer.optimize(scenarioA_simpleValidSchedule());
-    expect(result.explanations.some((e) => e.includes('Strategy:'))).toBe(true);
+    expect(result.explanations.some(e => e.includes('Strategy:'))).toBe(true);
   });
 
   it('result contains assignment count', () => {
     const result = optimizer.optimize(scenarioA_simpleValidSchedule());
-    expect(result.explanations.some((e) => e.includes('Generated'))).toBe(true);
+    expect(result.explanations.some(e => e.includes('Generated'))).toBe(true);
   });
 });
 
@@ -298,49 +235,14 @@ describe('Golden Test Cases', () => {
       unitId: 'unit-1',
       unitType: 'mr',
       serviceLine: 'IMAGING',
-      year: 2026,
-      month: 1,
-      personnel: [
-        makePersonnel({
-          id: 'solo',
-          name: 'Solo Tech',
-          skills: ['MRI'],
-          deviceSkills: ['MRI'],
-        }),
-      ],
-      devices: [
-        {
-          id: 'dev',
-          code: 'MRI-1',
-          name: 'MRI',
-          mode: 'continuous',
-          requiredSkills: ['MRI'],
-          workDays: [1, 2, 3, 4, 5],
-          startHour: 8,
-          endHour: 16,
-        },
-      ],
-      shiftDefinitions: [
-        {
-          deviceId: 'dev',
-          shiftType: 'day',
-          startTime: '08:00',
-          endTime: '16:00',
-          personnelType: 'technician',
-        },
-      ],
+      year: 2026, month: 1,
+      personnel: [makePersonnel({ id: 'solo', name: 'Solo Tech', skills: ['MRI'], deviceSkills: ['MRI'] })],
+      devices: [{ id: 'dev', code: 'MRI-1', name: 'MRI', mode: 'continuous', requiredSkills: ['MRI'], workDays: [1, 2, 3, 4, 5], startHour: 8, endHour: 16 }],
+      shiftDefinitions: [{ deviceId: 'dev', shiftType: 'day', startTime: '08:00', endTime: '16:00', personnelType: 'technician' }],
       existingAssignments: new AssignmentCollection(),
       holidays: new Set(),
-      
-      configuration: {
-        fairnessMode: 'balanced',
-        maxOvertime: 20,
-        includeWeekends: false,
-        includeNightShifts: false,
-        minRestHours: 11,
-        maxConsecutiveDays: 6,
-        maxConsecutiveNights: 3,
-      },
+      deviceOffDates: new Set(),
+      configuration: { fairnessMode: 'balanced', maxOvertime: 20, includeWeekends: false, includeNightShifts: false, minRestHours: 11, maxConsecutiveDays: 6, maxConsecutiveNights: 3 },
     };
     const result = optimizer.optimize(problem);
     expect(result.success).toBe(true);
@@ -355,44 +257,14 @@ describe('Golden Test Cases', () => {
       unitId: 'unit-1',
       unitType: 'mr',
       serviceLine: 'IMAGING',
-      year: 2026,
-      month: 1,
-      personnel: [
-        makePersonnel({ id: 'inactive', name: 'Inactive', isActive: false }),
-      ],
-      devices: [
-        {
-          id: 'dev',
-          code: 'MRI-1',
-          name: 'MRI',
-          mode: 'continuous',
-          requiredSkills: ['MRI'],
-          workDays: [1, 2, 3, 4, 5],
-          startHour: 8,
-          endHour: 16,
-        },
-      ],
-      shiftDefinitions: [
-        {
-          deviceId: 'dev',
-          shiftType: 'day',
-          startTime: '08:00',
-          endTime: '16:00',
-          personnelType: 'technician',
-        },
-      ],
+      year: 2026, month: 1,
+      personnel: [makePersonnel({ id: 'inactive', name: 'Inactive', isActive: false })],
+      devices: [{ id: 'dev', code: 'MRI-1', name: 'MRI', mode: 'continuous', requiredSkills: ['MRI'], workDays: [1, 2, 3, 4, 5], startHour: 8, endHour: 16 }],
+      shiftDefinitions: [{ deviceId: 'dev', shiftType: 'day', startTime: '08:00', endTime: '16:00', personnelType: 'technician' }],
       existingAssignments: new AssignmentCollection(),
       holidays: new Set(),
-      
-      configuration: {
-        fairnessMode: 'balanced',
-        maxOvertime: 20,
-        includeWeekends: false,
-        includeNightShifts: false,
-        minRestHours: 11,
-        maxConsecutiveDays: 6,
-        maxConsecutiveNights: 3,
-      },
+      deviceOffDates: new Set(),
+      configuration: { fairnessMode: 'balanced', maxOvertime: 20, includeWeekends: false, includeNightShifts: false, minRestHours: 11, maxConsecutiveDays: 6, maxConsecutiveNights: 3 },
     };
     const result = optimizer.optimize(problem);
     expect(result.candidate.assignments.length).toBe(0);
@@ -401,71 +273,25 @@ describe('Golden Test Cases', () => {
   it('Golden 3: two valid people, one with lower workload → lower workload preferred by selectBest', () => {
     const agg = new ScoreAggregator();
     const lowScore = agg.aggregate([
-      {
-        constraintId: 'WORKLOAD_BALANCE',
-        rawScore: 95,
-        weight: 0.3,
-        weightedScore: 28.5,
-        explanation: 'light workload',
-      },
-      {
-        constraintId: 'FAIRNESS',
-        rawScore: 80,
-        weight: 0.4,
-        weightedScore: 32,
-        explanation: '',
-      },
-      {
-        constraintId: 'FATIGUE',
-        rawScore: 90,
-        weight: 0.3,
-        weightedScore: 27,
-        explanation: '',
-      },
+      { constraintId: 'WORKLOAD_BALANCE', rawScore: 95, weight: 0.3, weightedScore: 28.5, explanation: 'light workload' },
+      { constraintId: 'FAIRNESS', rawScore: 80, weight: 0.4, weightedScore: 32, explanation: '' },
+      { constraintId: 'FATIGUE', rawScore: 90, weight: 0.3, weightedScore: 27, explanation: '' },
     ]);
     const highScore = agg.aggregate([
-      {
-        constraintId: 'WORKLOAD_BALANCE',
-        rawScore: 20,
-        weight: 0.3,
-        weightedScore: 6,
-        explanation: 'heavy workload',
-      },
-      {
-        constraintId: 'FAIRNESS',
-        rawScore: 50,
-        weight: 0.4,
-        weightedScore: 20,
-        explanation: '',
-      },
-      {
-        constraintId: 'FATIGUE',
-        rawScore: 40,
-        weight: 0.3,
-        weightedScore: 12,
-        explanation: '',
-      },
+      { constraintId: 'WORKLOAD_BALANCE', rawScore: 20, weight: 0.3, weightedScore: 6, explanation: 'heavy workload' },
+      { constraintId: 'FAIRNESS', rawScore: 50, weight: 0.4, weightedScore: 20, explanation: '' },
+      { constraintId: 'FATIGUE', rawScore: 40, weight: 0.3, weightedScore: 12, explanation: '' },
     ]);
     expect(lowScore.total).toBeGreaterThan(highScore.total);
   });
 
   it('Golden 4: RT candidate → RT strategy must be selected', () => {
     const result = optimizer.optimize(scenarioL_radiationOncology());
-    expect(
-      result.explanations.some((e) => e.includes('RADIATION_ONCOLOGY')),
-    ).toBe(true);
+    expect(result.explanations.some(e => e.includes('RADIATION_ONCOLOGY'))).toBe(true);
   });
 });
 
-function makePersonnel(overrides: {
-  id: string;
-  name: string;
-  skills?: string[];
-  deviceSkills?: string[];
-  nightShiftEligible?: boolean;
-  isActive?: boolean;
-  offDays?: number[];
-}) {
+function makePersonnel(overrides: { id: string; name: string; skills?: string[]; deviceSkills?: string[]; nightShiftEligible?: boolean; isActive?: boolean; offDays?: number[] }) {
   return {
     role: 'technician',
     skills: overrides.skills || ['MRI'],

@@ -6,24 +6,24 @@ All benchmarks use synthetic in-memory data. No production data involved.
 
 ### Small Problem
 
-| Metric                | Value |
-| --------------------- | ----- |
-| Personnel             | 3     |
-| Devices               | 1     |
-| Shifts                | 1/day |
-| Days                  | 31    |
-| Assignments generated | ~23   |
-| Execution time        | <5ms  |
+| Metric | Value |
+|---|---|
+| Personnel | 3 |
+| Devices | 1 |
+| Shifts | 1/day |
+| Days | 31 |
+| Assignments generated | ~23 |
+| Execution time | <5ms |
 
 ### Measured Timing (from test metadata)
 
-| Phase                      | Typical |
-| -------------------------- | ------- |
-| Candidate generation       | <2ms    |
-| Hard constraint evaluation | <1ms    |
-| Soft constraint evaluation | <5ms    |
-| Score aggregation          | <1ms    |
-| Total execution            | <10ms   |
+| Phase | Typical |
+|---|---|
+| Candidate generation | <2ms |
+| Hard constraint evaluation | <1ms |
+| Soft constraint evaluation | <5ms |
+| Score aggregation | <1ms |
+| Total execution | <10ms |
 
 ### Scalability Considerations
 

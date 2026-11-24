@@ -13,23 +13,19 @@ function readSource(relativePath: string): string {
   return fs.readFileSync(resolved, 'utf-8');
 }
 
-const makePrisma = (
-  scheduleResult: unknown = null,
-  unitResult: unknown = null,
-) => ({
+const makePrisma = (scheduleResult: unknown = null, unitResult: unknown = null) => ({
   schedule: { findUnique: vi.fn().mockResolvedValue(scheduleResult) },
   unit: { findUnique: vi.fn().mockResolvedValue(unitResult) },
 });
 
 describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
+
   describe('SEC-001: ThrottlerGuard Global Binding (behavioral)', () => {
     it('app.module providers include APP_GUARD → ThrottlerGuard binding', () => {
       const source = readSource('../../../app.module.ts');
       const providersIdx = source.indexOf('providers:');
       const providersSection = source.substring(providersIdx);
-      expect(providersSection).toContain(
-        'provide: APP_GUARD,\n      useClass: ThrottlerGuard',
-      );
+      expect(providersSection).toContain('provide: APP_GUARD,\n      useClass: ThrottlerGuard');
     });
 
     it('ThrottlerModule.forRootAsync is imported', () => {
@@ -55,10 +51,7 @@ describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
     it('@Throttle decorator on register endpoint', () => {
       const source = readSource('../../auth/auth.controller.ts');
       const registerIdx = source.indexOf("@Post('register')");
-      const registerSection = source.substring(
-        registerIdx - 200,
-        registerIdx + 200,
-      );
+      const registerSection = source.substring(registerIdx - 200, registerIdx + 200);
       expect(registerSection).toContain('@Throttle');
     });
 
@@ -79,16 +72,20 @@ describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
       expect(payloadSection).not.toContain('id: user.id');
     });
 
-    it('ScheduleGateway extracts userId from payload.sub', () => {
+    it('ScheduleGateway binds socket identity to the verified JWT subject and DB user', () => {
       const source = readSource('../../websocket/schedule.gateway.ts');
-      expect(source).toContain('client.userId = payload.sub');
+      expect(source).toContain('payload.sub');
+      expect(source).toContain('client.userId = user.id');
       expect(source).not.toContain('client.userId = payload.id');
     });
 
-    it('ScheduleGateway fetches user name/unitId from DB', () => {
+    it('ScheduleGateway reloads authoritative identity from the DB (name/role/org/unit/active)', () => {
       const source = readSource('../../websocket/schedule.gateway.ts');
       expect(source).toContain('prisma.user.findUnique');
-      expect(source).toContain('select: { name: true, unitId: true }');
+      expect(source).toContain('isActive: true');
+      expect(source).toContain('client.userRole = user.role');
+      expect(source).toContain('client.organizationId = user.organizationId');
+      expect(source).toContain('client.unitId = user.unitId');
     });
 
     it('JWT payload includes organizationId', () => {
@@ -100,34 +97,25 @@ describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
 
     it('JwtStrategy.validate reads payload.sub (not payload.id)', () => {
       const source = readSource('../../auth/jwt.strategy.ts');
-      const normalized = source.replace(/\s+/g, ' ');
-      expect(normalized).toContain('validate(payload: { sub:');
-      expect(normalized).toContain('payload.sub');
-      expect(normalized).not.toContain('payload.id');
+      expect(source).toContain('validate(payload: { sub:');
+      expect(source).toContain('payload.sub');
+      expect(source).not.toContain('payload.id');
     });
   });
 
   describe('SEC-003: ScheduleAccessGuard Fail-Closed (behavioral — actual guard instantiation)', () => {
     let guard: ScheduleAccessGuard;
 
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
+    beforeEach(() => { vi.clearAllMocks(); });
 
     it('REJECTS when user has no tenant context (no org + no unit)', async () => {
       const prisma = makePrisma({ unitId: 'unit-A', organizationId: 'org-A' });
       guard = new ScheduleAccessGuard(prisma as never);
       await expect(
-        guard.canActivate(
-          execCtx({
-            params: { id: 'sched-1' },
-            user: {
-              role: 'supervisor',
-              organizationId: undefined,
-              unitId: undefined,
-            },
-          }),
-        ),
+        guard.canActivate(execCtx({
+          params: { id: 'sched-1' },
+          user: { role: 'supervisor', organizationId: undefined, unitId: undefined },
+        })),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -135,16 +123,10 @@ describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
       const prisma = makePrisma({ unitId: 'unit-A', organizationId: 'org-A' });
       guard = new ScheduleAccessGuard(prisma as never);
       await expect(
-        guard.canActivate(
-          execCtx({
-            params: { id: 'sched-1' },
-            user: {
-              role: 'system_admin',
-              organizationId: undefined,
-              unitId: undefined,
-            },
-          }),
-        ),
+        guard.canActivate(execCtx({
+          params: { id: 'sched-1' },
+          user: { role: 'system_admin', organizationId: undefined, unitId: undefined },
+        })),
       ).resolves.toBe(true);
     });
 
@@ -152,16 +134,10 @@ describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
       const prisma = makePrisma({ unitId: 'unit-A', organizationId: 'org-A' });
       guard = new ScheduleAccessGuard(prisma as never);
       await expect(
-        guard.canActivate(
-          execCtx({
-            params: { id: 'sched-1' },
-            user: {
-              role: 'supervisor',
-              organizationId: 'org-B',
-              unitId: 'unit-B',
-            },
-          }),
-        ),
+        guard.canActivate(execCtx({
+          params: { id: 'sched-1' },
+          user: { role: 'supervisor', organizationId: 'org-B', unitId: 'unit-B' },
+        })),
       ).rejects.toThrow(/another organization/);
     });
 
@@ -169,16 +145,10 @@ describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
       const prisma = makePrisma({ unitId: 'unit-A', organizationId: 'org-A' });
       guard = new ScheduleAccessGuard(prisma as never);
       await expect(
-        guard.canActivate(
-          execCtx({
-            params: { id: 'sched-1' },
-            user: {
-              role: 'supervisor',
-              organizationId: 'org-A',
-              unitId: 'unit-A',
-            },
-          }),
-        ),
+        guard.canActivate(execCtx({
+          params: { id: 'sched-1' },
+          user: { role: 'supervisor', organizationId: 'org-A', unitId: 'unit-A' },
+        })),
       ).resolves.toBe(true);
     });
 
@@ -186,16 +156,10 @@ describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
       const prisma = makePrisma({ unitId: 'unit-A', organizationId: null });
       guard = new ScheduleAccessGuard(prisma as never);
       await expect(
-        guard.canActivate(
-          execCtx({
-            params: { id: 'sched-1' },
-            user: {
-              role: 'supervisor',
-              organizationId: undefined,
-              unitId: 'unit-A',
-            },
-          }),
-        ),
+        guard.canActivate(execCtx({
+          params: { id: 'sched-1' },
+          user: { role: 'supervisor', organizationId: undefined, unitId: 'unit-A' },
+        })),
       ).resolves.toBe(true);
     });
 
@@ -203,16 +167,10 @@ describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
       const prisma = makePrisma(null);
       guard = new ScheduleAccessGuard(prisma as never);
       await expect(
-        guard.canActivate(
-          execCtx({
-            params: { id: 'sched-missing' },
-            user: {
-              role: 'supervisor',
-              organizationId: 'org-A',
-              unitId: 'unit-A',
-            },
-          }),
-        ),
+        guard.canActivate(execCtx({
+          params: { id: 'sched-missing' },
+          user: { role: 'supervisor', organizationId: 'org-A', unitId: 'unit-A' },
+        })),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -220,16 +178,10 @@ describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
       const prisma = makePrisma({ unitId: 'unit-A', organizationId: null });
       guard = new ScheduleAccessGuard(prisma as never);
       await expect(
-        guard.canActivate(
-          execCtx({
-            params: { id: 'sched-1' },
-            user: {
-              role: 'supervisor',
-              organizationId: 'org-A',
-              unitId: undefined,
-            },
-          }),
-        ),
+        guard.canActivate(execCtx({
+          params: { id: 'sched-1' },
+          user: { role: 'supervisor', organizationId: 'org-A', unitId: undefined },
+        })),
       ).rejects.toThrow(/no organization context/);
     });
 
@@ -237,16 +189,10 @@ describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
       const prisma = makePrisma({ unitId: 'unit-A', organizationId: null });
       guard = new ScheduleAccessGuard(prisma as never);
       await expect(
-        guard.canActivate(
-          execCtx({
-            params: { id: 'sched-1' },
-            user: {
-              role: 'supervisor',
-              organizationId: undefined,
-              unitId: 'unit-B',
-            },
-          }),
-        ),
+        guard.canActivate(execCtx({
+          params: { id: 'sched-1' },
+          user: { role: 'supervisor', organizationId: undefined, unitId: 'unit-B' },
+        })),
       ).resolves.toBe(true);
     });
 
@@ -254,25 +200,17 @@ describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
       const prisma = makePrisma();
       guard = new ScheduleAccessGuard(prisma as never);
       await expect(
-        guard.canActivate(
-          execCtx({ params: { id: 'sched-1' }, user: undefined }),
-        ),
+        guard.canActivate(execCtx({ params: { id: 'sched-1' }, user: undefined })),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('queries Prisma for schedule when scheduleId present', async () => {
       const prisma = makePrisma({ unitId: 'unit-A', organizationId: 'org-A' });
       guard = new ScheduleAccessGuard(prisma as never);
-      await guard.canActivate(
-        execCtx({
-          params: { id: 'sched-1' },
-          user: {
-            role: 'supervisor',
-            organizationId: 'org-A',
-            unitId: 'unit-A',
-          },
-        }),
-      );
+      await guard.canActivate(execCtx({
+        params: { id: 'sched-1' },
+        user: { role: 'supervisor', organizationId: 'org-A', unitId: 'unit-A' },
+      }));
       expect(prisma.schedule.findUnique).toHaveBeenCalledWith({
         where: { id: 'sched-1' },
         select: { unitId: true, organizationId: true },
@@ -282,16 +220,10 @@ describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
     it('does NOT query schedule when no params.id (job endpoint context)', async () => {
       const prisma = makePrisma();
       guard = new ScheduleAccessGuard(prisma as never);
-      await guard.canActivate(
-        execCtx({
-          params: {},
-          user: {
-            role: 'supervisor',
-            organizationId: 'org-A',
-            unitId: 'unit-A',
-          },
-        }),
-      );
+      await guard.canActivate(execCtx({
+        params: {},
+        user: { role: 'supervisor', organizationId: 'org-A', unitId: 'unit-A' },
+      }));
       expect(prisma.schedule.findUnique).not.toHaveBeenCalled();
     });
   });
@@ -300,51 +232,49 @@ describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
     const controllerSrc = readSource('../schedules-ddd.controller.ts');
 
     it('getJobStatus: @Roles(MinRole.VIEWER) decorator present', () => {
-      const idx = controllerSrc.indexOf('async getJobStatus(');
+      const idx = controllerSrc.indexOf("async getJobStatus(");
       const block = controllerSrc.substring(Math.max(0, idx - 300), idx);
       expect(block).toContain('@Roles(MinRole.VIEWER)');
     });
 
     it('getJobStatus: @Permissions("schedule.read") decorator present', () => {
-      const idx = controllerSrc.indexOf('async getJobStatus(');
+      const idx = controllerSrc.indexOf("async getJobStatus(");
       const block = controllerSrc.substring(Math.max(0, idx - 300), idx);
-      expect(block).toContain("@Permissions('schedule.read')");
+      expect(block).toContain('@Permissions(\'schedule.read\')');
     });
 
     it('cancelJob: @Roles(MinRole.SUPERVISOR) decorator present', () => {
-      const idx = controllerSrc.indexOf('async cancelJob(');
+      const idx = controllerSrc.indexOf("async cancelJob(");
       const block = controllerSrc.substring(Math.max(0, idx - 300), idx);
       expect(block).toContain('@Roles(MinRole.SUPERVISOR)');
     });
 
     it('cancelJob: @Permissions("schedule.generate") decorator present', () => {
-      const idx = controllerSrc.indexOf('async cancelJob(');
+      const idx = controllerSrc.indexOf("async cancelJob(");
       const block = controllerSrc.substring(Math.max(0, idx - 300), idx);
-      expect(block).toContain("@Permissions('schedule.generate')");
+      expect(block).toContain('@Permissions(\'schedule.generate\')');
     });
 
     it('getScheduleJobs: @Roles(MinRole.VIEWER) decorator present', () => {
-      const idx = controllerSrc.indexOf('async getScheduleJobs(');
+      const idx = controllerSrc.indexOf("async getScheduleJobs(");
       const block = controllerSrc.substring(Math.max(0, idx - 300), idx);
       expect(block).toContain('@Roles(MinRole.VIEWER)');
     });
 
     it('getScheduleJobs: @Permissions("schedule.read") decorator present', () => {
-      const idx = controllerSrc.indexOf('async getScheduleJobs(');
+      const idx = controllerSrc.indexOf("async getScheduleJobs(");
       const block = controllerSrc.substring(Math.max(0, idx - 300), idx);
-      expect(block).toContain("@Permissions('schedule.read')");
+      expect(block).toContain('@Permissions(\'schedule.read\')');
     });
 
     it('enqueueExport: @Permissions("schedule.export") decorator present', () => {
-      const idx = controllerSrc.indexOf('async enqueueExport(');
+      const idx = controllerSrc.indexOf("async enqueueExport(");
       const block = controllerSrc.substring(Math.max(0, idx - 300), idx);
-      expect(block).toContain("@Permissions('schedule.export')");
+      expect(block).toContain('@Permissions(\'schedule.export\')');
     });
 
     it('class-level UseGuards includes ScheduleAccessGuard', () => {
-      expect(controllerSrc).toContain(
-        '@UseGuards(JwtAuthGuard, RolesGuard, ScheduleAccessGuard)',
-      );
+      expect(controllerSrc).toContain('@UseGuards(JwtAuthGuard, PermissionGuard, RolesGuard, ScheduleAccessGuard');
     });
 
     it('getJobStatus performs Prisma-based tenant isolation', () => {
@@ -400,12 +330,8 @@ describe('Phase 4.1 — Security Closure Behavioral Tests', () => {
 
     it('ScheduleAccessGuard source confirms fail-closed pattern', () => {
       const source = readSource('../guards/schedule-access.guard.ts');
-      expect(source).toContain(
-        "throw new ForbiddenException('Access denied: missing tenant context')",
-      );
-      expect(source).toContain(
-        "throw new ForbiddenException('Access denied: insufficient tenant context')",
-      );
+      expect(source).toContain("throw new ForbiddenException('Access denied: missing tenant context')");
+      expect(source).toContain("throw new ForbiddenException('Access denied: insufficient tenant context')");
     });
   });
 });

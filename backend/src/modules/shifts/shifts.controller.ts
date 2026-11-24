@@ -11,12 +11,7 @@ import {
   Request,
   ForbiddenException,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ShiftsService } from './shifts.service';
 import { CreateShiftDto } from './dto/create-shift.dto';
 import { UpdateShiftDto } from './dto/update-shift.dto';
@@ -42,7 +37,9 @@ interface RequestWithUser {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('shifts')
 export class ShiftsController {
-  constructor(private shiftsService: ShiftsService) {}
+  constructor(
+    private shiftsService: ShiftsService,
+  ) {}
 
   @Get()
   @Roles(MinRole.VIEWER)
@@ -56,14 +53,8 @@ export class ShiftsController {
     @Query('deviceId') deviceId?: string,
     @Query('personnelType') personnelType?: string,
   ) {
-    if (!req.user.organizationId)
-      throw new ForbiddenException('Kullanıcı bir organizasyona bağlı değil');
-    return this.shiftsService.findAll(
-      req.user.organizationId,
-      unitId,
-      deviceId,
-      personnelType,
-    );
+    if (!req.user.organizationId) throw new ForbiddenException('Kullanıcı bir organizasyona bağlı değil');
+    return this.shiftsService.findAll(req.user.organizationId, unitId, deviceId, personnelType);
   }
 
   @Get('live')
@@ -76,53 +67,47 @@ export class ShiftsController {
   @Get(':id')
   @Roles(MinRole.VIEWER)
   @ApiOperation({ summary: 'Get a shift by ID' })
-  async findOne(@Param('id') id: string, @Request() req: RequestWithUser) {
-    if (!req.user.organizationId)
-      throw new ForbiddenException('Kullanıcı bir organizasyona bağlı değil');
+  async findOne(
+    @Param('id') id: string,
+    @Request() req: RequestWithUser,
+  ) {
+    if (!req.user.organizationId) throw new ForbiddenException('Kullanıcı bir organizasyona bağlı değil');
     return this.shiftsService.findOne(id, req.user.organizationId);
   }
 
   @Post()
   @Roles(MinRole.HEAD_TECHNICIAN)
-  @Log({
-    action: 'SHIFT_CREATED',
-    entityType: 'shift',
-    description: 'Vardiya oluşturuldu',
-  })
+  @Log({ action: 'SHIFT_CREATED', entityType: 'shift', description: 'Vardiya oluşturuldu' })
   @ApiOperation({ summary: 'Create a new shift' })
-  async create(@Body() dto: CreateShiftDto, @Request() req: RequestWithUser) {
+  async create(
+    @Body() dto: CreateShiftDto,
+    @Request() req: RequestWithUser,
+  ) {
     return this.shiftsService.create(dto, req.user.id);
   }
 
   @Patch(':id')
   @Roles(MinRole.HEAD_TECHNICIAN)
-  @Log({
-    action: 'SHIFT_UPDATED',
-    entityType: 'shift',
-    description: 'Vardiya güncellendi',
-  })
+  @Log({ action: 'SHIFT_UPDATED', entityType: 'shift', description: 'Vardiya güncellendi' })
   @ApiOperation({ summary: 'Update a shift' })
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateShiftDto,
     @Request() req: RequestWithUser,
   ) {
-    if (!req.user.organizationId)
-      throw new ForbiddenException('Kullanıcı bir organizasyona bağlı değil');
+    if (!req.user.organizationId) throw new ForbiddenException('Kullanıcı bir organizasyona bağlı değil');
     return this.shiftsService.update(id, dto, req.user.id);
   }
 
   @Delete(':id')
   @Roles(MinRole.ADMIN)
-  @Log({
-    action: 'SHIFT_DELETED',
-    entityType: 'shift',
-    description: 'Vardiya silindi',
-  })
+  @Log({ action: 'SHIFT_DELETED', entityType: 'shift', description: 'Vardiya silindi' })
   @ApiOperation({ summary: 'Delete a shift' })
-  async remove(@Param('id') id: string, @Request() req: RequestWithUser) {
-    if (!req.user.organizationId)
-      throw new ForbiddenException('Kullanıcı bir organizasyona bağlı değil');
+  async remove(
+    @Param('id') id: string,
+    @Request() req: RequestWithUser,
+  ) {
+    if (!req.user.organizationId) throw new ForbiddenException('Kullanıcı bir organizasyona bağlı değil');
     await this.shiftsService.remove(id, req.user.organizationId);
   }
 }

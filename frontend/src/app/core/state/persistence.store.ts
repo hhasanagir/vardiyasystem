@@ -1,4 +1,4 @@
-import { Injectable, inject, effect } from '@angular/core';
+﻿import { Injectable, inject, effect } from '@angular/core';
 import { ScheduleStore } from './schedule.store';
 import { MetricsStore } from './metrics.store';
 import { UnitStore } from './unit.store';
@@ -10,7 +10,7 @@ const STORAGE_KEYS = {
   METRICS: 'vardiya_metrics',
   PREFERENCES: 'vardiya_preferences',
   DEVICES: 'vardiya_devices',
-  PERSONNEL: 'vardiya_personnel',
+  PERSONNEL: 'vardiya_personnel'
 } as const;
 
 export interface StoredSchedule {
@@ -27,7 +27,7 @@ export interface UserPreferences {
 }
 
 @Injectable({
-  providedIn: 'root',
+  providedIn: 'root'
 })
 export class PersistenceStore {
   private scheduleStore = inject(ScheduleStore);
@@ -44,48 +44,37 @@ export class PersistenceStore {
     this.initializeAutoSave();
   }
 
-  async saveScheduleToApi(
-    unitId: string,
-    month: number,
-    year: number,
-    assignments: ShiftAssignment[],
-  ): Promise<boolean> {
+  async saveScheduleToApi(unitId: string, month: number, year: number, assignments: ShiftAssignment[]): Promise<boolean> {
     try {
-      const schedule = await this.apiService
-        .get<ScheduleApiResponse>(`/schedules/unit/${unitId}?month=${month}&year=${year}`)
-        .toPromise();
-
+      const schedule = await this.apiService.get<ScheduleApiResponse>(`/schedules/unit/${unitId}?month=${month}&year=${year}`).toPromise();
+      
       if (schedule && schedule.id) {
-        await this.apiService
-          .put(`/schedules/${schedule.id}`, {
-            assignments: assignments.map((a) => ({
-              personnelId: a.personnelId,
-              deviceId: a.deviceId,
-              date: a.date,
-              shiftType: a.shiftType,
-              startTime: a.startTime,
-              endTime: a.endTime,
-            })),
-          })
-          .toPromise();
+        await this.apiService.put(`/schedules/${schedule.id}`, {
+          assignments: assignments.map(a => ({
+            personnelId: a.personnelId,
+            deviceId: a.deviceId,
+            date: a.date,
+            shiftType: a.shiftType,
+            startTime: a.startTime,
+            endTime: a.endTime
+          }))
+        }).toPromise();
       } else {
-        await this.apiService
-          .post('/schedules', {
-            unitId,
-            month,
-            year,
-            assignments: assignments.map((a) => ({
-              personnelId: a.personnelId,
-              deviceId: a.deviceId,
-              date: a.date,
-              shiftType: a.shiftType,
-              startTime: a.startTime,
-              endTime: a.endTime,
-            })),
-          })
-          .toPromise();
+        await this.apiService.post('/schedules', {
+          unitId,
+          month,
+          year,
+          assignments: assignments.map(a => ({
+            personnelId: a.personnelId,
+            deviceId: a.deviceId,
+            date: a.date,
+            shiftType: a.shiftType,
+            startTime: a.startTime,
+            endTime: a.endTime
+          }))
+        }).toPromise();
       }
-
+      
       this.saveToLocalCache(unitId, month, year, assignments);
       return true;
     } catch (error) {
@@ -97,16 +86,14 @@ export class PersistenceStore {
 
   async loadScheduleFromApi(unitId: string, month: number, year: number): Promise<Schedule | null> {
     try {
-      const schedule = await this.apiService
-        .get<ScheduleApiResponse>(`/schedules/unit/${unitId}?month=${month}&year=${year}`)
-        .toPromise();
-
+      const schedule = await this.apiService.get<ScheduleApiResponse>(`/schedules/unit/${unitId}?month=${month}&year=${year}`).toPromise();
+      
       if (schedule) {
         const parsed = this.parseApiSchedule(schedule);
         this.saveToLocalCache(unitId, month, year, parsed.assignments);
         return parsed;
       }
-
+      
       return this.loadFromLocalCache(unitId, month, year);
     } catch (error) {
       console.error('Failed to load schedule from API:', error);
@@ -114,21 +101,13 @@ export class PersistenceStore {
     }
   }
 
-  private saveToLocalCache(
-    unit: string,
-    month: number,
-    year: number,
-    assignments: ShiftAssignment[],
-  ): void {
+  private saveToLocalCache(unit: string, month: number, year: number, assignments: ShiftAssignment[]): void {
     try {
       const key = `schedule_${unit}_${year}_${month}`;
-      localStorage.setItem(
-        key,
-        JSON.stringify({
-          assignments,
-          savedAt: new Date().toISOString(),
-        }),
-      );
+      localStorage.setItem(key, JSON.stringify({
+        assignments,
+        savedAt: new Date().toISOString()
+      }));
     } catch (error) {
       console.error('Failed to save to local cache:', error);
     }
@@ -150,7 +129,7 @@ export class PersistenceStore {
         version: 1,
         status: 'draft',
         createdAt: new Date(data.savedAt),
-        updatedAt: new Date(data.savedAt),
+        updatedAt: new Date(data.savedAt)
       };
     } catch {
       return null;
@@ -165,7 +144,7 @@ export class PersistenceStore {
       year: apiSchedule.year,
       version: apiSchedule.version,
       status: apiSchedule.status,
-      assignments: apiSchedule.assignments.map((a) => ({
+      assignments: apiSchedule.assignments.map(a => ({
         id: a.id,
         deviceId: a.deviceId,
         personnelId: a.personnelId,
@@ -173,10 +152,10 @@ export class PersistenceStore {
         shiftType: a.shiftType,
         startTime: a.startTime,
         endTime: a.endTime,
-        isConfirmed: a.isConfirmed,
+        isConfirmed: a.isConfirmed
       })),
       createdAt: new Date(apiSchedule.createdAt),
-      updatedAt: new Date(apiSchedule.updatedAt),
+      updatedAt: new Date(apiSchedule.updatedAt)
     };
   }
 
@@ -186,7 +165,7 @@ export class PersistenceStore {
       const serialized = JSON.stringify({
         ...data,
         schedules: this.serializeSchedules(data['schedules'] as Record<string, Schedule>),
-        savedAt: new Date().toISOString(),
+        savedAt: new Date().toISOString()
       });
       localStorage.setItem(this.schedulesKey, serialized);
       return true;
@@ -227,7 +206,7 @@ export class PersistenceStore {
       existing[key] = {
         key,
         schedule,
-        savedAt: new Date(),
+        savedAt: new Date()
       };
 
       localStorage.setItem(this.schedulesKey, JSON.stringify(existing));
@@ -304,13 +283,10 @@ export class PersistenceStore {
 
   savePreferences(preferences: UserPreferences): boolean {
     try {
-      localStorage.setItem(
-        this.preferencesKey,
-        JSON.stringify({
-          ...preferences,
-          savedAt: new Date().toISOString(),
-        }),
-      );
+      localStorage.setItem(this.preferencesKey, JSON.stringify({
+        ...preferences,
+        savedAt: new Date().toISOString()
+      }));
       return true;
     } catch (error) {
       console.error('Failed to save preferences:', error);
@@ -352,7 +328,7 @@ export class PersistenceStore {
       devices: this.loadDevices(),
       personnel: this.loadPersonnel(),
       preferences: this.loadPreferences(),
-      exportedAt: new Date().toISOString(),
+      exportedAt: new Date().toISOString()
     };
     return JSON.stringify(data, null, 2);
   }
@@ -393,7 +369,7 @@ export class PersistenceStore {
     return {
       used,
       available: maxSize - used,
-      percentage: Math.round((used / maxSize) * 100),
+      percentage: Math.round((used / maxSize) * 100)
     };
   }
 
@@ -405,11 +381,11 @@ export class PersistenceStore {
         ...schedule,
         createdAt: schedule.createdAt?.toISOString(),
         updatedAt: schedule.updatedAt?.toISOString(),
-        assignments: schedule.assignments.map((a) => ({
+        assignments: schedule.assignments.map(a => ({
           ...a,
           createdAt: a.createdAt?.toISOString(),
-          updatedAt: a.updatedAt?.toISOString(),
-        })),
+          updatedAt: a.updatedAt?.toISOString()
+        }))
       };
     }
 
@@ -418,20 +394,18 @@ export class PersistenceStore {
 
   private deserializeSchedule(data: Record<string, unknown>): Schedule | null {
     try {
-      const assignments = ((data['assignments'] as Array<Record<string, unknown>>) || []).map(
-        (a) => ({
-          id: a['id'] as string,
-          deviceId: a['deviceId'] as string,
-          personnelId: a['personnelId'] as string,
-          date: a['date'] as string,
-          shiftType: a['shiftType'] as 'day' | 'evening' | 'night',
-          startTime: a['startTime'] as string,
-          endTime: a['endTime'] as string,
-          isConfirmed: a['isConfirmed'] as boolean,
-          createdAt: a['createdAt'] ? new Date(a['createdAt'] as string) : undefined,
-          updatedAt: a['updatedAt'] ? new Date(a['updatedAt'] as string) : undefined,
-        }),
-      );
+      const assignments = (data['assignments'] as Array<Record<string, unknown>> || []).map(a => ({
+        id: a['id'] as string,
+        deviceId: a['deviceId'] as string,
+        personnelId: a['personnelId'] as string,
+        date: a['date'] as string,
+        shiftType: a['shiftType'] as 'day' | 'evening' | 'night',
+        startTime: a['startTime'] as string,
+        endTime: a['endTime'] as string,
+        isConfirmed: a['isConfirmed'] as boolean,
+        createdAt: a['createdAt'] ? new Date(a['createdAt'] as string) : undefined,
+        updatedAt: a['updatedAt'] ? new Date(a['updatedAt'] as string) : undefined
+      }));
 
       return {
         id: data['id'] as string,
@@ -442,7 +416,7 @@ export class PersistenceStore {
         version: data['version'] as number,
         createdAt: new Date(data['createdAt'] as string),
         updatedAt: new Date(data['updatedAt'] as string),
-        status: data['status'] as 'draft' | 'published' | 'archived',
+        status: data['status'] as 'draft' | 'published' | 'archived'
       };
     } catch {
       return null;

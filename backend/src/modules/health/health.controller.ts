@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Res, Req } from '@nestjs/common';
+﻿import { Controller, Get, UseGuards, Res, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Response, Request } from 'express';
 import { SkipCsrf } from '../auth/csrf';
@@ -45,10 +45,7 @@ export class HealthController {
 
   @Get('live')
   @SkipCsrf()
-  @ApiOperation({
-    summary:
-      'Kubernetes liveness probe — always returns ok if process is alive',
-  })
+  @ApiOperation({ summary: 'Kubernetes liveness probe â€” always returns ok if process is alive' })
   live() {
     return {
       status: 'ok',
@@ -59,10 +56,7 @@ export class HealthController {
 
   @Get('ready')
   @SkipCsrf()
-  @ApiOperation({
-    summary:
-      'Kubernetes readiness probe — checks DB, Redis, queue, memory, and system health',
-  })
+  @ApiOperation({ summary: 'Kubernetes readiness probe â€” checks DB, Redis, queue, memory, and system health' })
   async ready() {
     const checks: Record<string, string> = {};
 
@@ -72,16 +66,14 @@ export class HealthController {
     checks.memory = this.checkMemory();
     checks.endpoints = this.checkEndpointHealth();
 
-    const allOk = Object.values(checks).every((s) => s === 'ok');
+    const allOk = Object.values(checks).every(s => s === 'ok');
     const status = allOk ? 'ok' : 'degraded';
 
     if (status === 'degraded') {
       const now = Date.now();
       if (now - this.lastAlertTime > this.alertCooldownMs) {
         this.lastAlertTime = now;
-        const failed = Object.entries(checks)
-          .filter(([, v]) => v !== 'ok')
-          .map(([k]) => k);
+        const failed = Object.entries(checks).filter(([, v]) => v !== 'ok').map(([k]) => k);
         this.alerting.sendAlert({
           title: 'Readiness degraded',
           message: `Health check failure: ${failed.join(', ')}`,
@@ -102,9 +94,7 @@ export class HealthController {
   @Get()
   @SkipCsrf()
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({
-    summary: 'Full health check with system metrics (requires auth)',
-  })
+  @ApiOperation({ summary: 'Full health check with system metrics (requires auth)' })
   async check() {
     const start = Date.now();
 
@@ -134,9 +124,7 @@ export class HealthController {
   @Get('dashboard')
   @SkipCsrf()
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({
-    summary: 'Full API health dashboard with per-endpoint metrics',
-  })
+  @ApiOperation({ summary: 'Full API health dashboard with per-endpoint metrics' })
   async dashboard(@Req() req: Request, @Res() res: Response) {
     const accept = req.headers.accept || '';
 
@@ -151,17 +139,7 @@ export class HealthController {
 
     if (accept.includes('text/html')) {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.end(
-        this.renderDashboardHtml({
-          overview,
-          endpoints,
-          failing,
-          degraded,
-          slowest,
-          db,
-          system,
-        }),
-      );
+      res.end(this.renderDashboardHtml({ overview, endpoints, failing, degraded, slowest, db, system }));
       return;
     }
 
@@ -181,7 +159,7 @@ export class HealthController {
       },
       endpoints: {
         total: endpoints.length,
-        healthy: endpoints.filter((e) => e.status === 'healthy').length,
+        healthy: endpoints.filter(e => e.status === 'healthy').length,
         degraded: degraded.length,
         failing: failing.length,
         list: endpoints,
@@ -214,21 +192,46 @@ export class HealthController {
 
   private checkMemory(): string {
     const usage = process.memoryUsage();
+    const rssMB = usage.rss / 1024 / 1024;
+    const limitMB = this.getCgroupMemoryLimitMB();
+    if (limitMB > 0) {
+      return rssMB / limitMB > 0.9 ? 'warning' : 'ok';
+    }
     const heapUsedMB = usage.heapUsed / 1024 / 1024;
     const heapTotalMB = usage.heapTotal / 1024 / 1024;
-    if (heapTotalMB > 0 && heapUsedMB / heapTotalMB > 0.9) {
+    if (heapTotalMB > 256 && heapUsedMB / heapTotalMB > 0.9) {
       return 'warning';
     }
     return 'ok';
   }
 
+  private getCgroupMemoryLimitMB(): number {
+    try {
+      const raw = fs.readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim();
+      if (raw && raw !== 'max') {
+        const bytes = Number(raw);
+        if (Number.isFinite(bytes) && bytes > 0) return bytes / 1024 / 1024;
+      }
+    } catch {
+      // fall through to cgroup v1
+    }
+    try {
+      const raw = fs.readFileSync('/sys/fs/cgroup/memory/memory.limit_in_bytes', 'utf8').trim();
+      const bytes = Number(raw);
+      if (Number.isFinite(bytes) && bytes > 0 && bytes < Number.MAX_SAFE_INTEGER) {
+        return bytes / 1024 / 1024;
+      }
+    } catch {
+      // no readable cgroup limit â€” fall back to heap-based heuristic below
+    }
+    return 0;
+  }
+
   private checkEndpointHealth(): string {
     const failing = this.monitor.getFailingEndpoints();
     const degraded = this.monitor.getDegradedEndpoints();
-    if (failing.length > 0)
-      return `degraded: ${failing.length} endpoints failing`;
-    if (degraded.length > 0)
-      return `degraded: ${degraded.length} endpoints degraded`;
+    if (failing.length > 0) return `degraded: ${failing.length} endpoints failing`;
+    if (degraded.length > 0) return `degraded: ${degraded.length} endpoints degraded`;
     return 'ok';
   }
 
@@ -243,12 +246,7 @@ export class HealthController {
 
   private async checkQueue(): Promise<string> {
     try {
-      const counts = await this.scheduleQueue.getJobCounts(
-        'active',
-        'waiting',
-        'completed',
-        'failed',
-      );
+      const counts = await this.scheduleQueue.getJobCounts('active', 'waiting', 'completed', 'failed');
       if (counts.failed > 100) return `warning: ${counts.failed} failed jobs`;
       return 'ok';
     } catch {
@@ -278,17 +276,14 @@ export class HealthController {
     db: ReturnType<HealthMonitorService['getDatabaseHealth']>;
     system: ReturnType<HealthMonitorService['getSystemHealth']>;
   }): string {
-    const { overview, endpoints, failing, degraded, slowest, db, system } =
-      data;
+    const { overview, endpoints, failing, degraded, slowest, db, system } = data;
 
     const statusColor = (s: string) =>
       s === 'healthy' ? '#22c55e' : s === 'degraded' ? '#f59e0b' : '#ef4444';
     const statusIcon = (s: string) =>
-      s === 'healthy' ? '✓' : s === 'degraded' ? '⚠' : '✕';
+      s === 'healthy' ? 'âœ“' : s === 'degraded' ? 'âš ' : 'âœ•';
 
-    const endpointRows = endpoints
-      .map(
-        (e) => `
+    const endpointRows = endpoints.map(e => `
       <tr>
         <td><span class="method method-${e.method.toLowerCase()}">${e.method}</span></td>
         <td class="path">${e.path}</td>
@@ -299,9 +294,7 @@ export class HealthController {
         <td>${e.p95ResponseMs}ms</td>
         <td>${e.lastChecked ? new Date(e.lastChecked).toLocaleTimeString('tr-TR') : '-'}</td>
       </tr>
-    `,
-      )
-      .join('\n');
+    `).join('\n');
 
     return `<!DOCTYPE html>
 <html lang="tr">
@@ -351,103 +344,85 @@ tr:hover { background: #1e293b; }
 </style>
 </head>
 <body>
-<h1>🩺 API Health Dashboard</h1>
+<h1>ğŸ©º API Health Dashboard</h1>
 <p class="subtitle">${new Date().toLocaleString('tr-TR')} &middot; v${system.version} &middot; Node ${system.nodeVersion}</p>
 
 <div class="grid">
   <div class="card">
     <div class="label">Genel Durum</div>
     <div class="value ${overview.failingEndpoints > 0 ? 'red' : overview.degradedEndpoints > 0 ? 'yellow' : 'green'}">
-      ${overview.failingEndpoints > 0 ? 'Kritik' : overview.degradedEndpoints > 0 ? 'Uyarı' : 'Sağlıklı'}
+      ${overview.failingEndpoints > 0 ? 'Kritik' : overview.degradedEndpoints > 0 ? 'UyarÄ±' : 'SaÄŸlÄ±klÄ±'}
     </div>
   </div>
   <div class="card">
-    <div class="label">API Uç Noktaları</div>
+    <div class="label">API UÃ§ NoktalarÄ±</div>
     <div class="value blue">${overview.totalEndpoints}</div>
     <div class="health-bar">
-      <div class="seg" style="width:${overview.totalEndpoints > 0 ? (overview.healthyEndpoints / overview.totalEndpoints) * 100 : 0}%;background:#22c55e"></div>
-      <div class="seg" style="width:${overview.totalEndpoints > 0 ? (overview.degradedEndpoints / overview.totalEndpoints) * 100 : 0}%;background:#f59e0b"></div>
-      <div class="seg" style="width:${overview.totalEndpoints > 0 ? (overview.failingEndpoints / overview.totalEndpoints) * 100 : 0}%;background:#ef4444"></div>
+      <div class="seg" style="width:${overview.totalEndpoints > 0 ? (overview.healthyEndpoints / overview.totalEndpoints * 100) : 0}%;background:#22c55e"></div>
+      <div class="seg" style="width:${overview.totalEndpoints > 0 ? (overview.degradedEndpoints / overview.totalEndpoints * 100) : 0}%;background:#f59e0b"></div>
+      <div class="seg" style="width:${overview.totalEndpoints > 0 ? (overview.failingEndpoints / overview.totalEndpoints * 100) : 0}%;background:#ef4444"></div>
     </div>
     <div style="margin-top:6px;font-size:11px;color:#94a3b8">
-      <span style="color:#22c55e">● ${overview.healthyEndpoints} sağlıklı</span>
-      <span style="color:#f59e0b;margin-left:8px">● ${overview.degradedEndpoints} uyarı</span>
-      <span style="color:#ef4444;margin-left:8px">● ${overview.failingEndpoints} hata</span>
+      <span style="color:#22c55e">â— ${overview.healthyEndpoints} saÄŸlÄ±klÄ±</span>
+      <span style="color:#f59e0b;margin-left:8px">â— ${overview.degradedEndpoints} uyarÄ±</span>
+      <span style="color:#ef4444;margin-left:8px">â— ${overview.failingEndpoints} hata</span>
     </div>
   </div>
   <div class="card">
-    <div class="label">Veritabanı</div>
-    <div class="value ${db.connected ? 'green' : 'red'}">${db.connected ? 'Bağlı' : 'Kopuk'}</div>
+    <div class="label">VeritabanÄ±</div>
+    <div class="value ${db.connected ? 'green' : 'red'}">${db.connected ? 'BaÄŸlÄ±' : 'Kopuk'}</div>
     <div style="margin-top:6px;font-size:11px;color:#94a3b8">${db.latencyMs}ms gecikme</div>
   </div>
   <div class="card">
-    <div class="label">Bellek Kullanımı</div>
+    <div class="label">Bellek KullanÄ±mÄ±</div>
     <div class="value">${system.memory.heapUsed}MB</div>
     <div style="margin-top:6px;font-size:11px;color:#94a3b8">${system.memory.heapTotal}MB toplam</div>
   </div>
   <div class="card">
-    <div class="label">Çalışma Süresi</div>
+    <div class="label">Ã‡alÄ±ÅŸma SÃ¼resi</div>
     <div class="value green">${this.formatUptime(overview.uptimeSeconds)}</div>
   </div>
   <div class="card">
-    <div class="label">Toplam İstek</div>
+    <div class="label">Toplam Ä°stek</div>
     <div class="value blue">${overview.totalCalls}</div>
     <div style="margin-top:6px;font-size:11px;color:#94a3b8">${overview.totalErrors} hata (${overview.overallErrorRate}%)</div>
   </div>
 </div>
 
-${
-  failing.length > 0
-    ? `
-<div class="section-title" style="color:#ef4444">✕ Başarısız Uç Noktalar (${failing.length})</div>
+${failing.length > 0 ? `
+<div class="section-title" style="color:#ef4444">âœ• BaÅŸarÄ±sÄ±z UÃ§ Noktalar (${failing.length})</div>
 <table>
-<thead><tr><th>Method</th><th>Path</th><th>Durum</th><th>Hata Oranı</th><th>Ort. Süre</th><th>P95</th><th>Son</th></tr></thead>
-<tbody>${failing
-        .map(
-          (e) => `
+<thead><tr><th>Method</th><th>Path</th><th>Durum</th><th>Hata OranÄ±</th><th>Ort. SÃ¼re</th><th>P95</th><th>Son</th></tr></thead>
+<tbody>${failing.map(e => `
   <tr>
     <td><span class="method method-${e.method.toLowerCase()}">${e.method}</span></td>
     <td class="path">${e.path}</td>
-    <td><span class="badge badge-red">Başarısız</span></td>
+    <td><span class="badge badge-red">BaÅŸarÄ±sÄ±z</span></td>
     <td>${e.errorRate}%</td>
     <td>${e.avgResponseMs}ms</td>
     <td>${e.p95ResponseMs}ms</td>
     <td>${e.lastChecked ? new Date(e.lastChecked).toLocaleTimeString('tr-TR') : '-'}</td>
-  </tr>`,
-        )
-        .join('\n')}</tbody></table>`
-    : ''
-}
+  </tr>`).join('\n')}</tbody></table>` : ''}
 
-${
-  degraded.length > 0
-    ? `
-<div class="section-title" style="color:#f59e0b">⚠ Uyarılı Uç Noktalar (${degraded.length})</div>
+${degraded.length > 0 ? `
+<div class="section-title" style="color:#f59e0b">âš  UyarÄ±lÄ± UÃ§ Noktalar (${degraded.length})</div>
 <table>
-<thead><tr><th>Method</th><th>Path</th><th>Durum</th><th>Hata Oranı</th><th>Ort. Süre</th><th>P95</th><th>Son</th></tr></thead>
-<tbody>${degraded
-        .map(
-          (e) => `
+<thead><tr><th>Method</th><th>Path</th><th>Durum</th><th>Hata OranÄ±</th><th>Ort. SÃ¼re</th><th>P95</th><th>Son</th></tr></thead>
+<tbody>${degraded.map(e => `
   <tr>
     <td><span class="method method-${e.method.toLowerCase()}">${e.method}</span></td>
     <td class="path">${e.path}</td>
-    <td><span class="badge badge-yellow">Uyarı</span></td>
+    <td><span class="badge badge-yellow">UyarÄ±</span></td>
     <td>${e.errorRate}%</td>
     <td>${e.avgResponseMs}ms</td>
     <td>${e.p95ResponseMs}ms</td>
     <td>${e.lastChecked ? new Date(e.lastChecked).toLocaleTimeString('tr-TR') : '-'}</td>
-  </tr>`,
-        )
-        .join('\n')}</tbody></table>`
-    : ''
-}
+  </tr>`).join('\n')}</tbody></table>` : ''}
 
-<div class="section-title">En Yavaş Uç Noktalar (P95)</div>
+<div class="section-title">En YavaÅŸ UÃ§ Noktalar (P95)</div>
 <table>
-<thead><tr><th>#</th><th>Method</th><th>Path</th><th>Ort. Süre</th><th>P95</th><th>Toplam</th><th>Hata %</th></tr></thead>
-<tbody>${slowest
-      .map(
-        (e, i) => `
+<thead><tr><th>#</th><th>Method</th><th>Path</th><th>Ort. SÃ¼re</th><th>P95</th><th>Toplam</th><th>Hata %</th></tr></thead>
+<tbody>${slowest.map((e, i) => `
   <tr>
     <td>${i + 1}</td>
     <td><span class="method method-${e.method.toLowerCase()}">${e.method}</span></td>
@@ -456,17 +431,15 @@ ${
     <td><strong>${e.p95ResponseMs}ms</strong></td>
     <td>${e.totalCalls}</td>
     <td>${e.errorRate}%</td>
-  </tr>`,
-      )
-      .join('\n')}</tbody></table>
+  </tr>`).join('\n')}</tbody></table>
 
-<div class="section-title">Tüm Uç Noktalar (${endpoints.length})</div>
+<div class="section-title">TÃ¼m UÃ§ Noktalar (${endpoints.length})</div>
 <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
-  <input type="text" id="filter" placeholder="Uç nokta ara..." oninput="filterTable()" style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:6px 12px;border-radius:6px;font-size:13px;width:300px">
-  <span style="color:#64748b;font-size:12px;padding:6px 0">Tümü · Sağlıklı · Uyarı · Hata</span>
+  <input type="text" id="filter" placeholder="UÃ§ nokta ara..." oninput="filterTable()" style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:6px 12px;border-radius:6px;font-size:13px;width:300px">
+  <span style="color:#64748b;font-size:12px;padding:6px 0">TÃ¼mÃ¼ Â· SaÄŸlÄ±klÄ± Â· UyarÄ± Â· Hata</span>
 </div>
 <table id="endpoint-table">
-<thead><tr><th>Method</th><th>Path</th><th>Durum</th><th>İstek</th><th>Hata %</th><th>Ort. Süre</th><th>P95</th><th>Son Kontrol</th></tr></thead>
+<thead><tr><th>Method</th><th>Path</th><th>Durum</th><th>Ä°stek</th><th>Hata %</th><th>Ort. SÃ¼re</th><th>P95</th><th>Son Kontrol</th></tr></thead>
 <tbody>${endpointRows}</tbody></table>
 
 <script>

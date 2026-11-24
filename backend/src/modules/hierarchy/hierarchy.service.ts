@@ -5,13 +5,8 @@ import { PrismaService } from '../../prisma.service';
 export class HierarchyService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getAncestors(
-    table: string,
-    path: string,
-  ): Promise<{ id: string; name: string; path: string; depth: number }[]> {
-    return this.prisma.$queryRawUnsafe<
-      { id: string; name: string; path: string; depth: number }[]
-    >(
+  async getAncestors(table: string, path: string): Promise<{ id: string; name: string; path: string; depth: number }[]> {
+    return this.prisma.$queryRawUnsafe<{ id: string; name: string; path: string; depth: number }[]>(
       `SELECT id, name::text, path::text, nlevel(path) as depth
        FROM "${table}"
        WHERE path @> $1::ltree AND path != $1::ltree
@@ -20,13 +15,8 @@ export class HierarchyService {
     );
   }
 
-  async getAncestorsIncludingSelf(
-    table: string,
-    path: string,
-  ): Promise<{ id: string; name: string; path: string; depth: number }[]> {
-    return this.prisma.$queryRawUnsafe<
-      { id: string; name: string; path: string; depth: number }[]
-    >(
+  async getAncestorsIncludingSelf(table: string, path: string): Promise<{ id: string; name: string; path: string; depth: number }[]> {
+    return this.prisma.$queryRawUnsafe<{ id: string; name: string; path: string; depth: number }[]>(
       `SELECT id, name::text, path::text, nlevel(path) as depth
        FROM "${table}"
        WHERE path @> $1::ltree
@@ -35,18 +25,11 @@ export class HierarchyService {
     );
   }
 
-  async getDescendants(
-    table: string,
-    path: string,
-    maxDepth?: number,
-  ): Promise<{ id: string; name: string; path: string; depth: number }[]> {
-    const depthFilter =
-      maxDepth !== undefined
-        ? `AND nlevel(path) - nlevel($1::ltree) <= ${maxDepth}`
-        : '';
-    return this.prisma.$queryRawUnsafe<
-      { id: string; name: string; path: string; depth: number }[]
-    >(
+  async getDescendants(table: string, path: string, maxDepth?: number): Promise<{ id: string; name: string; path: string; depth: number }[]> {
+    const depthFilter = maxDepth !== undefined
+      ? `AND nlevel(path) - nlevel($1::ltree) <= ${maxDepth}`
+      : '';
+    return this.prisma.$queryRawUnsafe<{ id: string; name: string; path: string; depth: number }[]>(
       `SELECT id, name::text, path::text, nlevel(path) as depth
        FROM "${table}"
        WHERE path <@ $1::ltree AND path != $1::ltree ${depthFilter}
@@ -55,18 +38,11 @@ export class HierarchyService {
     );
   }
 
-  async getDescendantsIncludingSelf(
-    table: string,
-    path: string,
-    maxDepth?: number,
-  ): Promise<{ id: string; name: string; path: string; depth: number }[]> {
-    const depthFilter =
-      maxDepth !== undefined
-        ? `AND nlevel(path) - nlevel($1::ltree) <= ${maxDepth}`
-        : '';
-    return this.prisma.$queryRawUnsafe<
-      { id: string; name: string; path: string; depth: number }[]
-    >(
+  async getDescendantsIncludingSelf(table: string, path: string, maxDepth?: number): Promise<{ id: string; name: string; path: string; depth: number }[]> {
+    const depthFilter = maxDepth !== undefined
+      ? `AND nlevel(path) - nlevel($1::ltree) <= ${maxDepth}`
+      : '';
+    return this.prisma.$queryRawUnsafe<{ id: string; name: string; path: string; depth: number }[]>(
       `SELECT id, name::text, path::text, nlevel(path) as depth
        FROM "${table}"
        WHERE path <@ $1::ltree ${depthFilter}
@@ -75,21 +51,12 @@ export class HierarchyService {
     );
   }
 
-  async getSubtree(
-    table: string,
-    path: string,
-    maxDepth: number,
-  ): Promise<{ id: string; name: string; path: string; depth: number }[]> {
+  async getSubtree(table: string, path: string, maxDepth: number): Promise<{ id: string; name: string; path: string; depth: number }[]> {
     return this.getDescendantsIncludingSelf(table, path, maxDepth);
   }
 
-  async isDescendant(
-    descendantPath: string,
-    ancestorPath: string,
-  ): Promise<boolean> {
-    const result = await this.prisma.$queryRawUnsafe<
-      { is_descendant: boolean }[]
-    >(
+  async isDescendant(descendantPath: string, ancestorPath: string): Promise<boolean> {
+    const result = await this.prisma.$queryRawUnsafe<{ is_descendant: boolean }[]>(
       `SELECT $1::ltree <@ $2::ltree as is_descendant`,
       descendantPath,
       ancestorPath,
@@ -97,17 +64,11 @@ export class HierarchyService {
     return result[0]?.is_descendant ?? false;
   }
 
-  async isAncestor(
-    ancestorPath: string,
-    descendantPath: string,
-  ): Promise<boolean> {
+  async isAncestor(ancestorPath: string, descendantPath: string): Promise<boolean> {
     return this.isDescendant(descendantPath, ancestorPath);
   }
 
-  async getLowestCommonAncestor(
-    path1: string,
-    path2: string,
-  ): Promise<string | null> {
+  async getLowestCommonAncestor(path1: string, path2: string): Promise<string | null> {
     const result = await this.prisma.$queryRawUnsafe<{ lca: string | null }[]>(
       `SELECT lca($1::ltree, $2::ltree)::text as lca`,
       path1,
@@ -124,12 +85,8 @@ export class HierarchyService {
     return result[0]?.depth ?? 0;
   }
 
-  async getRootNodes(
-    table: string,
-  ): Promise<{ id: string; name: string; path: string }[]> {
-    return this.prisma.$queryRawUnsafe<
-      { id: string; name: string; path: string }[]
-    >(
+  async getRootNodes(table: string): Promise<{ id: string; name: string; path: string }[]> {
+    return this.prisma.$queryRawUnsafe<{ id: string; name: string; path: string }[]>(
       `SELECT id, name::text, path::text
        FROM "${table}"
        WHERE nlevel(path) = 1
@@ -137,13 +94,8 @@ export class HierarchyService {
     );
   }
 
-  async getChildren(
-    table: string,
-    path: string,
-  ): Promise<{ id: string; name: string; path: string }[]> {
-    return this.prisma.$queryRawUnsafe<
-      { id: string; name: string; path: string }[]
-    >(
+  async getChildren(table: string, path: string): Promise<{ id: string; name: string; path: string }[]> {
+    return this.prisma.$queryRawUnsafe<{ id: string; name: string; path: string }[]>(
       `SELECT id, name::text, path::text
        FROM "${table}"
        WHERE path ~ $1::lquery
@@ -152,12 +104,8 @@ export class HierarchyService {
     );
   }
 
-  async getLeafNodes(
-    table: string,
-  ): Promise<{ id: string; name: string; path: string }[]> {
-    return this.prisma.$queryRawUnsafe<
-      { id: string; name: string; path: string }[]
-    >(
+  async getLeafNodes(table: string): Promise<{ id: string; name: string; path: string }[]> {
+    return this.prisma.$queryRawUnsafe<{ id: string; name: string; path: string }[]>(
       `SELECT id, name::text, path::text
        FROM "${table}" a
        WHERE NOT EXISTS (
@@ -168,12 +116,7 @@ export class HierarchyService {
     );
   }
 
-  async computePath(
-    table: string,
-    id: string,
-    parentIdColumn: string,
-    nameColumn: string,
-  ): Promise<string> {
+  async computePath(table: string, id: string, parentIdColumn: string, nameColumn: string): Promise<string> {
     const result = await this.prisma.$queryRawUnsafe<{ path: string | null }[]>(
       `WITH RECURSIVE node_path AS (
          SELECT id, name::text as label, 1 as lvl
@@ -191,12 +134,7 @@ export class HierarchyService {
     return result[0]?.path ?? '';
   }
 
-  async moveSubtree(
-    table: string,
-    id: string,
-    newParentPath: string,
-    nameColumn: string,
-  ): Promise<number> {
+  async moveSubtree(table: string, id: string, newParentPath: string, nameColumn: string): Promise<number> {
     const result = await this.prisma.$queryRawUnsafe<{ moved: number }[]>(
       `WITH moved_node AS (
          SELECT id, path FROM "${table}" WHERE id = $1
@@ -218,9 +156,7 @@ export class HierarchyService {
       '',
     );
 
-    const descendantResult = await this.prisma.$queryRawUnsafe<
-      { moved: number }[]
-    >(
+    const descendantResult = await this.prisma.$queryRawUnsafe<{ moved: number }[]>(
       `WITH moved_node AS (
          SELECT id, path FROM "${table}" WHERE id = $1
        ),

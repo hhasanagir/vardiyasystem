@@ -19,53 +19,41 @@ export interface VersionConflictError extends ScheduleError {
 
 export function classifyHttpError(
   status: number,
-  body: { message?: string; violations?: unknown[]; statusCode?: number },
+  body: {
+    message?: string;
+    violations?: Array<{ message?: string; rule?: string; severity?: string }>;
+    hasBlocking?: boolean;
+    serverVersion?: number;
+    localVersion?: number;
+    scheduleId?: string;
+    statusCode?: number;
+  },
   context?: string,
 ): ScheduleError {
   const msg = body?.message ?? 'Bilinmeyen hata';
   switch (status) {
     case 400:
-      return {
-        code: 400,
-        message: msg,
-        userMessage: 'Geçersiz istek. Lütfen girdilerinizi kontrol edin.',
-        severity: 'warning',
-        retryable: false,
-        context,
-      };
+      return { code: 400, message: msg, userMessage: 'Geçersiz istek. Lütfen girdilerinizi kontrol edin.', severity: 'warning', retryable: false, context };
     case 401:
-      return {
-        code: 401,
-        message: msg,
-        userMessage: 'Oturumunuzun süresi dolmuş. Lütfen tekrar giriş yapın.',
-        severity: 'error',
-        retryable: false,
-        context,
-      };
+      return { code: 401, message: msg, userMessage: 'Oturumunuzun süresi dolmuş. Lütfen tekrar giriş yapın.', severity: 'error', retryable: false, context };
     case 403:
-      return {
-        code: 403,
-        message: msg,
-        userMessage: 'Bu işlem için yetkiniz bulunmuyor.',
-        severity: 'error',
-        retryable: false,
-        context,
-      };
+      return { code: 403, message: msg, userMessage: 'Bu işlem için yetkiniz bulunmuyor.', severity: 'error', retryable: false, context };
     case 404:
-      return {
-        code: 404,
-        message: msg,
-        userMessage: 'İstenen kaynak bulunamadı.',
-        severity: 'warning',
-        retryable: false,
-        context,
-      };
+      return { code: 404, message: msg, userMessage: 'İstenen kaynak bulunamadı.', severity: 'warning', retryable: false, context };
     case 409: {
-      const details = body as {
-        serverVersion?: number;
-        localVersion?: number;
-        scheduleId?: string;
-      };
+      const details = body as { serverVersion?: number; localVersion?: number; scheduleId?: string };
+      const isVersionConflict = typeof details.serverVersion === 'number' || typeof details.localVersion === 'number';
+      if (body.hasBlocking || (!isVersionConflict && Array.isArray(body.violations))) {
+        const first = body.violations?.find(v => v.message)?.message || msg;
+        return {
+          code: 409,
+          message: msg,
+          userMessage: first,
+          severity: 'error',
+          retryable: false,
+          context,
+        };
+      }
       return {
         code: 409,
         message: msg,
@@ -79,43 +67,14 @@ export function classifyHttpError(
       } as VersionConflictError;
     }
     case 422:
-      return {
-        code: 422,
-        message: msg,
-        userMessage: 'İş kuralı ihlali: ' + msg,
-        severity: 'warning',
-        retryable: false,
-        context,
-        details: body as Record<string, unknown>,
-      };
+      return { code: 422, message: msg, userMessage: 'İş kuralı ihlali: ' + msg, severity: 'warning', retryable: false, context, details: body as Record<string, unknown> };
     case 429:
-      return {
-        code: 429,
-        message: msg,
-        userMessage: 'Çok fazla istek gönderildi. Lütfen biraz bekleyin.',
-        severity: 'warning',
-        retryable: true,
-        context,
-      };
+      return { code: 429, message: msg, userMessage: 'Çok fazla istek gönderildi. Lütfen biraz bekleyin.', severity: 'warning', retryable: true, context };
     case 500:
     case 502:
     case 503:
-      return {
-        code: status,
-        message: msg,
-        userMessage: 'Sunucu hatası. Lütfen daha sonra tekrar deneyin.',
-        severity: 'critical',
-        retryable: true,
-        context,
-      };
+      return { code: status, message: msg, userMessage: 'Sunucu hatası. Lütfen daha sonra tekrar deneyin.', severity: 'critical', retryable: true, context };
     default:
-      return {
-        code: status,
-        message: msg,
-        userMessage: `Hata (${status}): ${msg}`,
-        severity: 'error',
-        retryable: false,
-        context,
-      };
+      return { code: status, message: msg, userMessage: `Hata (${status}): ${msg}`, severity: 'error', retryable: false, context };
   }
 }

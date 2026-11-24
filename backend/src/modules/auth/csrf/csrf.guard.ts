@@ -27,9 +27,7 @@ export class CsrfGuard implements CanActivate {
 
     if (skipCsrf) return true;
 
-    const existingCookie = (
-      request.cookies as Record<string, string> | undefined
-    )?.[CSRF_COOKIE];
+    const existingCookie = (request.cookies as Record<string, string> | undefined)?.[CSRF_COOKIE];
 
     if (SAFE_METHODS.has(method)) {
       if (!existingCookie) {

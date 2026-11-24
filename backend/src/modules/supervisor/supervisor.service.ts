@@ -1,11 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 
+export interface DashboardScope {
+  unitId: string | null;
+  organizationId: string | null;
+  denyAll: boolean;
+}
+
 @Injectable()
 export class SupervisorService {
   constructor(private prisma: PrismaService) {}
 
-  async getDashboard(date?: string) {
+  async getDashboard(date?: string, scope: DashboardScope = { unitId: null, organizationId: null, denyAll: false }, userId?: string) {
+    // Scope is authoritative and derived from RBAC in the controller. A unit
+    // scope confines to the assigned unit; otherwise org scope restricts to the
+    // authorized organization. Never leak sibling-unit / other-org data.
+    const unitFilter =
+      scope.unitId
+        ? { unitId: scope.unitId }
+        : scope.organizationId
+          ? { organizationId: scope.organizationId }
+          : {};
+    const viaUnitOrgFilter = (org: string | null) => (org ? { unit: { organizationId: org } } : {});
+
     const today = date || new Date().toISOString().split('T')[0];
 
     const [
@@ -18,26 +35,36 @@ export class SupervisorService {
       todayRoster,
       recentIncidents,
     ] = await Promise.all([
-      this.prisma.personnel.count({ where: { isActive: true } }),
-      this.prisma.device.count({ where: { isActive: true } }),
+      this.prisma.personnel.count({ where: { isActive: true, ...unitFilter } }),
+      this.prisma.device.count({ where: { isActive: true, ...unitFilter } }),
       this.prisma.deviceIncident.count({
         where: {
+          ...(scope.unitId
+            ? { unitId: scope.unitId }
+            : scope.organizationId
+              ? viaUnitOrgFilter(scope.organizationId)
+              : {}),
           reportedAt: {
             gte: new Date(`${today}T00:00:00.000Z`),
             lte: new Date(`${today}T23:59:59.999Z`),
           },
         },
       }),
+      // Notifications are org-scoped and confined to the user's own received ones.
       this.prisma.notification.findMany({
         take: 10,
         orderBy: { createdAt: 'desc' },
         include: {
           sender: { select: { id: true, name: true } },
         },
-        where: { status: { not: { equals: 'FAILED' } } },
+        where: {
+          status: { not: { equals: 'FAILED' } },
+          ...(scope.organizationId ? { organizationId: scope.organizationId } : {}),
+          ...(userId ? { recipients: { some: { userId } } } : {}),
+        },
       }),
       this.prisma.device.findMany({
-        where: { isActive: true },
+        where: { isActive: true, ...unitFilter },
         include: {
           unit: { select: { id: true, name: true } },
           deviceStatusLogs: {
@@ -48,13 +75,21 @@ export class SupervisorService {
         },
       }),
       this.prisma.personnel.findMany({
-        where: { isActive: true },
+        where: { isActive: true, ...unitFilter },
         include: {
           unit: { select: { id: true, name: true } },
         },
       }),
       this.prisma.dutyRoster.findMany({
-        where: { date: today, isActive: true },
+        where: {
+          date: today,
+          isActive: true,
+          ...(scope.unitId
+            ? { unitId: scope.unitId }
+            : scope.organizationId
+              ? { organizationId: scope.organizationId }
+              : {}),
+        },
         include: {
           personnel: { select: { id: true, name: true, role: true } },
           unit: { select: { id: true, name: true } },
@@ -65,7 +100,14 @@ export class SupervisorService {
       this.prisma.deviceIncident.findMany({
         take: 10,
         orderBy: { reportedAt: 'desc' },
-        where: { status: { not: { equals: 'closed' } } },
+        where: {
+          status: { not: { equals: 'closed' } },
+          ...(scope.unitId
+            ? { unitId: scope.unitId }
+            : scope.organizationId
+              ? viaUnitOrgFilter(scope.organizationId)
+              : {}),
+        },
         include: {
           unit: { select: { id: true, name: true } },
           device: { select: { id: true, name: true } },
@@ -75,9 +117,7 @@ export class SupervisorService {
     ]);
 
     const activeNow = todayRoster.length;
-    const dutyRosterUniquePersonnel = new Set(
-      todayRoster.map((r) => r.personnel.id),
-    ).size;
+    const dutyRosterUniquePersonnel = new Set(todayRoster.map(r => r.personnel.id)).size;
 
     const deviceStatusByUnit = this.groupDeviceStatusByUnit(devices);
     const personnelByUnit = this.groupPersonnelByUnit(personnel);
@@ -86,21 +126,20 @@ export class SupervisorService {
       kpis: {
         totalPersonnel,
         activeToday: dutyRosterUniquePersonnel,
-        devicesOnline: devices.filter((d) => {
+        devicesOnline: devices.filter(d => {
           const lastLog = d.deviceStatusLogs[0];
           return !lastLog || lastLog.status === 'active';
         }).length,
         totalDevices,
-        shiftCoverage:
-          activeNow > 0
-            ? Math.round((dutyRosterUniquePersonnel / totalPersonnel) * 100)
-            : 0,
+        shiftCoverage: activeNow > 0
+          ? Math.round((dutyRosterUniquePersonnel / totalPersonnel) * 100)
+          : 0,
         incidentsToday,
         pendingApprovals: 0,
       },
       deviceStatusByUnit,
       personnelByUnit,
-      todayRoster: todayRoster.map((r) => ({
+      todayRoster: todayRoster.map(r => ({
         id: r.id,
         personnelName: r.personnel.name,
         personnelRole: r.personnel.role,
@@ -112,7 +151,7 @@ export class SupervisorService {
         endTime: r.endTime,
         notes: r.notes,
       })),
-      recentIncidents: recentIncidents.map((i) => ({
+      recentIncidents: recentIncidents.map(i => ({
         id: i.id,
         issueType: i.issueType,
         severity: i.severity,
@@ -123,7 +162,7 @@ export class SupervisorService {
         reporterName: i.user.name,
         reportedAt: i.reportedAt,
       })),
-      recentAlerts: recentAlertNotifications.map((n) => ({
+      recentAlerts: recentAlertNotifications.map(n => ({
         id: n.id,
         title: n.title,
         message: n.message,
@@ -136,31 +175,12 @@ export class SupervisorService {
   }
 
   private groupDeviceStatusByUnit(devices: any[]) {
-    const map = new Map<
-      string,
-      {
-        unitId: string;
-        unitName: string;
-        active: number;
-        maintenance: number;
-        fault: number;
-        outOfService: number;
-        total: number;
-      }
-    >();
+    const map = new Map<string, { unitId: string; unitName: string; active: number; maintenance: number; fault: number; outOfService: number; total: number }>();
     for (const d of devices) {
       const unitId = d.unit?.id || 'unknown';
       const unitName = d.unit?.name || 'Unknown';
       if (!map.has(unitId)) {
-        map.set(unitId, {
-          unitId,
-          unitName,
-          active: 0,
-          maintenance: 0,
-          fault: 0,
-          outOfService: 0,
-          total: 0,
-        });
+        map.set(unitId, { unitId, unitName, active: 0, maintenance: 0, fault: 0, outOfService: 0, total: 0 });
       }
       const entry = map.get(unitId)!;
       entry.total++;
@@ -175,15 +195,7 @@ export class SupervisorService {
   }
 
   private groupPersonnelByUnit(personnel: any[]) {
-    const map = new Map<
-      string,
-      {
-        unitId: string;
-        unitName: string;
-        total: number;
-        roles: Record<string, number>;
-      }
-    >();
+    const map = new Map<string, { unitId: string; unitName: string; total: number; roles: Record<string, number> }>();
     for (const p of personnel) {
       const unitId = p.unit?.id || 'unknown';
       const unitName = p.unit?.name || 'Unknown';

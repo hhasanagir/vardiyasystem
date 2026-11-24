@@ -60,9 +60,7 @@ describe('SessionService', () => {
   describe('hashToken', () => {
     it('should produce SHA-256 hash', () => {
       const hash = service.hashToken('test-token');
-      expect(hash).toBe(
-        '4c5dc9b7708905f77f5e5d16316b5dfb425e68cb326dcd55a860e90a7707031e',
-      );
+      expect(hash).toBe('4c5dc9b7708905f77f5e5d16316b5dfb425e68cb326dcd55a860e90a7707031e');
     });
 
     it('should produce consistent hashes for same input', () => {
@@ -180,18 +178,18 @@ describe('SessionService', () => {
     it('should throw NotFoundException if session does not exist', async () => {
       mockPrisma.authSession.findUnique.mockResolvedValue(null);
 
-      await expect(service.revoke('session-404', 'user-1')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.revoke('session-404', 'user-1'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw NotFoundException if session belongs to another user', async () => {
       const otherUserSession = { ...mockAuthSession, userId: 'other-user' };
       mockPrisma.authSession.findUnique.mockResolvedValue(otherUserSession);
 
-      await expect(service.revoke('session-1', 'user-1')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.revoke('session-1', 'user-1'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should be idempotent if already revoked', async () => {
@@ -252,9 +250,7 @@ describe('SessionService', () => {
     });
 
     it('should return false if session not found', async () => {
-      mockPrisma.authSession.findUnique.mockRejectedValue(
-        new Error('not found'),
-      );
+      mockPrisma.authSession.findUnique.mockRejectedValue(new Error('not found'));
       const valid = await service.isSessionValid('session-404');
       expect(valid).toBe(false);
     });

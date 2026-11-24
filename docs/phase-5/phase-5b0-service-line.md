@@ -14,34 +14,34 @@ No explicit `ServiceLine` model. Service lines are implicit from `UnitType` enum
 
 #### Imaging (Diagnostic)
 
-| UnitType             | Equipment          | Domain                   |
-| -------------------- | ------------------ | ------------------------ |
-| `mr`                 | MRI scanners       | Diagnostic imaging       |
-| `bt`                 | CT scanners        | Diagnostic imaging       |
-| `rontgen`            | X-ray machines     | Diagnostic imaging       |
-| `ultrason`           | Ultrasound         | Diagnostic imaging       |
-| `anjiyo`             | Angiography suites | Diagnostic imaging       |
-| `mamografi`          | Mammography        | Diagnostic imaging       |
-| `kemik_dansitometri` | Bone densitometry  | Diagnostic imaging       |
-| `floroskopi`         | Fluoroscopy        | Diagnostic imaging       |
-| `pet_ct`             | PET/CT             | Diagnostic imaging       |
-| `spect_ct`           | SPECT/CT           | Nuclear medicine imaging |
+| UnitType | Equipment | Domain |
+|---|---|---|
+| `mr` | MRI scanners | Diagnostic imaging |
+| `bt` | CT scanners | Diagnostic imaging |
+| `rontgen` | X-ray machines | Diagnostic imaging |
+| `ultrason` | Ultrasound | Diagnostic imaging |
+| `anjiyo` | Angiography suites | Diagnostic imaging |
+| `mamografi` | Mammography | Diagnostic imaging |
+| `kemik_dansitometri` | Bone densitometry | Diagnostic imaging |
+| `floroskopi` | Fluoroscopy | Diagnostic imaging |
+| `pet_ct` | PET/CT | Diagnostic imaging |
+| `spect_ct` | SPECT/CT | Nuclear medicine imaging |
 
 #### Radiation Oncology (Therapeutic)
 
-| UnitType        | Equipment                  | Domain                 |
-| --------------- | -------------------------- | ---------------------- |
-| `nukleer`       | Nuclear medicine equipment | Radioactive materials  |
-| `onkoloji`      | Treatment planning         | Cancer treatment       |
-| `linak`         | Linear accelerator         | Radiation therapy      |
-| `simutasyon_ct` | Simulation CT              | Pre-treatment planning |
+| UnitType | Equipment | Domain |
+|---|---|---|
+| `nukleer` | Nuclear medicine equipment | Radioactive materials |
+| `onkoloji` | Treatment planning | Cancer treatment |
+| `linak` | Linear accelerator | Radiation therapy |
+| `simutasyon_ct` | Simulation CT | Pre-treatment planning |
 
 #### Management
 
-| UnitType     | Description            |
-| ------------ | ---------------------- |
+| UnitType | Description |
+|---|---|
 | `supervizor` | Supervisory/management |
-| `mobil`      | Mobile units           |
+| `mobil` | Mobile units |
 
 ### Recommended Architecture
 
@@ -51,20 +51,20 @@ No explicit `ServiceLine` model. Service lines are implicit from `UnitType` enum
 interface ServiceLineScheduler {
   readonly serviceLine: string;
   readonly unitTypes: UnitType[];
-
+  
   // Schedule generation
   generateSchedule(input: GenerationInput): ScheduleGenerationResult;
-
+  
   // Constraints (hard + soft)
   getHardConstraints(): HardConstraint[];
   getSoftConstraints(): SoftConstraint[];
-
+  
   // Scoring configuration
   getScoringWeights(): ScoringConfiguration;
-
+  
   // Fairness configuration
   getFairnessWeights(): FairnessWeights;
-
+  
   // Coverage requirements
   getCoverageRequirements(unit: Unit): CoverageRequirement[];
 }
@@ -77,16 +77,16 @@ class ServiceLineSchedulerFactory {
 
 ### Key Differences: Imaging vs Radiation Oncology
 
-| Aspect              | Imaging               | Radiation Oncology                      |
-| ------------------- | --------------------- | --------------------------------------- |
-| Scheduling driver   | Device availability   | Treatment plan                          |
-| Session duration    | 5-60 minutes          | 15-30 minutes                           |
-| Patient flow        | Walk-in / scheduled   | Treatment fractions (5-7 weeks)         |
-| Weekend coverage    | Reduced               | Treatment-dependent                     |
-| Staff requirements  | 1 technologist/device | Team (physicist + technologist + nurse) |
-| Critical bottleneck | MRI availability      | Linac availability                      |
-| Dose tracking       | N/A                   | Staff radiation dose                    |
-| Holiday handling    | Typically closed      | Treatment calendar                      |
+| Aspect | Imaging | Radiation Oncology |
+|---|---|---|
+| Scheduling driver | Device availability | Treatment plan |
+| Session duration | 5-60 minutes | 15-30 minutes |
+| Patient flow | Walk-in / scheduled | Treatment fractions (5-7 weeks) |
+| Weekend coverage | Reduced | Treatment-dependent |
+| Staff requirements | 1 technologist/device | Team (physicist + technologist + nurse) |
+| Critical bottleneck | MRI availability | Linac availability |
+| Dose tracking | N/A | Staff radiation dose |
+| Holiday handling | Typically closed | Treatment calendar |
 
 ### Implementation Phases
 
@@ -129,7 +129,6 @@ model Device {
 **YES — with no schema changes.**
 
 The current `Device` model is generic enough:
-
 - `code` — equipment identifier (e.g., "LINAC-01", "MR-03")
 - `name` — display name
 - `mode` — `vardiya` (shift-based) or `polyclinic` (OPD-based)
@@ -141,12 +140,12 @@ The current `Device` model is generic enough:
 
 ### Resource Abstraction Decision
 
-| Option                                   | Pros                       | Cons                     | Recommendation       |
-| ---------------------------------------- | -------------------------- | ------------------------ | -------------------- |
-| Keep `Device` as-is                      | No migration, no risk      | Semantically overloaded  | **RECOMMENDED**      |
-| Add `resourceType` field                 | Distinguishes device types | Migration needed         | Future consideration |
-| Create separate `TreatmentMachine` model | Clean domain separation    | Over-engineering for now | Don't do yet         |
-| Rename to `Resource`                     | Generic terminology        | Massive rename migration | Don't do ever        |
+| Option | Pros | Cons | Recommendation |
+|---|---|---|---|
+| Keep `Device` as-is | No migration, no risk | Semantically overloaded | **RECOMMENDED** |
+| Add `resourceType` field | Distinguishes device types | Migration needed | Future consideration |
+| Create separate `TreatmentMachine` model | Clean domain separation | Over-engineering for now | Don't do yet |
+| Rename to `Resource` | Generic terminology | Massive rename migration | Don't do ever |
 
 ### Justification
 
@@ -156,4 +155,4 @@ The `Device` model already functions as a generic resource. `DeviceMode` (`vardi
 
 ---
 
-_Audit completed: 2026-08-25_
+*Audit completed: 2026-08-25*

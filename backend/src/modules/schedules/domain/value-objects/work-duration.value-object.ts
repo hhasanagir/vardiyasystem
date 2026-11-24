@@ -11,12 +11,8 @@ export class WorkDuration extends ValueObject<{ hours: number }> {
     return new WorkDuration({ hours });
   }
 
-  get hours(): number {
-    return this._value.hours;
-  }
-  get minutes(): number {
-    return this._value.hours * 60;
-  }
+  get hours(): number { return this._value.hours; }
+  get minutes(): number { return this._value.hours * 60; }
 
   isWithinLimit(maxHours: number): boolean {
     return this._value.hours <= maxHours;

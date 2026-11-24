@@ -15,19 +15,19 @@
 
 ### Test Files (Schedule Module)
 
-| File                              | Tests | Status      | Purpose                       |
-| --------------------------------- | ----- | ----------- | ----------------------------- |
-| `security-closure-4.1.spec.ts`    | 38    | ✅ PASS     | Security behavioral tests     |
-| `security-invariants.spec.ts`     | 12    | ✅ PASS     | Security invariant regression |
-| `device-shift-visibility.spec.ts` | 14    | ✅ PASS     | DTO mapping tests             |
-| `constraint-engine.spec.ts`       | —     | ✅ PASS     | Constraint validation         |
-| `fairness-engine.spec.ts`         | —     | ⚠️ FAIL (2) | Fairness calculation          |
-| `schedule-validation.spec.ts`     | —     | ✅ PASS     | Validation orchestration      |
+| File | Tests | Status | Purpose |
+|---|---|---|---|
+| `security-closure-4.1.spec.ts` | 38 | ✅ PASS | Security behavioral tests |
+| `security-invariants.spec.ts` | 12 | ✅ PASS | Security invariant regression |
+| `device-shift-visibility.spec.ts` | 14 | ✅ PASS | DTO mapping tests |
+| `constraint-engine.spec.ts` | — | ✅ PASS | Constraint validation |
+| `fairness-engine.spec.ts` | — | ⚠️ FAIL (2) | Fairness calculation |
+| `schedule-validation.spec.ts` | — | ✅ PASS | Validation orchestration |
 
 ### Known Failures
 
-| Test                                  | Failure                | Root Cause                         |
-| ------------------------------------- | ---------------------- | ---------------------------------- |
+| Test | Failure | Root Cause |
+|---|---|---|
 | `analytics.service.spec.ts` (2 tests) | Missing `holiday` mock | Pre-existing, not schedule-related |
 
 ---
@@ -193,9 +193,9 @@ await seedScheduleTestData(testDb);
 
 ```typescript
 // Use mock JWT tokens
-const adminToken = generateTestToken({ role: "system_admin" });
-const supervisorToken = generateTestToken({ role: "supervisor" });
-const technicianToken = generateTestToken({ role: "technician" });
+const adminToken = generateTestToken({ role: 'system_admin' });
+const supervisorToken = generateTestToken({ role: 'supervisor' });
+const technicianToken = generateTestToken({ role: 'technician' });
 ```
 
 ---
@@ -206,83 +206,76 @@ const technicianToken = generateTestToken({ role: "technician" });
 
 ```javascript
 // schedule-generation-load.js
-import http from "k6/http";
-import { check, sleep } from "k6";
+import http from 'k6/http';
+import { check, sleep } from 'k6';
 
 export const options = {
   scenarios: {
     schedule_generation: {
-      executor: "ramping-vus",
+      executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: "30s", target: 5 }, // Ramp up
-        { duration: "1m", target: 10 }, // Sustained load
-        { duration: "30s", target: 0 }, // Ramp down
+        { duration: '30s', target: 5 },   // Ramp up
+        { duration: '1m', target: 10 },   // Sustained load
+        { duration: '30s', target: 0 },   // Ramp down
       ],
     },
   },
   thresholds: {
-    http_req_duration: ["p(95)<30000"], // 95% under 30s
-    http_req_failed: ["rate<0.01"], // <1% failure rate
+    http_req_duration: ['p(95)<30000'],  // 95% under 30s
+    http_req_failed: ['rate<0.01'],      // <1% failure rate
   },
 };
 
 export default function () {
-  const res = http.post(
-    "http://localhost:3000/api/v1/schedules/dry-run",
-    JSON.stringify({
-      unitId: "test-unit",
-      month: 8,
-      year: 2026,
-      algorithm: "genetic",
-      configuration: {
-        populationSize: 50,
-        maxIterations: 500,
-      },
-    }),
-    {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${__ENV.TEST_TOKEN}`,
-      },
+  const res = http.post('http://localhost:3000/api/v1/schedules/dry-run', JSON.stringify({
+    unitId: 'test-unit',
+    month: 8,
+    year: 2026,
+    algorithm: 'genetic',
+    configuration: {
+      populationSize: 50,
+      maxIterations: 500,
     },
-  );
-
-  check(res, {
-    "status is 200": (r) => r.status === 200,
-    "has assignments": (r) => JSON.parse(r.body).assignments.length > 0,
-    "has score": (r) => JSON.parse(r.body).score.overall > 0,
+  }), {
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${__ENV.TEST_TOKEN}` },
   });
-
+  
+  check(res, {
+    'status is 200': (r) => r.status === 200,
+    'has assignments': (r) => JSON.parse(r.body).assignments.length > 0,
+    'has score': (r) => JSON.parse(r.body).score.overall > 0,
+  });
+  
   sleep(1);
 }
 ```
 
 ### Benchmark Scenarios
 
-| Scenario                                     | Target       | Notes                  |
-| -------------------------------------------- | ------------ | ---------------------- |
-| Greedy generation (30 personnel, 30 days)    | <5s          | Current backend        |
-| Genetic optimization (30 personnel, 30 days) | <120s        | Phase 5B backend       |
-| Dry-run (30 personnel, 30 days)              | <120s        | Phase 5B dry-run       |
-| Full validation (2700 assignments)           | <5s          | Current backend        |
-| Concurrent schedule access (10 users)        | No conflicts | Optimistic concurrency |
+| Scenario | Target | Notes |
+|---|---|---|
+| Greedy generation (30 personnel, 30 days) | <5s | Current backend |
+| Genetic optimization (30 personnel, 30 days) | <120s | Phase 5B backend |
+| Dry-run (30 personnel, 30 days) | <120s | Phase 5B dry-run |
+| Full validation (2700 assignments) | <5s | Current backend |
+| Concurrent schedule access (10 users) | No conflicts | Optimistic concurrency |
 
 ---
 
 ## Test Coverage Targets
 
-| Area                         | Current   | Target | Gap            |
-| ---------------------------- | --------- | ------ | -------------- |
-| ConstraintEngine             | ✅ High   | 100%   | Low            |
-| FairnessEngine               | ⚠️ Medium | 95%    | Medium         |
-| ScoringModel                 | ⚠️ Medium | 95%    | Medium         |
-| ScheduleApplicationService   | ❌ Low    | 90%    | High           |
-| ScheduleAutoGeneratorService | ❌ None   | 85%    | High           |
-| ScheduleOptimizerService     | ❌ N/A    | 90%    | N/A (Phase 5B) |
-| API endpoints                | ❌ Low    | 85%    | High           |
-| Frontend scheduling          | ❌ None   | 70%    | High           |
-| Security                     | ✅ High   | 100%   | Low            |
+| Area | Current | Target | Gap |
+|---|---|---|---|
+| ConstraintEngine | ✅ High | 100% | Low |
+| FairnessEngine | ⚠️ Medium | 95% | Medium |
+| ScoringModel | ⚠️ Medium | 95% | Medium |
+| ScheduleApplicationService | ❌ Low | 90% | High |
+| ScheduleAutoGeneratorService | ❌ None | 85% | High |
+| ScheduleOptimizerService | ❌ N/A | 90% | N/A (Phase 5B) |
+| API endpoints | ❌ Low | 85% | High |
+| Frontend scheduling | ❌ None | 70% | High |
+| Security | ✅ High | 100% | Low |
 
 ---
 
@@ -306,7 +299,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: '20'
       - run: npm ci
       - run: npx prisma generate
       - run: npx vitest run --reporter=verbose
@@ -317,11 +310,11 @@ jobs:
 
 ### Test Commands
 
-| Command                             | Purpose                           |
-| ----------------------------------- | --------------------------------- |
-| `npx vitest run <file>`             | Run specific test file            |
+| Command | Purpose |
+|---|---|
+| `npx vitest run <file>` | Run specific test file |
 | `npx vitest run --reporter=verbose` | Run all tests with verbose output |
-| `npx tsc --noEmit`                  | Type check                        |
-| `npx tsc -p tsconfig.build.json`    | Build check                       |
-| `npx prisma validate`               | Schema validation                 |
-| `npx prisma format`                 | Schema formatting                 |
+| `npx tsc --noEmit` | Type check |
+| `npx tsc -p tsconfig.build.json` | Build check |
+| `npx prisma validate` | Schema validation |
+| `npx prisma format` | Schema formatting |

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 @Injectable()
@@ -19,8 +14,7 @@ export class NotificationAccessGuard implements CanActivate {
     const paramUserId = request.params.userId;
     if (paramUserId && paramUserId !== user.id) {
       const userRole = user.role || '';
-      const isAdmin =
-        userRole === 'system_admin' || userRole === 'hospital_admin';
+      const isAdmin = userRole === 'system_admin' || userRole === 'hospital_admin';
       if (!isAdmin) {
         throw new ForbiddenException('Cannot access other user notifications');
       }

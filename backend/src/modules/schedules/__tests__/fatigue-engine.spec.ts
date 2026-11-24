@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  FatigueEngine,
-  DEFAULT_FATIGUE_COEFFICIENTS,
-  WORKLOAD_LIMITS,
-} from '../domain/models/fatigue-engine';
+import { FatigueEngine, DEFAULT_FATIGUE_COEFFICIENTS, WORKLOAD_LIMITS } from '../domain/models/fatigue-engine';
 import { AssignmentCollection } from '../domain/entities/assignment-collection';
 
 const emptyAssignments = new AssignmentCollection();
@@ -37,7 +33,7 @@ describe('FatigueEngine - Characterization Tests', () => {
       holidays: new Set(),
     });
     expect(result.score).toBeLessThan(100);
-    expect(result.factors.some((f) => f.type === 'weekend_work')).toBe(true);
+    expect(result.factors.some(f => f.type === 'weekend_work')).toBe(true);
   });
 
   it('should penalize holiday shifts', () => {
@@ -51,7 +47,7 @@ describe('FatigueEngine - Characterization Tests', () => {
       holidays: new Set(['2026-01-01']),
     });
     expect(result.score).toBeLessThan(100);
-    expect(result.factors.some((f) => f.type === 'holiday_work')).toBe(true);
+    expect(result.factors.some(f => f.type === 'holiday_work')).toBe(true);
   });
 
   it('should use canonical REQUIRED_REST_HOURS for short rest detection', () => {
@@ -102,7 +98,7 @@ describe('FatigueEngine - Characterization Tests', () => {
   });
 
   it('should allow custom coefficients', () => {
-    const custom = new FatigueEngine({ consecutiveNightPenalty: 0.5 });
+    const custom = new FatigueEngine({ consecutiveNightPenalty: 0.50 });
     const result = custom.evaluate({
       candidateDate: '2026-01-01',
       candidateShiftType: 'day',

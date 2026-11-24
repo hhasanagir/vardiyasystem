@@ -1,0 +1,1 @@
+var n={MR:"mr",BT:"bt",RONTGEN:"rontgen",NUKLEER:"nukleer",ONKOLOJI:"onkoloji"},e={DAY:"day",EVENING:"evening",NIGHT:"night"};function o(t){switch(t){case e.DAY:return"G\xFCnd\xFCz";case e.EVENING:return"Ak\u015Fam";case e.NIGHT:return"Gece";default:return t}}export{n as a,e as b,o as c};

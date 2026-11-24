@@ -5,9 +5,4 @@ export { Permissions } from './decorators/permissions.decorator';
 export { ScopeLevel } from './decorators/scope-level.decorator';
 export { CurrentUser } from './decorators/current-user.decorator';
 export { ScopeResolutionService } from './services/scope-resolution.service';
-export {
-  RbacUser,
-  AccessDeniedError,
-  PermissionScope,
-  HierarchyScopeLevel,
-} from './interfaces/rbac.types';
+export { RbacUser, AccessDeniedError, PermissionScope, HierarchyScopeLevel } from './interfaces/rbac.types';

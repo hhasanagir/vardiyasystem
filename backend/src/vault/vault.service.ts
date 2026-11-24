@@ -36,12 +36,9 @@ export class VaultService implements SecretProvider {
       const res = await fetch(`${this.vaultAddr}/v1/auth/approle/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          role_id: this.vaultRoleId,
-          secret_id: this.vaultSecretId,
-        }),
+        body: JSON.stringify({ role_id: this.vaultRoleId, secret_id: this.vaultSecretId }),
       });
-      const data = (await res.json()) as any;
+      const data = await res.json() as any;
       this.vaultToken = data.auth?.client_token || null;
       if (this.vaultToken) {
         this.logger.log('Vault AppRole authentication successful');
@@ -64,7 +61,7 @@ export class VaultService implements SecretProvider {
       const res = await fetch(`${this.vaultAddr}/v1/${this.vaultPath}`, {
         headers: { 'X-Vault-Token': this.vaultToken! },
       });
-      const data = (await res.json()) as any;
+      const data = await res.json() as any;
       return data?.data?.data?.[key] ?? undefined;
     } catch {
       return undefined;

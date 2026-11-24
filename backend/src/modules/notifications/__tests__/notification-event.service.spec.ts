@@ -22,20 +22,8 @@ describe('NotificationEventService (personnel->user resolution)', () => {
       findUnique: vi.fn(),
       findMany: vi.fn(),
     },
-    notification: {
-      create: vi.fn(),
-      findMany: vi.fn(),
-      count: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn(),
-    },
-    notificationRecipient: {
-      create: vi.fn(),
-      createMany: vi.fn(),
-      count: vi.fn(),
-      findMany: vi.fn(),
-      updateMany: vi.fn(),
-    },
+    notification: { create: vi.fn(), findMany: vi.fn(), count: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+    notificationRecipient: { create: vi.fn(), createMany: vi.fn(), count: vi.fn(), findMany: vi.fn(), updateMany: vi.fn() },
     notificationDelivery: { create: vi.fn(), updateMany: vi.fn() },
   };
 
@@ -46,22 +34,14 @@ describe('NotificationEventService (personnel->user resolution)', () => {
   };
 
   const mockTemplate = {
-    render: vi
-      .fn()
-      .mockResolvedValue({
-        title: 'Vardiya Değişikliği',
-        message: 'Yeni atama yapıldı',
-      }),
+    render: vi.fn().mockResolvedValue({ title: 'Vardiya Değişikliği', message: 'Yeni atama yapıldı' }),
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         NotificationEventService,
-        {
-          provide: NotificationOrchestratorService,
-          useValue: mockOrchestrator,
-        },
+        { provide: NotificationOrchestratorService, useValue: mockOrchestrator },
         { provide: NotificationTemplateService, useValue: mockTemplate },
         { provide: EventBusService, useValue: { publish: vi.fn() } },
         { provide: PrismaService, useValue: mockPrisma },
@@ -69,9 +49,7 @@ describe('NotificationEventService (personnel->user resolution)', () => {
     }).compile();
 
     service = module.get<NotificationEventService>(NotificationEventService);
-    orchestrator = module.get<NotificationOrchestratorService>(
-      NotificationOrchestratorService,
-    );
+    orchestrator = module.get<NotificationOrchestratorService>(NotificationOrchestratorService);
     prisma = module.get<PrismaService>(PrismaService);
 
     vi.clearAllMocks();
@@ -80,15 +58,10 @@ describe('NotificationEventService (personnel->user resolution)', () => {
   it('should resolve personnelId to real userId via email and notify that user (rule I)', async () => {
     const personnelId = '62222a14-4231-4b89-aca8-04662b307a1f';
     mockPrisma.user.findUnique.mockResolvedValue(null);
-    mockPrisma.personnel.findUnique.mockResolvedValue({
-      id: personnelId,
-      email: 'yusuf.erdogan@hospital.com',
-    });
+    mockPrisma.personnel.findUnique.mockResolvedValue({ id: personnelId, email: 'yusuf.erdogan@hospital.com' });
     mockPrisma.user.findFirst.mockResolvedValue({ id: 'real-user-1' });
 
-    await service.assignmentCreated(personnelId, 'org-1', {
-      date: '2026-08-04',
-    });
+    await service.assignmentCreated(personnelId, 'org-1', { date: '2026-08-04' });
 
     expect(orchestrator.send).toHaveBeenCalledWith(
       expect.objectContaining({ recipientIds: ['real-user-1'] }),
@@ -97,28 +70,18 @@ describe('NotificationEventService (personnel->user resolution)', () => {
 
   it('should NOT create a notification when personnel has no user account (rule J, no FK error)', async () => {
     mockPrisma.user.findUnique.mockResolvedValue(null);
-    mockPrisma.personnel.findUnique.mockResolvedValue({
-      id: 'personnel-no-account',
-      email: 'ghost@hospital.com',
-    });
+    mockPrisma.personnel.findUnique.mockResolvedValue({ id: 'personnel-no-account', email: 'ghost@hospital.com' });
     mockPrisma.user.findFirst.mockResolvedValue(null);
 
-    await service.assignmentCreated('personnel-no-account', 'org-1', {
-      date: '2026-08-04',
-    });
+    await service.assignmentCreated('personnel-no-account', 'org-1', { date: '2026-08-04' });
 
     expect(orchestrator.send).not.toHaveBeenCalled();
   });
 
   it('should notify a direct real userId for legacy callers', async () => {
-    mockPrisma.user.findUnique.mockResolvedValue({
-      id: 'legacy-user',
-      isActive: true,
-    });
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'legacy-user', isActive: true });
 
-    await service.assignmentCreated('legacy-user', 'org-1', {
-      date: '2026-08-04',
-    });
+    await service.assignmentCreated('legacy-user', 'org-1', { date: '2026-08-04' });
 
     expect(orchestrator.send).toHaveBeenCalledWith(
       expect.objectContaining({ recipientIds: ['legacy-user'] }),
@@ -129,9 +92,7 @@ describe('NotificationEventService (personnel->user resolution)', () => {
     mockPrisma.user.findUnique.mockResolvedValue(null);
     mockPrisma.personnel.findUnique.mockResolvedValue(null);
 
-    await service.assignmentRemoved('missing-personnel', 'org-1', {
-      date: '2026-08-04',
-    });
+    await service.assignmentRemoved('missing-personnel', 'org-1', { date: '2026-08-04' });
 
     expect(orchestrator.send).not.toHaveBeenCalled();
   });
@@ -143,9 +104,7 @@ describe('NotificationsService.addRecipients (FK defense)', () => {
 
   const mockPrisma = {
     user: { findMany: vi.fn() },
-    notificationRecipient: {
-      createMany: vi.fn().mockResolvedValue({ count: 0 }),
-    },
+    notificationRecipient: { createMany: vi.fn().mockResolvedValue({ count: 0 }) },
   };
 
   beforeEach(async () => {
@@ -164,10 +123,7 @@ describe('NotificationsService.addRecipients (FK defense)', () => {
   it('should filter out non-existent userIds before createMany (rule I)', async () => {
     mockPrisma.user.findMany.mockResolvedValue([{ id: 'valid-1' }]);
 
-    const valid = await service.addRecipients('notif-1', [
-      'valid-1',
-      'personnel-id-mistaken-as-user',
-    ]);
+    const valid = await service.addRecipients('notif-1', ['valid-1', 'personnel-id-mistaken-as-user']);
 
     expect(valid).toEqual(['valid-1']);
     expect(mockPrisma.notificationRecipient.createMany).toHaveBeenCalledWith({
@@ -179,10 +135,7 @@ describe('NotificationsService.addRecipients (FK defense)', () => {
   it('should not createAny recipients when none of the ids are real users (rule J)', async () => {
     mockPrisma.user.findMany.mockResolvedValue([]);
 
-    const valid = await service.addRecipients('notif-1', [
-      'ghost-1',
-      'ghost-2',
-    ]);
+    const valid = await service.addRecipients('notif-1', ['ghost-1', 'ghost-2']);
 
     expect(valid).toEqual([]);
     expect(mockPrisma.notificationRecipient.createMany).not.toHaveBeenCalled();

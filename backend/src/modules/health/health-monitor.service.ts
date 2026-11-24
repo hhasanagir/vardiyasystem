@@ -29,12 +29,7 @@ export interface DbHealth {
 export interface SystemHealth {
   uptime: number;
   startTime: Date;
-  memory: {
-    heapUsed: number;
-    heapTotal: number;
-    rss: number;
-    external: number;
-  };
+  memory: { heapUsed: number; heapTotal: number; rss: number; external: number };
   cpuLoad: number[];
   version: string;
   nodeVersion: string;
@@ -59,30 +54,16 @@ export class HealthMonitorService {
   private readonly errorRateThreshold: number;
   private readonly consecutiveErrorThreshold: number;
   private readonly dbCheckIntervalMs: number;
-  private dbHealth: DbHealth = {
-    connected: true,
-    latencyMs: 0,
-    lastChecked: null,
-    lastError: null,
-  };
+  private dbHealth: DbHealth = { connected: true, latencyMs: 0, lastChecked: null, lastError: null };
   private systemHealth: SystemHealth;
   private dbCheckTimer: ReturnType<typeof setInterval> | null = null;
   private readonly startTime = Date.now();
   private version = '0.0.0';
 
   constructor(private config: ConfigService) {
-    this.errorRateThreshold = this.config.get(
-      'HEALTH_ERROR_RATE_THRESHOLD',
-      0.05,
-    );
-    this.consecutiveErrorThreshold = this.config.get(
-      'HEALTH_CONSECUTIVE_ERROR_THRESHOLD',
-      5,
-    );
-    this.dbCheckIntervalMs = this.config.get(
-      'HEALTH_DB_CHECK_INTERVAL_MS',
-      15000,
-    );
+    this.errorRateThreshold = this.config.get('HEALTH_ERROR_RATE_THRESHOLD', 0.05);
+    this.consecutiveErrorThreshold = this.config.get('HEALTH_CONSECUTIVE_ERROR_THRESHOLD', 5);
+    this.dbCheckIntervalMs = this.config.get('HEALTH_DB_CHECK_INTERVAL_MS', 15000);
 
     try {
       const pkg = require('../../package.json');
@@ -101,12 +82,7 @@ export class HealthMonitorService {
     };
   }
 
-  recordSuccess(
-    method: string,
-    path: string,
-    statusCode: number,
-    durationMs: number,
-  ): void {
+  recordSuccess(method: string, path: string, statusCode: number, durationMs: number): void {
     const key = this.endpointKey(method, path);
     let ep = this.endpoints.get(key);
     if (!ep) {
@@ -130,13 +106,7 @@ export class HealthMonitorService {
     this.recomputePercentiles(ep);
   }
 
-  recordError(
-    method: string,
-    path: string,
-    statusCode: number,
-    durationMs: number,
-    error?: string,
-  ): void {
+  recordError(method: string, path: string, statusCode: number, durationMs: number, error?: string): void {
     const key = this.endpointKey(method, path);
     let ep = this.endpoints.get(key);
     if (!ep) {
@@ -161,9 +131,7 @@ export class HealthMonitorService {
     this.recomputePercentiles(ep);
   }
 
-  startDbHealthCheck(prisma: {
-    $queryRaw: (q: TemplateStringsArray) => Promise<unknown>;
-  }): void {
+  startDbHealthCheck(prisma: { $queryRaw: (q: TemplateStringsArray) => Promise<unknown> }): void {
     this.dbCheckTimer = setInterval(async () => {
       const start = Date.now();
       try {
@@ -181,10 +149,7 @@ export class HealthMonitorService {
           lastChecked: new Date(),
           lastError: (err as Error).message,
         };
-        this.logger.error(
-          'Database health check failed',
-          (err as Error).message,
-        );
+        this.logger.error('Database health check failed', (err as Error).message);
       }
     }, this.dbCheckIntervalMs);
   }
@@ -207,10 +172,7 @@ export class HealthMonitorService {
       let status: 'healthy' | 'degraded' | 'failing';
       if (ep.isFailing || errorRate > this.errorRateThreshold * 3) {
         status = 'failing';
-      } else if (
-        errorRate > this.errorRateThreshold ||
-        ep.consecutiveErrors > 0
-      ) {
+      } else if (errorRate > this.errorRateThreshold || ep.consecutiveErrors > 0) {
         status = 'degraded';
       } else {
         status = 'healthy';
@@ -227,18 +189,15 @@ export class HealthMonitorService {
         lastChecked: ep.lastChecked,
       });
     }
-    return result.sort(
-      (a, b) =>
-        a.path.localeCompare(b.path) || a.method.localeCompare(b.method),
-    );
+    return result.sort((a, b) => a.path.localeCompare(b.path) || a.method.localeCompare(b.method));
   }
 
   getFailingEndpoints(): EndpointSummary[] {
-    return this.getEndpointStatuses().filter((e) => e.status === 'failing');
+    return this.getEndpointStatuses().filter(e => e.status === 'failing');
   }
 
   getDegradedEndpoints(): EndpointSummary[] {
-    return this.getEndpointStatuses().filter((e) => e.status === 'degraded');
+    return this.getEndpointStatuses().filter(e => e.status === 'degraded');
   }
 
   getDatabaseHealth(): DbHealth {
@@ -251,17 +210,12 @@ export class HealthMonitorService {
       uptime: Math.floor((Date.now() - this.startTime) / 1000),
       startTime: new Date(this.startTime),
       memory: {
-        heapUsed: Math.round((mem.heapUsed / 1024 / 1024) * 100) / 100,
-        heapTotal: Math.round((mem.heapTotal / 1024 / 1024) * 100) / 100,
-        rss: Math.round((mem.rss / 1024 / 1024) * 100) / 100,
-        external: Math.round((mem.external / 1024 / 1024) * 100) / 100,
+        heapUsed: Math.round(mem.heapUsed / 1024 / 1024 * 100) / 100,
+        heapTotal: Math.round(mem.heapTotal / 1024 / 1024 * 100) / 100,
+        rss: Math.round(mem.rss / 1024 / 1024 * 100) / 100,
+        external: Math.round(mem.external / 1024 / 1024 * 100) / 100,
       },
-      cpuLoad: process.cpuUsage
-        ? [
-            Math.round(process.cpuUsage().user / 1000),
-            Math.round(process.cpuUsage().system / 1000),
-          ]
-        : [],
+      cpuLoad: process.cpuUsage ? [Math.round(process.cpuUsage().user / 1000), Math.round(process.cpuUsage().system / 1000)] : [],
       version: this.version,
       nodeVersion: process.version,
     };
@@ -284,26 +238,17 @@ export class HealthMonitorService {
     uptimeSeconds: number;
   } {
     const statuses = this.getEndpointStatuses();
-    const totalCalls = Array.from(this.endpoints.values()).reduce(
-      (s, e) => s + e.totalCalls,
-      0,
-    );
-    const totalErrors = Array.from(this.endpoints.values()).reduce(
-      (s, e) => s + e.errorCalls,
-      0,
-    );
+    const totalCalls = Array.from(this.endpoints.values()).reduce((s, e) => s + e.totalCalls, 0);
+    const totalErrors = Array.from(this.endpoints.values()).reduce((s, e) => s + e.errorCalls, 0);
 
     return {
       totalEndpoints: statuses.length,
-      healthyEndpoints: statuses.filter((e) => e.status === 'healthy').length,
-      degradedEndpoints: statuses.filter((e) => e.status === 'degraded').length,
-      failingEndpoints: statuses.filter((e) => e.status === 'failing').length,
+      healthyEndpoints: statuses.filter(e => e.status === 'healthy').length,
+      degradedEndpoints: statuses.filter(e => e.status === 'degraded').length,
+      failingEndpoints: statuses.filter(e => e.status === 'failing').length,
       totalCalls,
       totalErrors,
-      overallErrorRate:
-        totalCalls > 0
-          ? Math.round((totalErrors / totalCalls) * 10000) / 100
-          : 0,
+      overallErrorRate: totalCalls > 0 ? Math.round(totalErrors / totalCalls * 10000) / 100 : 0,
       databaseConnected: this.dbHealth.connected,
       uptimeSeconds: Math.floor((Date.now() - this.startTime) / 1000),
     };
@@ -311,7 +256,7 @@ export class HealthMonitorService {
 
   getTopSlowestEndpoints(limit = 10): EndpointSummary[] {
     return this.getEndpointStatuses()
-      .filter((e) => e.totalCalls > 0)
+      .filter(e => e.totalCalls > 0)
       .sort((a, b) => b.p95ResponseMs - a.p95ResponseMs)
       .slice(0, limit);
   }
@@ -356,9 +301,7 @@ export class HealthMonitorService {
     ep.avgResponseMs = sum / times.length;
 
     const sorted = [...times].sort((a, b) => a - b);
-    ep.p95ResponseMs =
-      sorted[Math.floor(sorted.length * 0.95)] || sorted[sorted.length - 1];
-    ep.p99ResponseMs =
-      sorted[Math.floor(sorted.length * 0.99)] || sorted[sorted.length - 1];
+    ep.p95ResponseMs = sorted[Math.floor(sorted.length * 0.95)] || sorted[sorted.length - 1];
+    ep.p99ResponseMs = sorted[Math.floor(sorted.length * 0.99)] || sorted[sorted.length - 1];
   }
 }

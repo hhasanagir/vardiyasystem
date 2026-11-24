@@ -8,18 +8,18 @@
 
 ## 1. Hedefler
 
-| #   | Hedef                                                                               | Sonuç                                                                                                                                                                                                                  |
-| --- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | PG major'ını her katmanda sabitle (compose dev/prod, helm, k8s, restore, workflows) | **PG15** tek major; preflight `postgres-version-aligned` ile zorlanıyor                                                                                                                                                |
-| 2   | Clean-install parity: prod manifest'leri temiz makinede doğrulanabilir olsun        | `release-dry-run.sh --ci` kök `.env` + `secrets/*.txt` placeholder üretir; `.gitignore` (satır 12/67) bu dosyaları korur                                                                                               |
-| 3   | Workflow'ların gerçek build/push/tag'leri release ile örtüşsün                      | `type=sha,prefix=,format=long` + `latest`(main) + semver(tag); compose/helm/rollouts/k8s referansları `:v1.0.0` immutable                                                                                              |
-| 4   | GHCR build → tagged push → tüketim zinciri tutarlı                                  | `ghcr.io/anomalyco/vardiyasystem/{backend,frontend}` prefix contract; preflight + release-dry-run image parity                                                                                                         |
-| 5   | kustomize→environment zinciri canlı manifest'leri beslesin                          | `k8s` (35 doc) ve `infra/sealed-secrets` (4 SealedSecret, ns `vardiya`) `kubectl kustomize` ile render ediliyor                                                                                                        |
-| 6   | Migration → deploy sıralaması her iki yol için güvenli                              | compose: backend `initContainer migrate`; helm: `migration-job` (hook pre-install,pre-upgrade, weight -5); migration her zaman `database_direct_url` üzerinden (transaction pooling pgbouncer migration'a uygun değil) |
-| 7   | Backup → restore → rollback döngüsü otomatik doğrulanabilir                         | `restore-check.sh` (scratch PG, `pg_restore`, `_prisma_migrations` assert); integration-test job'ında round-trip                                                                                                       |
-| 8   | Fail-closed secrets/env                                                             | commit edilmiş secret yok; `sealed-secret-contract` ile tüm referanslar sealed; preflight `no-committed-secrets`                                                                                                       |
-| 9   | CI-local gate parity: CI'nin her adımı local'de de çalışır                          | preflight hem test suite (32) hem gerçek repo (18/18) local'de koşuyor                                                                                                                                                 |
-| 10  | Release dry-run manifest'leri CI'da üretip doğrulasın                               | `release-dry-run` (deploy.yml) + `manifest-render` (pr-validation.yml) job'ları                                                                                                                                        |
+| # | Hedef | Sonuç |
+|---|-------|-------|
+| 1 | PG major'ını her katmanda sabitle (compose dev/prod, helm, k8s, restore, workflows) | **PG15** tek major; preflight `postgres-version-aligned` ile zorlanıyor |
+| 2 | Clean-install parity: prod manifest'leri temiz makinede doğrulanabilir olsun | `release-dry-run.sh --ci` kök `.env` + `secrets/*.txt` placeholder üretir; `.gitignore` (satır 12/67) bu dosyaları korur |
+| 3 | Workflow'ların gerçek build/push/tag'leri release ile örtüşsün | `type=sha,prefix=,format=long` + `latest`(main) + semver(tag); compose/helm/rollouts/k8s referansları `:v1.0.0` immutable |
+| 4 | GHCR build → tagged push → tüketim zinciri tutarlı | `ghcr.io/anomalyco/vardiyasystem/{backend,frontend}` prefix contract; preflight + release-dry-run image parity |
+| 5 | kustomize→environment zinciri canlı manifest'leri beslesin | `k8s` (35 doc) ve `infra/sealed-secrets` (4 SealedSecret, ns `vardiya`) `kubectl kustomize` ile render ediliyor |
+| 6 | Migration → deploy sıralaması her iki yol için güvenli | compose: backend `initContainer migrate`; helm: `migration-job` (hook pre-install,pre-upgrade, weight -5); migration her zaman `database_direct_url` üzerinden (transaction pooling pgbouncer migration'a uygun değil) |
+| 7 | Backup → restore → rollback döngüsü otomatik doğrulanabilir | `restore-check.sh` (scratch PG, `pg_restore`, `_prisma_migrations` assert); integration-test job'ında round-trip |
+| 8 | Fail-closed secrets/env | commit edilmiş secret yok; `sealed-secret-contract` ile tüm referanslar sealed; preflight `no-committed-secrets` |
+| 9 | CI-local gate parity: CI'nin her adımı local'de de çalışır | preflight hem test suite (32) hem gerçek repo (18/18) local'de koşuyor |
+| 10 | Release dry-run manifest'leri CI'da üretip doğrulasın | `release-dry-run` (deploy.yml) + `manifest-render` (pr-validation.yml) job'ları |
 
 ## 2. Kritik Bulgu: Helm chart hiçbir zaman render edilememiş
 
@@ -49,7 +49,6 @@ helm render adımı anında patlardı. Üç kök neden onarıldı:
 ## 3. Değişiklikler
 
 ### Workflow'lar
-
 - **deploy.yml**
   - `security-scan` fail-closed: `npx --yes audit-ci@6 --critical --report-type summary` ×2 (backend/frontend), `|| true` kaldırıldı.
   - Metadata tag: `type=sha,prefix=,format=long` (immutable, rollback hedefi).
@@ -62,14 +61,12 @@ helm render adımı anında patlardı. Üç kök neden onarıldı:
   - Yeni `manifest-render` job'ı (preflight sonrası true: k8s + sealed kustomize, helm prod/staging template, compose config, `:latest` grep — hepsi `release-dry-run.sh --ci` ile).
 
 ### Script'ler
-
 - `scripts/release-dry-run.sh` — CI'da (ubuntu bash): preflight test → preflight (CI mode: env check'leri skip) →
   compose config (prod+dev) → `:latest` yok → `kubectl kustomize` (k8s + sealed) → `helm template` (prod + staging) →
   image parity (prefix + immutable). `--ci` modu kök `.env` + `secrets/*.txt` placeholder yazar, teardown trap ile temizler.
 - `scripts/restore-check.sh` — scratch `postgres:15-alpine` (port 5433), `docker cp` dump, `gunzip -c | pg_restore --exit-on-error --no-owner --no-acl`, `_prisma_migrations` ≥ 1 assert, tablo sayısı, teardown trap. `RESTORE_CHECK_IMAGE/RESTORE_CHECK_PORT` override.
 
 ### Helm chart (onarım + contract)
-
 - Image'ler: `vardiyasystem/{backend,frontend}:v1.0.0` (registry `ghcr.io/anomalyco` üstünden),
   pgbouncer `bitnamilegacy/pgbouncer:1.24.1-debian-12-r10` (compose ile aynı), postgres `15-alpine`.
 - Grafana `adminPasswordSecret` + alertmanager `existingSecret` → `vardiya-monitoring-secrets`; slack webhook mount (`slack_webhook` key).
@@ -79,7 +76,6 @@ helm render adımı anında patlardı. Üç kök neden onarıldı:
 - `global.publicHost` tek kamu adresi kaynağı; `ingress.host` kullanımı kaldırıldı.
 
 ### K8s base + rollouts + sealed
-
 - `k8s/backend-deployment.yaml`: pod securityContext (uid 100, apkNonRoot, fsGroup 100) + `migrate` initContainer (`prisma migrate deploy`, direct DATABASE_URL `$(DB_PASSWORD)` expansion, resources).
 - `k8s/frontend-deployment.yaml`: pod securityContext.
 - `k8s/postgres-statefulset.yaml`: pgbouncer image compose/helm ile hizalandı.
@@ -88,25 +84,24 @@ helm render adımı anında patlardı. Üç kök neden onarıldı:
 - `k8s/kustomization.yaml`: `commonLabels` → `labels` (deprecation uyarısı giderildi).
 
 ### Preflight (18 check)
-
 Yeni eklenenler: `postgres-version-aligned` (yalnız image bildirimleri + `RESTORE_CHECK_IMAGE`; `@postgres:5432` port false-positive'i regex ile elendi),
 `infra-image-parity` (compose == helm == k8s base pgbouncer), `sealed-secret-contract` (referans→sealed + ns + key'ler),
-`workflow-image-tags` (workflow image'leri pinned), `restore-scripts` (5 script + pg_restore/gz/\_prisma_migrations token'ları).
+`workflow-image-tags` (workflow image'leri pinned), `restore-scripts` (5 script + pg_restore/gz/_prisma_migrations token'ları).
 
 ## 4. Doğrulama Kanıtları
 
-| Denetim               | Komut                                                                                               | Sonuç                        |
-| --------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------- |
-| Preflight test suite  | `node --test scripts/release-preflight.test.mjs`                                                    | 32/32 pass                   |
-| Gerçek repo preflight | `node scripts/release-preflight.mjs`                                                                | 18/18 pass                   |
-| Helm template prod    | `helm template vardiya ... -f values/production.yaml` (helm 3.17.3)                                 | 44 doc, exit 0               |
-| Helm template staging | aynı, staging values                                                                                | 44 doc, exit 0               |
-| k8s kustomize         | `kubectl kustomize k8s`                                                                             | 35 doc, exit 0, uyarı yok    |
-| sealed kustomize      | `kubectl kustomize infra/sealed-secrets`                                                            | 4 SealedSecret, ns `vardiya` |
-| compose config        | `docker compose -f docker-compose.prod.yml --env-file .env config -q`                               | exit 0                       |
-| Image parity (render) | rendered prod/staging'de `:latest` taraması                                                         | 0 adet                       |
-| K8s spot-check        | initContainer `migrate`, uid/fsGroup 100, `postgres:15-alpine`, `bitnamilegacy/pgbouncer:1.24.1...` | doğrulandı                   |
-| Staging değerleri     | publicHost `staging.vardiya.example.com`, `imagePullPolicy: Always`, frontend API_URL staging       | doğrulandı                   |
+| Denetim | Komut | Sonuç |
+|---------|-------|-------|
+| Preflight test suite | `node --test scripts/release-preflight.test.mjs` | 32/32 pass |
+| Gerçek repo preflight | `node scripts/release-preflight.mjs` | 18/18 pass |
+| Helm template prod | `helm template vardiya ... -f values/production.yaml` (helm 3.17.3) | 44 doc, exit 0 |
+| Helm template staging | aynı, staging values | 44 doc, exit 0 |
+| k8s kustomize | `kubectl kustomize k8s` | 35 doc, exit 0, uyarı yok |
+| sealed kustomize | `kubectl kustomize infra/sealed-secrets` | 4 SealedSecret, ns `vardiya` |
+| compose config | `docker compose -f docker-compose.prod.yml --env-file .env config -q` | exit 0 |
+| Image parity (render) | rendered prod/staging'de `:latest` taraması | 0 adet |
+| K8s spot-check | initContainer `migrate`, uid/fsGroup 100, `postgres:15-alpine`, `bitnamilegacy/pgbouncer:1.24.1...` | doğrulandı |
+| Staging değerleri | publicHost `staging.vardiya.example.com`, `imagePullPolicy: Always`, frontend API_URL staging | doğrulandı |
 
 Doğrulama ortamı: Windows host (Node 22, Docker Engine 29.4, kubectl v1.34.1 + kustomize v5.7.1),
 yoksa helm → `alpine/helm:3.17.3` container. WSL bash çalışmadığı için shell script'ler local'de koşturulamıyor;
@@ -129,7 +124,6 @@ helm/compose/kustomize adımları birebir aynı argümanlarla ayrı ayrı koşul
 - Bazı Helm subchart'larının kendi `values.yaml`'i yok (değerler parent'tan scope'lanıyor) — çalışıyor, ama subchart'ı tek başına `helm template` eden bir kullanıcı boş değerler görür.
 
 ## 7. Referanslar
-
 - `.github/workflows/deploy.yml`, `.github/workflows/pr-validation.yml`
 - `scripts/release-preflight.mjs` + `.test.mjs`, `scripts/release-dry-run.sh`, `scripts/restore-check.sh`
 - `infra/helm/vardiya-platform/**`, `infra/sealed-secrets/`, `infra/rollouts/`

@@ -5,6 +5,7 @@ import { RbacService } from '../rbac.service';
 import { PrismaService } from '../../../prisma.service';
 
 describe('RbacEnterprise', () => {
+
   describe('ScopeResolutionService', () => {
     let service: ScopeResolutionService;
     const mockPrisma = {
@@ -26,42 +27,10 @@ describe('RbacEnterprise', () => {
     });
 
     const mockAssignments = [
-      {
-        roleId: 'role-1',
-        userId: 'user-1',
-        organizationId: null,
-        hospitalGroupId: 'group-1',
-        hospitalId: null,
-        departmentId: null,
-        unitId: null,
-      },
-      {
-        roleId: 'role-2',
-        userId: 'user-1',
-        organizationId: null,
-        hospitalGroupId: null,
-        hospitalId: 'hospital-1',
-        departmentId: null,
-        unitId: null,
-      },
-      {
-        roleId: 'role-3',
-        userId: 'user-1',
-        organizationId: null,
-        hospitalGroupId: null,
-        hospitalId: null,
-        departmentId: 'dept-1',
-        unitId: null,
-      },
-      {
-        roleId: 'role-4',
-        userId: 'user-1',
-        organizationId: null,
-        hospitalGroupId: null,
-        hospitalId: null,
-        departmentId: null,
-        unitId: 'unit-1',
-      },
+      { roleId: 'role-1', userId: 'user-1', organizationId: null, hospitalGroupId: 'group-1', hospitalId: null, departmentId: null, unitId: null },
+      { roleId: 'role-2', userId: 'user-1', organizationId: null, hospitalGroupId: null, hospitalId: 'hospital-1', departmentId: null, unitId: null },
+      { roleId: 'role-3', userId: 'user-1', organizationId: null, hospitalGroupId: null, hospitalId: null, departmentId: 'dept-1', unitId: null },
+      { roleId: 'role-4', userId: 'user-1', organizationId: null, hospitalGroupId: null, hospitalId: null, departmentId: null, unitId: 'unit-1' },
     ];
 
     it('should resolve group-level assignments covering hospitals in the group', () => {
@@ -70,8 +39,8 @@ describe('RbacEnterprise', () => {
         hospitalId: 'hospital-1',
       });
       expect(covering).toHaveLength(2);
-      expect(covering.map((a) => a.roleId)).toContain('role-1');
-      expect(covering.map((a) => a.roleId)).toContain('role-2');
+      expect(covering.map(a => a.roleId)).toContain('role-1');
+      expect(covering.map(a => a.roleId)).toContain('role-2');
     });
 
     it('should resolve hospital-level assignments covering units', () => {
@@ -80,8 +49,8 @@ describe('RbacEnterprise', () => {
         unitId: 'unit-1',
       });
       expect(covering).toHaveLength(2);
-      expect(covering.map((a) => a.roleId)).toContain('role-2');
-      expect(covering.map((a) => a.roleId)).toContain('role-4');
+      expect(covering.map(a => a.roleId)).toContain('role-2');
+      expect(covering.map(a => a.roleId)).toContain('role-4');
     });
 
     it('should resolve department-level assignments covering units', () => {
@@ -90,8 +59,8 @@ describe('RbacEnterprise', () => {
         unitId: 'unit-1',
       });
       expect(covering).toHaveLength(2);
-      expect(covering.map((a) => a.roleId)).toContain('role-3');
-      expect(covering.map((a) => a.roleId)).toContain('role-4');
+      expect(covering.map(a => a.roleId)).toContain('role-3');
+      expect(covering.map(a => a.roleId)).toContain('role-4');
     });
 
     it('should not resolve assignments for non-matching scopes', () => {
@@ -170,9 +139,7 @@ describe('RbacEnterprise', () => {
 
     it('should assign role with hierarchy scope', async () => {
       mockPrisma.userRoleAssignment.findFirst.mockResolvedValue(null);
-      mockPrisma.userRoleAssignment.create.mockResolvedValue({
-        id: 'new-assignment',
-      });
+      mockPrisma.userRoleAssignment.create.mockResolvedValue({ id: 'new-assignment' });
 
       await service.assignRoleToUser('user-1', 'role-1', 'admin', {
         hospitalId: 'hospital-1',
@@ -194,14 +161,8 @@ describe('RbacEnterprise', () => {
     });
 
     it('should reactivate existing role assignment', async () => {
-      mockPrisma.userRoleAssignment.findFirst.mockResolvedValue({
-        id: 'existing',
-        isActive: false,
-      });
-      mockPrisma.userRoleAssignment.update.mockResolvedValue({
-        id: 'existing',
-        isActive: true,
-      });
+      mockPrisma.userRoleAssignment.findFirst.mockResolvedValue({ id: 'existing', isActive: false });
+      mockPrisma.userRoleAssignment.update.mockResolvedValue({ id: 'existing', isActive: true });
 
       await service.assignRoleToUser('user-1', 'role-1', 'admin', {
         hospitalGroupId: 'group-1',
@@ -214,14 +175,8 @@ describe('RbacEnterprise', () => {
     });
 
     it('should remove role assignment with hierarchy scope', async () => {
-      mockPrisma.userRoleAssignment.findFirst.mockResolvedValue({
-        id: 'existing',
-        isActive: true,
-      });
-      mockPrisma.userRoleAssignment.update.mockResolvedValue({
-        id: 'existing',
-        isActive: false,
-      });
+      mockPrisma.userRoleAssignment.findFirst.mockResolvedValue({ id: 'existing', isActive: true });
+      mockPrisma.userRoleAssignment.update.mockResolvedValue({ id: 'existing', isActive: false });
 
       await service.removeRoleFromUser('user-1', 'role-1', {
         hospitalGroupId: 'group-1',

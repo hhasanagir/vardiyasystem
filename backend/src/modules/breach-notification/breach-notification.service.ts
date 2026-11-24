@@ -38,17 +38,12 @@ export class BreachNotificationService {
     });
   }
 
-  async notifyAuthority(
-    breachId: string,
-    data: {
-      notifiedTo: string;
-      method: string;
-      content: string;
-    },
-  ) {
-    const breach = await this.prisma.dataBreachRecord.findUnique({
-      where: { id: breachId },
-    });
+  async notifyAuthority(breachId: string, data: {
+    notifiedTo: string;
+    method: string;
+    content: string;
+  }) {
+    const breach = await this.prisma.dataBreachRecord.findUnique({ where: { id: breachId } });
     if (!breach) throw new NotFoundException('Breach record not found');
 
     const notification = await this.prisma.breachNotification.create({
@@ -65,22 +60,18 @@ export class BreachNotificationService {
       where: { id: breachId },
       data: {
         notifiedAuthorityAt: new Date(),
-        status:
-          breach.status === 'CONTAINED' ? 'NOTIFIED_AUTHORITY' : breach.status,
+        status: breach.status === 'CONTAINED' ? 'NOTIFIED_AUTHORITY' : breach.status,
       },
     });
 
     return notification;
   }
 
-  async notifySubjects(
-    breachId: string,
-    data: {
-      notifiedTo: string;
-      method: string;
-      content: string;
-    },
-  ) {
+  async notifySubjects(breachId: string, data: {
+    notifiedTo: string;
+    method: string;
+    content: string;
+  }) {
     const notification = await this.prisma.breachNotification.create({
       data: {
         breachId,
@@ -99,11 +90,7 @@ export class BreachNotificationService {
     return notification;
   }
 
-  async resolveBreach(
-    breachId: string,
-    rootCause: string,
-    remediation: string,
-  ) {
+  async resolveBreach(breachId: string, rootCause: string, remediation: string) {
     return this.prisma.dataBreachRecord.update({
       where: { id: breachId },
       data: {
@@ -130,16 +117,12 @@ export class BreachNotificationService {
 
     return {
       total: records.length,
-      openCount: records.filter((r) => r.status === 'OPEN').length,
-      containedCount: records.filter((r) => r.status === 'CONTAINED').length,
-      resolvedCount: records.filter((r) => r.status === 'RESOLVED').length,
+      openCount: records.filter(r => r.status === 'OPEN').length,
+      containedCount: records.filter(r => r.status === 'CONTAINED').length,
+      resolvedCount: records.filter(r => r.status === 'RESOLVED').length,
       bySeverity: this.groupBy(records, 'severity'),
       byType: this.groupBy(records, 'breachType'),
-      avgTimeToContain: this.calcAvgHours(
-        records,
-        'detectedAt',
-        'containmentAt',
-      ),
+      avgTimeToContain: this.calcAvgHours(records, 'detectedAt', 'containmentAt'),
       avgTimeToResolve: this.calcAvgHours(records, 'detectedAt', 'closedAt'),
     };
   }
@@ -153,20 +136,11 @@ export class BreachNotificationService {
     return result;
   }
 
-  private calcAvgHours(
-    items: any[],
-    startField: string,
-    endField: string,
-  ): number | null {
-    const withEnd = items.filter((i) => i[endField]);
+  private calcAvgHours(items: any[], startField: string, endField: string): number | null {
+    const withEnd = items.filter(i => i[endField]);
     if (withEnd.length === 0) return null;
     const totalHours = withEnd.reduce((sum, item) => {
-      return (
-        sum +
-        (new Date(item[endField]).getTime() -
-          new Date(item[startField]).getTime()) /
-          (1000 * 60 * 60)
-      );
+      return sum + (new Date(item[endField]).getTime() - new Date(item[startField]).getTime()) / (1000 * 60 * 60);
     }, 0);
     return Math.round((totalHours / withEnd.length) * 10) / 10;
   }

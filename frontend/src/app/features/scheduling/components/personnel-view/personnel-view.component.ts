@@ -53,65 +53,21 @@ interface PersonnelSummary {
       }
     </div>
   `,
-  styles: [
-    `
-      .personnel-view {
-        padding: 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-      .personnel-card {
-        padding: 12px 16px;
-        background: var(--surface-card, #fff);
-        border-radius: 8px;
-        border: 1px solid var(--surface-border, #e2e8f0);
-      }
-      .card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-      }
-      .card-name {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--color-text, #1e293b);
-      }
-      .card-total {
-        font-size: 11px;
-        color: var(--color-text-muted, #94a3b8);
-      }
-      .shift-bar {
-        display: flex;
-        height: 8px;
-        border-radius: 4px;
-        overflow: hidden;
-        gap: 1px;
-      }
-      .shift-segment {
-        min-width: 2px;
-      }
-      .shift-legend {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 6px;
-      }
-      .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 10px;
-        color: var(--color-text-secondary, #64748b);
-      }
-      .legend-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-      }
-    `,
-  ],
+  styles: [`
+    .personnel-view { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .personnel-card {
+      padding: 12px 16px; background: var(--surface-card, #fff);
+      border-radius: 8px; border: 1px solid var(--surface-border, #e2e8f0);
+    }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .card-name { font-size: 13px; font-weight: 600; color: var(--color-text, #1e293b); }
+    .card-total { font-size: 11px; color: var(--color-text-muted, #94a3b8); }
+    .shift-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 1px; }
+    .shift-segment { min-width: 2px; }
+    .shift-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--color-text-secondary, #64748b); }
+    .legend-dot { width: 6px; height: 6px; border-radius: 50%; }
+  `],
 })
 export class PersonnelViewComponent {
   private readonly store = inject(ScheduleStore);
@@ -133,18 +89,10 @@ export class PersonnelViewComponent {
       const s = map.get(a.personnelId)!;
       s.totalDays++;
       s.shifts[a.shiftType] = (s.shifts[a.shiftType] ?? 0) + 1;
-      s.days.push({
-        date: a.date,
-        shiftType: a.shiftType,
-        deviceCode: a.deviceCode ?? null,
-        startTime: a.startTime,
-        endTime: a.endTime,
-      });
+      s.days.push({ date: a.date, shiftType: a.shiftType, deviceCode: a.deviceCode ?? null, startTime: a.startTime, endTime: a.endTime });
     }
 
-    return Array.from(map.values()).sort((a, b) =>
-      a.personnelName.localeCompare(b.personnelName, 'tr'),
-    );
+    return Array.from(map.values()).sort((a, b) => a.personnelName.localeCompare(b.personnelName, 'tr'));
   });
 
   getShiftEntries(p: PersonnelSummary): [string, number][] {

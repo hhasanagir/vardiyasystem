@@ -28,32 +28,29 @@ export class ScheduleRealtimeService implements OnDestroy {
     this.store.setConnectionState('connecting');
     this.ws.subscribeSchedule(scheduleId);
 
-    this.ws
-      .on<{ scheduleId: string; users: PresenceUser[] }>('presence:update')
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((data) => {
-        if (data.scheduleId === scheduleId) {
-          this._presenceUsers.set(data.users);
-        }
-      });
+    this.ws.on<{ scheduleId: string; users: PresenceUser[] }>('presence:update').pipe(
+      takeUntil(this.destroy$),
+    ).subscribe(data => {
+      if (data.scheduleId === scheduleId) {
+        this._presenceUsers.set(data.users);
+      }
+    });
 
-    this.ws
-      .on<{ scheduleId: string }>('schedule:updated')
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((data) => {
-        if (data.scheduleId === scheduleId) {
-          this.store.setDirty(true);
-        }
-      });
+    this.ws.on<{ scheduleId: string }>('schedule:updated').pipe(
+      takeUntil(this.destroy$),
+    ).subscribe(data => {
+      if (data.scheduleId === scheduleId) {
+        this.store.setDirty(true);
+      }
+    });
 
-    this.ws
-      .on<{ scheduleId: string; serverVersion: number; localVersion: number }>('update:conflict')
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((data) => {
-        if (data.scheduleId === scheduleId) {
-          this.store.triggerVersionConflict(data.localVersion, data.serverVersion, scheduleId);
-        }
-      });
+    this.ws.on<{ scheduleId: string; serverVersion: number; localVersion: number }>('update:conflict').pipe(
+      takeUntil(this.destroy$),
+    ).subscribe(data => {
+      if (data.scheduleId === scheduleId) {
+        this.store.triggerVersionConflict(data.localVersion, data.serverVersion, scheduleId);
+      }
+    });
 
     this.store.setConnectionState('connected');
   }

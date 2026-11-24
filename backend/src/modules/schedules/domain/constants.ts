@@ -15,20 +15,7 @@ export const IDEMPOTENCY_TTL_MS = 300_000;
 export const DEFAULT_PAGE_TAKE = 100;
 export const MAX_PAGE_TAKE = 500;
 
-export const OVERRIDE_ROLES = [
-  'system_admin',
-  'hospital_admin',
-  'imaging_director',
-  'supervisor',
-] as const;
-
-export const SHIFT_TYPES_OFF = [
-  'off',
-  'leave',
-  'sick',
-  'training',
-  'backup',
-] as const;
+export const SHIFT_TYPES_OFF = ['off', 'leave', 'sick', 'training', 'backup'] as const;
 
 export const GENERATION_DEFAULTS = {
   MAX_WORKLOAD_PER_PERSON: 20,

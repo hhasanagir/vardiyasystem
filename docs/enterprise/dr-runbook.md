@@ -2,10 +2,10 @@
 
 ## RTO/RPO Targets
 
-| Metric               | Target     | Current Capability      |
-| -------------------- | ---------- | ----------------------- |
-| RTO (Recovery Time)  | 15 minutes | 1 hour (backup restore) |
-| RPO (Recovery Point) | 5 minutes  | 24 hours (daily backup) |
+| Metric | Target | Current Capability |
+|--------|--------|-------------------|
+| RTO (Recovery Time) | 15 minutes | 1 hour (backup restore) |
+| RPO (Recovery Point) | 5 minutes | 24 hours (daily backup) |
 
 ## Disaster Scenarios
 
@@ -14,7 +14,6 @@
 **Symptoms**: Application errors, data inconsistencies, failed queries.
 
 **Recovery Procedure**:
-
 ```bash
 # 1. Stop the backend to prevent further writes
 docker stop vardiya-backend
@@ -41,7 +40,6 @@ curl http://localhost:3000/api/v1/health/dashboard
 ### 2. Complete Server Failure
 
 **Recovery Procedure**:
-
 ```bash
 # 1. Provision new server (bare metal or cloud VM)
 # 2. Install Docker + Docker Compose
@@ -119,9 +117,9 @@ aws s3 cp /backups/ s3://vardiya-backups/production/ --recursive
 
 ## Recovery Drill Schedule
 
-| Type                | Frequency | Description                                       |
-| ------------------- | --------- | ------------------------------------------------- |
-| Backup restore test | Weekly    | Restore latest backup to staging, verify data     |
-| PITR test           | Monthly   | Test point-in-time recovery to specific timestamp |
-| Full DR drill       | Quarterly | Complete server rebuild from scratch              |
-| Chaos testing       | Quarterly | Kill random containers, verify recovery           |
+| Type | Frequency | Description |
+|------|-----------|-------------|
+| Backup restore test | Weekly | Restore latest backup to staging, verify data |
+| PITR test | Monthly | Test point-in-time recovery to specific timestamp |
+| Full DR drill | Quarterly | Complete server rebuild from scratch |
+| Chaos testing | Quarterly | Kill random containers, verify recovery |

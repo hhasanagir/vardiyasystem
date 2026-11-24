@@ -1,17 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { ScheduleOptimizerService } from '../domain/optimization/schedule-optimizer.service';
-import {
-  SchedulingProblem,
-  SchedulingProblemPersonnel,
-  SchedulingProblemDevice,
-} from '../domain/optimization/scheduling-problem';
+import { SchedulingProblem, SchedulingProblemPersonnel, SchedulingProblemDevice } from '../domain/optimization/scheduling-problem';
 import { AssignmentCollection } from '../domain/entities/assignment-collection';
 import { Assignment } from '../domain/entities/assignment.entity';
-import {
-  CANONICAL_SCORING_WEIGHTS,
-  validateCanonicalWeights,
-  SOFT_CONSTRAINT_WEIGHTS,
-} from '../domain/optimization/canonical-scoring.config';
+import { CANONICAL_SCORING_WEIGHTS, validateCanonicalWeights, SOFT_CONSTRAINT_WEIGHTS } from '../domain/optimization/canonical-scoring.config';
 import { ScoreAggregator } from '../domain/optimization/score-aggregator';
 import { ScoringModel } from '../domain/models/scoring-model';
 import { FairnessEngine } from '../domain/models/fairness-engine';
@@ -20,112 +12,48 @@ import { WorkloadCalculator } from '../domain/models/workload-calculator';
 
 const optimizer = new ScheduleOptimizerService();
 
-function makePersonnel(
-  id: string,
-  overrides: Partial<SchedulingProblemPersonnel> = {},
-): SchedulingProblemPersonnel {
+function makePersonnel(id: string, overrides: Partial<SchedulingProblemPersonnel> = {}): SchedulingProblemPersonnel {
   return {
-    id,
-    name: `Person ${id}`,
-    role: 'technician',
-    skills: ['MRI'],
-    deviceSkills: ['MRI'],
-    nightShiftEligible: true,
-    employmentStatus: 'active',
-    offDays: [],
-    maxWeeklyHours: 40,
-    isActive: true,
+    id, name: `Person ${id}`, role: 'technician', skills: ['MRI'], deviceSkills: ['MRI'],
+    nightShiftEligible: true, employmentStatus: 'active', offDays: [], maxWeeklyHours: 40, isActive: true,
     ...overrides,
   };
 }
 
-function makeDevice(
-  id: string,
-  code: string,
-  overrides: Partial<SchedulingProblemDevice> = {},
-): SchedulingProblemDevice {
+function makeDevice(id: string, code: string, overrides: Partial<SchedulingProblemDevice> = {}): SchedulingProblemDevice {
   return {
-    id,
-    code,
-    name: code,
-    mode: 'continuous',
-    requiredSkills: ['MRI'],
-    workDays: [1, 2, 3, 4, 5],
-    startHour: 8,
-    endHour: 16,
-    ...overrides,
+    id, code, name: code, mode: 'continuous', requiredSkills: ['MRI'],
+    workDays: [1, 2, 3, 4, 5], startHour: 8, endHour: 16, ...overrides,
   };
 }
 
-function makeProblem(
-  overrides: {
-    personnel?: SchedulingProblemPersonnel[];
-    devices?: SchedulingProblemDevice[];
-    existingAssignments?: AssignmentCollection;
-    holidays?: Set<string>;
-    serviceLine?: string;
-  } = {},
-): SchedulingProblem {
+function makeProblem(overrides: {
+  personnel?: SchedulingProblemPersonnel[];
+  devices?: SchedulingProblemDevice[];
+  existingAssignments?: AssignmentCollection;
+  holidays?: Set<string>;
+  serviceLine?: string;
+} = {}): SchedulingProblem {
   return {
-    scheduleId: 'test',
-    unitId: 'u1',
-    unitType: 'mr',
+    scheduleId: 'test', unitId: 'u1', unitType: 'mr',
     serviceLine: overrides.serviceLine || 'IMAGING',
-    year: 2026,
-    month: 1,
-    personnel: overrides.personnel || [
-      makePersonnel('p1'),
-      makePersonnel('p2'),
-    ],
+    year: 2026, month: 1,
+    personnel: overrides.personnel || [makePersonnel('p1'), makePersonnel('p2')],
     devices: overrides.devices || [makeDevice('d1', 'MRI-1')],
-    shiftDefinitions: [
-      {
-        deviceId: 'd1',
-        shiftType: 'day',
-        startTime: '08:00',
-        endTime: '16:00',
-        personnelType: 'technician',
-      },
-    ],
-    existingAssignments:
-      overrides.existingAssignments || new AssignmentCollection(),
+    shiftDefinitions: [{ deviceId: 'd1', shiftType: 'day', startTime: '08:00', endTime: '16:00', personnelType: 'technician' }],
+    existingAssignments: overrides.existingAssignments || new AssignmentCollection(),
     holidays: overrides.holidays || new Set(),
-    
-    configuration: {
-      fairnessMode: 'balanced',
-      maxOvertime: 20,
-      includeWeekends: false,
-      includeNightShifts: false,
-      minRestHours: 11,
-      maxConsecutiveDays: 6,
-      maxConsecutiveNights: 3,
-    },
+    deviceOffDates: new Set(),
+    configuration: { fairnessMode: 'balanced', maxOvertime: 20, includeWeekends: false, includeNightShifts: false, minRestHours: 11, maxConsecutiveDays: 6, maxConsecutiveNights: 3 },
   };
 }
 
-function addExisting(
-  existing: AssignmentCollection,
-  params: {
-    personnelId: string;
-    deviceId: string;
-    date: string;
-    shiftType?: string;
-  },
-) {
-  existing.add(
-    Assignment.create({
-      scheduleId: 'test',
-      personnelId: params.personnelId,
-      deviceId: params.deviceId,
-      unitId: 'u1',
-      kind: 'device',
-      date: params.date,
-      shiftType: params.shiftType || 'day',
-      startTime: '08:00',
-      endTime: '16:00',
-      personnelType: 'technician',
-    }),
-  );
+function addExisting(existing: AssignmentCollection, params: { personnelId: string; deviceId: string; date: string; shiftType?: string }) {
+  existing.add(Assignment.create({
+    scheduleId: 'test', personnelId: params.personnelId, deviceId: params.deviceId, unitId: 'u1',
+    kind: 'device', date: params.date, shiftType: params.shiftType || 'day', startTime: '08:00', endTime: '16:00',
+    personnelType: 'technician',
+  }));
 }
 
 // ═══════════════════════════════════════════════
@@ -134,31 +62,17 @@ function addExisting(
 describe('GATE 1 — Existing Assignments Preserved', () => {
   it('pre-seeded assignments appear in result', () => {
     const existing = new AssignmentCollection();
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-05',
-    });
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-05' });
     const problem = makeProblem({ existingAssignments: existing });
     const result = optimizer.optimize(problem);
-    const p1OnJan5 = result.candidate.assignments.filter(
-      (a) => a.personnelId === 'p1' && a.date === '2026-01-05',
-    );
+    const p1OnJan5 = result.candidate.assignments.filter(a => a.personnelId === 'p1' && a.date === '2026-01-05');
     expect(p1OnJan5.length).toBeGreaterThanOrEqual(1);
   });
 
   it('existing assignment count reported in summary', () => {
     const existing = new AssignmentCollection();
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-05',
-    });
-    addExisting(existing, {
-      personnelId: 'p2',
-      deviceId: 'd1',
-      date: '2026-01-06',
-    });
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-05' });
+    addExisting(existing, { personnelId: 'p2', deviceId: 'd1', date: '2026-01-06' });
     const problem = makeProblem({ existingAssignments: existing });
     const result = optimizer.optimize(problem);
     expect(result.summary.existingAssignments).toBe(2);
@@ -166,16 +80,10 @@ describe('GATE 1 — Existing Assignments Preserved', () => {
 
   it('explanations mention pre-seeded count', () => {
     const existing = new AssignmentCollection();
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-05',
-    });
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-05' });
     const problem = makeProblem({ existingAssignments: existing });
     const result = optimizer.optimize(problem);
-    expect(
-      result.explanations.some((e) => e.includes('Pre-seeded 1 existing')),
-    ).toBe(true);
+    expect(result.explanations.some(e => e.includes('Pre-seeded 1 existing'))).toBe(true);
   });
 });
 
@@ -185,18 +93,8 @@ describe('GATE 1 — Existing Assignments Preserved', () => {
 describe('GATE 2 — Existing Conflicts Detected', () => {
   it('existing assignment that violates constraint produces violation', () => {
     const existing = new AssignmentCollection();
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-02',
-      shiftType: 'day',
-    });
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-02',
-      shiftType: 'day',
-    });
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-02', shiftType: 'day' });
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-02', shiftType: 'day' });
     const problem = makeProblem({ existingAssignments: existing });
     const result = optimizer.optimize(problem);
     expect(result).toBeDefined();
@@ -209,14 +107,10 @@ describe('GATE 2 — Existing Conflicts Detected', () => {
 describe('GATE 3 — Partial Optimization', () => {
   it('partial: existing + generates new for unfilled slots', () => {
     const existing = new AssignmentCollection();
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-05',
-    });
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-05' });
     const problem = makeProblem({ existingAssignments: existing });
     const result = optimizer.optimize(problem);
-    const dates = new Set(result.candidate.assignments.map((a) => a.date));
+    const dates = new Set(result.candidate.assignments.map(a => a.date));
     expect(dates.has('2026-01-05')).toBe(true);
     expect(result.candidate.assignments.length).toBeGreaterThan(1);
   });
@@ -288,11 +182,7 @@ describe('GATE 5 — Score Alignment', () => {
   it('ScoringModel weights sum to 1.0', () => {
     const model = new ScoringModel();
     const config = model.getConfiguration();
-    const sum =
-      config.coverageWeight +
-      config.fairnessWeight +
-      config.workloadWeight +
-      config.preferenceWeight;
+    const sum = config.coverageWeight + config.fairnessWeight + config.workloadWeight + config.preferenceWeight;
     expect(sum).toBeCloseTo(1.0);
   });
 });
@@ -311,9 +201,7 @@ describe('GATE 6 — ANY Skill Semantics', () => {
     });
     const result = optimizer.optimize(problem);
     expect(result.success).toBe(true);
-    const personnelUsed = new Set(
-      result.candidate.assignments.map((a) => a.personnelId),
-    );
+    const personnelUsed = new Set(result.candidate.assignments.map(a => a.personnelId));
     expect(personnelUsed.size).toBeGreaterThan(0);
   });
 
@@ -343,9 +231,7 @@ describe('GATE 7 — Fairness with Existing', () => {
     }
     const problem = makeProblem({ existingAssignments: existing });
     const result = optimizer.optimize(problem);
-    expect(
-      result.summary.scoreComponents.fairness.rawScore,
-    ).toBeGreaterThanOrEqual(0);
+    expect(result.summary.scoreComponents.fairness.rawScore).toBeGreaterThanOrEqual(0);
   });
 });
 
@@ -355,26 +241,12 @@ describe('GATE 7 — Fairness with Existing', () => {
 describe('GATE 8 — Workload with Existing', () => {
   it('existing shifts contribute to workload calculation', () => {
     const existing = new AssignmentCollection();
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-05',
-    });
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-06',
-    });
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-07',
-    });
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-05' });
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-06' });
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-07' });
     const problem = makeProblem({ existingAssignments: existing });
     const result = optimizer.optimize(problem);
-    expect(
-      result.summary.scoreComponents.workload.rawScore,
-    ).toBeGreaterThanOrEqual(0);
+    expect(result.summary.scoreComponents.workload.rawScore).toBeGreaterThanOrEqual(0);
   });
 });
 
@@ -392,9 +264,7 @@ describe('GATE 9 — Fatigue with Existing', () => {
     }
     const problem = makeProblem({ existingAssignments: existing });
     const result = optimizer.optimize(problem);
-    expect(
-      result.summary.scoreComponents.fatigue.rawScore,
-    ).toBeGreaterThanOrEqual(0);
+    expect(result.summary.scoreComponents.fatigue.rawScore).toBeGreaterThanOrEqual(0);
   });
 });
 
@@ -404,17 +274,11 @@ describe('GATE 9 — Fatigue with Existing', () => {
 describe('GATE 10 — Determinism', () => {
   it('same pre-seeded problem → same result', () => {
     const existing = new AssignmentCollection();
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-05',
-    });
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-05' });
     const problem = makeProblem({ existingAssignments: existing });
     const r1 = optimizer.optimize(problem);
     const r2 = optimizer.optimize(problem);
-    expect(r1.candidate.assignments.length).toBe(
-      r2.candidate.assignments.length,
-    );
+    expect(r1.candidate.assignments.length).toBe(r2.candidate.assignments.length);
     expect(r1.summary.totalScore).toBe(r2.summary.totalScore);
     expect(r1.metadata.deterministic).toBe(true);
   });
@@ -423,9 +287,7 @@ describe('GATE 10 — Determinism', () => {
     const problem = makeProblem();
     const r1 = optimizer.optimize(problem);
     const r2 = optimizer.optimize(problem);
-    expect(r1.candidate.assignments.length).toBe(
-      r2.candidate.assignments.length,
-    );
+    expect(r1.candidate.assignments.length).toBe(r2.candidate.assignments.length);
     expect(r1.summary.totalScore).toBe(r2.summary.totalScore);
   });
 });
@@ -444,16 +306,10 @@ describe('GATE 11 — Device Visibility', () => {
 
   it('pre-seeded device assignments visible', () => {
     const existing = new AssignmentCollection();
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-05',
-    });
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-05' });
     const problem = makeProblem({ existingAssignments: existing });
     const result = optimizer.optimize(problem);
-    const jan5 = result.candidate.assignments.filter(
-      (a) => a.date === '2026-01-05',
-    );
+    const jan5 = result.candidate.assignments.filter(a => a.date === '2026-01-05');
     expect(jan5.length).toBeGreaterThanOrEqual(1);
     expect(jan5[0].deviceId).toBe('d1');
   });
@@ -465,51 +321,31 @@ describe('GATE 11 — Device Visibility', () => {
 describe('GATE 12 — Service Line Separation', () => {
   it('imaging strategy selected', () => {
     const result = optimizer.optimize(makeProblem({ serviceLine: 'IMAGING' }));
-    expect(result.explanations.some((e) => e.includes('IMAGING'))).toBe(true);
+    expect(result.explanations.some(e => e.includes('IMAGING'))).toBe(true);
   });
 
   it('RT strategy selected', () => {
-    const result = optimizer.optimize(
-      makeProblem({
-        serviceLine: 'RADIATION_ONCOLOGY',
-        devices: [makeDevice('rt1', 'LINAC-1', { requiredSkills: ['LINAC'] })],
-        personnel: [
-          makePersonnel('rt1', { skills: ['LINAC'], deviceSkills: ['LINAC'] }),
-        ],
-      }),
-    );
-    expect(
-      result.explanations.some((e) => e.includes('RADIATION_ONCOLOGY')),
-    ).toBe(true);
+    const result = optimizer.optimize(makeProblem({
+      serviceLine: 'RADIATION_ONCOLOGY',
+      devices: [makeDevice('rt1', 'LINAC-1', { requiredSkills: ['LINAC'] })],
+      personnel: [makePersonnel('rt1', { skills: ['LINAC'], deviceSkills: ['LINAC'] })],
+    }));
+    expect(result.explanations.some(e => e.includes('RADIATION_ONCOLOGY'))).toBe(true);
   });
 
   it('pre-seeding works with both strategies', () => {
     const imagingExisting = new AssignmentCollection();
-    addExisting(imagingExisting, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-05',
-    });
-    const imaging = optimizer.optimize(
-      makeProblem({ existingAssignments: imagingExisting }),
-    );
+    addExisting(imagingExisting, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-05' });
+    const imaging = optimizer.optimize(makeProblem({ existingAssignments: imagingExisting }));
 
     const rtExisting = new AssignmentCollection();
-    addExisting(rtExisting, {
-      personnelId: 'rt1',
-      deviceId: 'rt1',
-      date: '2026-01-05',
-    });
-    const rt = optimizer.optimize(
-      makeProblem({
-        serviceLine: 'RADIATION_ONCOLOGY',
-        devices: [makeDevice('rt1', 'LINAC-1', { requiredSkills: ['LINAC'] })],
-        personnel: [
-          makePersonnel('rt1', { skills: ['LINAC'], deviceSkills: ['LINAC'] }),
-        ],
-        existingAssignments: rtExisting,
-      }),
-    );
+    addExisting(rtExisting, { personnelId: 'rt1', deviceId: 'rt1', date: '2026-01-05' });
+    const rt = optimizer.optimize(makeProblem({
+      serviceLine: 'RADIATION_ONCOLOGY',
+      devices: [makeDevice('rt1', 'LINAC-1', { requiredSkills: ['LINAC'] })],
+      personnel: [makePersonnel('rt1', { skills: ['LINAC'], deviceSkills: ['LINAC'] })],
+      existingAssignments: rtExisting,
+    }));
 
     expect(imaging).toBeDefined();
     expect(rt).toBeDefined();
@@ -524,11 +360,7 @@ describe('GATE 12 — Service Line Separation', () => {
 describe('GATE 14 — Data Integrity', () => {
   it('optimizer is dry-run only: no Prisma calls', () => {
     const existing = new AssignmentCollection();
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-05',
-    });
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-05' });
     const problem = makeProblem({ existingAssignments: existing });
     const result = optimizer.optimize(problem);
     expect(result).toBeDefined();
@@ -564,12 +396,7 @@ describe('Score Invariant', () => {
   });
 
   it('ScoreAggregator + canonical config are consistent', () => {
-    expect(
-      CANONICAL_SCORING_WEIGHTS.fairness +
-        CANONICAL_SCORING_WEIGHTS.workload +
-        CANONICAL_SCORING_WEIGHTS.fatigue +
-        CANONICAL_SCORING_WEIGHTS.coverage,
-    ).toBeCloseTo(1.0);
+    expect(CANONICAL_SCORING_WEIGHTS.fairness + CANONICAL_SCORING_WEIGHTS.workload + CANONICAL_SCORING_WEIGHTS.fatigue + CANONICAL_SCORING_WEIGHTS.coverage).toBeCloseTo(1.0);
   });
 });
 
@@ -579,17 +406,9 @@ describe('Score Invariant', () => {
 describe('Golden 1 — Existing + empty slots', () => {
   it('existing preserved, new generated', () => {
     const existing = new AssignmentCollection();
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-05',
-    });
-    const result = optimizer.optimize(
-      makeProblem({ existingAssignments: existing }),
-    );
-    const p1Jan5 = result.candidate.assignments.filter(
-      (a) => a.personnelId === 'p1' && a.date === '2026-01-05',
-    );
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-05' });
+    const result = optimizer.optimize(makeProblem({ existingAssignments: existing }));
+    const p1Jan5 = result.candidate.assignments.filter(a => a.personnelId === 'p1' && a.date === '2026-01-05');
     expect(p1Jan5.length).toBe(1);
     expect(result.candidate.assignments.length).toBeGreaterThan(1);
   });
@@ -604,9 +423,7 @@ describe('Golden 2 — Existing workload imbalance', () => {
       if (day === 0 || day === 6) continue;
       addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date });
     }
-    const result = optimizer.optimize(
-      makeProblem({ existingAssignments: existing }),
-    );
+    const result = optimizer.optimize(makeProblem({ existingAssignments: existing }));
     expect(result.success).toBe(true);
     expect(result.summary.totalScore).toBeGreaterThanOrEqual(0);
   });
@@ -615,15 +432,8 @@ describe('Golden 2 — Existing workload imbalance', () => {
 describe('Golden 3 — Existing night assignments', () => {
   it('night workload contributes to scoring', () => {
     const existing = new AssignmentCollection();
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-05',
-      shiftType: 'night',
-    });
-    const result = optimizer.optimize(
-      makeProblem({ existingAssignments: existing }),
-    );
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-05', shiftType: 'night' });
+    const result = optimizer.optimize(makeProblem({ existingAssignments: existing }));
     expect(result).toBeDefined();
   });
 });
@@ -631,21 +441,9 @@ describe('Golden 3 — Existing night assignments', () => {
 describe('Golden 4 — Existing hard conflict', () => {
   it('existing conflict reported, not silently deleted', () => {
     const existing = new AssignmentCollection();
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-05',
-      shiftType: 'day',
-    });
-    addExisting(existing, {
-      personnelId: 'p1',
-      deviceId: 'd1',
-      date: '2026-01-05',
-      shiftType: 'day',
-    });
-    const result = optimizer.optimize(
-      makeProblem({ existingAssignments: existing }),
-    );
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-05', shiftType: 'day' });
+    addExisting(existing, { personnelId: 'p1', deviceId: 'd1', date: '2026-01-05', shiftType: 'day' });
+    const result = optimizer.optimize(makeProblem({ existingAssignments: existing }));
     expect(result).toBeDefined();
   });
 });
@@ -653,24 +451,8 @@ describe('Golden 4 — Existing hard conflict', () => {
 describe('Golden 5 — Canonical scoring selects correct candidate', () => {
   it('ScoreAggregator uses canonical weights', () => {
     const agg = new ScoreAggregator();
-    const r1 = agg.aggregate([
-      {
-        constraintId: 'FAIRNESS',
-        rawScore: 100,
-        weight: 1,
-        weightedScore: 100,
-        explanation: '',
-      },
-    ]);
-    const r2 = agg.aggregate([
-      {
-        constraintId: 'FATIGUE',
-        rawScore: 100,
-        weight: 1,
-        weightedScore: 100,
-        explanation: '',
-      },
-    ]);
+    const r1 = agg.aggregate([{ constraintId: 'FAIRNESS', rawScore: 100, weight: 1, weightedScore: 100, explanation: '' }]);
+    const r2 = agg.aggregate([{ constraintId: 'FATIGUE', rawScore: 100, weight: 1, weightedScore: 100, explanation: '' }]);
     expect(r1.total).toBeGreaterThan(r2.total);
   });
 });
@@ -679,9 +461,7 @@ describe('Golden 6 — ANY skill semantics', () => {
   it('personnel with partial skill match is eligible', () => {
     const problem = makeProblem({
       devices: [makeDevice('d1', 'DEV-1', { requiredSkills: ['MRI', 'CT'] })],
-      personnel: [
-        makePersonnel('p1', { skills: ['MRI'], deviceSkills: ['MRI'] }),
-      ],
+      personnel: [makePersonnel('p1', { skills: ['MRI'], deviceSkills: ['MRI'] })],
     });
     const result = optimizer.optimize(problem);
     expect(result.candidate.assignments.length).toBeGreaterThan(0);
@@ -691,24 +471,14 @@ describe('Golden 6 — ANY skill semantics', () => {
 describe('Golden 7 — Radiation Oncology', () => {
   it('RT strategy with pre-seeding', () => {
     const existing = new AssignmentCollection();
-    addExisting(existing, {
-      personnelId: 'rt1',
-      deviceId: 'rt1',
-      date: '2026-01-05',
-    });
-    const result = optimizer.optimize(
-      makeProblem({
-        serviceLine: 'RADIATION_ONCOLOGY',
-        devices: [makeDevice('rt1', 'LINAC-1', { requiredSkills: ['LINAC'] })],
-        personnel: [
-          makePersonnel('rt1', { skills: ['LINAC'], deviceSkills: ['LINAC'] }),
-        ],
-        existingAssignments: existing,
-      }),
-    );
-    expect(
-      result.explanations.some((e) => e.includes('RADIATION_ONCOLOGY')),
-    ).toBe(true);
+    addExisting(existing, { personnelId: 'rt1', deviceId: 'rt1', date: '2026-01-05' });
+    const result = optimizer.optimize(makeProblem({
+      serviceLine: 'RADIATION_ONCOLOGY',
+      devices: [makeDevice('rt1', 'LINAC-1', { requiredSkills: ['LINAC'] })],
+      personnel: [makePersonnel('rt1', { skills: ['LINAC'], deviceSkills: ['LINAC'] })],
+      existingAssignments: existing,
+    }));
+    expect(result.explanations.some(e => e.includes('RADIATION_ONCOLOGY'))).toBe(true);
     expect(result.summary.existingAssignments).toBe(1);
   });
 });

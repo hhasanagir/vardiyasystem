@@ -2,10 +2,7 @@ import { IsString, IsOptional, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreatePersonnelGroupDto {
-  @ApiProperty({
-    description:
-      'Benzersiz grup kodu (örn. tekniker, yardimci_tekniker, saglik_fizikcisi)',
-  })
+  @ApiProperty({ description: 'Benzersiz grup kodu (örn. tekniker, yardimci_tekniker, saglik_fizikcisi)' })
   @IsString()
   code: string;
 

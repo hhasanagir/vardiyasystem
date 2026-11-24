@@ -1,20 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import {
-  MIN_REST_HOURS,
-  REQUIRED_REST_HOURS,
-  MAX_CONSECUTIVE_NIGHTS,
-} from '../domain/constants';
+import { MIN_REST_HOURS, REQUIRED_REST_HOURS, MAX_CONSECUTIVE_NIGHTS } from '../domain/constants';
 import { FairnessEngine } from '../domain/models/fairness-engine';
-import {
-  FatigueEngine,
-  WORKLOAD_LIMITS,
-  DEFAULT_FATIGUE_COEFFICIENTS,
-} from '../domain/models/fatigue-engine';
+import { FatigueEngine, WORKLOAD_LIMITS, DEFAULT_FATIGUE_COEFFICIENTS } from '../domain/models/fatigue-engine';
 import { WorkloadCalculator } from '../domain/models/workload-calculator';
-import {
-  ServiceLine,
-  createSchedulingStrategy,
-} from '../domain/strategies/scheduling-strategy';
+import { ServiceLine, createSchedulingStrategy } from '../domain/strategies/scheduling-strategy';
 import { AssignmentCollection } from '../domain/entities/assignment-collection';
 
 const emptyAssignments = new AssignmentCollection();
@@ -63,11 +52,10 @@ describe('FairnessEngine - Canonical Weights', () => {
       holidays: new Set(),
       monthDays: 30,
     });
-    const expected =
-      result.nightScore * 0.25 +
-      result.weekendScore * 0.2 +
-      result.holidayScore * 0.15 +
-      result.workloadScore * 0.4;
+    const expected = result.nightScore * 0.25
+      + result.weekendScore * 0.20
+      + result.holidayScore * 0.15
+      + result.workloadScore * 0.40;
     expect(result.overallScore).toBe(Math.round(expected * 10) / 10);
   });
 });

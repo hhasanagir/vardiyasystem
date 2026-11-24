@@ -215,15 +215,10 @@ export interface FairnessScore { ... }
 
 ```typescript
 // domain/models/index.ts
-export type {
-  Schedule,
-  ShiftAssignment,
-  Personnel,
-  Device,
-} from "./scheduling";
-export type { User, AuthResponse, Organization } from "./auth";
-export type { Employee, Shift, SwapRequest } from "./operations";
-export type { DashboardStats, FairnessScore } from "./analytics";
+export type { Schedule, ShiftAssignment, Personnel, Device } from './scheduling';
+export type { User, AuthResponse, Organization } from './auth';
+export type { Employee, Shift, SwapRequest } from './operations';
+export type { DashboardStats, FairnessScore } from './analytics';
 ```
 
 ---
@@ -233,7 +228,7 @@ export type { DashboardStats, FairnessScore } from "./analytics";
 ### 4.1 Store Template
 
 ```typescript
-import { Injectable, signal, computed } from "@angular/core";
+import { Injectable, signal, computed } from '@angular/core';
 
 interface MyFeatureState {
   items: MyItem[];
@@ -249,7 +244,7 @@ const INITIAL_STATE: MyFeatureState = {
   error: null,
 };
 
-@Injectable({ providedIn: "root" })
+@Injectable({ providedIn: 'root' })
 export class MyFeatureStore {
   // Private state — only mutated by store methods
   private readonly state = signal<MyFeatureState>(INITIAL_STATE);
@@ -261,21 +256,21 @@ export class MyFeatureStore {
   readonly error = computed(() => this.state().error);
 
   // Derived signals (computed from state)
-  readonly selectedItem = computed(
-    () => this.items().find((i) => i.id === this.selectedId()) ?? null,
+  readonly selectedItem = computed(() =>
+    this.items().find(i => i.id === this.selectedId()) ?? null
   );
 
   // Mutators
   setItems(items: MyItem[]): void {
-    this.state.update((s) => ({ ...s, items, loading: false, error: null }));
+    this.state.update(s => ({ ...s, items, loading: false, error: null }));
   }
 
   setLoading(): void {
-    this.state.update((s) => ({ ...s, loading: true, error: null }));
+    this.state.update(s => ({ ...s, loading: true, error: null }));
   }
 
   setError(error: string): void {
-    this.state.update((s) => ({ ...s, error, loading: false }));
+    this.state.update(s => ({ ...s, error, loading: false }));
   }
 
   reset(): void {
@@ -288,24 +283,24 @@ export class MyFeatureStore {
 
 ```typescript
 // For RxJS-driven side effects (HTTP, WebSocket), bridge via `toSignal`:
-import { toSignal } from "@angular/core/rxjs-interop";
-import { inject } from "@angular/core";
+import { toSignal } from '@angular/core/rxjs-interop';
+import { inject } from '@angular/core';
 
 export class MyService {
   private http = inject(HttpClient);
-  readonly items$ = this.http.get<Item[]>("/api/items").pipe(shareReplay(1));
+  readonly items$ = this.http.get<Item[]>('/api/items').pipe(shareReplay(1));
   readonly items = toSignal(this.items$, { initialValue: [] });
 }
 ```
 
 ### 4.3 Existing Stores
 
-| Store              | Location                       | Scope                                       |
-| ------------------ | ------------------------------ | ------------------------------------------- |
-| `ScheduleStore`    | `core/state/schedule.store.ts` | Schedule data, current selection, conflicts |
-| `MetricsStore`     | `core/state/index.ts`          | Dashboard/unit metrics                      |
-| `UnitStore`        | `core/state/index.ts`          | Selected unit, available units              |
-| `PersistenceStore` | `core/state/index.ts`          | Online status, sync state, localStorage     |
+| Store | Location | Scope |
+|---|---|---|
+| `ScheduleStore` | `core/state/schedule.store.ts` | Schedule data, current selection, conflicts |
+| `MetricsStore` | `core/state/index.ts` | Dashboard/unit metrics |
+| `UnitStore` | `core/state/index.ts` | Selected unit, available units |
+| `PersistenceStore` | `core/state/index.ts` | Online status, sync state, localStorage |
 
 ---
 
@@ -322,7 +317,6 @@ features/my-feature/
 ```
 
 **Smart Component Rules:**
-
 - Has injected dependencies (stores, services, router)
 - Subscribes to data streams / reads signals
 - Passes data down via `@Input()` to dumb components
@@ -330,7 +324,6 @@ features/my-feature/
 - Can own the `FormGroup` for forms
 
 **Dumb Component Rules:**
-
 - No injected dependencies (except `ChangeDetectionRef` if absolutely needed)
 - Data arrives via `@Input()` properties
 - User actions emitted via `@Output()` EventEmitters
@@ -339,18 +332,18 @@ features/my-feature/
 
 ### 5.2 Current Feature Inventory
 
-| Route                | Feature           | Smart Container              | Status |
-| -------------------- | ----------------- | ---------------------------- | ------ |
-| `/app/dashboard`     | Dashboard         | `DashboardComponent`         | Smart  |
-| `/app/operations`    | Operations Center | `OperationsCenterComponent`  | Smart  |
-| `/app/mr-plan`       | MR Plan           | `PlanPageComponent`          | Smart  |
-| `/app/bt-plan`       | BT Plan           | `PlanPageComponent` (reused) | Smart  |
-| `/app/employees`     | Employees         | `EmployeesComponent`         | Smart  |
-| `/app/login`         | Auth              | `LoginComponent`             | Smart  |
-| `/app/my-day`        | My Day            | `MyDayComponent`             | Smart  |
-| `/app/my-shifts`     | My Shifts         | `MyShiftsComponent`          | Smart  |
-| `/app/shifts`        | Shift Definitions | `ShiftsComponent`            | Smart  |
-| `/app/swap-requests` | Swap Requests     | `SwapRequestsComponent`      | Smart  |
+| Route | Feature | Smart Container | Status |
+|---|---|---|---|
+| `/app/dashboard` | Dashboard | `DashboardComponent` | Smart |
+| `/app/operations` | Operations Center | `OperationsCenterComponent` | Smart |
+| `/app/mr-plan` | MR Plan | `PlanPageComponent` | Smart |
+| `/app/bt-plan` | BT Plan | `PlanPageComponent` (reused) | Smart |
+| `/app/employees` | Employees | `EmployeesComponent` | Smart |
+| `/app/login` | Auth | `LoginComponent` | Smart |
+| `/app/my-day` | My Day | `MyDayComponent` | Smart |
+| `/app/my-shifts` | My Shifts | `MyShiftsComponent` | Smart |
+| `/app/shifts` | Shift Definitions | `ShiftsComponent` | Smart |
+| `/app/swap-requests` | Swap Requests | `SwapRequestsComponent` | Smart |
 
 ---
 
@@ -360,20 +353,20 @@ features/my-feature/
 
 Located in `src/app/ui/`, these are reusable, framework-agnostic presentational components.
 
-| Component               | Inputs                                                                                          | Outputs                                                     |
-| ----------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `EmptyState`            | `icon: string`, `title: string`, `message: string`, `actionLabel?: string`                      | `action: EventEmitter<void>`                                |
-| `Skeleton`              | `width?: string`, `height?: string`, `count?: number`, `variant?: 'text' \| 'card' \| 'circle'` | —                                                           |
-| `ToastContainer`        | —                                                                                               | — (uses service)                                            |
-| `OfflineBadge`          | —                                                                                               | —                                                           |
-| `PwaInstallPrompt`      | —                                                                                               | —                                                           |
-| `SessionTimeoutWarning` | —                                                                                               | —                                                           |
-| `ConfirmModal`          | `config: ModalConfig`                                                                           | `confirm: EventEmitter<void>`, `cancel: EventEmitter<void>` |
-| `ErrorBoundary`         | `fallback?: TemplateRef`                                                                        | `error: EventEmitter<Error>`                                |
-| `ErrorFallback`         | `errorId: string`, `message: string`                                                            | `retry: EventEmitter<void>`                                 |
-| `LoadingOverlay`        | `loading: boolean`, `message?: string`                                                          | —                                                           |
-| `CountUp`               | `end: number`, `duration?: number`                                                              | — (directive)                                               |
-| `LiveBadge`             | `connected: boolean`                                                                            | —                                                           |
+| Component | Inputs | Outputs |
+|---|---|---|
+| `EmptyState` | `icon: string`, `title: string`, `message: string`, `actionLabel?: string` | `action: EventEmitter<void>` |
+| `Skeleton` | `width?: string`, `height?: string`, `count?: number`, `variant?: 'text' \| 'card' \| 'circle'` | — |
+| `ToastContainer` | — | — (uses service) |
+| `OfflineBadge` | — | — |
+| `PwaInstallPrompt` | — | — |
+| `SessionTimeoutWarning` | — | — |
+| `ConfirmModal` | `config: ModalConfig` | `confirm: EventEmitter<void>`, `cancel: EventEmitter<void>` |
+| `ErrorBoundary` | `fallback?: TemplateRef` | `error: EventEmitter<Error>` |
+| `ErrorFallback` | `errorId: string`, `message: string` | `retry: EventEmitter<void>` |
+| `LoadingOverlay` | `loading: boolean`, `message?: string` | — |
+| `CountUp` | `end: number`, `duration?: number` | — (directive) |
+| `LiveBadge` | `connected: boolean` | — |
 
 ### 6.2 Styling Conventions
 
@@ -390,7 +383,7 @@ Located in `src/app/ui/`, these are reusable, framework-agnostic presentational 
 
 ```typescript
 // shared/forms/typed-form.ts
-import { FormControl, FormGroup, FormArray } from "@angular/forms";
+import { FormControl, FormGroup, FormArray } from '@angular/forms';
 
 type Controls<T> = {
   [K in keyof T]: T[K] extends Array<infer U>
@@ -412,7 +405,7 @@ export function typedFormControl<T>(value: T): FormControl<T> {
 ### 7.2 Usage Example
 
 ```typescript
-import { typedFormGroup, typedFormControl } from "@shared/forms/typed-form";
+import { typedFormGroup, typedFormControl } from '@shared/forms/typed-form';
 
 interface ShiftForm {
   name: string;
@@ -422,15 +415,15 @@ interface ShiftForm {
 }
 
 const form = typedFormGroup<ShiftForm>({
-  name: typedFormControl(""),
-  startTime: typedFormControl("08:00"),
-  endTime: typedFormControl("16:00"),
+  name: typedFormControl(''),
+  startTime: typedFormControl('08:00'),
+  endTime: typedFormControl('16:00'),
   durationHours: typedFormControl(8),
 });
 
 // Fully typed — errors on property name typos
-form.value.name; // string
-form.value.startTime; // string
+form.value.name;         // string
+form.value.startTime;    // string
 ```
 
 ---
@@ -440,7 +433,6 @@ form.value.startTime; // string
 ### 8.1 Global Error Handler
 
 Already implemented in `core/error-handler.service.ts`. Extends Angular's `ErrorHandler`:
-
 - Generates unique error IDs (`crypto.randomUUID().slice(0, 8)`)
 - Logs to `LoggerService`
 - Shows a fallback UI in `#error-fallback` element
@@ -451,7 +443,7 @@ Already implemented in `core/error-handler.service.ts`. Extends Angular's `Error
 ```typescript
 // ui/error-boundary/error-boundary.component.ts
 @Component({
-  selector: "app-error-boundary",
+  selector: 'app-error-boundary',
   template: `
     @if (hasError()) {
       <app-error-fallback
@@ -468,8 +460,8 @@ Already implemented in `core/error-handler.service.ts`. Extends Angular's `Error
 export class ErrorBoundaryComponent {
   private readonly error = signal<Error | null>(null);
   readonly hasError = computed(() => this.error() !== null);
-  readonly errorId = signal("");
-  readonly errorMessage = signal("");
+  readonly errorId = signal('');
+  readonly errorMessage = signal('');
 
   @Output() errorCaught = new EventEmitter<Error>();
 
@@ -555,14 +547,14 @@ All routes use `loadComponent()` for lazy loading — **already implemented.** E
 
 ### 10.1 Decision Matrix
 
-| Concern                    | Solution                                           |
-| -------------------------- | -------------------------------------------------- |
-| Server state (API data)    | `toSignal(http.get())` or manual signal stores     |
-| Client state (UI state)    | Component-local `signal()`                         |
+| Concern | Solution |
+|---|---|
+| Server state (API data) | `toSignal(http.get())` or manual signal stores |
+| Client state (UI state) | Component-local `signal()` |
 | Shared cross-feature state | `Injectable({ providedIn: 'root' })` signal stores |
-| Real-time (WebSocket)      | RxJS Subject → signal bridge                       |
-| Form state                 | Typed `FormGroup` with signal integration          |
-| Offline queue              | `PersistenceStore` + `OfflineInterceptor`          |
+| Real-time (WebSocket) | RxJS Subject → signal bridge |
+| Form state | Typed `FormGroup` with signal integration |
+| Offline queue | `PersistenceStore` + `OfflineInterceptor` |
 
 ### 10.2 Data Flow
 
@@ -588,16 +580,16 @@ User Action
 
 ### 11.1 Service Organization
 
-| Directory        | Purpose                                          | Examples                         |
-| ---------------- | ------------------------------------------------ | -------------------------------- |
-| `core/api/`      | Base HTTP + domain-specific API clients          | `ApiService`, `DeviceApiService` |
-| `core/services/` | Infrastructure services                          | `LoggerService`                  |
-| `services/`      | **Legacy** — being consolidated into `core/api/` | `AuthService`, `ScheduleService` |
+| Directory | Purpose | Examples |
+|---|---|---|
+| `core/api/` | Base HTTP + domain-specific API clients | `ApiService`, `DeviceApiService` |
+| `core/services/` | Infrastructure services | `LoggerService` |
+| `services/` | **Legacy** — being consolidated into `core/api/` | `AuthService`, `ScheduleService` |
 
 ### 11.2 API Service Pattern
 
 ```typescript
-@Injectable({ providedIn: "root" })
+@Injectable({ providedIn: 'root' })
 export class ScheduleApiService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiUrl}/schedules`;
@@ -642,7 +634,6 @@ New API services go in `core/api/`. Legacy `services/` will be gradually migrate
 ## 14. Migration Plan
 
 ### Phase 1: Foundation (Current — Done)
-
 - [x] Angular 21 standalone setup
 - [x] All routes lazy-loaded
 - [x] Signal-based stores (ScheduleStore, MetricsStore, UnitStore, PersistenceStore)
@@ -654,7 +645,6 @@ New API services go in `core/api/`. Legacy `services/` will be gradually migrate
 - [x] Offline support
 
 ### Phase 2: Infrastructure (This Pass)
-
 - [x] `/docs/frontend-architecture.md` — this document
 - [x] Typed forms utility (`shared/forms/typed-form.ts`)
 - [x] `ui/` directory with barrel export for presentational primitives
@@ -666,7 +656,6 @@ New API services go in `core/api/`. Legacy `services/` will be gradually migrate
 - [x] `shared/utils/` — URI helpers, formatters
 
 ### Phase 3: Smart/Dumb Refactoring (Next)
-
 - [ ] Extract `KpiCardComponent` from `DashboardComponent`
 - [ ] Extract `UnitHealthCardComponent` from `DashboardComponent`
 - [ ] Extract `UnitCardComponent` from `OperationsCenterComponent`
@@ -677,7 +666,6 @@ New API services go in `core/api/`. Legacy `services/` will be gradually migrate
 - [ ] Remove duplicate `interceptors/` → delegate to `core/interceptors/`
 
 ### Phase 4: Advanced (Future)
-
 - [ ] Implement `loadChildren` for large features (operations, plans)
 - [ ] Add `ngrx-store-devtools` or custom signal devtools
 - [ ] Resource API for HTTP caching with `@angular/core` `resource()`

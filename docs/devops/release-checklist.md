@@ -93,14 +93,12 @@ Feature Branches
 ### Smoke Tests
 
 #### Authentication
-
 - [ ] User login (admin, supervisor, technician)
 - [ ] Token refresh flow
 - [ ] Password change
 - [ ] Account lockout after failed attempts
 
 #### Core Features
-
 - [ ] Schedule CRUD operations
 - [ ] Personnel management
 - [ ] Unit management
@@ -108,14 +106,12 @@ Feature Branches
 - [ ] Device incident reporting
 
 #### Real-time Features
-
 - [ ] WebSocket connection established
 - [ ] Command center dashboard loads and auto-refreshes
 - [ ] Real-time notifications received
 - [ ] Presence indicators update
 
 #### Admin Features
-
 - [ ] Audit log accessible
 - [ ] Analytics reports generate
 - [ ] User management
@@ -246,16 +242,15 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 We follow [Semantic Versioning](https://semver.org/):
 
-| Bump      | When                                             |
-| --------- | ------------------------------------------------ |
+| Bump | When |
+|------|------|
 | **MAJOR** | Breaking API changes, breaking DB schema changes |
-| **MINOR** | New features, non-breaking enhancements          |
-| **PATCH** | Bug fixes, security patches, minor improvements  |
+| **MINOR** | New features, non-breaking enhancements |
+| **PATCH** | Bug fixes, security patches, minor improvements |
 
 ### Rollback Criteria
 
 **Rollback immediately if:**
-
 - Error rate > 1% after 5 minutes
 - P95 latency > 2 seconds
 - Database connection errors
@@ -266,10 +261,10 @@ We follow [Semantic Versioning](https://semver.org/):
 
 ## Release Sign-off
 
-| Role            | Name | Date | Signature |
-| --------------- | ---- | ---- | --------- |
-| Developer       |      |      |           |
-| QA Lead         |      |      |           |
-| DevOps          |      |      |           |
-| Product Owner   |      |      |           |
-| Release Manager |      |      |           |
+| Role | Name | Date | Signature |
+|------|------|------|-----------|
+| Developer | | | |
+| QA Lead | | | |
+| DevOps | | | |
+| Product Owner | | | |
+| Release Manager | | | |

@@ -10,12 +10,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { PersonnelGroupsService } from './personnel-groups.service';
 import { CreatePersonnelGroupDto } from './dto/create-personnel-group.dto';
 import { UpdatePersonnelGroupDto } from './dto/update-personnel-group.dto';
@@ -46,11 +41,12 @@ export class PersonnelGroupsController {
 
   @Get()
   @Roles(MinRole.VIEWER)
-  @ApiOperation({
-    summary: 'List personnel groups (cihaz dışı nöbet grupları)',
-  })
+  @ApiOperation({ summary: 'List personnel groups (cihaz dışı nöbet grupları)' })
   @ApiQuery({ name: 'unitId', required: false })
-  findAll(@Request() req: RequestWithUser, @Query('unitId') unitId?: string) {
+  findAll(
+    @Request() req: RequestWithUser,
+    @Query('unitId') unitId?: string,
+  ) {
     return this.personnelGroupsService.findAll(req.user.organizationId, unitId);
   }
 
@@ -68,11 +64,7 @@ export class PersonnelGroupsController {
     @Body() dto: CreatePersonnelGroupDto,
     @Request() req: RequestWithUser,
   ) {
-    return this.personnelGroupsService.create(
-      dto,
-      req.user.organizationId,
-      req.user.id,
-    );
+    return this.personnelGroupsService.create(dto, req.user.organizationId, req.user.id);
   }
 
   @Patch(':id')
@@ -104,11 +96,7 @@ export class PersonnelGroupsController {
     @Body() dto: CreateShiftTemplateDto,
     @Request() req: RequestWithUser,
   ) {
-    return this.personnelGroupsService.createTemplate(
-      id,
-      dto,
-      req.user.organizationId,
-    );
+    return this.personnelGroupsService.createTemplate(id, dto, req.user.organizationId);
   }
 
   @Patch(':id/templates/:templateId')
@@ -126,10 +114,7 @@ export class PersonnelGroupsController {
   @Delete(':id/templates/:templateId')
   @Roles(MinRole.SUPERVISOR)
   @ApiOperation({ summary: 'Deactivate a shift template (soft delete)' })
-  removeTemplate(
-    @Param('id') id: string,
-    @Param('templateId') templateId: string,
-  ) {
+  removeTemplate(@Param('id') id: string, @Param('templateId') templateId: string) {
     void id;
     return this.personnelGroupsService.removeTemplate(templateId);
   }

@@ -51,10 +51,7 @@ export class AssignmentSlotsController {
   @Patch(':id')
   @Roles(MinRole.ADMIN)
   @ApiOperation({ summary: 'Update assignment slot' })
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateAssignmentSlotDto,
-  ) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateAssignmentSlotDto) {
     return this.service.update(id, dto);
   }
 

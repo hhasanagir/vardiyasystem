@@ -1,6 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
-import { DomainEvent } from './domain-event.interface';
+import { DomainEvent, deserializeDomainEvent } from './domain-event.interface';
 
 export const REDIS_CLIENT = 'REDIS_CLIENT';
 
@@ -10,7 +10,9 @@ const EVENT_TTL_SEC = 7 * 86400;
 export class EventStoreService {
   private readonly logger = new Logger(EventStoreService.name);
 
-  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
+  constructor(
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+  ) {}
 
   async store(event: DomainEvent): Promise<void> {
     try {
@@ -19,12 +21,7 @@ export class EventStoreService {
       await this.redis
         .multi()
         .zadd(key, score, event.eventId)
-        .set(
-          `event:${event.eventId}`,
-          JSON.stringify(event),
-          'EX',
-          EVENT_TTL_SEC,
-        )
+        .set(`event:${event.eventId}`, JSON.stringify(event), 'EX', EVENT_TTL_SEC)
         .zadd('events:all', score, event.eventId)
         .exec();
     } catch (err) {
@@ -37,20 +34,13 @@ export class EventStoreService {
     return raw ? (JSON.parse(raw) as DomainEvent) : null;
   }
 
-  async replayByAggregate(
-    aggregateType: string,
-    aggregateId: string,
-  ): Promise<DomainEvent[]> {
+  async replayByAggregate(aggregateType: string, aggregateId: string): Promise<DomainEvent[]> {
     const key = `events:${aggregateType}:${aggregateId}`;
     const eventIds = await this.redis.zrange(key, 0, -1);
     return this.fetchEvents(eventIds);
   }
 
-  async replayByType(
-    aggregateType: string,
-    fromTimestamp?: number,
-    toTimestamp?: number,
-  ): Promise<DomainEvent[]> {
+  async replayByType(aggregateType: string, fromTimestamp?: number, toTimestamp?: number): Promise<DomainEvent[]> {
     const min = fromTimestamp ?? 0;
     const max = toTimestamp ?? Date.now();
     const eventIds = await this.redis.zrangebyscore('events:all', min, max);
@@ -65,20 +55,14 @@ export class EventStoreService {
     return this.fetchEvents(filtered);
   }
 
-  async replayAll(
-    fromTimestamp?: number,
-    toTimestamp?: number,
-  ): Promise<DomainEvent[]> {
+  async replayAll(fromTimestamp?: number, toTimestamp?: number): Promise<DomainEvent[]> {
     const min = fromTimestamp ?? 0;
     const max = toTimestamp ?? Date.now();
     const eventIds = await this.redis.zrangebyscore('events:all', min, max);
     return this.fetchEvents(eventIds);
   }
 
-  async countByAggregate(
-    aggregateType: string,
-    aggregateId: string,
-  ): Promise<number> {
+  async countByAggregate(aggregateType: string, aggregateId: string): Promise<number> {
     return this.redis.zcard(`events:${aggregateType}:${aggregateId}`);
   }
 
@@ -93,7 +77,8 @@ export class EventStoreService {
     if (results) {
       for (const [, raw] of results) {
         if (raw && typeof raw === 'string') {
-          events.push(JSON.parse(raw) as DomainEvent);
+          // Redis round-trips the event as JSON, so the Date field is a string.
+          events.push(deserializeDomainEvent(JSON.parse(raw) as DomainEvent));
         }
       }
     }

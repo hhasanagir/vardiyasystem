@@ -19,10 +19,7 @@ export class WebPushSenderService {
     try {
       const publicKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
       const privateKey = this.configService.get<string>('VAPID_PRIVATE_KEY');
-      const subject = this.configService.get<string>(
-        'VAPID_SUBJECT',
-        'mailto:vardiyaos@hospital.com',
-      );
+      const subject = this.configService.get<string>('VAPID_SUBJECT', 'mailto:vardiyaos@hospital.com');
       if (publicKey && privateKey) {
         webpush.setVapidDetails(subject, publicKey, privateKey);
         this.initialized = true;
@@ -48,10 +45,7 @@ export class WebPushSenderService {
       for (const sub of subs) {
         try {
           await webpush.sendNotification(
-            {
-              endpoint: sub.endpoint,
-              keys: { p256dh: sub.p256dh, auth: sub.auth },
-            },
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
             JSON.stringify({
               title: payload.title,
               body: payload.body,
@@ -65,31 +59,19 @@ export class WebPushSenderService {
           sent = true;
         } catch (err: any) {
           if (err.statusCode === 410 || err.statusCode === 404) {
-            await this.prisma.webPushSubscription
-              .delete({ where: { id: sub.id } })
-              .catch(() => {});
+            await this.prisma.webPushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
           }
         }
       }
       return sent;
     } catch (err) {
-      this.logger.error(
-        `Web push send failed for user ${userId}: ${(err as Error).message}`,
-      );
+      this.logger.error(`Web push send failed for user ${userId}: ${(err as Error).message}`);
       return false;
     }
   }
 
-  async subscribe(
-    userId: string,
-    endpoint: string,
-    auth: string,
-    p256dh: string,
-    userAgent?: string,
-  ) {
-    const existing = await this.prisma.webPushSubscription.findUnique({
-      where: { endpoint },
-    });
+  async subscribe(userId: string, endpoint: string, auth: string, p256dh: string, userAgent?: string) {
+    const existing = await this.prisma.webPushSubscription.findUnique({ where: { endpoint } });
     if (existing) {
       return this.prisma.webPushSubscription.update({
         where: { endpoint },

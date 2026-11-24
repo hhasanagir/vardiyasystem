@@ -24,8 +24,7 @@ export const AGGREGATE_TYPES = {
   NOTIFICATION: 'Notification',
 } as const;
 
-export type AggregateType =
-  (typeof AGGREGATE_TYPES)[keyof typeof AGGREGATE_TYPES];
+export type AggregateType = (typeof AGGREGATE_TYPES)[keyof typeof AGGREGATE_TYPES];
 
 export interface DomainEvent {
   eventId: string;
@@ -57,4 +56,26 @@ export function createEvent(
     timestamp: new Date(),
     payload,
   };
+}
+
+/**
+ * Rehydrates a DomainEvent that crossed a serialisation boundary.
+ *
+ * BullMQ and Redis store the event as JSON, so a `Date` field comes back as an
+ * ISO STRING. Every timestamp consumer (`event.timestamp.getTime()`) would
+ * otherwise throw "getTime is not a function" and push healthy jobs to the
+ * dead-letter queue, so the boundary always normalises the value.
+ */
+export function deserializeDomainEvent(raw: DomainEvent): DomainEvent {
+  const timestamp = raw.timestamp;
+  const date =
+    timestamp instanceof Date
+      ? timestamp
+      : new Date(typeof timestamp === 'string' || typeof timestamp === 'number' ? timestamp : NaN);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`DomainEvent ${raw.eventId} carries an unusable timestamp`);
+  }
+
+  return { ...raw, timestamp: date };
 }

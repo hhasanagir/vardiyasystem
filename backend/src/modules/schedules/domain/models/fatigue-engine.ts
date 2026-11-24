@@ -1,6 +1,7 @@
 import { Assignment } from '../entities/assignment.entity';
 import { AssignmentCollection } from '../entities/assignment-collection';
 import { PersonnelId } from '../value-objects/personnel-id.value-object';
+import { addDays, dayOfWeek, startOfWeek } from '../value-objects/local-date';
 import {
   MIN_REST_HOURS,
   REQUIRED_REST_HOURS,
@@ -21,8 +22,8 @@ export const DEFAULT_FATIGUE_COEFFICIENTS: FatigueCoefficients = {
   consecutiveNightPenalty: 0.15,
   weekendShiftPenalty: 0.08,
   holidayShiftPenalty: 0.12,
-  shortRestPenalty: 0.2,
-  overtimePenalty: 0.1,
+  shortRestPenalty: 0.20,
+  overtimePenalty: 0.10,
   consecutiveDaysPenalty: 0.05,
 };
 
@@ -77,8 +78,7 @@ export class FatigueEngine {
       input.candidateDate,
     );
     if (consecutiveNights > 0) {
-      const penalty =
-        consecutiveNights * this.coefficients.consecutiveNightPenalty;
+      const penalty = consecutiveNights * this.coefficients.consecutiveNightPenalty;
       factors.push({
         type: 'consecutive_nights',
         contribution: penalty,
@@ -89,13 +89,8 @@ export class FatigueEngine {
 
     const isWeekend = this.isWeekend(input.candidateDate);
     if (isWeekend) {
-      const weekendShifts = this.countWeekendShifts(
-        input.existingAssignments,
-        input.personnelId,
-        input.candidateDate,
-      );
-      const penalty =
-        this.coefficients.weekendShiftPenalty * (weekendShifts + 1);
+      const weekendShifts = this.countWeekendShifts(input.existingAssignments, input.personnelId, input.candidateDate);
+      const penalty = this.coefficients.weekendShiftPenalty * (weekendShifts + 1);
       factors.push({
         type: 'weekend_work',
         contribution: penalty,
@@ -122,10 +117,9 @@ export class FatigueEngine {
       input.candidateStartTime,
     );
     if (shortRestHours < WORKLOAD_LIMITS.minRecoveryHoursAfterNight) {
-      const penalty =
-        shortRestHours < REQUIRED_REST_HOURS
-          ? this.coefficients.shortRestPenalty
-          : this.coefficients.shortRestPenalty * 0.5;
+      const penalty = shortRestHours < REQUIRED_REST_HOURS
+        ? this.coefficients.shortRestPenalty
+        : this.coefficients.shortRestPenalty * 0.5;
       factors.push({
         type: 'short_rest',
         contribution: penalty,
@@ -140,9 +134,7 @@ export class FatigueEngine {
       input.candidateDate,
     );
     if (consecutiveDays > WORKLOAD_LIMITS.maxConsecutiveDays) {
-      const penalty =
-        this.coefficients.consecutiveDaysPenalty *
-        (consecutiveDays - WORKLOAD_LIMITS.maxConsecutiveDays);
+      const penalty = this.coefficients.consecutiveDaysPenalty * (consecutiveDays - WORKLOAD_LIMITS.maxConsecutiveDays);
       factors.push({
         type: 'consecutive_days',
         contribution: penalty,
@@ -158,10 +150,7 @@ export class FatigueEngine {
     );
     if (weeklyHours > 40) {
       const overtimeHours = weeklyHours - 40;
-      const penalty = Math.min(
-        overtimeHours * this.coefficients.overtimePenalty,
-        0.2,
-      );
+      const penalty = Math.min(overtimeHours * this.coefficients.overtimePenalty, 0.2);
       factors.push({
         type: 'overtime',
         contribution: penalty,
@@ -184,7 +173,7 @@ export class FatigueEngine {
     const pid = PersonnelId.create(personnelId);
     const nightAssignments = assignments
       .findByPersonnel(pid)
-      .filter((a) => a.shiftType.isNightShift)
+      .filter(a => a.shiftType.isNightShift)
       .sort((a, b) => b.date.value.localeCompare(a.date.value));
 
     if (nightAssignments.length === 0) return 0;
@@ -217,14 +206,14 @@ export class FatigueEngine {
     const weekStart = this.getWeekStart(candidateDate);
     const weekEnd = this.addDays(weekStart, 7);
 
-    return assignments.findByPersonnel(pid).filter((a) => {
-      if (!a.shiftType.isWorking) return false;
-      const day = new Date(a.date.value).getDay();
-      const isWeekendDay = day === 0 || day === 6;
-      return (
-        isWeekendDay && a.date.value >= weekStart && a.date.value < weekEnd
-      );
-    }).length;
+    return assignments
+      .findByPersonnel(pid)
+      .filter(a => {
+        if (!a.shiftType.isWorking) return false;
+        const day = new Date(a.date.value).getDay();
+        const isWeekendDay = day === 0 || day === 6;
+        return isWeekendDay && a.date.value >= weekStart && a.date.value < weekEnd;
+      }).length;
   }
 
   private getLastRestHours(
@@ -234,18 +223,9 @@ export class FatigueEngine {
     candidateStartTime: string,
   ): number {
     const pid = PersonnelId.create(personnelId);
-    const previous = assignments
-      .findByPersonnel(pid)
-      .filter(
-        (a) =>
-          a.date.value < candidateDate ||
-          (a.date.value === candidateDate && a.endTime <= candidateStartTime),
-      )
-      .sort(
-        (a, b) =>
-          b.date.value.localeCompare(a.date.value) ||
-          b.endTime.localeCompare(a.endTime),
-      );
+    const previous = assignments.findByPersonnel(pid)
+      .filter(a => a.date.value < candidateDate || (a.date.value === candidateDate && a.endTime <= candidateStartTime))
+      .sort((a, b) => b.date.value.localeCompare(a.date.value) || b.endTime.localeCompare(a.endTime));
 
     if (previous.length === 0) return 48;
 
@@ -264,7 +244,7 @@ export class FatigueEngine {
     const pid = PersonnelId.create(personnelId);
     const sorted = assignments
       .findByPersonnel(pid)
-      .filter((a) => a.shiftType.isWorking && a.date.value <= candidateDate)
+      .filter(a => a.shiftType.isWorking && a.date.value <= candidateDate)
       .sort((a, b) => b.date.value.localeCompare(a.date.value));
 
     if (sorted.length === 0) return 0;
@@ -299,48 +279,27 @@ export class FatigueEngine {
 
     return assignments
       .findByPersonnel(pid)
-      .filter(
-        (a) =>
-          a.shiftType.isWorking &&
-          a.date.value >= weekStart &&
-          a.date.value < weekEnd,
-      )
+      .filter(a => a.shiftType.isWorking && a.date.value >= weekStart && a.date.value < weekEnd)
       .reduce((total, a) => total + a.durationHours, 0);
   }
 
-  private getRiskLevel(
-    score: number,
-    factors: FatigueFactor[],
-  ): 'low' | 'medium' | 'high' | 'critical' {
-    if (score < 30 || factors.some((f) => f.type === 'short_rest'))
-      return 'critical';
-    if (
-      score < 50 ||
-      factors.some(
-        (f) => f.type === 'consecutive_nights' && f.contribution > 0.2,
-      )
-    )
-      return 'high';
+  private getRiskLevel(score: number, factors: FatigueFactor[]): 'low' | 'medium' | 'high' | 'critical' {
+    if (score < 30 || factors.some(f => f.type === 'short_rest')) return 'critical';
+    if (score < 50 || factors.some(f => f.type === 'consecutive_nights' && f.contribution > 0.2)) return 'high';
     if (score < 70) return 'medium';
     return 'low';
   }
 
   private isWeekend(dateStr: string): boolean {
-    const day = new Date(dateStr).getDay();
+    const day = dayOfWeek(dateStr);
     return day === 0 || day === 6;
   }
 
   private getWeekStart(dateStr: string): string {
-    const date = new Date(dateStr);
-    const day = date.getDay();
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-    date.setDate(diff);
-    return date.toISOString().split('T')[0];
+    return startOfWeek(dateStr);
   }
 
   private addDays(dateStr: string, days: number): string {
-    const date = new Date(dateStr);
-    date.setDate(date.getDate() + days);
-    return date.toISOString().split('T')[0];
+    return addDays(dateStr, days);
   }
 }

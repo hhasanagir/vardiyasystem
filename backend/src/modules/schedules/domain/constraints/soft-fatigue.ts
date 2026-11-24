@@ -1,14 +1,10 @@
-import {
-  SoftConstraint,
-  ConstraintScore,
-} from '../constraints/soft-constraint.interface';
+import { SoftConstraint, ConstraintScore } from '../constraints/soft-constraint.interface';
 import { ConstraintContext } from '../constraints/constraint.interface';
 import { FatigueEngine, FatigueInput } from '../models/fatigue-engine';
 
 export class FatigueSoftConstraint implements SoftConstraint {
   id = 'FATIGUE';
-  description =
-    'Fatigue scoring based on consecutive shifts, rest intervals, and accumulated workload';
+  description = 'Fatigue scoring based on consecutive shifts, rest intervals, and accumulated workload';
 
   private readonly fatigueEngine: FatigueEngine;
 
@@ -38,7 +34,7 @@ export class FatigueSoftConstraint implements SoftConstraint {
       metadata: {
         riskLevel: result.riskLevel,
         factorCount: result.factors.length,
-        factorTypes: result.factors.map((f) => f.type),
+        factorTypes: result.factors.map(f => f.type),
       },
     };
   }

@@ -10,6 +10,8 @@ export function initFeatureFlags(): void {
     'ENABLE_ADVANCED_AUDIT',
     'ENABLE_FOUR_EYES_APPROVAL',
     'ENABLE_SCHEDULE_GENERATION_ASYNC',
+    /** P2-01/02/03 — DDD canonical rollout. Read-only until DB/worker parity is proven. */
+    'ENABLE_DDD_CANONICAL_SCHEDULING',
     'ENABLE_OFFLINE_MODE',
     'ENABLE_EXPORT_ASYNC',
     'ENABLE_BIOMETRIC_AUTH',
@@ -19,9 +21,7 @@ export function initFeatureFlags(): void {
     FLAGS[name] = process.env[name] === 'true';
   }
 
-  const enabled = Object.entries(FLAGS)
-    .filter(([, v]) => v)
-    .map(([k]) => k);
+  const enabled = Object.entries(FLAGS).filter(([, v]) => v).map(([k]) => k);
   if (enabled.length > 0) {
     logger.log(`Feature flags enabled: ${enabled.join(', ')}`);
   }

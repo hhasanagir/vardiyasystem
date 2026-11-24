@@ -10,8 +10,7 @@ async function main() {
     {
       id: 'ct-data-processing',
       title: 'Kişisel Verilerin İşlenmesi',
-      description:
-        'KVKK kapsamında kişisel verilerin işlenmesine ilişkin aydınlatma ve onay',
+      description: 'KVKK kapsamında kişisel verilerin işlenmesine ilişkin aydınlatma ve onay',
       purpose: 'DATA_PROCESSING' as const,
       version: 1,
       requiredText: 'Bu onay metnini okuyup kabul etmeniz gerekmektedir.',
@@ -23,19 +22,16 @@ async function main() {
       description: 'E-posta ve SMS yoluyla bildirim gönderimi için izin',
       purpose: 'COMMUNICATION' as const,
       version: 1,
-      requiredText:
-        'İletişim izni vermeniz durumunda bildirim gönderilecektir.',
+      requiredText: 'İletişim izni vermeniz durumunda bildirim gönderilecektir.',
       isActive: true,
     },
     {
       id: 'ct-biometric-auth',
       title: 'Biyometrik Doğrulama',
-      description:
-        'Parmak izi / yüz tanıma ile giriş-çıkış doğrulaması için izin',
+      description: 'Parmak izi / yüz tanıma ile giriş-çıkış doğrulaması için izin',
       purpose: 'BIOMETRIC_AUTH' as const,
       version: 1,
-      requiredText:
-        'Biyometrik veri işlenmesi için açık rızanız gerekmektedir.',
+      requiredText: 'Biyometrik veri işlenmesi için açık rızanız gerekmektedir.',
       isActive: true,
     },
     {
@@ -50,8 +46,7 @@ async function main() {
     {
       id: 'ct-email-notifications',
       title: 'E-posta Bildirimleri',
-      description:
-        'E-posta yoluyla vardiya değişiklikleri ve duyurular için izin',
+      description: 'E-posta yoluyla vardiya değişiklikleri ve duyurular için izin',
       purpose: 'EMAIL_NOTIFICATIONS' as const,
       version: 1,
       requiredText: 'E-posta bildirimi almak için izin vermeniz gerekmektedir.',
@@ -69,12 +64,10 @@ async function main() {
     {
       id: 'ct-data-sharing',
       title: 'Veri Paylaşımı',
-      description:
-        'Kişisel verilerin üçüncü taraflarla paylaşılması için açık rıza',
+      description: 'Kişisel verilerin üçüncü taraflarla paylaşılması için açık rıza',
       purpose: 'DATA_SHARING' as const,
       version: 1,
-      requiredText:
-        'Verilerinizin paylaşılmasına izin vermeniz durumunda ilgili taraflarla paylaşılacaktır.',
+      requiredText: 'Verilerinizin paylaşılmasına izin vermeniz durumunda ilgili taraflarla paylaşılacaktır.',
       isActive: true,
     },
     {
@@ -83,30 +76,25 @@ async function main() {
       description: 'Verilerin iş ortakları tarafından işlenmesi için onay',
       purpose: 'THIRD_PARTY_PROCESSING' as const,
       version: 1,
-      requiredText:
-        'Üçüncü tarafların verilerinizi işlemesine izin vermeniz gerekmektedir.',
+      requiredText: 'Üçüncü tarafların verilerinizi işlemesine izin vermeniz gerekmektedir.',
       isActive: true,
     },
     {
       id: 'ct-emergency-access',
       title: 'Acil Erişim Bildirimi',
-      description:
-        'Acil durumlarda yetkililerin verilerinize erişebileceğine dair bildirim',
+      description: 'Acil durumlarda yetkililerin verilerinize erişebileceğine dair bildirim',
       purpose: 'EMERGENCY_ACCESS' as const,
       version: 1,
-      requiredText:
-        'Acil durumlarda verilerinize erişilebileceğini kabul ediyorum.',
+      requiredText: 'Acil durumlarda verilerinize erişilebileceğini kabul ediyorum.',
       isActive: true,
     },
     {
       id: 'ct-research-analytics',
       title: 'Araştırma ve Analiz',
-      description:
-        'Anonimleştirilmiş verilerin araştırma ve analiz amaçlı kullanımı için izin',
+      description: 'Anonimleştirilmiş verilerin araştırma ve analiz amaçlı kullanımı için izin',
       purpose: 'RESEARCH_ANALYTICS' as const,
       version: 1,
-      requiredText:
-        'Verilerinizin anonimleştirilerek araştırma amaçlı kullanılmasına izin verebilirsiniz.',
+      requiredText: 'Verilerinizin anonimleştirilerek araştırma amaçlı kullanılmasına izin verebilirsiniz.',
       isActive: true,
     },
   ];
@@ -117,101 +105,22 @@ async function main() {
       update: template,
       create: template,
     });
-    console.log(
-      `  ✓ Consent template: ${template.title} (${template.purpose})`,
-    );
+    console.log(`  ✓ Consent template: ${template.title} (${template.purpose})`);
   }
 
   // ─── Data Retention Policies ────────────────────────────
   const retentionPolicies = [
-    {
-      entityType: 'audit_logs',
-      retentionDays: 3650,
-      archiveAfterDays: null,
-      purgeAfterDays: 3650,
-      description: 'Denetim kayıtları - 10 yıl (KVKK 138/152)',
-      isActive: true,
-    },
-    {
-      entityType: 'auth_attempts',
-      retentionDays: 90,
-      archiveAfterDays: null,
-      purgeAfterDays: 90,
-      description: 'Giriş denemeleri - 90 gün',
-      isActive: true,
-    },
-    {
-      entityType: 'auth_sessions',
-      retentionDays: 365,
-      archiveAfterDays: null,
-      purgeAfterDays: 395,
-      description: 'Oturum kayıtları - 1 yıl',
-      isActive: true,
-    },
-    {
-      entityType: 'consent_records',
-      retentionDays: 3650,
-      archiveAfterDays: 365,
-      purgeAfterDays: 3650,
-      description: 'Rıza kayıtları - 10 yıl',
-      isActive: true,
-    },
-    {
-      entityType: 'data_subject_requests',
-      retentionDays: 3650,
-      archiveAfterDays: null,
-      purgeAfterDays: 3650,
-      description: 'Veri sahibi talepleri - 10 yıl',
-      isActive: true,
-    },
-    {
-      entityType: 'emergency_access_grants',
-      retentionDays: 1825,
-      archiveAfterDays: null,
-      purgeAfterDays: 1825,
-      description: 'Acil erişim kayıtları - 5 yıl',
-      isActive: true,
-    },
-    {
-      entityType: 'breach_records',
-      retentionDays: 3650,
-      archiveAfterDays: null,
-      purgeAfterDays: 3650,
-      description: 'Veri ihlali kayıtları - 10 yıl',
-      isActive: true,
-    },
-    {
-      entityType: 'notification_deliveries',
-      retentionDays: 180,
-      archiveAfterDays: null,
-      purgeAfterDays: 180,
-      description: 'Bildirim teslimat kayıtları - 6 ay',
-      isActive: true,
-    },
-    {
-      entityType: 'token_blacklist',
-      retentionDays: 7,
-      archiveAfterDays: null,
-      purgeAfterDays: 7,
-      description: 'Token kara listesi - 7 gün',
-      isActive: true,
-    },
-    {
-      entityType: 'device_incidents',
-      retentionDays: 1825,
-      archiveAfterDays: null,
-      purgeAfterDays: 1825,
-      description: 'Cihaz arıza kayıtları - 5 yıl',
-      isActive: true,
-    },
-    {
-      entityType: 'handover_notes',
-      retentionDays: 730,
-      archiveAfterDays: null,
-      purgeAfterDays: 730,
-      description: 'Devir teslim notları - 2 yıl',
-      isActive: true,
-    },
+    { entityType: 'audit_logs', retentionDays: 3650, archiveAfterDays: null, purgeAfterDays: 3650, description: 'Denetim kayıtları - 10 yıl (KVKK 138/152)', isActive: true },
+    { entityType: 'auth_attempts', retentionDays: 90, archiveAfterDays: null, purgeAfterDays: 90, description: 'Giriş denemeleri - 90 gün', isActive: true },
+    { entityType: 'auth_sessions', retentionDays: 365, archiveAfterDays: null, purgeAfterDays: 395, description: 'Oturum kayıtları - 1 yıl', isActive: true },
+    { entityType: 'consent_records', retentionDays: 3650, archiveAfterDays: 365, purgeAfterDays: 3650, description: 'Rıza kayıtları - 10 yıl', isActive: true },
+    { entityType: 'data_subject_requests', retentionDays: 3650, archiveAfterDays: null, purgeAfterDays: 3650, description: 'Veri sahibi talepleri - 10 yıl', isActive: true },
+    { entityType: 'emergency_access_grants', retentionDays: 1825, archiveAfterDays: null, purgeAfterDays: 1825, description: 'Acil erişim kayıtları - 5 yıl', isActive: true },
+    { entityType: 'breach_records', retentionDays: 3650, archiveAfterDays: null, purgeAfterDays: 3650, description: 'Veri ihlali kayıtları - 10 yıl', isActive: true },
+    { entityType: 'notification_deliveries', retentionDays: 180, archiveAfterDays: null, purgeAfterDays: 180, description: 'Bildirim teslimat kayıtları - 6 ay', isActive: true },
+    { entityType: 'token_blacklist', retentionDays: 7, archiveAfterDays: null, purgeAfterDays: 7, description: 'Token kara listesi - 7 gün', isActive: true },
+    { entityType: 'device_incidents', retentionDays: 1825, archiveAfterDays: null, purgeAfterDays: 1825, description: 'Cihaz arıza kayıtları - 5 yıl', isActive: true },
+    { entityType: 'handover_notes', retentionDays: 730, archiveAfterDays: null, purgeAfterDays: 730, description: 'Devir teslim notları - 2 yıl', isActive: true },
   ];
 
   for (const policy of retentionPolicies) {
@@ -220,9 +129,7 @@ async function main() {
       update: policy,
       create: policy,
     });
-    console.log(
-      `  ✓ Retention policy: ${policy.entityType} (${policy.retentionDays}g)`,
-    );
+    console.log(`  ✓ Retention policy: ${policy.entityType} (${policy.retentionDays}g)`);
   }
 
   // ─── Processing Activities (GDPR Art. 30 Register) ─────
@@ -232,24 +139,11 @@ async function main() {
       controller: 'VardiyaOS Sağlık Sistemleri A.Ş.',
       processor: 'Azure Kubernetes Service (Microsoft)',
       purpose: 'Vardiya planlaması ve personel yönetimi',
-      dataCategories: [
-        'Ad-soyad',
-        'E-posta',
-        'Telefon',
-        'Birim',
-        'Ünvan',
-        'Vardiya tercihleri',
-      ],
+      dataCategories: ['Ad-soyad', 'E-posta', 'Telefon', 'Birim', 'Ünvan', 'Vardiya tercihleri'],
       dataSubjects: ['Çalışanlar', 'Yöneticiler'],
       legalBasis: 'KVKK Madde 5/2-c (Sözleşmenin ifası), GDPR Art. 6(1)(b)',
       retentionPeriod: 'İş ilişkisi süresince + 10 yıl',
-      securityMeasures: [
-        'AES-256-GCM şifreleme',
-        'RBAC',
-        'mTLS',
-        'Denetim kaydı',
-        'Erişim kontrolü',
-      ],
+      securityMeasures: ['AES-256-GCM şifreleme', 'RBAC', 'mTLS', 'Denetim kaydı', 'Erişim kontrolü'],
       crossBorderTransfer: null,
       dpiaRequired: false,
       dpiaCompleted: false,
@@ -260,21 +154,11 @@ async function main() {
       controller: 'VardiyaOS Sağlık Sistemleri A.Ş.',
       processor: 'Azure Kubernetes Service (Microsoft)',
       purpose: 'Devir teslim notu yönetimi',
-      dataCategories: [
-        'Ad-soyad',
-        'Birim',
-        'Vardiya bilgisi',
-        'Hasta notları (serbest metin)',
-      ],
+      dataCategories: ['Ad-soyad', 'Birim', 'Vardiya bilgisi', 'Hasta notları (serbest metin)'],
       dataSubjects: ['Çalışanlar', 'Hastalar (dolaylı)'],
       legalBasis: 'KVKK Madde 5/2-ç (Kanuni yükümlülük), GDPR Art. 6(1)(c)',
       retentionPeriod: 'Oluşturulma tarihinden itibaren 2 yıl',
-      securityMeasures: [
-        'Denetim kaydı',
-        'RBAC',
-        'Veri sınıflandırması',
-        'Elle girilen PHI için uyarı',
-      ],
+      securityMeasures: ['Denetim kaydı', 'RBAC', 'Veri sınıflandırması', 'Elle girilen PHI için uyarı'],
       crossBorderTransfer: null,
       dpiaRequired: true,
       dpiaCompleted: false,
@@ -285,12 +169,7 @@ async function main() {
       controller: 'VardiyaOS Sağlık Sistemleri A.Ş.',
       processor: 'Azure Kubernetes Service (Microsoft)',
       purpose: 'Yoklama ve mesai takibi',
-      dataCategories: [
-        'Ad-soyad',
-        'Giriş-çıkış zamanı',
-        'IP adresi',
-        'Çalışılan birim',
-      ],
+      dataCategories: ['Ad-soyad', 'Giriş-çıkış zamanı', 'IP adresi', 'Çalışılan birim'],
       dataSubjects: ['Çalışanlar'],
       legalBasis: 'KVKK Madde 5/2-c (Sözleşmenin ifası), İş Kanunu 49. madde',
       retentionPeriod: 'Takvim yılı sonundan itibaren 5 yıl',
@@ -309,11 +188,7 @@ async function main() {
       dataSubjects: ['Çalışanlar'],
       legalBasis: 'Açık rıza (KVKK Madde 5/1), GDPR Art. 6(1)(a)',
       retentionPeriod: 'Rıza süresince + 90 gün',
-      securityMeasures: [
-        'Anonimleştirilmiş içerik',
-        'Minimal veri',
-        'DPA ile koruma',
-      ],
+      securityMeasures: ['Anonimleştirilmiş içerik', 'Minimal veri', 'DPA ile koruma'],
       crossBorderTransfer: 'Microsoft ABD (SCC + DPA)',
       dpiaRequired: true,
       dpiaCompleted: false,
@@ -324,12 +199,7 @@ async function main() {
       controller: 'VardiyaOS Sağlık Sistemleri A.Ş.',
       processor: null,
       purpose: 'Veri ihlali yönetimi ve bildirimi',
-      dataCategories: [
-        'İhlal detayları',
-        'Etkilenen veri kategorileri',
-        'Zaman damgası',
-        'Tedbir kayıtları',
-      ],
+      dataCategories: ['İhlal detayları', 'Etkilenen veri kategorileri', 'Zaman damgası', 'Tedbir kayıtları'],
       dataSubjects: ['Çalışanlar', 'Hastalar', 'İş ortakları'],
       legalBasis: 'KVKK Madde 12, GDPR Art. 33-34 (Kanuni yükümlülük)',
       retentionPeriod: 'İhlal tarihinden itibaren 10 yıl',
@@ -344,15 +214,9 @@ async function main() {
       controller: 'VardiyaOS Sağlık Sistemleri A.Ş.',
       processor: null,
       purpose: 'Personel yetenek ve sertifika yönetimi',
-      dataCategories: [
-        'Ad-soyad',
-        'Sertifika bilgileri',
-        'Geçerlilik tarihleri',
-        'Eğitim kayıtları',
-      ],
+      dataCategories: ['Ad-soyad', 'Sertifika bilgileri', 'Geçerlilik tarihleri', 'Eğitim kayıtları'],
       dataSubjects: ['Çalışanlar'],
-      legalBasis:
-        'KVKK Madde 5/2-c (Sözleşmenin ifası), Sağlık Bakanlığı yönetmelikleri',
+      legalBasis: 'KVKK Madde 5/2-c (Sözleşmenin ifası), Sağlık Bakanlığı yönetmelikleri',
       retentionPeriod: 'Sertifika geçerlilik süresi + 2 yıl',
       securityMeasures: ['RBAC', 'Denetim kaydı'],
       crossBorderTransfer: null,
@@ -367,14 +231,9 @@ async function main() {
       purpose: 'Acil durum ve kritik bildirim iletimi',
       dataCategories: ['Push token', 'Cihaz tipi', 'Bildirim içeriği (anonim)'],
       dataSubjects: ['Çalışanlar'],
-      legalBasis:
-        'KVKK Madde 5/2-ç (Kanuni yükümlülük), İş sağlığı ve güvenliği',
+      legalBasis: 'KVKK Madde 5/2-ç (Kanuni yükümlülük), İş sağlığı ve güvenliği',
       retentionPeriod: 'Token geçerlilik süresince',
-      securityMeasures: [
-        'Anonim bildirim içeriği',
-        'DPA ile koruma',
-        'Minimal veri',
-      ],
+      securityMeasures: ['Anonim bildirim içeriği', 'DPA ile koruma', 'Minimal veri'],
       crossBorderTransfer: 'Google ABD (SCC + DPA)',
       dpiaRequired: false,
       dpiaCompleted: false,
@@ -385,15 +244,9 @@ async function main() {
       controller: 'VardiyaOS Sağlık Sistemleri A.Ş.',
       processor: null,
       purpose: 'Cihaz yönetimi ve arıza takibi',
-      dataCategories: [
-        'Cihaz seri numarası',
-        'Konum',
-        'Arıza açıklaması',
-        'Müdahale kaydı',
-      ],
+      dataCategories: ['Cihaz seri numarası', 'Konum', 'Arıza açıklaması', 'Müdahale kaydı'],
       dataSubjects: ['Çalışanlar', 'Hastalar (dolaylı)'],
-      legalBasis:
-        'KVKK Madde 5/2-ç (Kanuni yükümlülük), Tıbbi cihaz yönetmelikleri',
+      legalBasis: 'KVKK Madde 5/2-ç (Kanuni yükümlülük), Tıbbi cihaz yönetmelikleri',
       retentionPeriod: 'Cihaz ömrü + 5 yıl',
       securityMeasures: ['RBAC', 'Denetim kaydı', 'Veri sınıflandırması'],
       crossBorderTransfer: null,
@@ -409,9 +262,7 @@ async function main() {
       update: activity,
       create: activity,
     });
-    console.log(
-      `  ✓ Processing activity: ${activity.activityId} - ${activity.purpose}`,
-    );
+    console.log(`  ✓ Processing activity: ${activity.activityId} - ${activity.purpose}`);
   }
 
   console.log('\n✅ Compliance seed completed successfully');

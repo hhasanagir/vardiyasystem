@@ -5,12 +5,7 @@ import { PrismaService } from '../../prisma.service';
 export class DeviceStatusService {
   constructor(private prisma: PrismaService) {}
 
-  async updateStatus(
-    userId: string,
-    deviceId: string,
-    status: string,
-    notes?: string,
-  ) {
+  async updateStatus(userId: string, deviceId: string, status: string, notes?: string) {
     return this.prisma.deviceStatusLog.create({
       data: { userId, deviceId, status, notes },
     });
@@ -32,7 +27,7 @@ export class DeviceStatusService {
       distinct: ['deviceId'],
       select: { deviceId: true, status: true, notes: true, createdAt: true },
     });
-    const logMap = new Map(logs.map((l) => [l.deviceId, l]));
+    const logMap = new Map(logs.map(l => [l.deviceId, l]));
     return deviceIds.reduce(
       (acc, id) => {
         acc[id] = logMap.get(id) || null;
@@ -50,20 +45,21 @@ export class DeviceStatusService {
     });
   }
 
-  async getMyUnitDevices(userId: string) {
+  async getMyUnitDevices(userId: string, unitId?: string | null) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { unitId: true },
     });
-    if (!user?.unitId) {
+    const resolvedUnitId = unitId ?? user?.unitId;
+    if (!resolvedUnitId) {
       throw new NotFoundException('User has no unit assigned');
     }
     const devices = await this.prisma.device.findMany({
-      where: { unitId: user.unitId, isActive: true },
+      where: { unitId: resolvedUnitId, isActive: true },
       select: { id: true, name: true, code: true, unitId: true },
     });
-    const statuses = await this.getDeviceStatuses(devices.map((d) => d.id));
-    return devices.map((d) => ({
+    const statuses = await this.getDeviceStatuses(devices.map(d => d.id));
+    return devices.map(d => ({
       ...d,
       latestStatus: statuses[d.id],
     }));

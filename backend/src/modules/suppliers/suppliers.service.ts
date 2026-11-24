@@ -6,11 +6,7 @@ import { PrismaService } from '../../prisma.service';
 export class SuppliersService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(filters?: {
-    category?: string;
-    search?: string;
-    isActive?: boolean;
-  }) {
+  async findAll(filters?: { category?: string; search?: string; isActive?: boolean }) {
     const where: Prisma.SupplierWhereInput = {};
 
     if (filters?.category) where.category = filters.category;
@@ -83,8 +79,7 @@ export class SuppliersService {
     if (data.code !== undefined) updateData.code = data.code;
     if (data.name !== undefined) updateData.name = data.name;
     if (data.category !== undefined) updateData.category = data.category;
-    if (data.contactPerson !== undefined)
-      updateData.contactPerson = data.contactPerson;
+    if (data.contactPerson !== undefined) updateData.contactPerson = data.contactPerson;
     if (data.email !== undefined) updateData.email = data.email;
     if (data.phone !== undefined) updateData.phone = data.phone;
     if (data.mobile !== undefined) updateData.mobile = data.mobile;

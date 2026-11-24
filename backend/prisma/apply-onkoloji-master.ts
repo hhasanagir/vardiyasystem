@@ -17,22 +17,12 @@ async function main() {
   }
 
   const stats = await applyOnkolojiMasterConfig(prisma, org.id, onkUnit.id);
-  console.log(
-    `Onkoloji master config applied: created=${stats.created}, updated=${stats.updated}, deactivated=${stats.deactivated}`,
-  );
+  console.log(`Onkoloji master config applied: created=${stats.created}, updated=${stats.updated}, deactivated=${stats.deactivated}`);
 
   const devices = await prisma.device.findMany({
     where: { unitId: onkUnit.id },
     orderBy: { code: 'asc' },
-    select: {
-      id: true,
-      code: true,
-      name: true,
-      blockCode: true,
-      mode: true,
-      isMaster: true,
-      workDays: true,
-    },
+    select: { id: true, code: true, name: true, blockCode: true, mode: true, isMaster: true, workDays: true },
   });
   console.table(devices);
 
@@ -40,24 +30,10 @@ async function main() {
     const shifts = await prisma.shifts.findMany({
       where: { deviceId: d.id },
       orderBy: [{ type: 'asc' }, { startTime: 'asc' }],
-      select: {
-        type: true,
-        startTime: true,
-        endTime: true,
-        personnelType: true,
-        name: true,
-        isActive: true,
-        isMaster: true,
-      },
+      select: { type: true, startTime: true, endTime: true, personnelType: true, name: true, isActive: true, isMaster: true },
     });
-    console.log(
-      `\n${d.code} | ${d.name} | mode=${d.mode} | master=${d.isMaster}`,
-    );
-    shifts.forEach((s) =>
-      console.log(
-        `   ${s.type} ${s.startTime}-${s.endTime} ${s.personnelType} active=${s.isActive} master=${s.isMaster} "${s.name}"`,
-      ),
-    );
+    console.log(`\n${d.code} | ${d.name} | mode=${d.mode} | master=${d.isMaster}`);
+    shifts.forEach(s => console.log(`   ${s.type} ${s.startTime}-${s.endTime} ${s.personnelType} active=${s.isActive} master=${s.isMaster} "${s.name}"`));
   }
 }
 

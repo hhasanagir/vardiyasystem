@@ -1,4 +1,11 @@
-import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { InventoryService } from './inventory.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -47,11 +54,7 @@ export class InventoryController {
     @Query('catalogId') catalogId?: string,
     @Query('type') type?: string,
   ) {
-    return this.inventoryService.getTransactions({
-      warehouseId,
-      catalogId,
-      type,
-    });
+    return this.inventoryService.getTransactions({ warehouseId, catalogId, type });
   }
 
   @Post('inventory/adjust')

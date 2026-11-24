@@ -1,12 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import {
-  CreateDutyRosterEntryProps,
-  UpdateDutyRosterEntryProps,
-  DutyRosterFilterProps,
-  DutyRosterEntryProps,
-  DutyRosterCalendarProps,
-} from './domain/duty-roster.types';
+import { CreateDutyRosterEntryProps, UpdateDutyRosterEntryProps, DutyRosterFilterProps, DutyRosterEntryProps, DutyRosterCalendarProps } from './domain/duty-roster.types';
 import { ShiftType } from '@prisma/client';
 
 @Injectable()
@@ -15,9 +9,7 @@ export class DutyRosterService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(
-    props: CreateDutyRosterEntryProps,
-  ): Promise<DutyRosterEntryProps> {
+  async create(props: CreateDutyRosterEntryProps): Promise<DutyRosterEntryProps> {
     const entry = await this.prisma.dutyRoster.create({
       data: {
         organizationId: props.organizationId,
@@ -40,9 +32,7 @@ export class DutyRosterService {
     return this.toDto(entry);
   }
 
-  async findAll(
-    filter: DutyRosterFilterProps,
-  ): Promise<DutyRosterEntryProps[]> {
+  async findAll(filter: DutyRosterFilterProps): Promise<DutyRosterEntryProps[]> {
     if (!filter.organizationId) return [];
 
     const where: Record<string, unknown> = {
@@ -50,19 +40,14 @@ export class DutyRosterService {
       isActive: true,
     };
     if (filter.date) where.date = filter.date;
-    if (filter.startDate && filter.endDate)
-      where.date = { gte: filter.startDate, lte: filter.endDate } as any;
+    if (filter.startDate && filter.endDate) where.date = { gte: filter.startDate, lte: filter.endDate } as any;
     if (filter.unitId) where.unitId = filter.unitId;
     if (filter.deviceId) where.deviceId = filter.deviceId;
     if (filter.personnelId) where.personnelId = filter.personnelId;
     if (filter.shiftType) where.shiftType = filter.shiftType;
     if (filter.role) where.role = filter.role;
     if (filter.search) {
-      where.OR = [
-        {
-          personnel: { name: { contains: filter.search, mode: 'insensitive' } },
-        },
-      ] as any;
+      where.OR = [{ personnel: { name: { contains: filter.search, mode: 'insensitive' } } }] as any;
     }
 
     const entries = await this.prisma.dutyRoster.findMany({
@@ -74,7 +59,7 @@ export class DutyRosterService {
       },
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
     });
-    return entries.map((e) => this.toDto(e));
+    return entries.map(e => this.toDto(e));
   }
 
   async findById(id: string): Promise<DutyRosterEntryProps> {
@@ -90,10 +75,7 @@ export class DutyRosterService {
     return this.toDto(entry);
   }
 
-  async update(
-    id: string,
-    props: UpdateDutyRosterEntryProps,
-  ): Promise<DutyRosterEntryProps> {
+  async update(id: string, props: UpdateDutyRosterEntryProps): Promise<DutyRosterEntryProps> {
     await this.findById(id);
     const entry = await this.prisma.dutyRoster.update({
       where: { id },
@@ -120,11 +102,7 @@ export class DutyRosterService {
     });
   }
 
-  async getCalendar(
-    organizationId: string,
-    month: number,
-    year: number,
-  ): Promise<DutyRosterCalendarProps[]> {
+  async getCalendar(organizationId: string, month: number, year: number): Promise<DutyRosterCalendarProps[]> {
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
     const endDate = new Date(year, month, 0).toISOString().split('T')[0];
 
@@ -167,15 +145,9 @@ export class DutyRosterService {
       endTime: entry.endTime as string,
       notes: entry.notes as string | undefined,
       isActive: entry.isActive as boolean,
-      personnel: entry.personnel as
-        | { id: string; name: string; role: string }
-        | undefined,
-      unit: entry.unit as
-        | { id: string; name: string; code: string }
-        | undefined,
-      device: entry.device as
-        | { id: string; name: string; code: string }
-        | undefined,
+      personnel: entry.personnel as { id: string; name: string; role: string } | undefined,
+      unit: entry.unit as { id: string; name: string; code: string } | undefined,
+      device: entry.device as { id: string; name: string; code: string } | undefined,
     };
   }
 }

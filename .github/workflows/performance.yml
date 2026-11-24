@@ -1,0 +1,172 @@
+name: Performance Smoke (scheduled)
+
+run-name: "Performance smoke — ${{ github.event_name == 'schedule' && 'weekly' || 'manual' }}"
+
+# P3-13 — advisory-by-placement, real-by-behaviour gate.
+#
+# This job is deliberately NOT attached to pull_request: the long load/stress/
+# spike/soak profiles take 3m40 to 34m and the synthetic 5b3 benchmark already
+# runs on every PR (pr-validation.yml). It runs on a schedule and on demand,
+# against an ephemeral migrated + seeded stack, and its k6 thresholds plus the
+# committed baseline comparison are fail-closed. Promote it to a required PR
+# check only after several stable runs (see the Batch I-C report).
+#
+# No custom Docker image: the official grafana/k6 container is used directly.
+
+on:
+  schedule:
+    - cron: '0 5 * * 2'
+  workflow_dispatch:
+
+concurrency:
+  group: performance-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  K6_IMAGE: grafana/k6:0.54.0
+  DB_NAME: vardiyasystem_test
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
+  DATABASE_DIRECT_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
+  REDIS_URL: redis://localhost:6379
+  JWT_ACCESS_TOKEN_SECRET: ci-performance-secret
+  JWT_REFRESH_TOKEN_SECRET: ci-performance-secret
+  COOKIE_SECRET: ci-performance-cookie-secret
+  NODE_ENV: development
+  PORT: '3000'
+  # Throwaway seeded account, matching prisma/seed.ts and the e2e fixtures.
+  # Not a production credential; the workflow never touches a real tenant.
+  AUTH_EMAIL: admin@hospital.com
+  AUTH_PASSWORD: admin123
+  BASE_URL: http://127.0.0.1:3000/api/v1
+
+jobs:
+  smoke:
+    name: k6 Smoke + Baseline Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: ${{ env.DB_USER }}
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Run migrations
+        run: npx prisma migrate deploy
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Seed ephemeral database
+        run: npm run seed
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Build API
+        run: npm run build
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          JWT_ACCESS_TOKEN_SECRET: ${{ env.JWT_ACCESS_TOKEN_SECRET }}
+          JWT_REFRESH_TOKEN_SECRET: ${{ env.JWT_REFRESH_TOKEN_SECRET }}
+
+      - name: Start API
+        run: |
+          nohup node dist/src/main.js > /tmp/vardiya-perf-api.log 2>&1 &
+          echo $! > /tmp/vardiya-perf-api.pid
+
+      - name: Wait for real readiness
+        # /health/ready asserts database, Redis, queue, memory and endpoints;
+        # a bare port probe would let a broken stack become the baseline.
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:3000/api/v1/health/ready -o /tmp/perf-ready.json; then
+              echo "backend ready on attempt $i"
+              cat /tmp/perf-ready.json
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "backend never became ready"
+          cat /tmp/vardiya-perf-api.log
+          exit 1
+
+      - name: Run k6 smoke scenario
+        run: |
+          set -euo pipefail
+          mkdir -p k6-results
+          # grafana/k6 runs as uid 12345; allow it to write the summary file.
+          chmod 777 k6-results
+          docker run --rm --network host \
+            -v "$PWD/k6:/k6:ro" \
+            -v "$PWD/k6-results:/k6-out" \
+            -e BASE_URL="${BASE_URL}" \
+            -e AUTH_EMAIL="${AUTH_EMAIL}" \
+            -e AUTH_PASSWORD="${AUTH_PASSWORD}" \
+            "${K6_IMAGE}" run /k6/scenarios/smoke-test.js \
+            --summary-export /k6-out/smoke-summary.json
+
+      - name: Compare against committed baseline
+        # Fails on latency/error/check regressions, missing samples and any
+        # change to the threshold definitions themselves.
+        run: node k6/compare-baseline.mjs k6/smoke-baseline.json k6-results/smoke-summary.json
+
+      - name: Upload summary artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-smoke-summary
+          path: k6-results/smoke-summary.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: API diagnostics
+        if: failure()
+        run: tail -n 200 /tmp/vardiya-perf-api.log || true
+
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -f /tmp/vardiya-perf-api.pid ]; then
+            kill "$(cat /tmp/vardiya-perf-api.pid)" 2>/dev/null || true
+          fi

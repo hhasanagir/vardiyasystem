@@ -5,14 +5,14 @@
 
 ## Vulnerability Breakdown
 
-| Package                                                                 | Severity | Current             | Affected Range               | Fixed Version                                     | Breaking Risk | Action                                                                         |
-| ----------------------------------------------------------------------- | -------- | ------------------- | ---------------------------- | ------------------------------------------------- | ------------- | ------------------------------------------------------------------------------ |
-| `@mapbox/node-pre-gyp` (via `tar`, affects `bcrypt`)                    | Critical | < 1.0.11            | < 2.0.2                      | `bcrypt@6.0.0`                                    | Semver major  | Upgrade `bcrypt` to 6.x; verify hash compatibility and rebuild native binaries |
-| `@nestjs/cli` (via `angular-devkit`, `glob`, `inquirer`, `webpack`)     | High     | < 11.0.24           | Multiple transitive ranges   | `@nestjs/cli@11.0.24`                             | Semver major  | Upgrade dev dependency; low runtime risk since CLI is not shipped              |
-| `@nestjs/cache-manager` (via `@nestjs/core`)                            | High     | < 3.1.3             | < 3.1.3                      | `3.1.3`                                           | Semver major  | Upgrade and adapt to cache-manager v6 API if needed                            |
-| `@angular-devkit/core` (via `ajv`, `picomatch`)                         | Moderate | < current fix range | Transitive of CLI            | Via `@nestjs/cli` upgrade                         | None direct   | Resolved automatically by the CLI upgrade                                      |
-| `@google-cloud/storage` (via `retry-request`, affects `firebase-admin`) | Moderate | < fixed range       | Transitive of Firebase Admin | Latest `firebase-admin` / `@google-cloud/storage` | Low–medium    | Bump `firebase-admin` to latest minor/major that pulls patched storage         |
-| `@nestjs/common` (via `file-type`)                                      | Moderate | < fixed range       | Transitive                   | Patched NestJS release                            | Low           | Update `@nestjs/*` packages together within same major                         |
+| Package | Severity | Current | Affected Range | Fixed Version | Breaking Risk | Action |
+|---|---|---|---|---|---|---|
+| `@mapbox/node-pre-gyp` (via `tar`, affects `bcrypt`) | Critical | < 1.0.11 | < 2.0.2 | `bcrypt@6.0.0` | Semver major | Upgrade `bcrypt` to 6.x; verify hash compatibility and rebuild native binaries |
+| `@nestjs/cli` (via `angular-devkit`, `glob`, `inquirer`, `webpack`) | High | < 11.0.24 | Multiple transitive ranges | `@nestjs/cli@11.0.24` | Semver major | Upgrade dev dependency; low runtime risk since CLI is not shipped |
+| `@nestjs/cache-manager` (via `@nestjs/core`) | High | < 3.1.3 | < 3.1.3 | `3.1.3` | Semver major | Upgrade and adapt to cache-manager v6 API if needed |
+| `@angular-devkit/core` (via `ajv`, `picomatch`) | Moderate | < current fix range | Transitive of CLI | Via `@nestjs/cli` upgrade | None direct | Resolved automatically by the CLI upgrade |
+| `@google-cloud/storage` (via `retry-request`, affects `firebase-admin`) | Moderate | < fixed range | Transitive of Firebase Admin | Latest `firebase-admin` / `@google-cloud/storage` | Low–medium | Bump `firebase-admin` to latest minor/major that pulls patched storage |
+| `@nestjs/common` (via `file-type`) | Moderate | < fixed range | Transitive | Patched NestJS release | Low | Update `@nestjs/*` packages together within same major |
 
 ## Summary by Severity
 

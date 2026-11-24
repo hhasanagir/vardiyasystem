@@ -31,7 +31,7 @@ export class ShiftTasksService {
 
   getTodayTasks(): Observable<ShiftTask[]> {
     return this.http.get<ShiftTask[]>(`${this.baseUrl}/`).pipe(
-      catchError((err) => {
+      catchError(err => {
         console.error('ShiftTasks getTodayTasks failed:', err);
         return throwError(() => err);
       }),
@@ -40,7 +40,7 @@ export class ShiftTasksService {
 
   getTasksByDate(date: string): Observable<ShiftTask[]> {
     return this.http.get<ShiftTask[]>(`${this.baseUrl}/${date}`).pipe(
-      catchError((err) => {
+      catchError(err => {
         console.error('ShiftTasks getTasksByDate failed:', err);
         return throwError(() => err);
       }),
@@ -49,19 +49,16 @@ export class ShiftTasksService {
 
   getProgress(date: string): Observable<TaskProgress> {
     return this.http.get<TaskProgress>(`${this.baseUrl}/${date}/progress`).pipe(
-      catchError((err) => {
+      catchError(err => {
         console.error('ShiftTasks getProgress failed:', err);
         return throwError(() => err);
       }),
     );
   }
 
-  updateTaskStatus(
-    taskId: string,
-    status: 'pending' | 'completed' | 'skipped',
-  ): Observable<ShiftTask> {
+  updateTaskStatus(taskId: string, status: 'pending' | 'completed' | 'skipped'): Observable<ShiftTask> {
     return this.http.patch<ShiftTask>(`${this.baseUrl}/${taskId}`, { status }).pipe(
-      catchError((err) => {
+      catchError(err => {
         console.error('ShiftTasks updateTaskStatus failed:', err);
         return throwError(() => err);
       }),

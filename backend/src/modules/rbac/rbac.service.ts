@@ -1,11 +1,6 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import { ForbiddenException, Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import {
-  ROLE_LEVELS,
-  RbacUser,
-  RbacRoleName,
-  PermissionScope,
-} from './interfaces/rbac.types';
+import { ROLE_LEVELS, RbacUser, RbacRoleName, PermissionScope } from './interfaces/rbac.types';
 import { invalidateJwtUserCache } from '../auth/jwt-cache-invalidation';
 
 const SYSTEM_ADMIN_LEVEL = ROLE_LEVELS.SYSTEM_ADMIN;
@@ -13,10 +8,7 @@ const SYSTEM_ADMIN_LEVEL = ROLE_LEVELS.SYSTEM_ADMIN;
 @Injectable()
 export class RbacService implements OnModuleInit {
   private readonly logger = new Logger(RbacService.name);
-  private roleCache: Map<
-    string,
-    { name: RbacRoleName; level: number; parentId: string | null }
-  > = new Map();
+  private roleCache: Map<string, { name: RbacRoleName; level: number; parentId: string | null }> = new Map();
   private permissionCache: Map<string, string[]> = new Map();
   private roleLevelByName: Map<string, number> = new Map();
 
@@ -30,11 +22,7 @@ export class RbacService implements OnModuleInit {
     try {
       const roles = await this.prisma.role.findMany();
       for (const role of roles) {
-        this.roleCache.set(role.id, {
-          name: role.name as RbacRoleName,
-          level: role.level,
-          parentId: role.parentId,
-        });
+        this.roleCache.set(role.id, { name: role.name as RbacRoleName, level: role.level, parentId: role.parentId });
         this.roleLevelByName.set(role.name, role.level);
       }
       this.logger.log(`RBAC cache warmed: ${roles.length} roles`);
@@ -43,10 +31,48 @@ export class RbacService implements OnModuleInit {
     }
   }
 
-  async getUserPermissions(
-    userId: string,
-    scope?: PermissionScope,
-  ): Promise<string[]> {
+  private async getActorLevelAndOrg(userId: string): Promise<{ level: number; orgIds: Set<string | null> }> {
+    const grants = (await Promise.resolve(
+      this.prisma.userRoleAssignment.findMany({
+        where: { userId, isActive: true },
+        select: { organizationId: true, role: { select: { level: true } } },
+      }),
+    ).catch(() => [])) as any[];
+    let level = 0;
+    const orgIds = new Set<string | null>();
+    for (const grant of grants ?? []) {
+      const lvl = Number(grant?.role?.level ?? 0);
+      if (lvl > level) level = lvl;
+      orgIds.add(grant?.organizationId ?? null);
+    }
+    return { level, orgIds };
+  }
+
+  private async getRoleLevel(roleId: string): Promise<number | undefined> {
+    const cached = this.roleCache.get(roleId);
+    if (cached) return cached.level;
+    const role = (await Promise.resolve(
+      this.prisma.role.findUnique({ where: { id: roleId }, select: { level: true as const } }),
+    ).catch(() => null)) as { level: number } | null;
+    return role?.level;
+  }
+
+  private async assertCanManageRole(actorId: string, roleId: string, scope?: PermissionScope): Promise<void> {
+    const targetLevel = await this.getRoleLevel(roleId);
+    if (targetLevel === undefined) return;
+    const actor = await this.getActorLevelAndOrg(actorId);
+    if (actor.level <= targetLevel) {
+      throw new ForbiddenException('Bu rolü atamak veya kaldırmak için daha yüksek yetki gerekli');
+    }
+    if (scope?.organizationId) {
+      const globalSystemAdmin = actor.level >= SYSTEM_ADMIN_LEVEL && actor.orgIds.has(null);
+      if (!globalSystemAdmin && !actor.orgIds.has(scope.organizationId)) {
+        throw new ForbiddenException('Atama yapılacak kuruluşta yetkiniz yok');
+      }
+    }
+  }
+
+  async getUserPermissions(userId: string, scope?: PermissionScope): Promise<string[]> {
     const cacheKey = `${userId}:${scope?.organizationId ?? '*'}:${scope?.hospitalGroupId ?? '*'}:${scope?.hospitalId ?? '*'}:${scope?.departmentId ?? '*'}:${scope?.unitId ?? '*'}`;
     const cached = this.permissionCache.get(cacheKey);
     if (cached) return cached;
@@ -57,42 +83,23 @@ export class RbacService implements OnModuleInit {
 
       const orConditions: any[] = [];
       if (scope?.hospitalGroupId) {
-        orConditions.push(
-          { hospitalGroupId: scope.hospitalGroupId },
-          { hospitalGroupId: null },
-        );
+        orConditions.push({ hospitalGroupId: scope.hospitalGroupId }, { hospitalGroupId: null });
       }
       if (scope?.hospitalId) {
-        orConditions.push(
-          { hospitalId: scope.hospitalId },
-          { hospitalId: null },
-        );
+        orConditions.push({ hospitalId: scope.hospitalId }, { hospitalId: null });
       }
       if (scope?.departmentId) {
-        orConditions.push(
-          { departmentId: scope.departmentId },
-          { departmentId: null },
-        );
+        orConditions.push({ departmentId: scope.departmentId }, { departmentId: null });
       }
       if (scope?.organizationId) {
-        orConditions.push(
-          { organizationId: scope.organizationId },
-          { organizationId: null },
-        );
+        orConditions.push({ organizationId: scope.organizationId }, { organizationId: null });
       }
       if (scope?.unitId) {
         orConditions.push({ unitId: scope.unitId }, { unitId: null });
       }
 
       if (orConditions.length > 0) {
-        where.AND = orConditions.map((cond) => ({
-          OR: [
-            cond,
-            ...Object.keys(cond)
-              .filter((k) => cond[k] !== null)
-              .map((k) => ({ [k]: null })),
-          ],
-        }));
+        where.AND = orConditions.map((cond) => ({ OR: [cond, ...Object.keys(cond).filter(k => cond[k] !== null).map(k => ({ [k]: null }))] }));
         where.AND = [{ OR: orConditions }];
       }
 
@@ -102,9 +109,7 @@ export class RbacService implements OnModuleInit {
           role: {
             include: {
               permissions: { include: { permission: true } },
-              children: {
-                include: { permissions: { include: { permission: true } } },
-              },
+              children: { include: { permissions: { include: { permission: true } } } },
             },
           },
         },
@@ -138,20 +143,7 @@ export class RbacService implements OnModuleInit {
     return permissions;
   }
 
-  async getUserRbacRoles(
-    userId: string,
-  ): Promise<
-    {
-      roleId: string;
-      roleName: RbacRoleName;
-      organizationId: string | null;
-      hospitalGroupId: string | null;
-      hospitalId: string | null;
-      departmentId: string | null;
-      unitId: string | null;
-      level: number;
-    }[]
-  > {
+  async getUserRbacRoles(userId: string): Promise<{ roleId: string; roleName: RbacRoleName; organizationId: string | null; hospitalGroupId: string | null; hospitalId: string | null; departmentId: string | null; unitId: string | null; level: number }[]> {
     try {
       const assignments = await this.prisma.userRoleAssignment.findMany({
         where: { userId, isActive: true },
@@ -175,52 +167,34 @@ export class RbacService implements OnModuleInit {
 
   async getUserMaxRoleLevel(userId: string): Promise<number> {
     const roles = await this.getUserRbacRoles(userId);
-    return Math.max(0, ...roles.map((r) => r.level));
+    return Math.max(0, ...roles.map(r => r.level));
   }
 
   async isSystemAdmin(userId: string): Promise<boolean> {
     return this.hasMinRoleLevel(userId, SYSTEM_ADMIN_LEVEL);
   }
 
-  async hasPermission(
-    userId: string,
-    permission: string,
-    scope?: PermissionScope,
-  ): Promise<boolean> {
+  async hasPermission(userId: string, permission: string, scope?: PermissionScope): Promise<boolean> {
     const permissions = await this.getUserPermissions(userId, scope);
     return permissions.includes(permission);
   }
 
-  async hasAnyPermission(
-    userId: string,
-    permissions: string[],
-    scope?: PermissionScope,
-  ): Promise<boolean> {
+  async hasAnyPermission(userId: string, permissions: string[], scope?: PermissionScope): Promise<boolean> {
     const userPerms = await this.getUserPermissions(userId, scope);
     return permissions.some((p) => userPerms.includes(p));
   }
 
-  async hasAllPermissions(
-    userId: string,
-    permissions: string[],
-    scope?: PermissionScope,
-  ): Promise<boolean> {
+  async hasAllPermissions(userId: string, permissions: string[], scope?: PermissionScope): Promise<boolean> {
     const userPerms = await this.getUserPermissions(userId, scope);
     return permissions.every((p) => userPerms.includes(p));
   }
 
-  async hasMinRoleLevel(
-    userId: string,
-    requiredLevel: number,
-  ): Promise<boolean> {
+  async hasMinRoleLevel(userId: string, requiredLevel: number): Promise<boolean> {
     const roles = await this.getUserRbacRoles(userId);
     return roles.some((r) => r.level >= requiredLevel);
   }
 
-  async hasMinRoleName(
-    userId: string,
-    requiredRole: RbacRoleName,
-  ): Promise<boolean> {
+  async hasMinRoleName(userId: string, requiredRole: RbacRoleName): Promise<boolean> {
     const requiredLevel = ROLE_LEVELS[requiredRole] ?? 0;
     return this.hasMinRoleLevel(userId, requiredLevel);
   }
@@ -250,30 +224,28 @@ export class RbacService implements OnModuleInit {
       hospital_admin: 'HOSPITAL_ADMIN' as RbacRoleName,
       imaging_director: 'IMAGING_DIRECTOR' as RbacRoleName,
       supervisor: 'SUPERVISOR' as RbacRoleName,
+      field_supervisor: 'FIELD_SUPERVISOR' as RbacRoleName,
       medical_engineer: 'MEDICAL_ENGINEER' as RbacRoleName,
       senior_technician: 'SENIOR_TECHNICIAN' as RbacRoleName,
       technician: 'TECHNICIAN' as RbacRoleName,
       assistant_technician: 'ASSISTANT_TECHNICIAN' as RbacRoleName,
       secretary: 'SECRETARY' as RbacRoleName,
       guest: 'GUEST' as RbacRoleName,
+      project_manager: 'PROJECT_MANAGER' as RbacRoleName,
+      chief_technician: 'CHIEF_TECHNICIAN' as RbacRoleName,
+      hr: 'HR' as RbacRoleName,
     };
     return mapping[legacyRole] || ('GUEST' as RbacRoleName);
   }
 
-  async ensureUserHasRbacRole(
-    userId: string,
-    legacyRole: string,
-    scope?: PermissionScope,
-  ): Promise<void> {
+  async ensureUserHasRbacRole(userId: string, legacyRole: string, scope?: PermissionScope): Promise<void> {
     const existingAssignments = await this.prisma.userRoleAssignment.findMany({
       where: { userId, isActive: true },
     });
     if (existingAssignments.length > 0) return;
 
     const rbacRoleName = this.legacyRoleToRbacName(legacyRole);
-    const role = await this.prisma.role.findUnique({
-      where: { name: rbacRoleName },
-    });
+    const role = await this.prisma.role.findUnique({ where: { name: rbacRoleName } });
     if (!role) {
       this.logger.warn(`No RBAC role found for ${rbacRoleName}`);
       return;
@@ -291,9 +263,7 @@ export class RbacService implements OnModuleInit {
         unitId: scope?.unitId ?? null,
       },
     });
-    this.logger.log(
-      `Auto-assigned RBAC role ${rbacRoleName} to user ${userId}`,
-    );
+    this.logger.log(`Auto-assigned RBAC role ${rbacRoleName} to user ${userId}`);
     this.invalidateUserCache(userId);
   }
 
@@ -313,6 +283,7 @@ export class RbacService implements OnModuleInit {
     assignedBy: string,
     scope?: PermissionScope,
   ): Promise<void> {
+    await this.assertCanManageRole(assignedBy, roleId, scope);
     const existing = await this.prisma.userRoleAssignment.findFirst({
       where: {
         userId,
@@ -349,11 +320,10 @@ export class RbacService implements OnModuleInit {
     invalidateJwtUserCache(userId);
   }
 
-  async removeRoleFromUser(
-    userId: string,
-    roleId: string,
-    scope?: PermissionScope,
-  ): Promise<void> {
+  async removeRoleFromUser(userId: string, roleId: string, scope?: PermissionScope, actorId?: string): Promise<void> {
+    if (actorId) {
+      await this.assertCanManageRole(actorId, roleId, scope);
+    }
     const existing = await this.prisma.userRoleAssignment.findFirst({
       where: {
         userId,
@@ -378,36 +348,14 @@ export class RbacService implements OnModuleInit {
     invalidateJwtUserCache(userId);
   }
 
-  async getAvailableRoles(): Promise<
-    {
-      id: string;
-      name: RbacRoleName;
-      label: string;
-      level: number;
-      parentId: string | null;
-    }[]
-  > {
+  async getAvailableRoles(): Promise<{ id: string; name: RbacRoleName; label: string; level: number; parentId: string | null }[]> {
     return this.prisma.role.findMany({
       orderBy: { level: 'desc' },
-      select: {
-        id: true,
-        name: true,
-        label: true,
-        level: true,
-        parentId: true,
-      },
+      select: { id: true, name: true, label: true, level: true, parentId: true },
     });
   }
 
-  async getAllPermissions(): Promise<
-    {
-      id: string;
-      name: string;
-      label: string;
-      module: string;
-      action: string;
-    }[]
-  > {
+  async getAllPermissions(): Promise<{ id: string; name: string; label: string; module: string; action: string }[]> {
     return this.prisma.permission.findMany({
       orderBy: [{ module: 'asc' }, { action: 'asc' }],
     });
@@ -421,10 +369,10 @@ export class RbacService implements OnModuleInit {
     return rps.map((rp: any) => rp.permission.name);
   }
 
-  async updateRolePermissions(
-    roleId: string,
-    permissionNames: string[],
-  ): Promise<void> {
+  async updateRolePermissions(roleId: string, permissionNames: string[], actorId?: string): Promise<void> {
+    if (actorId) {
+      await this.assertCanManageRole(actorId, roleId);
+    }
     const permissions = await this.prisma.permission.findMany({
       where: { name: { in: permissionNames } },
     });
@@ -440,20 +388,12 @@ export class RbacService implements OnModuleInit {
     this.permissionCache.clear();
   }
 
-  async getPermissionMatrix(): Promise<
-    { role: string; label: string; permissions: Record<string, boolean> }[]
-  > {
-    const roles = await this.prisma.role.findMany({
-      orderBy: { level: 'desc' },
-    });
-    const permissions = await this.prisma.permission.findMany({
-      orderBy: [{ module: 'asc' }, { action: 'asc' }],
-    });
+  async getPermissionMatrix(): Promise<{ role: string; label: string; permissions: Record<string, boolean> }[]> {
+    const roles = await this.prisma.role.findMany({ orderBy: { level: 'desc' } });
+    const permissions = await this.prisma.permission.findMany({ orderBy: [{ module: 'asc' }, { action: 'asc' }] });
     const rps = await this.prisma.rolePermission.findMany();
 
-    const rpSet = new Set(
-      rps.map((rp: any) => `${rp.roleId}:${rp.permissionId}`),
-    );
+    const rpSet = new Set(rps.map((rp: any) => `${rp.roleId}:${rp.permissionId}`));
 
     return roles.map((role: any) => {
       const permMap: Record<string, boolean> = {};

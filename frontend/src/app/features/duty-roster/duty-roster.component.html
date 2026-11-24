@@ -52,27 +52,9 @@
         </button>
       </div>
       <div class="view-tabs">
-        <button
-          class="tab-btn"
-          [class.active]="selectedView() === 'daily'"
-          (click)="selectedView.set('daily')"
-        >
-          Günlük
-        </button>
-        <button
-          class="tab-btn"
-          [class.active]="selectedView() === 'weekly'"
-          (click)="selectedView.set('weekly')"
-        >
-          Haftalık
-        </button>
-        <button
-          class="tab-btn"
-          [class.active]="selectedView() === 'monthly'"
-          (click)="selectedView.set('monthly'); loadCalendar()"
-        >
-          Aylık
-        </button>
+        <button class="tab-btn" [class.active]="selectedView() === 'daily'" (click)="selectedView.set('daily')">Günlük</button>
+        <button class="tab-btn" [class.active]="selectedView() === 'weekly'" (click)="selectedView.set('weekly')">Haftalık</button>
+        <button class="tab-btn" [class.active]="selectedView() === 'monthly'" (click)="selectedView.set('monthly'); loadCalendar()">Aylık</button>
       </div>
     </div>
 
@@ -96,15 +78,9 @@
           <span class="day-number">{{ day.date.slice(-2) }}</span>
           @if (day.entries.length > 0) {
             <div class="day-dots">
-              @if (day.shiftSummary.day > 0) {
-                <span class="dot bg-day"></span>
-              }
-              @if (day.shiftSummary.evening > 0) {
-                <span class="dot bg-evening"></span>
-              }
-              @if (day.shiftSummary.night > 0) {
-                <span class="dot bg-night"></span>
-              }
+              @if (day.shiftSummary.day > 0) { <span class="dot bg-day"></span> }
+              @if (day.shiftSummary.evening > 0) { <span class="dot bg-evening"></span> }
+              @if (day.shiftSummary.night > 0) { <span class="dot bg-night"></span> }
             </div>
           }
         </div>
@@ -131,16 +107,9 @@
     } @else {
       <div class="entries-grid">
         @for (entry of dailyEntries(); track entry.id) {
-          <div
-            class="entry-card"
-            [class.border-day]="entry.shiftType === 'day'"
-            [class.border-evening]="entry.shiftType === 'evening'"
-            [class.border-night]="entry.shiftType === 'night'"
-          >
+          <div class="entry-card" [class.border-day]="entry.shiftType === 'day'" [class.border-evening]="entry.shiftType === 'evening'" [class.border-night]="entry.shiftType === 'night'">
             <div class="entry-header">
-              <span class="shift-badge badge-{{ entry.shiftType }}">{{
-                getShiftLabel(entry.shiftType)
-              }}</span>
+              <span class="shift-badge badge-{{ entry.shiftType }}">{{ getShiftLabel(entry.shiftType) }}</span>
               <span class="entry-time">{{ entry.startTime }} - {{ entry.endTime }}</span>
             </div>
             <div class="entry-body">
@@ -148,19 +117,13 @@
                 <div class="avatar">{{ (entry.personnel?.name || '?')[0] }}</div>
                 <div class="personnel-info">
                   <span class="personnel-name">{{ entry.personnel?.name || 'Bilinmiyor' }}</span>
-                  <span class="role-badge badge-{{ entry.role }}">{{
-                    getRoleLabel(entry.role)
-                  }}</span>
+                  <span class="role-badge badge-{{ entry.role }}">{{ getRoleLabel(entry.role) }}</span>
                 </div>
               </div>
               @if (entry.unit || entry.device) {
                 <div class="entry-location">
-                  @if (entry.unit) {
-                    <span class="location-tag">{{ entry.unit.name }}</span>
-                  }
-                  @if (entry.device) {
-                    <span class="location-tag">{{ entry.device.name }}</span>
-                  }
+                  @if (entry.unit) { <span class="location-tag">{{ entry.unit.name }}</span> }
+                  @if (entry.device) { <span class="location-tag">{{ entry.device.name }}</span> }
                 </div>
               }
               @if (entry.notes) {

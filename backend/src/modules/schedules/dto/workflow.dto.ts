@@ -2,10 +2,7 @@ import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class WorkflowTransitionDto {
-  @ApiPropertyOptional({
-    maxLength: 500,
-    description: 'Comment for the transition',
-  })
+  @ApiPropertyOptional({ maxLength: 500, description: 'Comment for the transition' })
   @IsOptional()
   @IsString()
   @MaxLength(500)

@@ -18,17 +18,9 @@ import { SupervisorService } from './services/supervisor.service';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
-    FormsModule,
-    RouterModule,
-    CardModule,
-    ButtonModule,
-    TagModule,
-    ToastModule,
-    ProgressSpinnerModule,
-    TableModule,
-    BadgeModule,
-    TooltipModule,
+    CommonModule, FormsModule, RouterModule,
+    CardModule, ButtonModule, TagModule, ToastModule,
+    ProgressSpinnerModule, TableModule, BadgeModule, TooltipModule,
   ],
   providers: [MessageService],
   templateUrl: './supervisor.component.html',
@@ -54,26 +46,14 @@ export class SupervisorComponent implements OnInit {
 
   loadData(): void {
     this.supervisorService.loadDashboard().subscribe({
-      error: () =>
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Hata',
-          detail: 'Süpervizör verileri yüklenemedi',
-          life: 3000,
-        }),
+      error: () => this.messageService.add({ severity: 'error', summary: 'Hata', detail: 'Süpervizör verileri yüklenemedi', life: 3000 }),
     });
   }
 
   readonly unitColors: Record<string, string> = {
-    mr: '#3b82f6',
-    bt: '#14b8a6',
-    rontgen: '#f97316',
-    nukleer: '#22c55e',
-    onkoloji: '#ec4899',
-    ultrason: '#8b5cf6',
-    anjiyo: '#ef4444',
-    mamografi: '#f59e0b',
-    pet_ct: '#06b6d4',
+    mr: '#3b82f6', bt: '#14b8a6', rontgen: '#f97316',
+    nukleer: '#22c55e', onkoloji: '#ec4899', ultrason: '#8b5cf6',
+    anjiyo: '#ef4444', mamografi: '#f59e0b', pet_ct: '#06b6d4',
     linak: '#d946ef',
   };
 
@@ -83,51 +63,31 @@ export class SupervisorComponent implements OnInit {
 
   getSeverity(severity: string): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
     switch (severity) {
-      case 'critical':
-        return 'danger';
-      case 'high':
-        return 'warn';
-      case 'medium':
-        return 'info';
-      case 'low':
-        return 'success';
-      default:
-        return 'info';
+      case 'critical': return 'danger';
+      case 'high': return 'warn';
+      case 'medium': return 'info';
+      case 'low': return 'success';
+      default: return 'info';
     }
   }
 
-  getStatusSeverity(
-    status: string,
-  ): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
+  getStatusSeverity(status: string): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
     switch (status) {
-      case 'active':
-        return 'success';
-      case 'open':
-        return 'warn';
-      case 'in_progress':
-        return 'info';
-      case 'resolved':
-      case 'closed':
-        return 'secondary';
-      default:
-        return 'info';
+      case 'active': return 'success';
+      case 'open': return 'warn';
+      case 'in_progress': return 'info';
+      case 'resolved': case 'closed': return 'secondary';
+      default: return 'info';
     }
   }
 
-  getPrioritySeverity(
-    priority: string,
-  ): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
+  getPrioritySeverity(priority: string): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
     switch (priority) {
-      case 'CRITICAL':
-        return 'danger';
-      case 'HIGH':
-        return 'warn';
-      case 'NORMAL':
-        return 'info';
-      case 'LOW':
-        return 'success';
-      default:
-        return 'info';
+      case 'CRITICAL': return 'danger';
+      case 'HIGH': return 'warn';
+      case 'NORMAL': return 'info';
+      case 'LOW': return 'success';
+      default: return 'info';
     }
   }
 }

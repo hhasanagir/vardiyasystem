@@ -1,17 +1,12 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Param,
-  Body,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { MinRole } from '../../guards/min-role';
 import { ConsentService } from './consent.service';
 
 @Controller('consent')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ConsentController {
   constructor(private consentService: ConsentService) {}
 
@@ -41,28 +36,24 @@ export class ConsentController {
   }
 
   @Post('me/withdraw/:templateId')
-  async withdrawConsent(
-    @Req() req: any,
-    @Param('templateId') templateId: string,
-  ) {
+  async withdrawConsent(@Req() req: any, @Param('templateId') templateId: string) {
     return this.consentService.withdrawConsent(req.user.id, templateId);
   }
 
   @Get('check/:purpose')
   async checkConsent(@Req() req: any, @Param('purpose') purpose: string) {
-    const hasConsent = await this.consentService.checkConsent(
-      req.user.id,
-      purpose,
-    );
+    const hasConsent = await this.consentService.checkConsent(req.user.id, purpose);
     return { hasConsent, purpose };
   }
 
   @Get('statistics')
+  @Roles(MinRole.SYSTEM_ADMIN)
   async getStatistics(@Req() req: any) {
     return this.consentService.getConsentStatistics(req.user?.organizationId);
   }
 
   @Get('admin/:userId')
+  @Roles(MinRole.SYSTEM_ADMIN)
   async getUserConsents(@Param('userId') userId: string) {
     return this.consentService.getUserConsents(userId);
   }

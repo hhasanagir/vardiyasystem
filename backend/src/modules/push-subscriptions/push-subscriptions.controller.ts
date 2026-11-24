@@ -1,22 +1,10 @@
-import {
-  Controller,
-  Post,
-  Delete,
-  Body,
-  Req,
-  UseGuards,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Post, Delete, Body, Req, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { MinRole } from '../../guards/min-role';
-import {
-  PushSubscriptionsService,
-  PushSubscriptionData,
-} from './push-subscriptions.service';
+import { PushSubscriptionsService, PushSubscriptionData } from './push-subscriptions.service';
 import { SendPushDto } from './dto/send-push.dto';
 
 @ApiTags('Push Subscriptions')
@@ -30,10 +18,7 @@ export class PushSubscriptionsController {
   @Roles(MinRole.VIEWER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Register push notification subscription' })
-  subscribe(
-    @Body() body: PushSubscriptionData,
-    @Req() req: any,
-  ): { success: boolean } {
+  subscribe(@Body() body: PushSubscriptionData, @Req() req: any): { success: boolean } {
     this.pushService.subscribe(req.user.userId, body);
     return { success: true };
   }
@@ -66,17 +51,8 @@ export class PushSubscriptionsController {
   @Post('broadcast')
   @Roles(MinRole.HEAD_TECHNICIAN)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Broadcast push notification to all subscribers (admin only)',
-  })
-  async broadcast(
-    @Body()
-    body: {
-      title: string;
-      body: string;
-      data?: Record<string, unknown>;
-    },
-  ): Promise<{ sent: number }> {
+  @ApiOperation({ summary: 'Broadcast push notification to all subscribers (admin only)' })
+  async broadcast(@Body() body: { title: string; body: string; data?: Record<string, unknown> }): Promise<{ sent: number }> {
     const sent = await this.pushService.broadcastPush({
       title: body.title,
       body: body.body,

@@ -9,16 +9,9 @@ export class CsrfService {
     return randomUUID().replace(/-/g, '') + randomUUID().replace(/-/g, '');
   }
 
-  validateToken(
-    token: string | undefined | null,
-    cookieToken: string | undefined | null,
-  ): boolean {
+  validateToken(token: string | undefined | null, cookieToken: string | undefined | null): boolean {
     if (!token || !cookieToken) return false;
-    if (
-      token.length !== this.tokenLength ||
-      cookieToken.length !== this.tokenLength
-    )
-      return false;
+    if (token.length !== this.tokenLength || cookieToken.length !== this.tokenLength) return false;
     try {
       return timingSafeEqual(Buffer.from(token), Buffer.from(cookieToken));
     } catch {

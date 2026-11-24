@@ -25,10 +25,7 @@ export class UnitOfWorkService {
     return uow ? uow.tx : this.prisma;
   }
 
-  async run<T>(
-    fn: (uow: UnitOfWork) => Promise<T>,
-    options?: { timeout?: number },
-  ): Promise<T> {
+  async run<T>(fn: (uow: UnitOfWork) => Promise<T>, options?: { timeout?: number }): Promise<T> {
     const existing = this.getTransaction();
     if (existing) {
       return fn(existing);

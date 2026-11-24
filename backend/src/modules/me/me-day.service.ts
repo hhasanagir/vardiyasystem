@@ -1,15 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 
-const DAY_NAMES = [
-  'Pazartesi',
-  'Salı',
-  'Çarşamba',
-  'Perşembe',
-  'Cuma',
-  'Cumartesi',
-  'Pazar',
-];
+const DAY_NAMES = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
 
 @Injectable()
 export class MeDayService {
@@ -21,31 +13,19 @@ export class MeDayService {
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
 
-    const personnel = await this.prisma.personnel.findUnique({
-      where: { email },
-    });
+    const personnel = await this.prisma.personnel.findUnique({ where: { email } });
     if (!personnel) {
       return {
-        hasShift: false,
-        shift: null,
-        attendance: null,
-        tasks: [],
-        taskProgress: { completed: 0, total: 0, percentage: 0 },
-        activeIncidents: [],
-        pendingSwapRequests: [],
-        nextShift: null,
-        remainingHours: 0,
-        unitName: '',
-        unitType: '',
+        hasShift: false, shift: null, attendance: null,
+        tasks: [], taskProgress: { completed: 0, total: 0, percentage: 0 },
+        activeIncidents: [], pendingSwapRequests: [],
+        nextShift: null, remainingHours: 0,
+        unitName: '', unitType: '',
       };
     }
 
     const schedule = await this.prisma.schedule.findFirst({
-      where: {
-        unitId: personnel.unitId,
-        month: currentMonth,
-        year: currentYear,
-      },
+      where: { unitId: personnel.unitId, month: currentMonth, year: currentYear },
       include: {
         unit: true,
         assignments: {
@@ -56,8 +36,7 @@ export class MeDayService {
       },
     });
 
-    const todayAssignment =
-      schedule?.assignments?.find((a) => a.date === todayStr) || null;
+    const todayAssignment = schedule?.assignments?.find(a => a.date === todayStr) || null;
 
     const attendance = await this.prisma.attendanceRecord.findUnique({
       where: { userId_date: { userId: personnel.id, date: todayStr } },
@@ -66,30 +45,25 @@ export class MeDayService {
     let remainingHours = 0;
     if (attendance?.status === 'active' && todayAssignment) {
       const [eh, em] = todayAssignment.endTime.split(':').map(Number);
-      const end = new Date();
-      end.setHours(eh, em, 0, 0);
+      const end = new Date(); end.setHours(eh, em, 0, 0);
       remainingHours = Math.max(0, (end.getTime() - now.getTime()) / 3600000);
     }
 
-    const nextAssignment =
-      schedule?.assignments?.find((a) => a.date > todayStr) || null;
+    const nextAssignment = schedule?.assignments?.find(a => a.date > todayStr) || null;
 
     let tasks: any[] = [];
     try {
       tasks = await this.ensureTodayTasks(personnel.id, todayStr);
-    } catch {}
+    } catch { }
 
-    const completed = tasks.filter((t) => t.status === 'completed').length;
+    const completed = tasks.filter(t => t.status === 'completed').length;
     const total = tasks.length;
 
     const activeIncidents = await this.prisma.deviceIncident.findMany({
       where: { userId: personnel.id, status: { in: ['open', 'in_progress'] } },
       orderBy: { reportedAt: 'desc' },
       take: 5,
-      include: {
-        device: { select: { name: true, code: true } },
-        unit: { select: { name: true } },
-      },
+      include: { device: { select: { name: true, code: true } }, unit: { select: { name: true } } },
     });
 
     const pendingSwapRequests = await this.prisma.swapRequest.findMany({
@@ -100,33 +74,25 @@ export class MeDayService {
 
     return {
       hasShift: !!todayAssignment,
-      shift: todayAssignment
-        ? {
-            id: todayAssignment.id,
-            date: todayAssignment.date,
-            shiftType: todayAssignment.shiftType,
-            startTime: todayAssignment.startTime,
-            endTime: todayAssignment.endTime,
-            shiftLabel: this.getShiftLabel(todayAssignment.shiftType),
-            deviceName: todayAssignment.device?.name || '',
-            deviceCode: todayAssignment.device?.code || '',
-            isConfirmed: todayAssignment.isConfirmed,
-          }
-        : null,
-      attendance: attendance
-        ? {
-            status: attendance.status,
-            clockIn: attendance.clockIn,
-            clockOut: attendance.clockOut,
-          }
-        : { status: 'none', clockIn: null, clockOut: null },
+      shift: todayAssignment ? {
+        id: todayAssignment.id,
+        date: todayAssignment.date,
+        shiftType: todayAssignment.shiftType,
+        startTime: todayAssignment.startTime,
+        endTime: todayAssignment.endTime,
+        shiftLabel: this.getShiftLabel(todayAssignment.shiftType),
+        deviceName: todayAssignment.device?.name || '',
+        deviceCode: todayAssignment.device?.code || '',
+        isConfirmed: todayAssignment.isConfirmed,
+      } : null,
+      attendance: attendance ? {
+        status: attendance.status,
+        clockIn: attendance.clockIn,
+        clockOut: attendance.clockOut,
+      } : { status: 'none', clockIn: null, clockOut: null },
       tasks,
-      taskProgress: {
-        completed,
-        total,
-        percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
-      },
-      activeIncidents: activeIncidents.map((inc) => ({
+      taskProgress: { completed, total, percentage: total > 0 ? Math.round(completed / total * 100) : 0 },
+      activeIncidents: activeIncidents.map(inc => ({
         id: inc.id,
         issueType: inc.issueType,
         severity: inc.severity,
@@ -136,88 +102,56 @@ export class MeDayService {
         unitName: inc.unit?.name || '',
         reportedAt: inc.reportedAt,
       })),
-      pendingSwapRequests: pendingSwapRequests.map((req) => ({
+      pendingSwapRequests: pendingSwapRequests.map(req => ({
         id: req.id,
         reason: req.reason,
         createdAt: req.createdAt,
       })),
-      nextShift: nextAssignment
-        ? {
-            id: nextAssignment.id,
-            date: nextAssignment.date,
-            shiftType: nextAssignment.shiftType,
-            startTime: nextAssignment.startTime,
-            endTime: nextAssignment.endTime,
-            shiftLabel: this.getShiftLabel(nextAssignment.shiftType),
-            deviceName: nextAssignment.device?.name || '',
-            deviceCode: nextAssignment.device?.code || '',
-            isConfirmed: nextAssignment.isConfirmed,
-          }
-        : null,
+      nextShift: nextAssignment ? {
+        id: nextAssignment.id,
+        date: nextAssignment.date,
+        shiftType: nextAssignment.shiftType,
+        startTime: nextAssignment.startTime,
+        endTime: nextAssignment.endTime,
+        shiftLabel: this.getShiftLabel(nextAssignment.shiftType),
+        deviceName: nextAssignment.device?.name || '',
+        deviceCode: nextAssignment.device?.code || '',
+        isConfirmed: nextAssignment.isConfirmed,
+      } : null,
       remainingHours: Math.round(remainingHours * 10) / 10,
       unitName: schedule?.unit?.name || '',
       unitType: schedule?.unit?.type?.toLowerCase() || '',
-      personnel: {
-        id: personnel.id,
-        name: personnel.name,
-        role: personnel.role,
-      },
+      personnel: { id: personnel.id, name: personnel.name, role: personnel.role },
     };
   }
 
   private async ensureTodayTasks(personnelId: string, todayStr: string) {
     const defaultTasks = [
       { taskType: 'device_startup', label: 'Cihaz Açılış Kontrolü' },
-      { taskType: 'calibration', label: 'Kalibrasyon Kontrolü' },
-      { taskType: 'room_prep', label: 'Oda Hazırlığı' },
+      { taskType: 'calibration',    label: 'Kalibrasyon Kontrolü' },
+      { taskType: 'room_prep',      label: 'Oda Hazırlığı' },
       { taskType: 'portable_imaging', label: 'Portable Görüntüleme' },
-      { taskType: 'shutdown', label: 'Kapatma Kontrolü' },
-      { taskType: 'handover', label: 'Devir Teslim Notu' },
+      { taskType: 'shutdown',       label: 'Kapatma Kontrolü' },
+      { taskType: 'handover',       label: 'Devir Teslim Notu' },
     ];
     for (const task of defaultTasks) {
       await this.prisma.shiftTask.upsert({
-        where: {
-          userId_date_taskType: {
-            userId: personnelId,
-            date: todayStr,
-            taskType: task.taskType,
-          },
-        },
+        where: { userId_date_taskType: { userId: personnelId, date: todayStr, taskType: task.taskType } },
         update: { label: task.label },
-        create: {
-          userId: personnelId,
-          date: todayStr,
-          taskType: task.taskType,
-          label: task.label,
-          status: 'pending',
-        },
+        create: { userId: personnelId, date: todayStr, taskType: task.taskType, label: task.label, status: 'pending' },
       });
     }
     return this.prisma.shiftTask.findMany({
       where: { userId: personnelId, date: todayStr },
       orderBy: { taskType: 'asc' },
-      select: {
-        id: true,
-        taskType: true,
-        label: true,
-        status: true,
-        completedAt: true,
-      },
+      select: { id: true, taskType: true, label: true, status: true, completedAt: true },
     });
   }
 
   async getToday(email: string) {
-    const personnel = await this.prisma.personnel.findUnique({
-      where: { email },
-    });
+    const personnel = await this.prisma.personnel.findUnique({ where: { email } });
     if (!personnel) {
-      return {
-        hasShift: false,
-        shift: null,
-        personnel: null,
-        unitName: '',
-        unitType: '',
-      };
+      return { hasShift: false, shift: null, personnel: null, unitName: '', unitType: '' };
     }
 
     const now = new Date();
@@ -226,11 +160,7 @@ export class MeDayService {
     const currentYear = now.getFullYear();
 
     const schedule = await this.prisma.schedule.findFirst({
-      where: {
-        unitId: personnel.unitId,
-        month: currentMonth,
-        year: currentYear,
-      },
+      where: { unitId: personnel.unitId, month: currentMonth, year: currentYear },
       include: {
         unit: true,
         assignments: {
@@ -242,11 +172,7 @@ export class MeDayService {
 
     const assignment = schedule?.assignments?.[0] || null;
     const base = {
-      personnel: {
-        id: personnel.id,
-        name: personnel.name,
-        role: personnel.role,
-      },
+      personnel: { id: personnel.id, name: personnel.name, role: personnel.role },
       unitName: schedule?.unit?.name || '',
       unitType: schedule?.unit?.type?.toLowerCase() || '',
     };
@@ -273,9 +199,7 @@ export class MeDayService {
   }
 
   async getWeek(email: string) {
-    const personnel = await this.prisma.personnel.findUnique({
-      where: { email },
-    });
+    const personnel = await this.prisma.personnel.findUnique({ where: { email } });
     if (!personnel) {
       return { weekStart: '', weekEnd: '', days: [] };
     }
@@ -329,11 +253,7 @@ export class MeDayService {
     const weekEnd = days[6].date;
 
     const schedule = await this.prisma.schedule.findFirst({
-      where: {
-        unitId: personnel.unitId,
-        month: currentMonth,
-        year: currentYear,
-      },
+      where: { unitId: personnel.unitId, month: currentMonth, year: currentYear },
       include: {
         assignments: {
           where: {
@@ -348,7 +268,7 @@ export class MeDayService {
 
     if (schedule) {
       for (const a of schedule.assignments) {
-        const dayIndex = days.findIndex((d) => d.date === a.date);
+        const dayIndex = days.findIndex(d => d.date === a.date);
         if (dayIndex !== -1) {
           days[dayIndex].hasShift = true;
           days[dayIndex].shift = {

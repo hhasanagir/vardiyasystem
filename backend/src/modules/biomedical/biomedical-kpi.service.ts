@@ -14,16 +14,15 @@ export class BiomedicalKpiService {
     const startDate = filters?.startDate
       ? new Date(filters.startDate)
       : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const endDate = filters?.endDate ? new Date(filters.endDate) : new Date();
+    const endDate = filters?.endDate
+      ? new Date(filters.endDate)
+      : new Date();
 
     const baseWhere: any = {};
     if (filters?.hospitalId) baseWhere.hospitalId = filters.hospitalId;
     if (filters?.departmentId) baseWhere.departmentId = filters.departmentId;
 
-    const dateWhere: any = {
-      ...baseWhere,
-      createdAt: { gte: startDate, lte: endDate },
-    };
+    const dateWhere: any = { ...baseWhere, createdAt: { gte: startDate, lte: endDate } };
     const assetWhere: any = { ...baseWhere, isActive: true };
 
     const [
@@ -71,10 +70,9 @@ export class BiomedicalKpiService {
 
     const totalAvailable = activeAssets * 24 * 30;
     const downtimeHours = Number(maintenanceAgg._sum.downtimeHours) || 0;
-    const uptimeRate =
-      totalAvailable > 0
-        ? Math.round(((totalAvailable - downtimeHours) / totalAvailable) * 100)
-        : 100;
+    const uptimeRate = totalAvailable > 0
+      ? Math.round(((totalAvailable - downtimeHours) / totalAvailable) * 100)
+      : 100;
 
     const totalMaintenanceCost = Number(maintenanceAgg._sum.cost) || 0;
     const totalCalibrationCost = Number(calibrationCostAgg._sum.cost) || 0;
@@ -86,10 +84,7 @@ export class BiomedicalKpiService {
     }
 
     return {
-      period: {
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-      },
+      period: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
       totalAssets,
       activeAssets,
       uptimeRate,
@@ -102,15 +97,12 @@ export class BiomedicalKpiService {
       maintenanceCount: maintenanceRecords,
       calibrationCount: calibrations,
       overdueCalibrations,
-      maintenanceByType: maintenanceByType.map((m) => ({
+      maintenanceByType: maintenanceByType.map(m => ({
         type: m.type,
         count: m._count.id,
         cost: Number(m._sum.cost) || 0,
       })),
-      faultsByMonth: Array.from(monthMap.entries()).map(([month, count]) => ({
-        month,
-        count,
-      })),
+      faultsByMonth: Array.from(monthMap.entries()).map(([month, count]) => ({ month, count })),
     };
   }
 }

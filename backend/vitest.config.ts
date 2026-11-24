@@ -16,20 +16,20 @@ export default defineConfig({
         'dist/',
         '**/*.spec.ts',
         '**/*.d.ts',
-        'prisma/',
+        'prisma/'
       ],
       thresholds: {
         statements: 80,
         branches: 80,
         functions: 80,
-        lines: 80,
-      },
+        lines: 80
+      }
     },
-    testTimeout: 10000,
+    testTimeout: 10000
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, './src'),
-    },
-  },
+      '@': resolve(__dirname, './src')
+    }
+  }
 });

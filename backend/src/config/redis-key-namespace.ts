@@ -11,9 +11,6 @@ export enum RedisKeyNamespace {
   ACCOUNT_LOCK = 'lockout',
 }
 
-export function redisKey(
-  namespace: RedisKeyNamespace,
-  ...parts: string[]
-): string {
+export function redisKey(namespace: RedisKeyNamespace, ...parts: string[]): string {
   return `vardiya:${namespace}:${parts.join(':')}`;
 }

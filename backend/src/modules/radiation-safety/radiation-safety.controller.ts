@@ -1,4 +1,11 @@
-import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { RadiationSafetyService } from './radiation-safety.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -37,11 +44,7 @@ export class RadiationSafetyController {
     @Query('type') type?: string,
     @Query('result') result?: string,
   ) {
-    return this.radiationService.listMeasurements({
-      dosimeterId,
-      type,
-      result,
-    });
+    return this.radiationService.listMeasurements({ dosimeterId, type, result });
   }
 
   @Post('measurements')

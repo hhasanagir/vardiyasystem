@@ -16,14 +16,7 @@ import { ShiftTasksService } from './shift-tasks.service';
 import { UpdateTaskDto } from './dto/update-task.dto';
 
 interface RequestWithUser {
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-    organizationId?: string;
-    unitId?: string;
-  };
+  user: { id: string; email: string; name: string; role: string; organizationId?: string; unitId?: string };
 }
 
 @ApiTags('shift-tasks')
@@ -62,10 +55,6 @@ export class ShiftTasksController {
     @Param('taskId') taskId: string,
     @Body() dto: UpdateTaskDto,
   ) {
-    return this.shiftTasksService.updateTaskStatus(
-      req.user.id,
-      taskId,
-      dto.status,
-    );
+    return this.shiftTasksService.updateTaskStatus(req.user.id, taskId, dto.status);
   }
 }

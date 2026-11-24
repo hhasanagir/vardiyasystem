@@ -13,7 +13,7 @@ describe('AnalyticsService', () => {
     schedule: { findFirst: vi.fn(), findMany: vi.fn() },
     unit: { findMany: vi.fn(), findFirst: vi.fn() },
     device: { findMany: vi.fn(), count: vi.fn() },
-    holiday: { findMany: vi.fn() },
+    holiday: { findMany: vi.fn().mockResolvedValue([]) },
   };
 
   beforeEach(async () => {
@@ -23,10 +23,10 @@ describe('AnalyticsService', () => {
     mockPrisma.personnel.findMany.mockResolvedValue([]);
     mockPrisma.assignment.findMany.mockResolvedValue([]);
     mockPrisma.device.findMany.mockResolvedValue([]);
-    mockPrisma.holiday.findMany.mockResolvedValue([]);
     mockPrisma.personnel.count.mockResolvedValue(0);
     mockPrisma.assignment.count.mockResolvedValue(0);
     mockPrisma.user.count.mockResolvedValue(0);
+    mockPrisma.holiday.findMany.mockResolvedValue([]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -56,32 +56,15 @@ describe('AnalyticsService', () => {
     it('should compute night shift ratio correctly', async () => {
       mockPrisma.unit.findMany.mockResolvedValue([
         {
-          id: 'u1',
-          name: 'MR',
-          code: 'mr',
-          type: 'mr',
-          isActive: true,
+          id: 'u1', name: 'MR', code: 'mr', type: 'mr', isActive: true,
           _count: { personnel: 10, devices: 0 },
-          schedules: [
-            {
-              id: 's1',
-              month: 5,
-              year: 2026,
-              status: 'published',
-              assignments: [
-                {
-                  shiftType: 'night',
-                  date: new Date('2026-05-01'),
-                  personnel: { id: 'p1', name: 'Ahmet' },
-                },
-                {
-                  shiftType: 'day',
-                  date: new Date('2026-05-01'),
-                  personnel: { id: 'p2', name: 'Mehmet' },
-                },
-              ],
-            },
-          ],
+          schedules: [{
+            id: 's1', month: 5, year: 2026, status: 'published',
+            assignments: [
+              { shiftType: 'night', date: new Date('2026-05-01'), personnel: { id: 'p1', name: 'Ahmet' } },
+              { shiftType: 'day', date: new Date('2026-05-01'), personnel: { id: 'p2', name: 'Mehmet' } },
+            ],
+          }],
         },
       ]);
 
@@ -94,47 +77,25 @@ describe('AnalyticsService', () => {
     it('should return busiest unit based on assignment count', async () => {
       mockPrisma.unit.findMany.mockResolvedValue([
         {
-          id: 'u1',
-          name: 'MR',
-          code: 'mr',
-          type: 'mr',
-          isActive: true,
+          id: 'u1', name: 'MR', code: 'mr', type: 'mr', isActive: true,
           _count: { personnel: 5, devices: 0 },
-          schedules: [
-            {
-              id: 's1',
-              month: 5,
-              year: 2026,
-              status: 'published',
-              assignments: [
-                { shiftType: 'day', date: new Date(), personnel: { id: 'p1' } },
-              ],
-            },
-          ],
+          schedules: [{
+            id: 's1', month: 5, year: 2026, status: 'published',
+            assignments: [
+              { shiftType: 'day', date: new Date(), personnel: { id: 'p1' } },
+            ],
+          }],
         },
         {
-          id: 'u2',
-          name: 'BT',
-          code: 'bt',
-          type: 'bt',
-          isActive: true,
+          id: 'u2', name: 'BT', code: 'bt', type: 'bt', isActive: true,
           _count: { personnel: 3, devices: 0 },
-          schedules: [
-            {
-              id: 's2',
-              month: 5,
-              year: 2026,
-              status: 'published',
-              assignments: [
-                { shiftType: 'day', date: new Date(), personnel: { id: 'p2' } },
-                {
-                  shiftType: 'night',
-                  date: new Date(),
-                  personnel: { id: 'p3' },
-                },
-              ],
-            },
-          ],
+          schedules: [{
+            id: 's2', month: 5, year: 2026, status: 'published',
+            assignments: [
+              { shiftType: 'day', date: new Date(), personnel: { id: 'p2' } },
+              { shiftType: 'night', date: new Date(), personnel: { id: 'p3' } },
+            ],
+          }],
         },
       ]);
 
@@ -146,7 +107,9 @@ describe('AnalyticsService', () => {
 
   describe('getWorkload', () => {
     it('should return workload breakdown per personnel', async () => {
-      mockPrisma.unit.findMany.mockResolvedValue([{ id: 'u1' }]);
+      mockPrisma.unit.findMany.mockResolvedValue([
+        { id: 'u1' },
+      ]);
       mockPrisma.personnel.findMany.mockResolvedValue([
         { id: 'p1', name: 'Ahmet', role: 'technician', unitId: 'u1' },
         { id: 'p2', name: 'Mehmet', role: 'technician', unitId: 'u1' },
@@ -173,7 +136,9 @@ describe('AnalyticsService', () => {
 
   describe('getOvertimeRanking', () => {
     it('should return overtime ranking sorted by hours descending', async () => {
-      mockPrisma.unit.findMany.mockResolvedValue([{ id: 'u1' }]);
+      mockPrisma.unit.findMany.mockResolvedValue([
+        { id: 'u1' },
+      ]);
       mockPrisma.personnel.findMany.mockResolvedValue([
         { id: 'p1', name: 'Ali', role: 'technician', unitId: 'u1' },
         { id: 'p2', name: 'Veli', role: 'technician', unitId: 'u1' },
@@ -190,9 +155,7 @@ describe('AnalyticsService', () => {
       const result = await service.getOvertimeRanking('org-1');
 
       expect(result).toHaveLength(2);
-      expect(result[0].overtimeHours).toBeGreaterThanOrEqual(
-        result[1].overtimeHours,
-      );
+      expect(result[0].overtimeHours).toBeGreaterThanOrEqual(result[1].overtimeHours);
     });
 
     it('should return empty array when no personnel', async () => {
@@ -205,26 +168,16 @@ describe('AnalyticsService', () => {
 
   describe('getDeviceUtilization', () => {
     it('should return device utilization rates', async () => {
-      mockPrisma.unit.findMany.mockResolvedValue([{ id: 'u1', name: 'MR' }]);
-      mockPrisma.device.findMany.mockResolvedValue([
-        {
-          id: 'd1',
-          code: 'MR01',
-          name: 'MR Cihazı 1',
-          unitId: 'u1',
-          mode: 'service',
-          workDays: [1, 2, 3, 4, 5],
-        },
-        {
-          id: 'd2',
-          code: 'BT01',
-          name: 'BT Cihazı 1',
-          unitId: 'u1',
-          mode: 'service',
-          workDays: [1, 2, 3, 4, 5],
-        },
+      mockPrisma.unit.findMany.mockResolvedValue([
+        { id: 'u1', name: 'MR' },
       ]);
-      mockPrisma.schedule.findMany.mockResolvedValue([{ id: 's1' }]);
+      mockPrisma.device.findMany.mockResolvedValue([
+        { id: 'd1', code: 'MR01', name: 'MR Cihazı 1', unitId: 'u1', mode: 'service', workDays: [1, 2, 3, 4, 5] },
+        { id: 'd2', code: 'BT01', name: 'BT Cihazı 1', unitId: 'u1', mode: 'service', workDays: [1, 2, 3, 4, 5] },
+      ]);
+      mockPrisma.schedule.findMany.mockResolvedValue([
+        { id: 's1' },
+      ]);
       mockPrisma.assignment.findMany.mockResolvedValue([
         { deviceId: 'd1' },
         { deviceId: 'd1' },

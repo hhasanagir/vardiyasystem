@@ -96,10 +96,7 @@ export class SkillService {
     return this.api.get<PersonnelSkillAssignment[]>(`/skills/personnel/${personnelId}`);
   }
 
-  updatePersonnelSkill(
-    id: string,
-    dto: Partial<AssignSkillPayload>,
-  ): Observable<PersonnelSkillAssignment> {
+  updatePersonnelSkill(id: string, dto: Partial<AssignSkillPayload>): Observable<PersonnelSkillAssignment> {
     return this.api.patch<PersonnelSkillAssignment>(`/skills/personnel-skill/${id}`, dto);
   }
 

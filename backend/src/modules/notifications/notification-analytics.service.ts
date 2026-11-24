@@ -31,41 +31,22 @@ export class NotificationAnalyticsService {
     return {
       total,
       byType: byType.map((t: any) => ({ type: t.type, count: t._count })),
-      byPriority: byPriority.map((p: any) => ({
-        priority: p.priority,
-        count: p._count,
-      })),
-      byStatus: byStatus.map((s: any) => ({
-        status: s.status,
-        count: s._count,
-      })),
+      byPriority: byPriority.map((p: any) => ({ priority: p.priority, count: p._count })),
+      byStatus: byStatus.map((s: any) => ({ status: s.status, count: s._count })),
     };
   }
 
   async getUserEngagement(userId: string) {
-    const [totalNotifications, readNotifications, clickedNotifications] =
-      await Promise.all([
-        this.prisma.notificationRecipient.count({
-          where: { userId, isDeleted: false },
-        }),
-        this.prisma.notificationRecipient.count({
-          where: { userId, isRead: true },
-        }),
-        this.prisma.notificationDelivery.count({
-          where: { recipientId: userId, status: 'CLICKED' },
-        }),
-      ]);
+    const [totalNotifications, readNotifications, clickedNotifications] = await Promise.all([
+      this.prisma.notificationRecipient.count({ where: { userId, isDeleted: false } }),
+      this.prisma.notificationRecipient.count({ where: { userId, isRead: true } }),
+      this.prisma.notificationDelivery.count({ where: { recipientId: userId, status: 'CLICKED' } }),
+    ]);
 
     return {
       totalNotifications,
-      readPercentage:
-        totalNotifications > 0
-          ? (readNotifications / totalNotifications) * 100
-          : 0,
-      clickPercentage:
-        totalNotifications > 0
-          ? (clickedNotifications / totalNotifications) * 100
-          : 0,
+      readPercentage: totalNotifications > 0 ? (readNotifications / totalNotifications) * 100 : 0,
+      clickPercentage: totalNotifications > 0 ? (clickedNotifications / totalNotifications) * 100 : 0,
     };
   }
 }

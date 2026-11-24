@@ -6,9 +6,7 @@ export class MeExportService {
   constructor(private prisma: PrismaService) {}
 
   async exportIcs(email: string): Promise<string> {
-    const personnel = await this.prisma.personnel.findUnique({
-      where: { email },
-    });
+    const personnel = await this.prisma.personnel.findUnique({ where: { email } });
     if (!personnel) throw new NotFoundException('Personel bulunamadı');
 
     const now = new Date();
@@ -16,11 +14,7 @@ export class MeExportService {
     const currentYear = now.getFullYear();
 
     const schedule = await this.prisma.schedule.findFirst({
-      where: {
-        unitId: personnel.unitId,
-        month: currentMonth,
-        year: currentYear,
-      },
+      where: { unitId: personnel.unitId, month: currentMonth, year: currentYear },
       include: {
         unit: true,
         assignments: {
@@ -71,16 +65,10 @@ export class MeExportService {
 
       lines.push('BEGIN:VEVENT');
       lines.push(`UID:${uid}`);
-      lines.push(
-        `DTSTART;TZID=Europe/Istanbul:${startDate}T${String(sh).padStart(2, '0')}${String(sm).padStart(2, '0')}00`,
-      );
-      lines.push(
-        `DTEND;TZID=Europe/Istanbul:${endDate}T${String(eh).padStart(2, '0')}${String(em).padStart(2, '0')}00`,
-      );
+      lines.push(`DTSTART;TZID=Europe/Istanbul:${startDate}T${String(sh).padStart(2, '0')}${String(sm).padStart(2, '0')}00`);
+      lines.push(`DTEND;TZID=Europe/Istanbul:${endDate}T${String(eh).padStart(2, '0')}${String(em).padStart(2, '0')}00`);
       lines.push(`SUMMARY:${shiftLabel} - ${deviceName}`);
-      lines.push(
-        `DESCRIPTION:Vardiya: ${shiftLabel}\\nCihaz: ${deviceName}\\nSaat: ${a.startTime} - ${a.endTime}`,
-      );
+      lines.push(`DESCRIPTION:Vardiya: ${shiftLabel}\\nCihaz: ${deviceName}\\nSaat: ${a.startTime} - ${a.endTime}`);
       lines.push(`LOCATION:${schedule.unit?.name || ''}`);
       lines.push('STATUS:CONFIRMED');
       lines.push(`TRANSP:OPAQUE`);
@@ -97,13 +85,7 @@ export class MeExportService {
   }
 
   private getShiftLabel(type: string): string {
-    const map: Record<string, string> = {
-      day: 'Gündüz',
-      evening: 'Akşam',
-      night: 'Gece',
-      morning: 'Sabah',
-      afternoon: 'İkindi',
-    };
+    const map: Record<string, string> = { day: 'Gündüz', evening: 'Akşam', night: 'Gece', morning: 'Sabah', afternoon: 'İkindi' };
     return map[type] || type;
   }
 }

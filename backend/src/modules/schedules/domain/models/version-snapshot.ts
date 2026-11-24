@@ -57,10 +57,18 @@ export interface SnapshotMetadata {
   personnelCount: number;
   deviceCount: number;
   coveragePercent: number;
-  generatedAt?: Date;
+  /** P3-09 — server-derived actor/id/time; never accepted from the client DTO. */
+  generatedBy?: string;
+  generatedAt?: string;
   algorithm?: string;
   seed?: number;
   score?: number;
+  coverage?: {
+    requiredSlots: number;
+    assignedSlots: number;
+    coveragePercent: number;
+    underCoveredSlots: number;
+  };
 }
 
 export interface VersionDiff {
@@ -85,8 +93,8 @@ export function createSnapshotDiff(
   from: ScheduleVersionSnapshot,
   to: ScheduleVersionSnapshot,
 ): VersionDiff {
-  const fromMap = new Map(from.data.assignments.map((a) => [a.id, a]));
-  const toMap = new Map(to.data.assignments.map((a) => [a.id, a]));
+  const fromMap = new Map(from.data.assignments.map(a => [a.id, a]));
+  const toMap = new Map(to.data.assignments.map(a => [a.id, a]));
 
   const added: SnapshotAssignment[] = [];
   const removed: SnapshotAssignment[] = [];
@@ -124,12 +132,7 @@ function diffAssignments(
 ): VersionDiffModified[] {
   const diffs: VersionDiffModified[] = [];
   const fields: Array<keyof SnapshotAssignment> = [
-    'personnelId',
-    'deviceId',
-    'shiftType',
-    'startTime',
-    'endTime',
-    'kind',
+    'personnelId', 'deviceId', 'shiftType', 'startTime', 'endTime', 'kind',
   ];
 
   for (const field of fields) {

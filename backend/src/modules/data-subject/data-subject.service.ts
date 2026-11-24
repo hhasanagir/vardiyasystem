@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 
 @Injectable()
@@ -35,31 +30,29 @@ export class DataSubjectService {
     return {
       user: this.sanitizeUser(user),
       roleAssignments: user.roleAssignments,
-      activeSessions: user.authSessions.map((s) => ({
+      activeSessions: user.authSessions.map(s => ({
         id: s.id,
         lastUsedAt: s.lastUsedAt,
         deviceInfo: s.deviceInfo,
         createdAt: s.createdAt,
       })),
       consents: user.consentRecords,
-      notifications: user.notificationRecipients.map((n) => ({
+      notifications: user.notificationRecipients.map(n => ({
         id: n.id,
         isRead: n.isRead,
         createdAt: n.createdAt,
       })),
       attendance: user.attendanceRecords,
-      personnel: personnel
-        ? {
-            id: personnel.id,
-            name: personnel.name,
-            employeeNo: personnel.employeeNo,
-            email: personnel.email,
-            role: personnel.role,
-            skills: personnel.personnelSkills,
-            trainings: personnel.personnelTrainings,
-            assignments: personnel.assignments,
-          }
-        : null,
+      personnel: personnel ? {
+        id: personnel.id,
+        name: personnel.name,
+        employeeNo: personnel.employeeNo,
+        email: personnel.email,
+        role: personnel.role,
+        skills: personnel.personnelSkills,
+        trainings: personnel.personnelTrainings,
+        assignments: personnel.assignments,
+      } : null,
       exportFormat: 'json',
       exportedAt: new Date().toISOString(),
     };
@@ -67,16 +60,9 @@ export class DataSubjectService {
 
   async requestDataExport(userId: string, format: string = 'json') {
     const existing = await this.prisma.dataSubjectRequest.findFirst({
-      where: {
-        userId,
-        requestType: 'ACCESS',
-        status: { in: ['PENDING', 'IN_PROGRESS'] },
-      },
+      where: { userId, requestType: 'ACCESS', status: { in: ['PENDING', 'IN_PROGRESS'] } },
     });
-    if (existing)
-      throw new BadRequestException(
-        'You already have a pending access request',
-      );
+    if (existing) throw new BadRequestException('You already have a pending access request');
 
     const request = await this.prisma.dataSubjectRequest.create({
       data: {
@@ -87,25 +73,14 @@ export class DataSubjectService {
       } as any,
     });
 
-    return {
-      requestId: request.id,
-      status: request.status,
-      message: 'Data export request submitted',
-    };
+    return { requestId: request.id, status: request.status, message: 'Data export request submitted' };
   }
 
   async requestErasure(userId: string, reason?: string) {
     const existing = await this.prisma.dataSubjectRequest.findFirst({
-      where: {
-        userId,
-        requestType: 'ERASURE',
-        status: { in: ['PENDING', 'IN_PROGRESS'] },
-      },
+      where: { userId, requestType: 'ERASURE', status: { in: ['PENDING', 'IN_PROGRESS'] } },
     });
-    if (existing)
-      throw new BadRequestException(
-        'You already have a pending erasure request',
-      );
+    if (existing) throw new BadRequestException('You already have a pending erasure request');
 
     const request = await this.prisma.dataSubjectRequest.create({
       data: {
@@ -115,19 +90,10 @@ export class DataSubjectService {
       } as any,
     });
 
-    return {
-      requestId: request.id,
-      status: request.status,
-      message: 'Erasure request submitted',
-    };
+    return { requestId: request.id, status: request.status, message: 'Erasure request submitted' };
   }
 
-  async requestRectification(
-    userId: string,
-    field: string,
-    currentValue: string,
-    proposedValue: string,
-  ) {
+  async requestRectification(userId: string, field: string, currentValue: string, proposedValue: string) {
     const request = await this.prisma.dataSubjectRequest.create({
       data: {
         userId,
@@ -153,16 +119,9 @@ export class DataSubjectService {
 
   async requestPortability(userId: string) {
     const existing = await this.prisma.dataSubjectRequest.findFirst({
-      where: {
-        userId,
-        requestType: 'PORTABILITY',
-        status: { in: ['PENDING', 'IN_PROGRESS'] },
-      },
+      where: { userId, requestType: 'PORTABILITY', status: { in: ['PENDING', 'IN_PROGRESS'] } },
     });
-    if (existing)
-      throw new BadRequestException(
-        'You already have a pending portability request',
-      );
+    if (existing) throw new BadRequestException('You already have a pending portability request');
 
     const request = await this.prisma.dataSubjectRequest.create({
       data: {
@@ -188,20 +147,12 @@ export class DataSubjectService {
       include: { auditLogs: { orderBy: { createdAt: 'desc' } } },
     });
     if (!request) throw new NotFoundException('Request not found');
-    if (userId && request.userId !== userId)
-      throw new ForbiddenException('Access denied');
+    if (userId && request.userId !== userId) throw new ForbiddenException('Access denied');
     return request;
   }
 
-  async processRequest(
-    requestId: string,
-    action: string,
-    performedBy: string,
-    notes?: string,
-  ) {
-    const request = await this.prisma.dataSubjectRequest.findUnique({
-      where: { id: requestId },
-    });
+  async processRequest(requestId: string, action: string, performedBy: string, notes?: string) {
+    const request = await this.prisma.dataSubjectRequest.findUnique({ where: { id: requestId } });
     if (!request) throw new NotFoundException('Request not found');
 
     const statusMap: Record<string, string> = {
@@ -216,10 +167,7 @@ export class DataSubjectService {
     const updates: any = { status: newStatus };
     if (action === 'approve') {
       updates.completedAt = new Date();
-      if (
-        request.requestType === 'ACCESS' ||
-        request.requestType === 'PORTABILITY'
-      ) {
+      if (request.requestType === 'ACCESS' || request.requestType === 'PORTABILITY') {
         const userData = await this.getMyData(request.userId);
         updates.dataSnapshot = userData as any;
       }
@@ -246,9 +194,7 @@ export class DataSubjectService {
   }
 
   async processErasure(requestId: string, performedBy: string) {
-    const request = await this.prisma.dataSubjectRequest.findUnique({
-      where: { id: requestId },
-    });
+    const request = await this.prisma.dataSubjectRequest.findUnique({ where: { id: requestId } });
     if (!request) throw new NotFoundException('Request not found');
 
     await this.prisma.$transaction(async (tx: any) => {
@@ -258,16 +204,13 @@ export class DataSubjectService {
         where: { id: requestId },
         data: {
           status: 'IN_PROGRESS',
-          dataSnapshot: await this.getMyData(userId).then((d) => d as any),
+          dataSnapshot: await this.getMyData(userId).then(d => d as any),
         },
       });
 
       await tx.emergencyAccessGrant.deleteMany({ where: { userId } });
       await tx.consentRecord.deleteMany({ where: { userId } });
-      await tx.dataSubjectRequest.updateMany({
-        where: { userId, id: { not: requestId } },
-        data: { userId: 'deleted-user' } as any,
-      });
+      await tx.dataSubjectRequest.updateMany({ where: { userId, id: { not: requestId } }, data: { userId: 'deleted-user' } as any });
       await tx.authSession.deleteMany({ where: { userId } });
       await tx.pushToken.deleteMany({ where: { userId } });
       await tx.userRoleAssignment.deleteMany({ where: { userId } });
@@ -292,8 +235,7 @@ export class DataSubjectService {
           requestId,
           action: 'erasure_completed',
           performedBy,
-          description:
-            'User data anonymized and accounts disabled per right to erasure',
+          description: 'User data anonymized and accounts disabled per right to erasure',
         } as any,
       });
     });
@@ -314,10 +256,8 @@ export class DataSubjectService {
       total: requests.length,
       byType: this.countBy(requests, 'requestType'),
       byStatus: this.countBy(requests, 'status'),
-      pendingCount: requests.filter(
-        (r) => r.status === 'PENDING' || r.status === 'IN_PROGRESS',
-      ).length,
-      completedCount: requests.filter((r) => r.status === 'COMPLETED').length,
+      pendingCount: requests.filter(r => r.status === 'PENDING' || r.status === 'IN_PROGRESS').length,
+      completedCount: requests.filter(r => r.status === 'COMPLETED').length,
       avgProcessingTime: this.calcAvgProcessingTime(requests),
     };
   }
@@ -332,14 +272,9 @@ export class DataSubjectService {
   }
 
   private calcAvgProcessingTime(requests: any[]): number | null {
-    const completed = requests.filter(
-      (r) => r.status === 'COMPLETED' && r.completedAt,
-    );
+    const completed = requests.filter(r => r.status === 'COMPLETED' && r.completedAt);
     if (completed.length === 0) return null;
-    const totalMs = completed.reduce(
-      (sum, r) => sum + (r.completedAt.getTime() - r.requestedAt.getTime()),
-      0,
-    );
+    const totalMs = completed.reduce((sum, r) => sum + (r.completedAt.getTime() - r.requestedAt.getTime()), 0);
     return Math.round(totalMs / completed.length / (1000 * 60 * 60));
   }
 }

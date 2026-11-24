@@ -9,15 +9,15 @@ cache strategy (F79), and Redis key naming conventions (F80).
 
 Target latencies for core operations under normal load (single instance, production-sized data):
 
-| Operation           | Expected Latency | Measurement Point                           |
-| ------------------- | ---------------- | ------------------------------------------- |
-| Login               | < 200ms          | `POST /auth/login`                          |
-| Schedule load       | < 500ms          | `GET /schedules-ddd/:id`                    |
-| Assignment mutation | < 300ms          | `POST/PATCH /schedules-ddd/:id/assignments` |
-| Schedule generation | < 30s            | `POST /schedules-ddd/:id/jobs/generate`     |
-| Validation          | < 2s             | `POST /schedules-ddd/:id/validate`          |
-| Publish             | < 1s             | `POST /schedules-ddd/:id/publish`           |
-| Audit write         | < 50ms           | Async via event bus                         |
+| Operation             | Expected Latency | Measurement Point                          |
+|-----------------------|------------------|--------------------------------------------|
+| Login                 | < 200ms          | `POST /auth/login`                         |
+| Schedule load         | < 500ms          | `GET /schedules-ddd/:id`                   |
+| Assignment mutation   | < 300ms          | `POST/PATCH /schedules-ddd/:id/assignments`|
+| Schedule generation   | < 30s            | `POST /schedules-ddd/:id/jobs/generate`    |
+| Validation            | < 2s             | `POST /schedules-ddd/:id/validate`         |
+| Publish               | < 1s             | `POST /schedules-ddd/:id/publish`          |
+| Audit write           | < 50ms           | Async via event bus                        |
 
 Notes:
 
@@ -86,18 +86,18 @@ vardiya:{namespace}:{identifier}
 
 ### Namespaces
 
-| Namespace       | Purpose                                 |
-| --------------- | --------------------------------------- |
-| `lock`          | Distributed locks (schedule edit locks) |
-| `throttle`      | Throttler storage                       |
-| `jwt:blacklist` | Revoked/blacklisted JWT tokens          |
-| `session`       | Session state                           |
-| `cache`         | General-purpose cached data             |
-| `queue`         | Queue-related keys                      |
-| `ratelimit`     | Rate limiting counters                  |
-| `ws:conn`       | WebSocket connection tracking           |
-| `csrf`          | CSRF token storage                      |
-| `lockout`       | Account lockout tracking                |
+| Namespace     | Purpose                                  |
+|---------------|------------------------------------------|
+| `lock`        | Distributed locks (schedule edit locks)  |
+| `throttle`    | Throttler storage                        |
+| `jwt:blacklist` | Revoked/blacklisted JWT tokens         |
+| `session`     | Session state                            |
+| `cache`       | General-purpose cached data              |
+| `queue`       | Queue-related keys                       |
+| `ratelimit`   | Rate limiting counters                   |
+| `ws:conn`     | WebSocket connection tracking            |
+| `csrf`        | CSRF token storage                       |
+| `lockout`     | Account lockout tracking                 |
 
 ### Status
 

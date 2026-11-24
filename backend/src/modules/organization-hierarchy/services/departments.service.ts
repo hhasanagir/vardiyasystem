@@ -5,12 +5,7 @@ import { PrismaService } from '../../../prisma.service';
 export class DepartmentsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: {
-    name: string;
-    code: string;
-    hospitalId?: string;
-    directorateId?: string;
-  }) {
+  async create(data: { name: string; code: string; hospitalId?: string; directorateId?: string }) {
     const department = await this.prisma.department.create({ data });
     if (data.directorateId) {
       await this.prisma.$queryRawUnsafe(
@@ -42,17 +37,11 @@ export class DepartmentsService {
     });
   }
 
-  async update(
-    id: string,
-    data: Partial<{ name: string; code: string; isActive: boolean }>,
-  ) {
+  async update(id: string, data: Partial<{ name: string; code: string; isActive: boolean }>) {
     return this.prisma.department.update({ where: { id }, data });
   }
 
   async remove(id: string) {
-    return this.prisma.department.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    return this.prisma.department.update({ where: { id }, data: { isActive: false } });
   }
 }

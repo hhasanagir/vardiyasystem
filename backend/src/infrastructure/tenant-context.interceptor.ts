@@ -1,11 +1,7 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, ForbiddenException } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tenantContext } from './prisma/middleware/tenant.middleware';
+import { isCrossTenantRole } from '../modules/rbac/interfaces/rbac.types';
 
 /**
  * Activates tenant-scoped Prisma queries for the duration of each request.
@@ -23,9 +19,26 @@ export class TenantContextInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    const organizationId: string | undefined = user?.organizationId;
+    // Public route: there is no principal to scope, so there is nothing to filter.
+    if (!user) {
+      return next.handle();
+    }
+
+    const organizationId: string | undefined = user.organizationId;
 
     if (!organizationId) {
+      // A tenant-scoped role with no organization is a misconfiguration, and the
+      // failure mode is silent: without a tenant the middleware injects no
+      // predicate and every query runs across ALL tenants. Failing closed keeps
+      // the account unusable until it is attached to a unit, which is visible and
+      // fixable — instead of granting a cross-tenant view.
+      if (!isCrossTenantRole(user.role)) {
+        throw new ForbiddenException({
+          statusCode: 403,
+          error: 'TENANT_CONTEXT_MISSING',
+          message: 'Hesap bir birime bağlı değil; tenant kapsamı belirlenemedi',
+        });
+      }
       return next.handle();
     }
 

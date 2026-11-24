@@ -1,11 +1,4 @@
-import {
-  Component,
-  OnInit,
-  inject,
-  ChangeDetectionStrategy,
-  computed,
-  signal,
-} from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
@@ -25,16 +18,9 @@ import type { ConsumableStock } from './models/consumable.models';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
-    FormsModule,
-    TableModule,
-    ButtonModule,
-    TagModule,
-    ToastModule,
-    CardModule,
-    ProgressSpinnerModule,
-    TooltipModule,
-    InputTextModule,
+    CommonModule, FormsModule,
+    TableModule, ButtonModule, TagModule, ToastModule, CardModule,
+    ProgressSpinnerModule, TooltipModule, InputTextModule,
   ],
   providers: [MessageService],
   templateUrl: './consumables.component.html',
@@ -47,15 +33,9 @@ export class ConsumablesComponent implements OnInit {
   readonly stock = this.consumablesService.stock;
   readonly isLoading = this.consumablesService.isLoading;
 
-  readonly lowStockCount = computed(
-    () => this.stock().filter((s) => s.quantity <= s.minStock).length,
-  );
-  readonly normalStockCount = computed(
-    () => this.stock().filter((s) => s.quantity > s.minStock && s.quantity < s.maxStock).length,
-  );
-  readonly highStockCount = computed(
-    () => this.stock().filter((s) => s.quantity >= s.maxStock).length,
-  );
+  readonly lowStockCount = computed(() => this.stock().filter(s => s.quantity <= s.minStock).length);
+  readonly normalStockCount = computed(() => this.stock().filter(s => s.quantity > s.minStock && s.quantity < s.maxStock).length);
+  readonly highStockCount = computed(() => this.stock().filter(s => s.quantity >= s.maxStock).length);
 
   ngOnInit(): void {
     this.loadStock();
@@ -63,13 +43,7 @@ export class ConsumablesComponent implements OnInit {
 
   loadStock(): void {
     this.consumablesService.getStock().subscribe({
-      error: () =>
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Hata',
-          detail: 'Stok bilgileri yüklenemedi',
-          life: 3000,
-        }),
+      error: () => this.messageService.add({ severity: 'error', summary: 'Hata', detail: 'Stok bilgileri yüklenemedi', life: 3000 }),
     });
   }
 
@@ -79,20 +53,13 @@ export class ConsumablesComponent implements OnInit {
     return 'normal';
   }
 
-  getStockSeverity(
-    item: ConsumableStock,
-  ): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
+  getStockSeverity(item: ConsumableStock): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' {
     if (item.quantity <= item.minStock) return 'danger';
     if (item.quantity >= item.maxStock) return 'warn';
     return 'success';
   }
 
   onCreate(): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Bilgi',
-      detail: 'Yeni sarf malzemesi oluşturulacak',
-      life: 3000,
-    });
+    this.messageService.add({ severity: 'info', summary: 'Bilgi', detail: 'Yeni sarf malzemesi oluşturulacak', life: 3000 });
   }
 }

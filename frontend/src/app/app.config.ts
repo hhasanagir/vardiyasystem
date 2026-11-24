@@ -4,12 +4,7 @@ import {
   ErrorHandler,
   isDevMode,
 } from '@angular/core';
-import {
-  provideRouter,
-  withPreloading,
-  PreloadAllModules,
-  withInMemoryScrolling,
-} from '@angular/router';
+import { provideRouter, withPreloading, withInMemoryScrolling } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { providePrimeNG } from 'primeng/config';
@@ -19,6 +14,7 @@ import { authInterceptor, errorInterceptor } from './interceptors/auth.intercept
 import { csrfInterceptor } from './interceptors/csrf.interceptor';
 import { offlineInterceptor } from './interceptors/offline.interceptor';
 import { GlobalErrorHandler } from './core/error-handler.service';
+import { SelectivePreloadingStrategy } from './core/router/selective-preload.strategy';
 
 import { routes } from './app.routes';
 
@@ -26,14 +22,11 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
-    provideRouter(
-      routes,
-      withPreloading(PreloadAllModules),
+    provideRouter(routes,
+      withPreloading(SelectivePreloadingStrategy),
       withInMemoryScrolling({ scrollPositionRestoration: 'enabled', anchorScrolling: 'enabled' }),
     ),
-    provideHttpClient(
-      withInterceptors([csrfInterceptor, authInterceptor, offlineInterceptor, errorInterceptor]),
-    ),
+    provideHttpClient(withInterceptors([csrfInterceptor, authInterceptor, offlineInterceptor, errorInterceptor])),
     provideAnimations(),
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),

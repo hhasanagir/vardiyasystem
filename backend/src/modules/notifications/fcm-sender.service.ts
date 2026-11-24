@@ -19,21 +19,15 @@ export class FcmSenderService {
 
   private init(): void {
     try {
-      const serviceAccountPath = this.configService.get<string>(
-        'FIREBASE_SERVICE_ACCOUNT_PATH',
-      );
+      const serviceAccountPath = this.configService.get<string>('FIREBASE_SERVICE_ACCOUNT_PATH');
       if (!serviceAccountPath) {
-        this.logger.warn(
-          'FCM not configured — FIREBASE_SERVICE_ACCOUNT_PATH not set',
-        );
+        this.logger.warn('FCM not configured — FIREBASE_SERVICE_ACCOUNT_PATH not set');
         return;
       }
       const admin = require('firebase-admin');
       if (!admin.apps.length) {
         const serviceAccount = require(serviceAccountPath);
-        admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount),
-        });
+        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
       }
       this.app = admin;
       this.enabled = true;
@@ -70,10 +64,8 @@ export class FcmSenderService {
 
       response.responses.forEach((resp: any, idx: number) => {
         if (resp.success) return;
-        if (
-          resp.error?.code === 'messaging/invalid-registration-token' ||
-          resp.error?.code === 'messaging/registration-token-not-registered'
-        ) {
+        if (resp.error?.code === 'messaging/invalid-registration-token' ||
+            resp.error?.code === 'messaging/registration-token-not-registered') {
           invalidTokens.push(tokens[idx].id);
         }
       });
@@ -85,22 +77,15 @@ export class FcmSenderService {
         });
       }
 
-      this.metrics.notificationDeliveredTotal.inc({
-        channel: 'fcm',
-        count: response.successCount.toString(),
-      });
+      this.metrics.notificationDeliveredTotal.inc({ channel: 'fcm', count: response.successCount.toString() });
       return response.successCount > 0;
     } catch (err) {
-      this.logger.error(
-        `FCM send failed for user ${userId}: ${(err as Error).message}`,
-      );
+      this.logger.error(`FCM send failed for user ${userId}: ${(err as Error).message}`);
       return false;
     }
   }
 
-  private serializeData(
-    data?: Record<string, unknown>,
-  ): Record<string, string> {
+  private serializeData(data?: Record<string, unknown>): Record<string, string> {
     if (!data) return {};
     const result: Record<string, string> = {};
     for (const [key, value] of Object.entries(data)) {

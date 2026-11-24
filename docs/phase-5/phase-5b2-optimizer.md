@@ -27,18 +27,17 @@ ScheduleOptimizerService
 class ScheduleOptimizerService {
   registerStrategy(strategy: OptimizationStrategy): void;
   optimize(problem, strategyId?, config?): OptimizationResult;
-  getAvailableStrategies(): Array<{ id; name }>;
+  getAvailableStrategies(): Array<{id, name}>;
 }
 ```
 
 ## Strategies
 
-| ID       | Name                | Status         |
-| -------- | ------------------- | -------------- |
+| ID | Name | Status |
+|---|---|---|
 | `greedy` | Greedy Optimization | ✅ Implemented |
 
 Future:
-
 - `genetic` — Genetic Algorithm (Phase 5B.3+)
 - `constraint-programming` — CP-SAT (Phase 5C+)
 - `milp` — Mixed Integer Linear Programming (Phase 5C+)

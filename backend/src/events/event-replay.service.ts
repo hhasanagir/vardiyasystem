@@ -13,34 +13,17 @@ export class EventReplayService {
     private readonly eventStore: EventStoreService,
   ) {}
 
-  async replayByAggregate(
-    aggregateType: string,
-    aggregateId: string,
-  ): Promise<number> {
-    const events = await this.eventStore.replayByAggregate(
-      aggregateType,
-      aggregateId,
-    );
+  async replayByAggregate(aggregateType: string, aggregateId: string): Promise<number> {
+    const events = await this.eventStore.replayByAggregate(aggregateType, aggregateId);
     return this.publishEvents(events);
   }
 
-  async replayByType(
-    aggregateType: string,
-    fromTimestamp?: number,
-    toTimestamp?: number,
-  ): Promise<number> {
-    const events = await this.eventStore.replayByType(
-      aggregateType,
-      fromTimestamp,
-      toTimestamp,
-    );
+  async replayByType(aggregateType: string, fromTimestamp?: number, toTimestamp?: number): Promise<number> {
+    const events = await this.eventStore.replayByType(aggregateType, fromTimestamp, toTimestamp);
     return this.publishEvents(events);
   }
 
-  async replayAll(
-    fromTimestamp?: number,
-    toTimestamp?: number,
-  ): Promise<number> {
+  async replayAll(fromTimestamp?: number, toTimestamp?: number): Promise<number> {
     const events = await this.eventStore.replayAll(fromTimestamp, toTimestamp);
     return this.publishEvents(events);
   }
@@ -49,10 +32,7 @@ export class EventReplayService {
     return this.eventStore.getEvent(eventId);
   }
 
-  async getAggregateEventCount(
-    aggregateType: string,
-    aggregateId: string,
-  ): Promise<number> {
+  async getAggregateEventCount(aggregateType: string, aggregateId: string): Promise<number> {
     return this.eventStore.countByAggregate(aggregateType, aggregateId);
   }
 

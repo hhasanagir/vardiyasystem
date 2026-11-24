@@ -14,19 +14,19 @@ This document describes the audit logging architecture of the vardiya (shift) sy
 
 All auditable events are defined in the `AuditEvent` enum in `backend/src/modules/audit-log/audit.constants.ts:1-70`, with Turkish display labels in `AuditEventLabels` (`audit.constants.ts:72-141`). The categories are:
 
-| Category                   | Events                                                                                                                                                                                         | Definition                 |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| Auth                       | `LOGIN`, `LOGOUT`, `FAILED_LOGIN`, `PASSWORD_CHANGE`, `TOKEN_REFRESH`                                                                                                                          | `audit.constants.ts:3-7`   |
-| Security (F31)             | `ACCOUNT_LOCKED`, `ACCOUNT_UNLOCKED`, `REFRESH_TOKEN_REUSE`, `SESSION_REVOKED`, `UNAUTHORIZED_ACCESS`, `CROSS_TENANT_ACCESS_ATTEMPT`, `PERMISSION_DENIED`, `RATE_LIMIT_TRIGGERED`              | `audit.constants.ts:10-17` |
-| Users                      | `USER_CREATED`, `USER_UPDATED`, `USER_DISABLED`, `ROLE_CHANGED`, `PERMISSION_CHANGED`                                                                                                          | `audit.constants.ts:20-24` |
-| Personnel                  | `PERSONNEL_CREATED`, `PERSONNEL_UPDATED`, `PERSONNEL_DELETED`                                                                                                                                  | `audit.constants.ts:27-29` |
+| Category | Events | Definition |
+|---|---|---|
+| Auth | `LOGIN`, `LOGOUT`, `FAILED_LOGIN`, `PASSWORD_CHANGE`, `TOKEN_REFRESH` | `audit.constants.ts:3-7` |
+| Security (F31) | `ACCOUNT_LOCKED`, `ACCOUNT_UNLOCKED`, `REFRESH_TOKEN_REUSE`, `SESSION_REVOKED`, `UNAUTHORIZED_ACCESS`, `CROSS_TENANT_ACCESS_ATTEMPT`, `PERMISSION_DENIED`, `RATE_LIMIT_TRIGGERED` | `audit.constants.ts:10-17` |
+| Users | `USER_CREATED`, `USER_UPDATED`, `USER_DISABLED`, `ROLE_CHANGED`, `PERMISSION_CHANGED` | `audit.constants.ts:20-24` |
+| Personnel | `PERSONNEL_CREATED`, `PERSONNEL_UPDATED`, `PERSONNEL_DELETED` | `audit.constants.ts:27-29` |
 | Schedules (full lifecycle) | `SCHEDULE_CREATED`, `SCHEDULE_GENERATED`, `SCHEDULE_UPDATED`, `SCHEDULE_SUBMITTED`, `SCHEDULE_APPROVED`, `SCHEDULE_REJECTED`, `SCHEDULE_PUBLISHED`, `SCHEDULE_ROLLED_BACK`, `SCHEDULE_DELETED` | `audit.constants.ts:32-40` |
-| Assignments                | `ASSIGNMENT_CREATED`, `ASSIGNMENT_UPDATED`, `ASSIGNMENT_REMOVED`                                                                                                                               | `audit.constants.ts:43-45` |
-| Attendance                 | `ATTENDANCE_CREATED`, `ATTENDANCE_UPDATED`                                                                                                                                                     | `audit.constants.ts:48-49` |
-| Training                   | `TRAINING_CREATED`, `TRAINING_UPDATED`, `TRAINING_COMPLETED`                                                                                                                                   | `audit.constants.ts:52-54` |
-| Devices                    | `DEVICE_CREATED`, `DEVICE_UPDATED`, `DEVICE_INCIDENT_CREATED`                                                                                                                                  | `audit.constants.ts:57-59` |
-| Permissions                | `ROLE_ASSIGNED`, `ROLE_REMOVED`, `PERMISSION_GRANTED`, `PERMISSION_REVOKED`                                                                                                                    | `audit.constants.ts:62-65` |
-| System                     | `SETTINGS_CHANGED`, `CONFIGURATION_UPDATED`                                                                                                                                                    | `audit.constants.ts:68-69` |
+| Assignments | `ASSIGNMENT_CREATED`, `ASSIGNMENT_UPDATED`, `ASSIGNMENT_REMOVED` | `audit.constants.ts:43-45` |
+| Attendance | `ATTENDANCE_CREATED`, `ATTENDANCE_UPDATED` | `audit.constants.ts:48-49` |
+| Training | `TRAINING_CREATED`, `TRAINING_UPDATED`, `TRAINING_COMPLETED` | `audit.constants.ts:52-54` |
+| Devices | `DEVICE_CREATED`, `DEVICE_UPDATED`, `DEVICE_INCIDENT_CREATED` | `audit.constants.ts:57-59` |
+| Permissions | `ROLE_ASSIGNED`, `ROLE_REMOVED`, `PERMISSION_GRANTED`, `PERMISSION_REVOKED` | `audit.constants.ts:62-65` |
+| System | `SETTINGS_CHANGED`, `CONFIGURATION_UPDATED` | `audit.constants.ts:68-69` |
 
 Entity types referenced by audit entries are enumerated in `EntityTypeLabels` at `audit.constants.ts:143-157` (user, personnel, schedule, assignment, attendance, training, device, device_incident, role, permission, setting, configuration, shift).
 
@@ -44,21 +44,21 @@ The `AuditLog` model is defined at `backend/prisma/schema.prisma:942-986` and ma
 
 Core fields (schema.prisma:943-968):
 
-| Field                                                | Type                                                              | Notes                                                 |
-| ---------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------- |
-| `id`                                                 | `String @id @default(uuid())`                                     | Primary key (line 943)                                |
-| `requestId`                                          | `String?`                                                         | Correlation ID of originating HTTP request (line 944) |
-| `userId` / `userName` / `userRole`                   | actor identity (lines 945-947)                                    |
-| `organizationId` / `hospitalId` / `unitId`           | tenancy scoping (lines 948-950)                                   |
-| `actionType` / `entityType` / `entityId`             | what was done to what (lines 951-953)                             |
-| `oldValue` / `newValue`                              | `Json?` before/after snapshots (lines 954-955)                    |
-| `description`, `ipAddress`, `userAgent`              | context; IP/UA stored hashed (see below) (lines 956-958)          |
-| `status`                                             | default `"SUCCESS"` (line 959)                                    |
-| `metadata`                                           | free-form JSON (line 960)                                         |
-| `dataClassification`                                 | enum `AuditDataClassification`, default `UNCLASSIFIED` (line 961) |
-| `retentionHash`, `consentId`                         | GDPR/KVKK retention fields (lines 962-963)                        |
-| `flagged` / `flagReason` / `flaggedAt` / `flaggedBy` | review workflow (lines 964-967)                                   |
-| `createdAt`                                          | `@default(now())` (line 968)                                      |
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `String @id @default(uuid())` | Primary key (line 943) |
+| `requestId` | `String?` | Correlation ID of originating HTTP request (line 944) |
+| `userId` / `userName` / `userRole` | actor identity (lines 945-947) |
+| `organizationId` / `hospitalId` / `unitId` | tenancy scoping (lines 948-950) |
+| `actionType` / `entityType` / `entityId` | what was done to what (lines 951-953) |
+| `oldValue` / `newValue` | `Json?` before/after snapshots (lines 954-955) |
+| `description`, `ipAddress`, `userAgent` | context; IP/UA stored hashed (see below) (lines 956-958) |
+| `status` | default `"SUCCESS"` (line 959) |
+| `metadata` | free-form JSON (line 960) |
+| `dataClassification` | enum `AuditDataClassification`, default `UNCLASSIFIED` (line 961) |
+| `retentionHash`, `consentId` | GDPR/KVKK retention fields (lines 962-963) |
+| `flagged` / `flagReason` / `flaggedAt` / `flaggedBy` | review workflow (lines 964-967) |
+| `createdAt` | `@default(now())` (line 968) |
 
 Indexes are declared at schema.prisma:972-984, covering time-range queries (`createdAt`), action filtering (`actionType`), per-user history (`userId`, `[userId, createdAt]`), entity trails (`[entityType, entityId]`), tenancy filters (`organizationId`, `[organizationId, createdAt]`, `hospitalId`, `unitId`), status, and flag/classification/retention lookups.
 
@@ -107,12 +107,12 @@ The `SuspiciousActivityType` enum (`audit-log.service.ts:28-36`) defines detecto
 
 Detectors (orchestrated by `detectSuspiciousActivity()`, `audit-log.service.ts:421-442`):
 
-| Detector                           | Rule                                                                                                           | Severity | Location                                                                                                                    |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Rapid changes                      | ≥ 10 `UPDATE`/`DELETE` actions within 1 hour (`RAPID_CHANGE_THRESHOLD = 10`, `RAPID_CHANGE_WINDOW_MS = 60000`) | high     | `audit-log.service.ts:444-478`                                                                                              |
-| Off-hours activity                 | ≥ 3 actions logged between 22:00–06:00 (`OFF_HOURS_START = 22`, `OFF_HOURS_END = 6`)                           | medium   | `audit-log.service.ts:480-511`                                                                                              |
-| Bulk delete                        | ≥ 5 `DELETE`/`BULK_DELETE` actions within 1 hour                                                               | critical | `audit-log.service.ts:513-548`                                                                                              |
-| Post-publish schedule modification | Any `UPDATE`/`DELETE`/`ROLLBACK` on a published schedule after its recorded publish date                       | high     | `audit-log.service.ts:550-596`; publish date resolved from `scheduleApproval.publishedAt` at `audit-log.service.ts:598-603` |
+| Detector | Rule | Severity | Location |
+|---|---|---|---|
+| Rapid changes | ≥ 10 `UPDATE`/`DELETE` actions within 1 hour (`RAPID_CHANGE_THRESHOLD = 10`, `RAPID_CHANGE_WINDOW_MS = 60000`) | high | `audit-log.service.ts:444-478` |
+| Off-hours activity | ≥ 3 actions logged between 22:00–06:00 (`OFF_HOURS_START = 22`, `OFF_HOURS_END = 6`) | medium | `audit-log.service.ts:480-511` |
+| Bulk delete | ≥ 5 `DELETE`/`BULK_DELETE` actions within 1 hour | critical | `audit-log.service.ts:513-548` |
+| Post-publish schedule modification | Any `UPDATE`/`DELETE`/`ROLLBACK` on a published schedule after its recorded publish date | high | `audit-log.service.ts:550-596`; publish date resolved from `scheduleApproval.publishedAt` at `audit-log.service.ts:598-603` |
 
 Flagged findings feed the manual review workflow (`getFlaggedLogs()`, `audit-log.service.ts:348-360`) and aggregate statistics (`getStatistics()` reports flagged counts, `audit-log.service.ts:362-419`).
 
@@ -158,12 +158,12 @@ Risk is expressed through severity levels on suspicious-activity findings and th
 
 Four levels — `'low' | 'medium' | 'high' | 'critical'` — are declared on `SuspiciousActivity.severity` (`audit-log.service.ts:40`). Currently assigned severities:
 
-| Severity | Finding                 | Trigger                                                                                                      |
-| -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------ |
-| critical | `BULK_DELETE`           | ≥ 5 deletions/hour by one user (`audit-log.service.ts:523-535`)                                              |
-| high     | `RAPID_CHANGES`         | ≥ 10 UPDATE/DELETE ops within the 60 s window constant (`audit-log.service.ts:138-139`, raised at `454-462`) |
-| high     | `SCHEDULE_MODIFICATION` | modification of a published schedule after publish date (`audit-log.service.ts:574-577`)                     |
-| medium   | `OFF_HOURS`             | ≥ 3 operations between 22:00 and 06:00 local (`audit-log.service.ts:140-141`, `489-497`)                     |
+| Severity | Finding | Trigger |
+|---|---|---|
+| critical | `BULK_DELETE` | ≥ 5 deletions/hour by one user (`audit-log.service.ts:523-535`) |
+| high | `RAPID_CHANGES` | ≥ 10 UPDATE/DELETE ops within the 60 s window constant (`audit-log.service.ts:138-139`, raised at `454-462`) |
+| high | `SCHEDULE_MODIFICATION` | modification of a published schedule after publish date (`audit-log.service.ts:574-577`) |
+| medium | `OFF_HOURS` | ≥ 3 operations between 22:00 and 06:00 local (`audit-log.service.ts:140-141`, `489-497`) |
 
 ### Classification inputs
 

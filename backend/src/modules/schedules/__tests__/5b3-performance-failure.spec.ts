@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ScheduleOptimizerService } from '../domain/optimization/schedule-optimizer.service';
-import {
-  SchedulingProblem,
-  SchedulingProblemPersonnel,
-  SchedulingProblemDevice,
-} from '../domain/optimization/scheduling-problem';
+import { SchedulingProblem, SchedulingProblemPersonnel, SchedulingProblemDevice } from '../domain/optimization/scheduling-problem';
 import { AssignmentCollection } from '../domain/entities/assignment-collection';
 import {
   scenarioSmall,
@@ -16,21 +12,10 @@ import {
 
 const optimizer = new ScheduleOptimizerService();
 
-function makePersonnel(
-  id: string,
-  overrides: Partial<SchedulingProblemPersonnel> = {},
-): SchedulingProblemPersonnel {
+function makePersonnel(id: string, overrides: Partial<SchedulingProblemPersonnel> = {}): SchedulingProblemPersonnel {
   return {
-    id,
-    name: `Person ${id}`,
-    role: 'technician',
-    skills: ['MRI'],
-    deviceSkills: ['MRI'],
-    nightShiftEligible: true,
-    employmentStatus: 'active',
-    offDays: [],
-    maxWeeklyHours: 40,
-    isActive: true,
+    id, name: `Person ${id}`, role: 'technician', skills: ['MRI'], deviceSkills: ['MRI'],
+    nightShiftEligible: true, employmentStatus: 'active', offDays: [], maxWeeklyHours: 40, isActive: true,
     ...overrides,
   };
 }
@@ -79,9 +64,7 @@ describe('STEP 15 — Performance Benchmarks', () => {
 
   it('result summary includes assignment count', () => {
     const result = optimizer.optimize(scenarioSmall());
-    expect(result.summary.totalAssignments).toBe(
-      result.candidate.assignments.length,
-    );
+    expect(result.summary.totalAssignments).toBe(result.candidate.assignments.length);
     expect(result.summary.personnelCount).toBeGreaterThan(0);
     expect(result.summary.deviceCount).toBeGreaterThan(0);
   });
@@ -89,9 +72,7 @@ describe('STEP 15 — Performance Benchmarks', () => {
   it('large problem produces more assignments than small', () => {
     const small = optimizer.optimize(scenarioSmall());
     const large = optimizer.optimize(scenarioLarge());
-    expect(large.candidate.assignments.length).toBeGreaterThanOrEqual(
-      small.candidate.assignments.length,
-    );
+    expect(large.candidate.assignments.length).toBeGreaterThanOrEqual(small.candidate.assignments.length);
   });
 });
 
@@ -101,27 +82,10 @@ describe('STEP 15 — Performance Benchmarks', () => {
 describe('STEP 16 — Failure Modes', () => {
   it('zero personnel: returns valid empty candidate', () => {
     const problem: SchedulingProblem = {
-      scheduleId: 'empty',
-      unitId: 'u1',
-      unitType: 'mr',
-      serviceLine: 'IMAGING',
-      year: 2026,
-      month: 1,
-      personnel: [],
-      devices: [],
-      shiftDefinitions: [],
-      existingAssignments: new AssignmentCollection(),
-      holidays: new Set(),
-      
-      configuration: {
-        fairnessMode: 'balanced',
-        maxOvertime: 20,
-        includeWeekends: false,
-        includeNightShifts: false,
-        minRestHours: 11,
-        maxConsecutiveDays: 6,
-        maxConsecutiveNights: 3,
-      },
+      scheduleId: 'empty', unitId: 'u1', unitType: 'mr', serviceLine: 'IMAGING',
+      year: 2026, month: 1, personnel: [], devices: [],
+      shiftDefinitions: [], existingAssignments: new AssignmentCollection(), holidays: new Set(), deviceOffDates: new Set(),
+      configuration: { fairnessMode: 'balanced', maxOvertime: 20, includeWeekends: false, includeNightShifts: false, minRestHours: 11, maxConsecutiveDays: 6, maxConsecutiveNights: 3 },
     };
     const result = optimizer.optimize(problem);
     expect(result.success).toBe(true);
@@ -130,27 +94,11 @@ describe('STEP 16 — Failure Modes', () => {
 
   it('zero devices: returns valid empty candidate', () => {
     const problem: SchedulingProblem = {
-      scheduleId: 'no-dev',
-      unitId: 'u1',
-      unitType: 'mr',
-      serviceLine: 'IMAGING',
-      year: 2026,
-      month: 1,
+      scheduleId: 'no-dev', unitId: 'u1', unitType: 'mr', serviceLine: 'IMAGING',
+      year: 2026, month: 1,
       personnel: [makePersonnel('p1')],
-      devices: [],
-      shiftDefinitions: [],
-      existingAssignments: new AssignmentCollection(),
-      holidays: new Set(),
-      
-      configuration: {
-        fairnessMode: 'balanced',
-        maxOvertime: 20,
-        includeWeekends: false,
-        includeNightShifts: false,
-        minRestHours: 11,
-        maxConsecutiveDays: 6,
-        maxConsecutiveNights: 3,
-      },
+      devices: [], shiftDefinitions: [], existingAssignments: new AssignmentCollection(), holidays: new Set(), deviceOffDates: new Set(),
+      configuration: { fairnessMode: 'balanced', maxOvertime: 20, includeWeekends: false, includeNightShifts: false, minRestHours: 11, maxConsecutiveDays: 6, maxConsecutiveNights: 3 },
     };
     const result = optimizer.optimize(problem);
     expect(result.success).toBe(true);
@@ -159,46 +107,13 @@ describe('STEP 16 — Failure Modes', () => {
 
   it('all personnel inactive: returns valid empty candidate', () => {
     const problem: SchedulingProblem = {
-      scheduleId: 'all-inactive',
-      unitId: 'u1',
-      unitType: 'mr',
-      serviceLine: 'IMAGING',
-      year: 2026,
-      month: 1,
+      scheduleId: 'all-inactive', unitId: 'u1', unitType: 'mr', serviceLine: 'IMAGING',
+      year: 2026, month: 1,
       personnel: [makePersonnel('p1', { isActive: false })],
-      devices: [
-        {
-          id: 'd1',
-          code: 'MRI',
-          name: 'MRI',
-          mode: 'continuous',
-          requiredSkills: ['MRI'],
-          workDays: [1, 2, 3, 4, 5],
-          startHour: 8,
-          endHour: 16,
-        },
-      ],
-      shiftDefinitions: [
-        {
-          deviceId: 'd1',
-          shiftType: 'day',
-          startTime: '08:00',
-          endTime: '16:00',
-          personnelType: 'technician',
-        },
-      ],
-      existingAssignments: new AssignmentCollection(),
-      holidays: new Set(),
-      
-      configuration: {
-        fairnessMode: 'balanced',
-        maxOvertime: 20,
-        includeWeekends: false,
-        includeNightShifts: false,
-        minRestHours: 11,
-        maxConsecutiveDays: 6,
-        maxConsecutiveNights: 3,
-      },
+      devices: [{ id: 'd1', code: 'MRI', name: 'MRI', mode: 'continuous', requiredSkills: ['MRI'], workDays: [1, 2, 3, 4, 5], startHour: 8, endHour: 16 }],
+      shiftDefinitions: [{ deviceId: 'd1', shiftType: 'day', startTime: '08:00', endTime: '16:00', personnelType: 'technician' }],
+      existingAssignments: new AssignmentCollection(), holidays: new Set(), deviceOffDates: new Set(),
+      configuration: { fairnessMode: 'balanced', maxOvertime: 20, includeWeekends: false, includeNightShifts: false, minRestHours: 11, maxConsecutiveDays: 6, maxConsecutiveNights: 3 },
     };
     const result = optimizer.optimize(problem);
     expect(result.success).toBe(true);
@@ -206,9 +121,7 @@ describe('STEP 16 — Failure Modes', () => {
   });
 
   it('non-existent strategy ID: throws error', () => {
-    expect(() =>
-      optimizer.optimize(scenarioA_simpleValidSchedule(), 'nonexistent'),
-    ).toThrow('Unknown optimization strategy');
+    expect(() => optimizer.optimize(scenarioA_simpleValidSchedule(), 'nonexistent')).toThrow('Unknown optimization strategy');
   });
 
   it('result never has negative score', () => {
@@ -221,49 +134,16 @@ describe('STEP 16 — Failure Modes', () => {
 
   it('consecutive days check resets correctly', () => {
     const problem: SchedulingProblem = {
-      scheduleId: 'consec',
-      unitId: 'u1',
-      unitType: 'mr',
-      serviceLine: 'IMAGING',
-      year: 2026,
-      month: 1,
+      scheduleId: 'consec', unitId: 'u1', unitType: 'mr', serviceLine: 'IMAGING',
+      year: 2026, month: 1,
       personnel: [makePersonnel('p1')],
-      devices: [
-        {
-          id: 'd1',
-          code: 'MRI',
-          name: 'MRI',
-          mode: 'continuous',
-          requiredSkills: ['MRI'],
-          workDays: [1, 2, 3, 4, 5],
-          startHour: 8,
-          endHour: 16,
-        },
-      ],
-      shiftDefinitions: [
-        {
-          deviceId: 'd1',
-          shiftType: 'day',
-          startTime: '08:00',
-          endTime: '16:00',
-          personnelType: 'technician',
-        },
-      ],
-      existingAssignments: new AssignmentCollection(),
-      holidays: new Set(),
-      
-      configuration: {
-        fairnessMode: 'balanced',
-        maxOvertime: 20,
-        includeWeekends: false,
-        includeNightShifts: false,
-        minRestHours: 11,
-        maxConsecutiveDays: 6,
-        maxConsecutiveNights: 3,
-      },
+      devices: [{ id: 'd1', code: 'MRI', name: 'MRI', mode: 'continuous', requiredSkills: ['MRI'], workDays: [1, 2, 3, 4, 5], startHour: 8, endHour: 16 }],
+      shiftDefinitions: [{ deviceId: 'd1', shiftType: 'day', startTime: '08:00', endTime: '16:00', personnelType: 'technician' }],
+      existingAssignments: new AssignmentCollection(), holidays: new Set(), deviceOffDates: new Set(),
+      configuration: { fairnessMode: 'balanced', maxOvertime: 20, includeWeekends: false, includeNightShifts: false, minRestHours: 11, maxConsecutiveDays: 6, maxConsecutiveNights: 3 },
     };
     const result = optimizer.optimize(problem);
-    const dates = result.candidate.assignments.map((a) => a.date).sort();
+    const dates = result.candidate.assignments.map(a => a.date).sort();
     expect(dates.length).toBeGreaterThan(0);
     for (const v of result.candidate.hardConstraintViolations) {
       expect(v.isHardConstraint).toBe(true);

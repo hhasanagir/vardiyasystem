@@ -5,64 +5,39 @@
 import type { Schedule } from './scheduling';
 
 export type {
-  Personnel,
-  PersonnelPreferences,
-  Device,
-  ShiftAssignment,
-  Schedule,
+  Personnel, PersonnelPreferences, Device, ShiftAssignment, Schedule,
 } from './scheduling';
 
 export type {
-  PersonnelGroup,
-  PersonShiftTemplate,
-  PersonShiftConfigGroup,
-  PersonShiftAssignment,
-  PersonShiftsResponse,
-  PersonShiftReportRow,
-  PersonShiftReportGroupSummary,
-  PersonShiftReportResponse,
+  PersonnelGroup, PersonShiftTemplate, PersonShiftConfigGroup,
+  PersonShiftAssignment, PersonShiftsResponse,
+  PersonShiftReportRow, PersonShiftReportGroupSummary, PersonShiftReportResponse,
 } from './scheduling';
 
-export type { User, Organization, OrganizationUnit, AuthResponse } from './auth';
+export type {
+  User, Organization, OrganizationUnit, AuthResponse,
+} from './auth';
 
 export type {
-  Employee,
-  Shift,
-  ScheduledShift,
-  Rule,
-  SwapRequest,
-  CreateSwapRequest,
-  DailyCheckItem,
-  DailyCheck,
-  Notification,
+  Employee, Shift, ScheduledShift, Rule,
+  SwapRequest, CreateSwapRequest,
+  DailyCheckItem, DailyCheck, Notification,
   PersonnelStats,
 } from './operations';
 
 export type {
-  DashboardStats,
-  EmployeeWorkload,
-  ScheduleResult,
-  ScheduleResultItem,
-  FairnessScore,
-  FairnessDetails,
-  EmployeeWorkloadSummary,
-  ScheduleAnalytics,
-  AnalyticsWarning,
-  DetailedEmployeeWorkload,
+  DashboardStats, EmployeeWorkload,
+  ScheduleResult, ScheduleResultItem,
+  FairnessScore, FairnessDetails, EmployeeWorkloadSummary,
+  ScheduleAnalytics, AnalyticsWarning, DetailedEmployeeWorkload,
   UnitMetrics,
 } from './analytics';
 
 // --- Additional inline models not yet split ---
 
 import type {
-  UnitType,
-  ShiftType,
-  DeviceMode,
-  ScheduleStatus,
-  ConflictType,
-  ConflictSeverity,
-  ConstraintType,
-  ConstraintSeverity,
+  UnitType, ShiftType, DeviceMode, ScheduleStatus,
+  ConflictType, ConflictSeverity, ConstraintType, ConstraintSeverity,
   HolidayType,
 } from '../enums';
 

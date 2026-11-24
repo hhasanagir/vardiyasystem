@@ -5,7 +5,6 @@
 ## Backend Module Dependencies
 
 ### Core Infrastructure (imported by most modules)
-
 ```
 PrismaService ← All modules
 AuditLogService ← Schedules, Personnel, Auth, Devices, SwapRequests
@@ -16,7 +15,6 @@ MetricsService ← Schedules, Auth
 ```
 
 ### Module Dependency Graph (key modules)
-
 ```
 AuthModule
   └── imports: RbacModule, PersonnelModule (via forwardRef)
@@ -28,7 +26,7 @@ PersonnelModule
 
 SchedulesModule
   └── imports: PersonnelModule, UnitsModule, DevicesModule, SkillsModule
-  └── injects: PrismaService, AuditLogService, ScheduleGateway,
+  └── injects: PrismaService, AuditLogService, ScheduleGateway, 
                NotificationEventService, MetricsService, EventBusService,
                UnitsService, SchedulesWorkflowService
 
@@ -43,7 +41,6 @@ WebsocketModule
 ## Frontend Service Dependencies
 
 ### Schedule Feature Chain
-
 ```
 PlanPageComponent
   └── ScheduleService (1,427 lines — API calls)
@@ -59,7 +56,6 @@ PlanPageComponent
 ```
 
 ### Auth Feature Chain
-
 ```
 LoginComponent
   └── AuthService (auth state, tokens)
@@ -71,9 +67,7 @@ LoginComponent
 ## Package Dependencies
 
 ### Backend (66 total: 48 prod + 18 dev)
-
 **Heavy:**
-
 - `@prisma/client` 5.22
 - `@nestjs/*` 10.4 (15+ packages)
 - `bullmq` + `ioredis`
@@ -87,9 +81,7 @@ LoginComponent
 - `class-validator` + `class-transformer`
 
 ### Frontend (44 total: 31 prod + 13 dev)
-
 **Heavy:**
-
 - `@angular/*` 21.2 (12+ packages)
 - `primeng` 21.1 + `primeicons`
 - `chart.js` 4.5

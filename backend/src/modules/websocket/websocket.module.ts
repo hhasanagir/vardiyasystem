@@ -6,7 +6,9 @@ import { ConcurrencyService } from './concurrency.service';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [AuthModule],
+  imports: [
+    AuthModule,
+  ],
   providers: [
     ScheduleGateway,
     PresenceService,

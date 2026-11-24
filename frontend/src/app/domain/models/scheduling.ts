@@ -1,17 +1,7 @@
-import type {
-  UnitType,
-  ShiftType,
-  DeviceMode,
-  ScheduleStatus,
-  ConflictType,
-  ConflictSeverity,
-  ConstraintType,
-  ConstraintSeverity,
-  HolidayType,
-  UserRole,
-  SwapRequestStatus,
-  OrganizationPlan,
-  AnalyticsWarningType,
+﻿import type {
+  UnitType, ShiftType, DeviceMode, ScheduleStatus,
+  ConflictType, ConflictSeverity, ConstraintType, ConstraintSeverity,
+  HolidayType, UserRole, SwapRequestStatus, OrganizationPlan, AnalyticsWarningType,
 } from '../enums';
 
 export interface Personnel {
@@ -156,14 +146,7 @@ export interface PersonShiftReportRow {
   eveningShifts: number;
   nightShifts: number;
   weekendShifts: number;
-  dates: Array<{
-    date: string;
-    shiftType: string;
-    startTime: string;
-    endTime: string;
-    isNight: boolean;
-    isWeekend: boolean;
-  }>;
+  dates: Array<{ date: string; shiftType: string; startTime: string; endTime: string; isNight: boolean; isWeekend: boolean }>;
 }
 
 export interface PersonShiftReportGroupSummary {

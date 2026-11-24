@@ -26,12 +26,12 @@ Domain events → EventBusService → BullMQ queue → EventsConsumer
 
 ## Assessment
 
-| Factor                   | Evaluation                                                              |
-| ------------------------ | ----------------------------------------------------------------------- |
-| Purpose of the event bus | Non-critical notifications and logging                                  |
-| Source of truth          | Schedule state in the database                                          |
-| Impact of a lost event   | Informational gap only; no data corruption or state divergence          |
-| Outbox complexity cost   | New table, relay process/publisher, cleanup strategy, ordering concerns |
+| Factor | Evaluation |
+|---|---|
+| Purpose of the event bus | Non-critical notifications and logging |
+| Source of truth | Schedule state in the database |
+| Impact of a lost event | Informational gap only; no data corruption or state divergence |
+| Outbox complexity cost | New table, relay process/publisher, cleanup strategy, ordering concerns |
 
 **Key point:** The Schedule aggregate itself is the authoritative source of truth —
 events are supplementary/informational. A missed notification is recoverable and does

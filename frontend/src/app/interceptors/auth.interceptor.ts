@@ -1,9 +1,4 @@
-import {
-  HttpInterceptorFn,
-  HttpRequest,
-  HttpHandlerFn,
-  HttpErrorResponse,
-} from '@angular/common/http';
+import { HttpInterceptorFn, HttpRequest, HttpHandlerFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { catchError, switchMap, throwError, retry, timer } from 'rxjs';
 import { AuthService } from '../services/auth.service';
@@ -12,18 +7,15 @@ const RETRYABLE_STATUSES = [408, 429, 500, 502, 503, 504];
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
 
-export const authInterceptor: HttpInterceptorFn = (
-  req: HttpRequest<unknown>,
-  next: HttpHandlerFn,
-) => {
+export const authInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, next: HttpHandlerFn) => {
   const authService = inject(AuthService);
   const token = authService.getToken();
 
   if (token) {
     const cloned = req.clone({
       setHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
+        Authorization: `Bearer ${token}`
+      }
     });
     return next(cloned);
   }
@@ -32,21 +24,14 @@ export const authInterceptor: HttpInterceptorFn = (
 };
 
 function shouldRetry(error: HttpErrorResponse, req: HttpRequest<unknown>): boolean {
-  if (
-    req.url.includes('/auth/login') ||
-    req.url.includes('/auth/refresh') ||
-    req.url.includes('/health')
-  ) {
+  if (req.url.includes('/auth/login') || req.url.includes('/auth/refresh') || req.url.includes('/health')) {
     return false;
   }
   if (req.method !== 'GET') return false;
   return RETRYABLE_STATUSES.includes(error.status);
 }
 
-export const errorInterceptor: HttpInterceptorFn = (
-  req: HttpRequest<unknown>,
-  next: HttpHandlerFn,
-) => {
+export const errorInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, next: HttpHandlerFn) => {
   const authService = inject(AuthService);
   return next(req).pipe(
     retry({
@@ -56,11 +41,9 @@ export const errorInterceptor: HttpInterceptorFn = (
           throw error;
         }
         const delay = RETRY_DELAY_MS * Math.pow(2, retryCount - 1);
-        console.warn(
-          `[RETRY] ${req.method} ${req.urlWithParams} attempt ${retryCount}/${MAX_RETRIES} after ${delay}ms`,
-        );
+        console.warn(`[RETRY] ${req.method} ${req.urlWithParams} attempt ${retryCount}/${MAX_RETRIES} after ${delay}ms`);
         return timer(delay);
-      },
+      }
     }),
     catchError((error: HttpErrorResponse) => {
       const url = req.urlWithParams;
@@ -72,11 +55,9 @@ export const errorInterceptor: HttpInterceptorFn = (
 
       if (!willRefresh) {
         const optionalEndpoints = ['/notifications', '/schedules/dashboard/stats', '/shifts/live'];
-        const isOptional = optionalEndpoints.some((e) => url.includes(e));
+        const isOptional = optionalEndpoints.some(e => url.includes(e));
         if (!isOptional) {
-          console.error(
-            `[HTTP ${method}] ${url} -> ${status}: ${error.message ?? 'Unknown error'}`,
-          );
+          console.error(`[HTTP ${method}] ${url} -> ${status}: ${error.message ?? 'Unknown error'}`);
         }
       }
 
@@ -87,8 +68,8 @@ export const errorInterceptor: HttpInterceptorFn = (
             if (newToken) {
               const cloned = req.clone({
                 setHeaders: {
-                  Authorization: `Bearer ${newToken}`,
-                },
+                  Authorization: `Bearer ${newToken}`
+                }
               });
               return next(cloned);
             }
@@ -99,11 +80,11 @@ export const errorInterceptor: HttpInterceptorFn = (
             console.error(`[AUTH] Token refresh failed after 401 on ${url}`);
             authService.forceLogout();
             return throwError(() => refreshError);
-          }),
+          })
         );
       }
 
       return throwError(() => error);
-    }),
+    })
   );
 };

@@ -9,7 +9,6 @@
 The nested `schedules/schedules/` directory was an **abandoned earlier snapshot** of the schedules module. It contained 53 files that were duplicates of files in the parent `schedules/` directory. The parent directory is the active, canonical version with additional features not present in the nested copy.
 
 **Action taken:** Deleted `backend/src/modules/schedules/schedules/` after confirming:
-
 - Zero external imports reference the nested path
 - Both `tsconfig.json` and `tsconfig.build.json` explicitly exclude it
 - No runtime code references it
@@ -54,36 +53,35 @@ schedules/schedules/
 
 The parent `schedules/` directory contains **everything** in the nested directory PLUS:
 
-| Feature                                | Parent Only | Nested |
-| -------------------------------------- | ----------- | ------ |
-| `schedules-ddd.controller.ts`          | ✅          | ❌     |
-| `guards/schedule-access.guard.ts`      | ✅          | ❌     |
-| `job-queue/` (5 files)                 | ✅          | ❌     |
-| `domain/constants.ts`                  | ✅          | ❌     |
-| `domain/errors/` (10 error classes)    | ✅          | ❌     |
-| `domain/services/scheduling-logger.ts` | ✅          | ❌     |
-| `domain/commands/` (13 CQRS commands)  | ✅          | ❌     |
-| `domain/events/schedule-event-bus.ts`  | ✅          | ❌     |
-| 3 extra domain events                  | ✅          | ❌     |
-| 4 extra value objects                  | ✅          | ❌     |
-| `dto/schedule-response.dto.ts`         | ✅          | ❌     |
-| 6 extra test files                     | ✅          | ❌     |
+| Feature | Parent Only | Nested |
+|---|---|---|
+| `schedules-ddd.controller.ts` | ✅ | ❌ |
+| `guards/schedule-access.guard.ts` | ✅ | ❌ |
+| `job-queue/` (5 files) | ✅ | ❌ |
+| `domain/constants.ts` | ✅ | ❌ |
+| `domain/errors/` (10 error classes) | ✅ | ❌ |
+| `domain/services/scheduling-logger.ts` | ✅ | ❌ |
+| `domain/commands/` (13 CQRS commands) | ✅ | ❌ |
+| `domain/events/schedule-event-bus.ts` | ✅ | ❌ |
+| 3 extra domain events | ✅ | ❌ |
+| 4 extra value objects | ✅ | ❌ |
+| `dto/schedule-response.dto.ts` | ✅ | ❌ |
+| 6 extra test files | ✅ | ❌ |
 
 ## Import Analysis
 
-| Search                                        | Results       |
-| --------------------------------------------- | ------------- |
-| `from.*schedules/schedules/` across `src/`    | **0 matches** |
+| Search | Results |
+|---|---|
+| `from.*schedules/schedules/` across `src/` | **0 matches** |
 | `require.*schedules/schedules/` across `src/` | **0 matches** |
-| `import.*schedules/schedules/` across `src/`  | **0 matches** |
-| External barrel imports from nested           | **0 matches** |
+| `import.*schedules/schedules/` across `src/` | **0 matches** |
+| External barrel imports from nested | **0 matches** |
 
 All imports from `app.module.ts`, `me.module.ts`, `me.controller.ts` reference the **parent** directory.
 
 ## TypeScript Configuration
 
 Both `tsconfig.json` and `tsconfig.build.json` contain:
-
 ```json
 "exclude": ["src/modules/schedules/schedules/**/*"]
 ```
@@ -92,14 +90,14 @@ This confirms the directory was already recognized as excluded dead code.
 
 ## Verification After Deletion
 
-| Check                       | Before | After | Status |
-| --------------------------- | ------ | ----- | ------ |
-| TypeScript (`tsc --noEmit`) | Clean  | Clean | ✅     |
-| Security tests              | 38/38  | 38/38 | ✅     |
-| Invariant tests             | 12/12  | 12/12 | ✅     |
-| DTO tests                   | 14/14  | 14/14 | ✅     |
-| Schedule count              | 11     | 11    | ✅     |
-| Assignment count            | 626    | 626   | ✅     |
+| Check | Before | After | Status |
+|---|---|---|---|
+| TypeScript (`tsc --noEmit`) | Clean | Clean | ✅ |
+| Security tests | 38/38 | 38/38 | ✅ |
+| Invariant tests | 12/12 | 12/12 | ✅ |
+| DTO tests | 14/14 | 14/14 | ✅ |
+| Schedule count | 11 | 11 | ✅ |
+| Assignment count | 626 | 626 | ✅ |
 
 ## Also Found: `src/src/` Duplicate
 
@@ -107,4 +105,4 @@ The audit identified a second major duplication: `backend/src/src/` is a complet
 
 ---
 
-_Audit completed: 2026-08-25_
+*Audit completed: 2026-08-25*

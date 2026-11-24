@@ -8,9 +8,7 @@ export class PushTokensService {
   constructor(private prisma: PrismaService) {}
 
   async register(userId: string, token: string, platform: string) {
-    const existing = await this.prisma.pushToken.findUnique({
-      where: { token },
-    });
+    const existing = await this.prisma.pushToken.findUnique({ where: { token } });
     if (existing) {
       if (existing.userId !== userId || !existing.isActive) {
         return this.prisma.pushToken.update({
@@ -32,10 +30,7 @@ export class PushTokensService {
         data: { isActive: false },
       });
     } catch (err) {
-      this.logger.warn(
-        'Failed to unregister push token',
-        (err as Error).message,
-      );
+      this.logger.warn('Failed to unregister push token', (err as Error).message);
     }
   }
 
@@ -46,10 +41,7 @@ export class PushTokensService {
         data: { isActive: false },
       });
     } catch (err) {
-      this.logger.warn(
-        'Failed to unregister all push tokens',
-        (err as Error).message,
-      );
+      this.logger.warn('Failed to unregister all push tokens', (err as Error).message);
     }
   }
 
@@ -59,15 +51,13 @@ export class PushTokensService {
         where: { userId, isActive: true },
         select: { token: true },
       });
-      return tokens.map((t) => t.token);
+      return tokens.map(t => t.token);
     } catch {
       return [];
     }
   }
 
-  async getAllActiveTokens(): Promise<
-    { userId: string; token: string; platform: string }[]
-  > {
+  async getAllActiveTokens(): Promise<{ userId: string; token: string; platform: string }[]> {
     try {
       return this.prisma.pushToken.findMany({
         where: { isActive: true },

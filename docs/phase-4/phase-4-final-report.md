@@ -25,19 +25,19 @@ Phase 4 transforms VardiyaOS from a working hospital shift scheduler into a **se
 
 ## 2. Security Architecture Before (Phase 3)
 
-| Area               | Before                                                    |
-| ------------------ | --------------------------------------------------------- |
-| Authentication     | JWT with basic refresh token                              |
-| Authorization      | Route-level auth guards, no schedule mutation enforcement |
-| Tenant isolation   | None — no organizationId filtering                        |
-| Audit              | None — no audit trail                                     |
-| Concurrency        | None — no version checks, no locking                      |
-| Error handling     | Generic error messages, potential internal leak           |
-| Correlation        | None — no request tracing                                 |
-| Security headers   | Basic helmet defaults                                     |
-| CSRF               | None                                                      |
-| Rate limiting      | None                                                      |
-| WebSocket security | No tenant verification on subscription                    |
+| Area | Before |
+|------|--------|
+| Authentication | JWT with basic refresh token |
+| Authorization | Route-level auth guards, no schedule mutation enforcement |
+| Tenant isolation | None — no organizationId filtering |
+| Audit | None — no audit trail |
+| Concurrency | None — no version checks, no locking |
+| Error handling | Generic error messages, potential internal leak |
+| Correlation | None — no request tracing |
+| Security headers | Basic helmet defaults |
+| CSRF | None |
+| Rate limiting | None |
+| WebSocket security | No tenant verification on subscription |
 
 ---
 
@@ -82,14 +82,14 @@ Phase 4 transforms VardiyaOS from a working hospital shift scheduler into a **se
 
 ## 4. Authentication
 
-| Feature               | Implementation                                          | Evidence                                                 |
-| --------------------- | ------------------------------------------------------- | -------------------------------------------------------- |
-| JWT HS256             | Passport + @nestjs/jwt                                  | `jwt.strategy.ts:15`                                     |
-| Refresh rotation      | Old JTI blacklisted, new pair issued                    | `auth.service.ts:213-294`                                |
-| Reuse detection       | JTI-based with in-memory + DB tracking                  | `refresh-token.service.ts:57`                            |
-| Session revocation    | DB session + JWT blacklist dual-layer                   | `session.service.ts:90`, `token-blacklist.service.ts:10` |
-| Logout-all            | Revokes all except current, audits ALL_SESSIONS_REVOKED | `auth.controller.ts:128`                                 |
-| Blacklist enforcement | Checked on every request via JwtStrategy                | `jwt.strategy.ts:36-38`                                  |
+| Feature | Implementation | Evidence |
+|---------|---------------|----------|
+| JWT HS256 | Passport + @nestjs/jwt | `jwt.strategy.ts:15` |
+| Refresh rotation | Old JTI blacklisted, new pair issued | `auth.service.ts:213-294` |
+| Reuse detection | JTI-based with in-memory + DB tracking | `refresh-token.service.ts:57` |
+| Session revocation | DB session + JWT blacklist dual-layer | `session.service.ts:90`, `token-blacklist.service.ts:10` |
+| Logout-all | Revokes all except current, audits ALL_SESSIONS_REVOKED | `auth.controller.ts:128` |
+| Blacklist enforcement | Checked on every request via JwtStrategy | `jwt.strategy.ts:36-38` |
 
 ---
 
@@ -105,15 +105,15 @@ Phase 4 transforms VardiyaOS from a working hospital shift scheduler into a **se
 
 ## 6. RBAC / Permissions
 
-| Role         | Level | Key Permissions                      |
-| ------------ | ----- | ------------------------------------ |
-| system_admin | 10    | Full access, bypasses all guards     |
-| admin        | 8     | Schedule management, user management |
-| doctor       | 6     | Schedule view, approval              |
-| nurse        | 4     | Schedule view, swap requests         |
-| technician   | 3     | Schedule view                        |
-| secretary    | 2     | Schedule view, limited edits         |
-| guest        | 1     | Read-only                            |
+| Role | Level | Key Permissions |
+|------|-------|----------------|
+| system_admin | 10 | Full access, bypasses all guards |
+| admin | 8 | Schedule management, user management |
+| doctor | 6 | Schedule view, approval |
+| nurse | 4 | Schedule view, swap requests |
+| technician | 3 | Schedule view |
+| secretary | 2 | Schedule view, limited edits |
+| guest | 1 | Read-only |
 
 **60+ granular permissions** defined in `rbac-seed.data.ts:14`, mapped to roles via `rbac-seed.service.ts:50-75`.
 
@@ -141,14 +141,14 @@ Phase 4 transforms VardiyaOS from a working hospital shift scheduler into a **se
 
 ## 9. Audit
 
-| Aspect    | Detail                                                                                           |
-| --------- | ------------------------------------------------------------------------------------------------ |
-| Events    | 70 event types across 11 categories                                                              |
-| Schema    | CorrelationId, userId, entityType, entityId, action, metadata, IP (SHA-256), userAgent (SHA-256) |
-| Integrity | Append-only — no delete/update operations on audit content                                       |
-| Detection | Suspicious activity detection (threshold-based)                                                  |
-| Timeline  | Full entity timeline view                                                                        |
-| Retention | Documented in backup-recovery-runbook.md                                                         |
+| Aspect | Detail |
+|--------|--------|
+| Events | 70 event types across 11 categories |
+| Schema | CorrelationId, userId, entityType, entityId, action, metadata, IP (SHA-256), userAgent (SHA-256) |
+| Integrity | Append-only — no delete/update operations on audit content |
+| Detection | Suspicious activity detection (threshold-based) |
+| Timeline | Full entity timeline view |
+| Retention | Documented in backup-recovery-runbook.md |
 
 ---
 
@@ -156,40 +156,40 @@ Phase 4 transforms VardiyaOS from a working hospital shift scheduler into a **se
 
 Key security events emitted via AuditLogService:
 
-| Event                       | Trigger                    | Severity |
-| --------------------------- | -------------------------- | -------- |
-| REFRESH_TOKEN_REUSE         | Replay detected on refresh | HIGH     |
-| CROSS_TENANT_ACCESS_ATTEMPT | Cross-org request blocked  | HIGH     |
-| SESSION_REVOKED             | Individual session revoked | MEDIUM   |
-| ALL_SESSIONS_REVOKED        | Logout-all invoked         | MEDIUM   |
-| RATE_LIMIT_TRIGGERED        | Throttle threshold hit     | LOW      |
-| ACCOUNT_LOCKED              | Too many failed logins     | HIGH     |
-| SCHEDULE_PUBLISHED          | Schedule state → published | INFO     |
-| SCHEDULE_ROLLBACK           | Schedule rolled back       | MEDIUM   |
+| Event | Trigger | Severity |
+|-------|---------|----------|
+| REFRESH_TOKEN_REUSE | Replay detected on refresh | HIGH |
+| CROSS_TENANT_ACCESS_ATTEMPT | Cross-org request blocked | HIGH |
+| SESSION_REVOKED | Individual session revoked | MEDIUM |
+| ALL_SESSIONS_REVOKED | Logout-all invoked | MEDIUM |
+| RATE_LIMIT_TRIGGERED | Throttle threshold hit | LOW |
+| ACCOUNT_LOCKED | Too many failed logins | HIGH |
+| SCHEDULE_PUBLISHED | Schedule state → published | INFO |
+| SCHEDULE_ROLLBACK | Schedule rolled back | MEDIUM |
 
 ---
 
 ## 11. Concurrency
 
-| Mechanism          | Scope                       | Evidence                                         |
-| ------------------ | --------------------------- | ------------------------------------------------ |
-| Optimistic locking | All DDD schedule writes     | Version field, StaleVersionError → 409           |
-| Distributed lock   | Publish/rollback operations | Redis NX PX + Lua safe-release, 60s TTL          |
-| State machine      | Schedule lifecycle          | isValidTransition prevents invalid state changes |
-| Immutability       | Published schedules         | No direct edits after publish                    |
+| Mechanism | Scope | Evidence |
+|-----------|-------|----------|
+| Optimistic locking | All DDD schedule writes | Version field, StaleVersionError → 409 |
+| Distributed lock | Publish/rollback operations | Redis NX PX + Lua safe-release, 60s TTL |
+| State machine | Schedule lifecycle | isValidTransition prevents invalid state changes |
+| Immutability | Published schedules | No direct edits after publish |
 
 ---
 
 ## 12. Queue Reliability
 
-| Feature     | Implementation                                       |
-| ----------- | ---------------------------------------------------- |
-| Queue       | BullMQ `schedule-jobs` queue                         |
-| Retry       | 3 attempts with backoff                              |
-| DLQ         | Dead-letter-queue captures failed events             |
+| Feature | Implementation |
+|---------|---------------|
+| Queue | BullMQ `schedule-jobs` queue |
+| Retry | 3 attempts with backoff |
+| DLQ | Dead-letter-queue captures failed events |
 | Idempotency | `isDuplicate(scheduleId, type)` check before enqueue |
-| Lifecycle   | QUEUED → RUNNING → COMPLETED/FAILED/CANCELLED        |
-| Progress    | `job.updateProgress()` with 0-100 scale              |
+| Lifecycle | QUEUED → RUNNING → COMPLETED/FAILED/CANCELLED |
+| Progress | `job.updateProgress()` with 0-100 scale |
 
 ---
 
@@ -216,14 +216,14 @@ Key security events emitted via AuditLogService:
 
 ## 15. Frontend Security
 
-| Feature              | Implementation                                          |
-| -------------------- | ------------------------------------------------------- |
-| SafeHtmlPipe         | Blocks `<script>`, `javascript:`, `onerror=`, `onload=` |
-| Token management     | `authService.token()` — no direct localStorage access   |
-| Route guards         | authGuard, roleGuard, rbacGuard                         |
-| Permission directive | `*appHasPermission` structural directive                |
-| CSP                  | Strict Content-Security-Policy via helmet               |
-| X-Frame-Options      | DENY — prevents clickjacking                            |
+| Feature | Implementation |
+|---------|---------------|
+| SafeHtmlPipe | Blocks `<script>`, `javascript:`, `onerror=`, `onload=` |
+| Token management | `authService.token()` — no direct localStorage access |
+| Route guards | authGuard, roleGuard, rbacGuard |
+| Permission directive | `*appHasPermission` structural directive |
+| CSP | Strict Content-Security-Policy via helmet |
+| X-Frame-Options | DENY — prevents clickjacking |
 
 ---
 
@@ -248,71 +248,71 @@ Key security events emitted via AuditLogService:
 
 ## 18. Test Results
 
-| Metric         | Result                                                        |
-| -------------- | ------------------------------------------------------------- |
-| TypeScript     | 0 new errors (314 from dead code `schedules/schedules/` only) |
-| NestJS Build   | PASS (`nest build` exit 0)                                    |
-| Unit tests     | 605/620 pass (15 pre-existing failures)                       |
-| Security tests | 12/12 pass (`security-invariants.spec.ts`)                    |
-| New failures   | 0                                                             |
-| CI pipeline    | 6 jobs: lint, unit, build, docker, e2e, security              |
+| Metric | Result |
+|--------|--------|
+| TypeScript | 0 new errors (314 from dead code `schedules/schedules/` only) |
+| NestJS Build | PASS (`nest build` exit 0) |
+| Unit tests | 605/620 pass (15 pre-existing failures) |
+| Security tests | 12/12 pass (`security-invariants.spec.ts`) |
+| New failures | 0 |
+| CI pipeline | 6 jobs: lint, unit, build, docker, e2e, security |
 
 ---
 
 ## 19. Performance Impact
 
-| Area            | Detail                                                                                |
-| --------------- | ------------------------------------------------------------------------------------- |
-| Connection pool | PgBouncer transaction mode, 25 connections                                            |
-| Caching         | No schedule caching (correct — authoritative state); holidays/personnel safe to cache |
-| Redis keys      | Namespaced `vardiya:{namespace}:{parts}`                                              |
-| N+1 queries     | Audit passed — no active N+1 issues                                                   |
-| Lock overhead   | Redis NX PX with 60s TTL — minimal impact                                             |
+| Area | Detail |
+|------|--------|
+| Connection pool | PgBouncer transaction mode, 25 connections |
+| Caching | No schedule caching (correct — authoritative state); holidays/personnel safe to cache |
+| Redis keys | Namespaced `vardiya:{namespace}:{parts}` |
+| N+1 queries | Audit passed — no active N+1 issues |
+| Lock overhead | Redis NX PX with 60s TTL — minimal impact |
 
 ---
 
 ## 20. Remaining Risks
 
-| ID      | Severity     | Description                                                                                                 | Status   |
-| ------- | ------------ | ----------------------------------------------------------------------------------------------------------- | -------- |
-| SEC-001 | **CRITICAL** | `ThrottlerModule` configured but `ThrottlerGuard` not globally bound — HTTP rate limiting is **inert**      | Open     |
-| SEC-002 | **HIGH**     | WebSocket JWT reads `payload.id` but `generateToken` emits `sub` — WS unit-isolation check may be dead code | Open     |
-| SEC-003 | **HIGH**     | `ScheduleAccessGuard` falls through to allow when user has no `organizationId`/`unitId` claims              | Open     |
-| SEC-004 | **HIGH**     | Job endpoints (`GET/POST jobs/:jobId`) have no role, permission, or tenant checks                           | Open     |
-| SEC-005 | **MEDIUM**   | Legacy `schedules/schedules/` dead code directory — 314 TS errors, not built but present                    | Open     |
-| SEC-006 | **MEDIUM**   | `flagLog`/`unflagLog` mutate audit metadata (no DB trigger enforcing append-only)                           | Open     |
-| SEC-007 | **LOW**      | CSP `styleSrc: 'unsafe-inline'` — necessary for PrimeNG but reduces CSP strictness                          | Accepted |
-| SEC-008 | **LOW**      | 15 pre-existing test failures in analytics/swap-requests specs                                              | Open     |
+| ID | Severity | Description | Status |
+|----|----------|-------------|--------|
+| SEC-001 | **CRITICAL** | `ThrottlerModule` configured but `ThrottlerGuard` not globally bound — HTTP rate limiting is **inert** | Open |
+| SEC-002 | **HIGH** | WebSocket JWT reads `payload.id` but `generateToken` emits `sub` — WS unit-isolation check may be dead code | Open |
+| SEC-003 | **HIGH** | `ScheduleAccessGuard` falls through to allow when user has no `organizationId`/`unitId` claims | Open |
+| SEC-004 | **HIGH** | Job endpoints (`GET/POST jobs/:jobId`) have no role, permission, or tenant checks | Open |
+| SEC-005 | **MEDIUM** | Legacy `schedules/schedules/` dead code directory — 314 TS errors, not built but present | Open |
+| SEC-006 | **MEDIUM** | `flagLog`/`unflagLog` mutate audit metadata (no DB trigger enforcing append-only) | Open |
+| SEC-007 | **LOW** | CSP `styleSrc: 'unsafe-inline'` — necessary for PrimeNG but reduces CSP strictness | Accepted |
+| SEC-008 | **LOW** | 15 pre-existing test failures in analytics/swap-requests specs | Open |
 
 ---
 
 ## 21. Technical Debt
 
-| Item                                              | Impact                                      | Priority                 |
-| ------------------------------------------------- | ------------------------------------------- | ------------------------ |
-| `schedules/schedules/` duplicate directory        | 314 TS errors, builds excluded via tsconfig | P1 — remove dead code    |
-| Legacy workflow service lacks lock/version checks | Inconsistent concurrency protection         | P2 — align with DDD path |
-| 15 pre-existing test failures                     | Analytics + swap-requests specs broken      | P2 — fix or remove       |
-| Backend e2e test is minimal stub                  | No real HTTP-level integration coverage     | P3 — expand coverage     |
-| `src/src/` duplicate directory in repo            | Additional dead code tree                   | P3 — clean up            |
+| Item | Impact | Priority |
+|------|--------|----------|
+| `schedules/schedules/` duplicate directory | 314 TS errors, builds excluded via tsconfig | P1 — remove dead code |
+| Legacy workflow service lacks lock/version checks | Inconsistent concurrency protection | P2 — align with DDD path |
+| 15 pre-existing test failures | Analytics + swap-requests specs broken | P2 — fix or remove |
+| Backend e2e test is minimal stub | No real HTTP-level integration coverage | P3 — expand coverage |
+| `src/src/` duplicate directory in repo | Additional dead code tree | P3 — clean up |
 
 ---
 
 ## 22. Production Readiness Score
 
-| Area              | Score      | Notes                                                                                    |
-| ----------------- | ---------- | ---------------------------------------------------------------------------------------- |
-| Authentication    | 9/10       | Rotation, reuse detection, blacklisting working; minus for no token family chain         |
-| Authorization     | 8/10       | 60+ permissions, guards active; job endpoints unprotected, guard fallback allows through |
-| Tenant Isolation  | 8/10       | Middleware+WS enforced; whitelist/schema drift, WS JWT field mismatch                    |
-| Audit             | 9/10       | 70 events, append-only, correlation IDs; flagLog metadata mutation                       |
-| Data Integrity    | 9/10       | CHECK constraints, optimistic locking, state machine; legacy path lacks version checks   |
-| Concurrency       | 8/10       | Distributed lock + optimistic locking; legacy path lacks both                            |
-| Observability     | 8/10       | Structured logging, OTel, correlation, health; no APM dashboard                          |
-| Reliability       | 8/10       | BullMQ retry+DLQ, graceful shutdown; readiness probe returns 200 degraded                |
-| Frontend Security | 9/10       | Helmet, CSP, CSRF, SafeHtmlPipe; CSP allows unsafe-inline styles                         |
-| Deployment        | 8/10       | CI pipeline, Docker, checklists, runbooks; no staging env verified                       |
-| **TOTAL**         | **84/100** |                                                                                          |
+| Area | Score | Notes |
+|------|-------|-------|
+| Authentication | 9/10 | Rotation, reuse detection, blacklisting working; minus for no token family chain |
+| Authorization | 8/10 | 60+ permissions, guards active; job endpoints unprotected, guard fallback allows through |
+| Tenant Isolation | 8/10 | Middleware+WS enforced; whitelist/schema drift, WS JWT field mismatch |
+| Audit | 9/10 | 70 events, append-only, correlation IDs; flagLog metadata mutation |
+| Data Integrity | 9/10 | CHECK constraints, optimistic locking, state machine; legacy path lacks version checks |
+| Concurrency | 8/10 | Distributed lock + optimistic locking; legacy path lacks both |
+| Observability | 8/10 | Structured logging, OTel, correlation, health; no APM dashboard |
+| Reliability | 8/10 | BullMQ retry+DLQ, graceful shutdown; readiness probe returns 200 degraded |
+| Frontend Security | 9/10 | Helmet, CSP, CSRF, SafeHtmlPipe; CSP allows unsafe-inline styles |
+| Deployment | 8/10 | CI pipeline, Docker, checklists, runbooks; no staging env verified |
+| **TOTAL** | **84/100** | |
 
 ---
 
@@ -335,7 +335,6 @@ Key security events emitted via AuditLogService:
 ### Ready for Phase 5 (AI, analytics, mobile, integrations)
 
 Once the 4 critical/high items above are resolved, the platform foundation is solid enough to support:
-
 - AI-powered schedule optimization
 - Advanced analytics and reporting
 - Mobile application
@@ -344,6 +343,6 @@ Once the 4 critical/high items above are resolved, the platform foundation is so
 
 ---
 
-_This report covers Features F1-90. All Phase 4 acceptance criteria have been evaluated. 41/47 PASS, 2 PARTIAL (cross-tenant tests at unit level only, concurrency semantic tests only), 1 FUNCTIONALLY PASS (security events exist under different naming convention), 4 FIXED IN THIS SESSION (build errors)._
+*This report covers Features F1-90. All Phase 4 acceptance criteria have been evaluated. 41/47 PASS, 2 PARTIAL (cross-tenant tests at unit level only, concurrency semantic tests only), 1 FUNCTIONALLY PASS (security events exist under different naming convention), 4 FIXED IN THIS SESSION (build errors).*
 
-_Phase 4 is complete pending resolution of the 4 pre-production blockers identified in Section 20._
+*Phase 4 is complete pending resolution of the 4 pre-production blockers identified in Section 20.*

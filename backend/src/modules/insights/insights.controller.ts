@@ -26,10 +26,7 @@ export class InsightsController {
 
   @Get('dashboard')
   @Roles(MinRole.SUPERVISOR)
-  @ApiOperation({
-    summary:
-      'Get dashboard insights (staffing gaps, fatigue, overtime, holiday overload)',
-  })
+  @ApiOperation({ summary: 'Get dashboard insights (staffing gaps, fatigue, overtime, holiday overload)' })
   getDashboardInsights(@Request() req: RequestWithUser) {
     return this.insightsService.getDashboardInsights(req.user?.organizationId);
   }

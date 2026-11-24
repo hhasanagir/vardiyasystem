@@ -6,8 +6,7 @@ export const DELIVERY_CHANNELS = {
   SMS: 'SMS',
 } as const;
 
-export type DeliveryChannel =
-  (typeof DELIVERY_CHANNELS)[keyof typeof DELIVERY_CHANNELS];
+export type DeliveryChannel = (typeof DELIVERY_CHANNELS)[keyof typeof DELIVERY_CHANNELS];
 
 export const DELIVERY_CHANNEL_LABELS: Record<DeliveryChannel, string> = {
   IN_APP: 'Uygulama İçi',

@@ -59,22 +59,8 @@ export const NUKLEER_MASTER_DEVICES: NukleerDeviceDef[] = [
     deviceName: 'SPECT-B blok',
     mode: 'polyclinic',
     shifts: [
-      {
-        name: 'Tekniker-1',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '16:00',
-        durationHours: 8,
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker-2',
-        type: ShiftType.day,
-        startTime: '11:30',
-        endTime: '19:30',
-        durationHours: 8,
-        personnelType: 'technician_2',
-      },
+      { name: 'Tekniker-1', type: ShiftType.day, startTime: '08:00', endTime: '16:00', durationHours: 8, personnelType: 'technician' },
+      { name: 'Tekniker-2', type: ShiftType.day, startTime: '11:30', endTime: '19:30', durationHours: 8, personnelType: 'technician_2' },
     ],
   },
   {
@@ -83,22 +69,8 @@ export const NUKLEER_MASTER_DEVICES: NukleerDeviceDef[] = [
     deviceName: 'SPECT-CT-B BLOK',
     mode: 'polyclinic',
     shifts: [
-      {
-        name: 'Tekniker-1',
-        type: ShiftType.day,
-        startTime: '09:00',
-        endTime: '17:00',
-        durationHours: 8,
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker-2',
-        type: ShiftType.day,
-        startTime: '12:00',
-        endTime: '20:00',
-        durationHours: 8,
-        personnelType: 'technician_2',
-      },
+      { name: 'Tekniker-1', type: ShiftType.day, startTime: '09:00', endTime: '17:00', durationHours: 8, personnelType: 'technician' },
+      { name: 'Tekniker-2', type: ShiftType.day, startTime: '12:00', endTime: '20:00', durationHours: 8, personnelType: 'technician_2' },
     ],
   },
   {
@@ -107,22 +79,8 @@ export const NUKLEER_MASTER_DEVICES: NukleerDeviceDef[] = [
     deviceName: 'SPECT-F blok',
     mode: 'polyclinic',
     shifts: [
-      {
-        name: 'Tekniker-1',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '16:00',
-        durationHours: 8,
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker-2',
-        type: ShiftType.day,
-        startTime: '11:30',
-        endTime: '19:30',
-        durationHours: 8,
-        personnelType: 'technician_2',
-      },
+      { name: 'Tekniker-1', type: ShiftType.day, startTime: '08:00', endTime: '16:00', durationHours: 8, personnelType: 'technician' },
+      { name: 'Tekniker-2', type: ShiftType.day, startTime: '11:30', endTime: '19:30', durationHours: 8, personnelType: 'technician_2' },
     ],
   },
   {
@@ -131,22 +89,8 @@ export const NUKLEER_MASTER_DEVICES: NukleerDeviceDef[] = [
     deviceName: 'SPECT-CT-F BLOK',
     mode: 'polyclinic',
     shifts: [
-      {
-        name: 'Tekniker-1',
-        type: ShiftType.day,
-        startTime: '09:00',
-        endTime: '17:00',
-        durationHours: 8,
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker-2',
-        type: ShiftType.day,
-        startTime: '12:00',
-        endTime: '20:00',
-        durationHours: 8,
-        personnelType: 'technician_2',
-      },
+      { name: 'Tekniker-1', type: ShiftType.day, startTime: '09:00', endTime: '17:00', durationHours: 8, personnelType: 'technician' },
+      { name: 'Tekniker-2', type: ShiftType.day, startTime: '12:00', endTime: '20:00', durationHours: 8, personnelType: 'technician_2' },
     ],
   },
   {
@@ -155,30 +99,9 @@ export const NUKLEER_MASTER_DEVICES: NukleerDeviceDef[] = [
     deviceName: 'PET-CT',
     mode: 'polyclinic',
     shifts: [
-      {
-        name: 'Tekniker-1',
-        type: ShiftType.day,
-        startTime: '07:30',
-        endTime: '15:30',
-        durationHours: 8,
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker-2',
-        type: ShiftType.day,
-        startTime: '08:30',
-        endTime: '16:30',
-        durationHours: 8,
-        personnelType: 'technician_2',
-      },
-      {
-        name: 'Tekniker-3',
-        type: ShiftType.day,
-        startTime: '09:30',
-        endTime: '17:30',
-        durationHours: 8,
-        personnelType: 'technician_3',
-      },
+      { name: 'Tekniker-1', type: ShiftType.day, startTime: '07:30', endTime: '15:30', durationHours: 8, personnelType: 'technician' },
+      { name: 'Tekniker-2', type: ShiftType.day, startTime: '08:30', endTime: '16:30', durationHours: 8, personnelType: 'technician_2' },
+      { name: 'Tekniker-3', type: ShiftType.day, startTime: '09:30', endTime: '17:30', durationHours: 8, personnelType: 'technician_3' },
     ],
   },
   {
@@ -187,38 +110,10 @@ export const NUKLEER_MASTER_DEVICES: NukleerDeviceDef[] = [
     deviceName: 'PET',
     mode: 'polyclinic',
     shifts: [
-      {
-        name: 'Tekniker-1',
-        type: ShiftType.day,
-        startTime: '07:30',
-        endTime: '15:30',
-        durationHours: 8,
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker-2',
-        type: ShiftType.day,
-        startTime: '08:30',
-        endTime: '16:30',
-        durationHours: 8,
-        personnelType: 'technician_2',
-      },
-      {
-        name: 'Tekniker-3',
-        type: ShiftType.day,
-        startTime: '09:30',
-        endTime: '17:30',
-        durationHours: 8,
-        personnelType: 'technician_3',
-      },
-      {
-        name: 'Tekniker-4',
-        type: ShiftType.day,
-        startTime: '10:30',
-        endTime: '18:30',
-        durationHours: 8,
-        personnelType: 'technician_4',
-      },
+      { name: 'Tekniker-1', type: ShiftType.day, startTime: '07:30', endTime: '15:30', durationHours: 8, personnelType: 'technician' },
+      { name: 'Tekniker-2', type: ShiftType.day, startTime: '08:30', endTime: '16:30', durationHours: 8, personnelType: 'technician_2' },
+      { name: 'Tekniker-3', type: ShiftType.day, startTime: '09:30', endTime: '17:30', durationHours: 8, personnelType: 'technician_3' },
+      { name: 'Tekniker-4', type: ShiftType.day, startTime: '10:30', endTime: '18:30', durationHours: 8, personnelType: 'technician_4' },
     ],
   },
 ];
@@ -280,16 +175,13 @@ export async function applyNukleerMasterConfig(
       });
       wantedKeys.add(key);
 
-      const match = existingShifts.find(
-        (s) =>
-          shiftMatchKey({
-            deviceId: s.deviceId as string,
-            type: s.type,
-            personnelType: s.personnelType,
-            startTime: s.startTime,
-            endTime: s.endTime,
-          }) === key,
-      );
+      const match = existingShifts.find(s => shiftMatchKey({
+        deviceId: s.deviceId as string,
+        type: s.type,
+        personnelType: s.personnelType,
+        startTime: s.startTime,
+        endTime: s.endTime,
+      }) === key);
 
       const data = {
         name: shiftDef.name,
@@ -337,16 +229,13 @@ export async function applyNukleerMasterConfig(
     }
 
     const stale = existingShifts.filter(
-      (s) =>
-        !wantedKeys.has(
-          shiftMatchKey({
-            deviceId: s.deviceId as string,
-            type: s.type,
-            personnelType: s.personnelType,
-            startTime: s.startTime,
-            endTime: s.endTime,
-          }),
-        ),
+      s => !wantedKeys.has(shiftMatchKey({
+        deviceId: s.deviceId as string,
+        type: s.type,
+        personnelType: s.personnelType,
+        startTime: s.startTime,
+        endTime: s.endTime,
+      })),
     );
     for (const s of stale) {
       if (s.isActive) {

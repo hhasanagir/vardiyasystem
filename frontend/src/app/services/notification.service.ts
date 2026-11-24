@@ -18,16 +18,8 @@ export class NotificationService {
     }
   }
 
-  success(title: string, message: string): void {
-    this.show(title, message, 'success');
-  }
-  error(title: string, message: string): void {
-    this.show(title, message, 'error');
-  }
-  warning(title: string, message: string): void {
-    this.show(title, message, 'warning');
-  }
-  info(title: string, message: string): void {
-    this.show(title, message, 'info');
-  }
+  success(title: string, message: string): void { this.show(title, message, 'success'); }
+  error(title: string, message: string): void { this.show(title, message, 'error'); }
+  warning(title: string, message: string): void { this.show(title, message, 'warning'); }
+  info(title: string, message: string): void { this.show(title, message, 'info'); }
 }

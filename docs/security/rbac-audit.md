@@ -110,7 +110,7 @@ The codebase contains **two independent authorization systems** running in paral
 **Files:** All guards
 **Risk:** MEDIUM
 
-Permissions are checked for _existence_ but not _scope_. A `UNIT_SUPERVISOR` in Unit A could theoretically access data in Unit B if the permission name matches. The `UserRoleAssignment` stores `organizationId` and `unitId`, but neither `PermissionGuard` nor `RbacRolesGuard` validates that the user's scope matches the requested resource.
+Permissions are checked for *existence* but not *scope*. A `UNIT_SUPERVISOR` in Unit A could theoretically access data in Unit B if the permission name matches. The `UserRoleAssignment` stores `organizationId` and `unitId`, but neither `PermissionGuard` nor `RbacRolesGuard` validates that the user's scope matches the requested resource.
 
 **Fix:** Implement scope matching in guards.
 
@@ -167,36 +167,36 @@ Frontend `UserRoleEnum` has `assistant_technician` and `office_staff` that don't
 
 ## 5. Route Protection Gap Analysis
 
-| Controller                  | Guard                           | System | Protected?         |
-| --------------------------- | ------------------------------- | ------ | ------------------ |
-| AuthController              | JwtAuthGuard                    | Legacy | ✅                 |
-| PersonnelController         | JwtAuthGuard + RolesGuard       | Legacy | ✅ (but weak)      |
-| SchedulesController         | JwtAuthGuard + RolesGuard       | Legacy | ✅ (but weak)      |
-| SchedulesWorkflowController | JwtAuthGuard + RolesGuard       | Legacy | ✅ (but weak)      |
-| RbacController              | JwtAuthGuard + PermissionGuard  | RBAC   | ✅ (strong)        |
-| UnitsController             | JwtAuthGuard + RolesGuard       | Legacy | ✅ (but weak)      |
-| DevicesController           | JwtAuthGuard + RolesGuard       | Legacy | ✅ (but weak)      |
-| AttendanceController        | JwtAuthGuard + RolesGuard       | Legacy | ✅ (but weak)      |
-| AuditLogController          | JwtAuthGuard + AuditAccessGuard | Custom | ✅                 |
-| SkillsController            | JwtAuthGuard + RolesGuard       | Legacy | ✅ (but weak)      |
-| TrainingsController         | JwtAuthGuard + RolesGuard       | Legacy | ✅ (but weak)      |
-| PushTokensController        | JwtAuthGuard                    | None   | ⚠️ No role check   |
-| MeController                | JwtAuthGuard                    | None   | ⚠️ User-level only |
-| HealthController            | None                            | None   | ✅ (public)        |
+| Controller | Guard | System | Protected? |
+|-----------|-------|--------|------------|
+| AuthController | JwtAuthGuard | Legacy | ✅ |
+| PersonnelController | JwtAuthGuard + RolesGuard | Legacy | ✅ (but weak) |
+| SchedulesController | JwtAuthGuard + RolesGuard | Legacy | ✅ (but weak) |
+| SchedulesWorkflowController | JwtAuthGuard + RolesGuard | Legacy | ✅ (but weak) |
+| RbacController | JwtAuthGuard + PermissionGuard | RBAC | ✅ (strong) |
+| UnitsController | JwtAuthGuard + RolesGuard | Legacy | ✅ (but weak) |
+| DevicesController | JwtAuthGuard + RolesGuard | Legacy | ✅ (but weak) |
+| AttendanceController | JwtAuthGuard + RolesGuard | Legacy | ✅ (but weak) |
+| AuditLogController | JwtAuthGuard + AuditAccessGuard | Custom | ✅ |
+| SkillsController | JwtAuthGuard + RolesGuard | Legacy | ✅ (but weak) |
+| TrainingsController | JwtAuthGuard + RolesGuard | Legacy | ✅ (but weak) |
+| PushTokensController | JwtAuthGuard | None | ⚠️ No role check |
+| MeController | JwtAuthGuard | None | ⚠️ User-level only |
+| HealthController | None | None | ✅ (public) |
 
 ---
 
 ## 6. Remediation Plan
 
-| Priority | Issue                         | Fix                                   | Effort |
-| -------- | ----------------------------- | ------------------------------------- | ------ |
-| P0       | C-01: No RBAC auto-assignment | Add mapping in auth service           | 2h     |
-| P0       | C-02: JWT lacks RBAC          | Embed role level in JWT payload       | 1h     |
-| P0       | C-03: Permanent RBAC disable  | Remove `isRbacAvailable`              | 1h     |
-| P0       | C-04: No super-admin bypass   | Add bypass to both guards             | 1h     |
-| P1       | M-01: Inconsistent guards     | Create unified AuthGuard              | 4h     |
-| P1       | M-02: No scope validation     | Implement ScopeGuard                  | 4h     |
-| P1       | M-04: Frontend RBAC           | Create directives, apply to templates | 6h     |
-| P2       | M-03: Cache propagation       | Reduce TTL, add invalidation          | 2h     |
-| P2       | M-05: Seed assignments        | Add auto-assignment in seed           | 1h     |
-| P3       | L-01/L-02/L-03                | Clean up enums, types, hierarchy      | 2h     |
+| Priority | Issue | Fix | Effort |
+|----------|-------|-----|--------|
+| P0 | C-01: No RBAC auto-assignment | Add mapping in auth service | 2h |
+| P0 | C-02: JWT lacks RBAC | Embed role level in JWT payload | 1h |
+| P0 | C-03: Permanent RBAC disable | Remove `isRbacAvailable` | 1h |
+| P0 | C-04: No super-admin bypass | Add bypass to both guards | 1h |
+| P1 | M-01: Inconsistent guards | Create unified AuthGuard | 4h |
+| P1 | M-02: No scope validation | Implement ScopeGuard | 4h |
+| P1 | M-04: Frontend RBAC | Create directives, apply to templates | 6h |
+| P2 | M-03: Cache propagation | Reduce TTL, add invalidation | 2h |
+| P2 | M-05: Seed assignments | Add auto-assignment in seed | 1h |
+| P3 | L-01/L-02/L-03 | Clean up enums, types, hierarchy | 2h |

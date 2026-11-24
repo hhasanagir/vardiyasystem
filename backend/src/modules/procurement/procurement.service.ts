@@ -48,13 +48,10 @@ export class ProcurementService {
                 quantity: item.quantity || 1,
                 unitOfMeasure: item.unitOfMeasure || 'piece',
                 estimatedUnitCost: item.estimatedUnitCost,
-                estimatedTotalCost:
-                  item.estimatedUnitCost && item.quantity
-                    ? item.estimatedUnitCost * item.quantity
-                    : undefined,
-                requiredDate: item.requiredDate
-                  ? new Date(item.requiredDate)
+                estimatedTotalCost: item.estimatedUnitCost && item.quantity
+                  ? item.estimatedUnitCost * item.quantity
                   : undefined,
+                requiredDate: item.requiredDate ? new Date(item.requiredDate) : undefined,
                 notes: item.notes,
               })),
             }
@@ -93,9 +90,7 @@ export class ProcurementService {
         supplierId: orderData.supplierId,
         title: orderData.title,
         status: orderData.status || 'draft',
-        expectedDate: orderData.expectedDate
-          ? new Date(orderData.expectedDate)
-          : undefined,
+        expectedDate: orderData.expectedDate ? new Date(orderData.expectedDate) : undefined,
         totalCost: orderData.totalCost,
         currency: orderData.currency || 'TRY',
         deliveryTerms: orderData.deliveryTerms,
@@ -110,13 +105,8 @@ export class ProcurementService {
                 quantity: item.quantity || 1,
                 unitOfMeasure: item.unitOfMeasure || 'piece',
                 unitCost: item.unitCost,
-                totalCost:
-                  item.unitCost && item.quantity
-                    ? item.unitCost * item.quantity
-                    : undefined,
-                expectedDate: item.expectedDate
-                  ? new Date(item.expectedDate)
-                  : undefined,
+                totalCost: item.unitCost && item.quantity ? item.unitCost * item.quantity : undefined,
+                expectedDate: item.expectedDate ? new Date(item.expectedDate) : undefined,
                 notes: item.notes,
               })),
             }
@@ -139,9 +129,7 @@ export class ProcurementService {
     });
 
     if (!request) {
-      throw new NotFoundException(
-        `Procurement request with ID ${id} not found`,
-      );
+      throw new NotFoundException(`Procurement request with ID ${id} not found`);
     }
 
     return request;

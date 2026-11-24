@@ -1,10 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../prisma.service';
-import {
-  HierarchyScopeLevel,
-  HIERARCHY_SCOPE_ORDER,
-  PermissionScope,
-} from '../interfaces/rbac.types';
+import { HierarchyScopeLevel, HIERARCHY_SCOPE_ORDER, PermissionScope } from '../interfaces/rbac.types';
 
 interface RoleAssignmentRow {
   roleId: string;
@@ -38,17 +34,11 @@ export class ScopeResolutionService {
     return assignments as unknown as RoleAssignmentRow[];
   }
 
-  resolveCoveringAssignments(
-    assignments: RoleAssignmentRow[],
-    targetScope: PermissionScope,
-  ): RoleAssignmentRow[] {
+  resolveCoveringAssignments(assignments: RoleAssignmentRow[], targetScope: PermissionScope): RoleAssignmentRow[] {
     return assignments.filter((a) => this.covers(a, targetScope));
   }
 
-  private covers(
-    assignment: RoleAssignmentRow,
-    target: PermissionScope,
-  ): boolean {
+  private covers(assignment: RoleAssignmentRow, target: PermissionScope): boolean {
     if (assignment.hospitalGroupId && target.hospitalGroupId) {
       if (assignment.hospitalGroupId !== target.hospitalGroupId) return false;
       if (!target.hospitalId) return true;
@@ -68,24 +58,11 @@ export class ScopeResolutionService {
     if (assignment.organizationId && target.organizationId) {
       if (assignment.organizationId !== target.organizationId) return false;
     }
-    if (
-      assignment.hospitalGroupId &&
-      assignment.hospitalGroupId === target.hospitalGroupId
-    )
-      return true;
-    if (assignment.hospitalId && assignment.hospitalId === target.hospitalId)
-      return true;
-    if (
-      assignment.departmentId &&
-      assignment.departmentId === target.departmentId
-    )
-      return true;
+    if (assignment.hospitalGroupId && assignment.hospitalGroupId === target.hospitalGroupId) return true;
+    if (assignment.hospitalId && assignment.hospitalId === target.hospitalId) return true;
+    if (assignment.departmentId && assignment.departmentId === target.departmentId) return true;
     if (assignment.unitId && assignment.unitId === target.unitId) return true;
-    if (
-      assignment.organizationId &&
-      assignment.organizationId === target.organizationId
-    )
-      return true;
+    if (assignment.organizationId && assignment.organizationId === target.organizationId) return true;
     return false;
   }
 

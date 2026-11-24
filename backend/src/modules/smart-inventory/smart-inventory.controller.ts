@@ -46,20 +46,16 @@ export class SmartInventoryController {
   @Post('transfers')
   @Roles(MinRole.FIELD_SUPERVISOR)
   @ApiOperation({ summary: 'Create inventory transfer' })
-  createTransfer(
-    @Body()
-    body: {
-      fromWarehouseId?: string;
-      toWarehouseId?: string;
-      fromUnitId?: string;
-      toUnitId?: string;
-      catalogId: string;
-      quantity: number;
-      batchNumber?: string;
-      notes?: string;
-    },
-    @Request() req: RequestWithUser,
-  ) {
+  createTransfer(@Body() body: {
+    fromWarehouseId?: string;
+    toWarehouseId?: string;
+    fromUnitId?: string;
+    toUnitId?: string;
+    catalogId: string;
+    quantity: number;
+    batchNumber?: string;
+    notes?: string;
+  }, @Request() req: RequestWithUser) {
     return this.service.createTransfer({ ...body, requestedById: req.user.id });
   }
 
@@ -99,26 +95,19 @@ export class SmartInventoryController {
   @Post('consumptions')
   @Roles(MinRole.FIELD_SUPERVISOR)
   @ApiOperation({ summary: 'Create consumption record' })
-  createConsumption(
-    @Body()
-    body: {
-      catalogId: string;
-      quantity: number;
-      consumptionType: string;
-      assetId?: string;
-      examinationType?: string;
-      departmentId?: string;
-      unitId?: string;
-      batchNumber?: string;
-      cost?: number;
-      notes?: string;
-    },
-    @Request() req: RequestWithUser,
-  ) {
-    return this.service.createConsumption({
-      ...body,
-      recordedById: req.user.id,
-    });
+  createConsumption(@Body() body: {
+    catalogId: string;
+    quantity: number;
+    consumptionType: string;
+    assetId?: string;
+    examinationType?: string;
+    departmentId?: string;
+    unitId?: string;
+    batchNumber?: string;
+    cost?: number;
+    notes?: string;
+  }, @Request() req: RequestWithUser) {
+    return this.service.createConsumption({ ...body, recordedById: req.user.id });
   }
 
   @Get('counts')
@@ -134,18 +123,14 @@ export class SmartInventoryController {
   @Post('counts')
   @Roles(MinRole.FIELD_SUPERVISOR)
   @ApiOperation({ summary: 'Create inventory count' })
-  createCount(
-    @Body()
-    body: {
-      warehouseId?: string;
-      catalogId: string;
-      expectedQty: number;
-      actualQty: number;
-      unitCost?: number;
-      notes?: string;
-    },
-    @Request() req: RequestWithUser,
-  ) {
+  createCount(@Body() body: {
+    warehouseId?: string;
+    catalogId: string;
+    expectedQty: number;
+    actualQty: number;
+    unitCost?: number;
+    notes?: string;
+  }, @Request() req: RequestWithUser) {
     return this.service.createCount({ ...body, countedById: req.user.id });
   }
 
@@ -170,20 +155,16 @@ export class SmartInventoryController {
   @Post('waste')
   @Roles(MinRole.FIELD_SUPERVISOR)
   @ApiOperation({ summary: 'Create waste record' })
-  createWaste(
-    @Body()
-    body: {
-      catalogId: string;
-      quantity: number;
-      wasteType: string;
-      batchNumber?: string;
-      reason: string;
-      disposalMethod?: string;
-      cost?: number;
-      notes?: string;
-    },
-    @Request() req: RequestWithUser,
-  ) {
+  createWaste(@Body() body: {
+    catalogId: string;
+    quantity: number;
+    wasteType: string;
+    batchNumber?: string;
+    reason: string;
+    disposalMethod?: string;
+    cost?: number;
+    notes?: string;
+  }, @Request() req: RequestWithUser) {
     return this.service.createWaste({ ...body, disposedById: req.user.id });
   }
 
@@ -194,25 +175,21 @@ export class SmartInventoryController {
     @Query('isResolved') isResolved?: string,
     @Query('alertType') alertType?: string,
   ) {
-    const resolved =
-      isResolved !== undefined ? isResolved === 'true' : undefined;
+    const resolved = isResolved !== undefined ? isResolved === 'true' : undefined;
     return this.service.listAlerts(resolved, alertType);
   }
 
   @Post('alerts')
   @Roles(MinRole.FIELD_SUPERVISOR)
   @ApiOperation({ summary: 'Create stock alert' })
-  createAlert(
-    @Body()
-    body: {
-      catalogId: string;
-      alertType: string;
-      threshold?: number;
-      currentValue: number;
-      message: string;
-      severity?: string;
-    },
-  ) {
+  createAlert(@Body() body: {
+    catalogId: string;
+    alertType: string;
+    threshold?: number;
+    currentValue: number;
+    message: string;
+    severity?: string;
+  }) {
     return this.service.createAlert(body);
   }
 

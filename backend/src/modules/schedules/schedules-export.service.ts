@@ -1,13 +1,29 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { UnitsService } from '../units/units.service';
+import { isValidUnitType } from '../../models/unit-type';
 import * as ExcelJS from 'exceljs';
-import { UnitType } from '@prisma/client';
 const PDFDocument = require('pdfkit');
+
+/**
+ * Excel worksheet names have hard constraints: they may not contain
+ * `\ / ? * [ ] :` or control characters, may not begin/end with an apostrophe,
+ * may not be empty, and are limited to 31 characters. Violating any of these
+ * makes `workbook.addWorksheet(...)` throw -> the export endpoint 500s.
+ *
+ * This canonical sanitizer guarantees a deterministic, human-readable, safe
+ * sheet name for ANY unit name/month/year combo (Phase 5C.18 / EXP-01).
+ */
+export function sanitizeWorksheetName(name: string): string {
+  let cleaned = name
+    .replace(/[\\/?*[\]:]/g, '-')
+    .replace(/[\u0000-\u001f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  cleaned = cleaned.replace(/^'+|'+$/g, '');
+  if (!cleaned) cleaned = 'Vardiya Plani';
+  return cleaned.slice(0, 31);
+}
 
 @Injectable()
 export class SchedulesExportService {
@@ -20,9 +36,7 @@ export class SchedulesExportService {
     const data = await this.getExportData(unitType, month, year);
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'VardiyaOS';
-    const ws = workbook.addWorksheet(
-      toSheetName(`${data.unitName} ${month}/${year}`),
-    );
+    const ws = workbook.addWorksheet(sanitizeWorksheetName(`${data.unitName} ${month}/${year}`));
 
     ws.columns = [
       { header: 'Tarih', key: 'date', width: 14 },
@@ -37,22 +51,10 @@ export class SchedulesExportService {
 
     const headerRow = ws.getRow(1);
     headerRow.font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
-    headerRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FF3B82F6' },
-    };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } };
     headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
 
-    const dayNames = [
-      'Pazar',
-      'Pazartesi',
-      'Salı',
-      'Çarşamba',
-      'Perşembe',
-      'Cuma',
-      'Cumartesi',
-    ];
+    const dayNames = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
     let rowNum = 2;
 
     for (const assignment of data.assignments) {
@@ -65,9 +67,7 @@ export class SchedulesExportService {
       row.getCell('personnel').value = assignment.personnelName;
       row.getCell('start').value = assignment.startTime;
       row.getCell('end').value = assignment.endTime;
-      row.getCell('status').value = assignment.isConfirmed
-        ? 'Onaylı'
-        : 'Planlandı';
+      row.getCell('status').value = assignment.isConfirmed ? 'Onaylı' : 'Planlandı';
       row.alignment = { vertical: 'middle' };
     }
 
@@ -84,73 +84,24 @@ export class SchedulesExportService {
     return buf;
   }
 
-  async exportPdf(
-    unitType: string,
-    month: number,
-    year: number,
-  ): Promise<Buffer> {
+  async exportPdf(unitType: string, month: number, year: number): Promise<Buffer> {
     const data = await this.getExportData(unitType, month, year);
-    const doc = new PDFDocument({
-      layout: 'landscape',
-      margin: 30,
-      size: 'A4',
-    });
+    const doc = new PDFDocument({ layout: 'landscape', margin: 30, size: 'A4' });
     const buffers: Buffer[] = [];
 
     doc.on('data', (chunk: Buffer) => buffers.push(chunk));
 
-    const dayNames = [
-      'Pazar',
-      'Pazartesi',
-      'Salı',
-      'Çarşamba',
-      'Perşembe',
-      'Cuma',
-      'Cumartesi',
-    ];
-    const monthNames = [
-      'Ocak',
-      'Şubat',
-      'Mart',
-      'Nisan',
-      'Mayıs',
-      'Haziran',
-      'Temmuz',
-      'Ağustos',
-      'Eylül',
-      'Ekim',
-      'Kasım',
-      'Aralık',
-    ];
+    const dayNames = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+    const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 
-    doc
-      .fontSize(16)
-      .font('Helvetica-Bold')
-      .text(`${data.unitName} - ${monthNames[month - 1]} ${year}`, {
-        align: 'center',
-      });
+    doc.fontSize(16).font('Helvetica-Bold').text(`${data.unitName} - ${monthNames[month - 1]} ${year}`, { align: 'center' });
     doc.moveDown(0.5);
-    doc
-      .fontSize(9)
-      .font('Helvetica')
-      .text(
-        `Oluşturulma: ${new Date().toLocaleDateString('tr-TR')} | Toplam Atama: ${data.assignments.length} | Boş Slot: ${data.emptySlots}`,
-        { align: 'center' },
-      );
+    doc.fontSize(9).font('Helvetica').text(`Oluşturulma: ${new Date().toLocaleDateString('tr-TR')} | Toplam Atama: ${data.assignments.length} | Boş Slot: ${data.emptySlots}`, { align: 'center' });
     doc.moveDown(0.8);
 
     const tableTop = doc.y;
     const colWidths = [55, 50, 55, 50, 130, 55, 55, 55];
-    const headers = [
-      'Tarih',
-      'Gün',
-      'Cihaz',
-      'Vardiya',
-      'Personel',
-      'Başlangıç',
-      'Bitiş',
-      'Durum',
-    ];
+    const headers = ['Tarih', 'Gün', 'Cihaz', 'Vardiya', 'Personel', 'Başlangıç', 'Bitiş', 'Durum'];
     const pageWidth = colWidths.reduce((a, b) => a + b, 0);
 
     const drawHeader = (y: number) => {
@@ -159,10 +110,7 @@ export class SchedulesExportService {
       doc.rect(30, y, pageWidth, 16).fill('#3B82F6');
       doc.fill('#FFFFFF');
       for (let i = 0; i < headers.length; i++) {
-        doc.text(headers[i], x + 3, y + 4, {
-          width: colWidths[i] - 6,
-          align: 'center',
-        });
+        doc.text(headers[i], x + 3, y + 4, { width: colWidths[i] - 6, align: 'center' });
         x += colWidths[i];
       }
       return y + 16;
@@ -187,37 +135,26 @@ export class SchedulesExportService {
       doc.fill('#000000');
 
       const values = [
-        a.date,
-        dayNames[d.getDay()],
-        a.deviceCode,
-        this.getShiftLabel(a.shiftType),
-        a.personnelName,
-        a.startTime,
-        a.endTime,
-        a.isConfirmed ? 'Onaylı' : 'Planlandı',
+        a.date, dayNames[d.getDay()], a.deviceCode,
+        this.getShiftLabel(a.shiftType), a.personnelName,
+        a.startTime, a.endTime, a.isConfirmed ? 'Onaylı' : 'Planlandı',
       ];
 
       for (let i = 0; i < values.length; i++) {
-        doc.text(String(values[i]), x + 2, currentY + 3, {
-          width: colWidths[i] - 4,
-          align: 'center',
-        });
+        doc.text(String(values[i]), x + 2, currentY + 3, { width: colWidths[i] - 4, align: 'center' });
         x += colWidths[i];
       }
       currentY += 14;
     }
 
     doc.end();
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       doc.on('end', () => resolve(Buffer.concat(buffers)));
     });
   }
 
   private async getExportData(unitType: string, month: number, year: number) {
-    const type = Object.values(UnitType).find((t) => t === unitType);
-    const unit = type
-      ? await this.prisma.unit.findFirst({ where: { type } })
-      : null;
+    const unit = await this.resolveUnit(unitType);
     if (!unit) throw new NotFoundException(`Birim bulunamadı: ${unitType}`);
 
     const schedule = await this.prisma.schedule.findFirst({
@@ -230,43 +167,52 @@ export class SchedulesExportService {
       },
     });
 
-    if (!schedule)
-      throw new NotFoundException(`${month}/${year} için plan bulunamadı`);
+    if (!schedule) throw new NotFoundException(`${month}/${year} için plan bulunamadı`);
 
     const devices = await this.unitsService.getDevices(unit.id, true);
     const totalSlots = devices.length * 2 * this.getDaysInMonth(month, year);
-    const assignments = schedule.assignments.map((a) => ({
-      id: a.id,
-      date: a.date,
-      shiftType: a.shiftType,
-      startTime: a.startTime,
-      endTime: a.endTime,
+    const assignments = schedule.assignments.map(a => ({
+      id: a.id, date: a.date, shiftType: a.shiftType,
+      startTime: a.startTime, endTime: a.endTime,
       isConfirmed: a.isConfirmed,
-      deviceId: a.deviceId,
-      deviceCode: a.device?.code || a.deviceId,
+      deviceId: a.deviceId, deviceCode: a.device?.code || a.deviceId,
       personnelName: a.personnel?.name || 'Atanmamış',
     }));
 
     return {
-      unitName: unit.name || unitType.toUpperCase(),
-      month,
-      year,
-      assignments,
+      unitName: unit.name || unitType.toLowerCase(),
+      month, year, assignments,
       emptySlots: Math.max(0, totalSlots - assignments.length),
     };
   }
 
+  private async resolveUnit(unitType: string) {
+    if (!unitType) return null;
+
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(unitType.trim());
+
+    if (isUuid) {
+      return this.prisma.unit.findFirst({ where: { id: unitType.trim() } });
+    }
+
+    const normalized = unitType.trim().toLowerCase();
+
+    const byCode = await this.prisma.unit.findFirst({ where: { code: unitType.trim() } });
+    if (byCode) return byCode;
+
+    // A non-enum value must resolve to "not found" (404) instead of raising a
+    // Prisma enum validation error (500) on the type query below.
+    if (!isValidUnitType(normalized)) return null;
+
+    return this.prisma.unit.findFirst({ where: { type: normalized } });
+  }
+
   private getShiftLabel(type: string): string {
     const map: Record<string, string> = {
-      day: 'Gündüz',
-      evening: 'Akşam',
-      night: 'Gece',
-      morning: 'Sabah',
-      off: 'İzin (Off)',
-      leave: 'Raporlu İzin',
-      sick: 'Hasta',
-      training: 'Eğitim',
-      backup: 'Yedek Süpervizör',
+      day: 'Gündüz', evening: 'Akşam', night: 'Gece', morning: 'Sabah',
+      off: 'İzin (Off)', leave: 'Raporlu İzin', sick: 'Hasta',
+      training: 'Eğitim', backup: 'Yedek Süpervizör',
     };
     return map[type] || type;
   }
@@ -274,13 +220,4 @@ export class SchedulesExportService {
   private getDaysInMonth(month: number, year: number): number {
     return new Date(year, month, 0).getDate();
   }
-}
-
-/**
- * Excel sheet names reject `* ? : \ / [ ]` and cap at 31 characters. The
- * default `${unitName} ${month}/${year}` breaks the former, which made every
- * xlsx export throw a 500.
- */
-function toSheetName(raw: string): string {
-  return raw.replace(/[*/?:[\]\\]/g, '-').slice(0, 31);
 }

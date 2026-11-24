@@ -3,12 +3,27 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError, BehaviorSubject, catchError, retry, tap, map, finalize } from 'rxjs';
 import { environment } from '../../environments';
 
+export interface ApiViolation {
+  rule?: string;
+  code?: string;
+  severity?: string;
+  message?: string;
+  isOverrideAllowed?: boolean;
+  details?: Record<string, unknown>;
+}
+
 export interface ApiError {
   code: string;
   message: string;
   statusCode: number;
   timestamp: string;
   path?: string;
+  violations?: ApiViolation[];
+  hasBlocking?: boolean;
+  canOverride?: boolean;
+  serverVersion?: number;
+  localVersion?: number;
+  scheduleId?: string;
 }
 
 @Injectable({
@@ -139,6 +154,12 @@ export class ApiService {
         statusCode: error.status,
         timestamp: new Date().toISOString(),
         path: error.url ?? undefined,
+        violations: error.error?.violations ?? error.error?.details?.violations,
+        hasBlocking: error.error?.hasBlocking,
+        canOverride: error.error?.canOverride,
+        serverVersion: error.error?.serverVersion,
+        localVersion: error.error?.localVersion,
+        scheduleId: error.error?.scheduleId,
       };
     }
 

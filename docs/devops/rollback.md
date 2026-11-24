@@ -20,12 +20,12 @@
 
 ### Decision Matrix
 
-| Severity                                        | Response Time          | Action                                                      |
-| ----------------------------------------------- | ---------------------- | ----------------------------------------------------------- |
-| **Critical** — Full outage, data loss           | Immediate              | Rollback to last known good version                         |
-| **High** — Major feature broken, users impacted | Within 15 minutes      | Rollback deployment; consider hotfix if rollback is complex |
-| **Medium** — Non-critical feature broken        | Within 1 hour          | Hotfix forward; rollback only if hotfix will take > 2 hours |
-| **Low** — Cosmetic issue, minor bug             | Next scheduled release | No rollback needed                                          |
+| Severity | Response Time | Action |
+|----------|---------------|--------|
+| **Critical** — Full outage, data loss | Immediate | Rollback to last known good version |
+| **High** — Major feature broken, users impacted | Within 15 minutes | Rollback deployment; consider hotfix if rollback is complex |
+| **Medium** — Non-critical feature broken | Within 1 hour | Hotfix forward; rollback only if hotfix will take > 2 hours |
+| **Low** — Cosmetic issue, minor bug | Next scheduled release | No rollback needed |
 
 ### Pre-Rollback Checklist
 
@@ -397,32 +397,26 @@ When a rollback occurs, document the following in `#incident-reports`:
 **Duration**: 30 minutes
 
 ### What happened?
-
 Brief description of the issue that triggered the rollback.
 
 ### Deployed version
-
 - Deploy SHA: `abc123`
 - Rolled back to SHA: `def456`
 
 ### Database action
-
 - [ ] No database changes
 - [ ] Forward fix migration applied
 - [ ] Database restored from backup
 
 ### Verification
-
 - [ ] All health checks passing
 - [ ] Smoke tests passed
 - [ ] Monitoring confirms normal operation
 
 ### Root cause
-
 Link to RCA document or brief description.
 
 ### Action items
-
 - [ ] Add test coverage for this scenario
 - [ ] Improve monitoring for this failure mode
 - [ ] Update deployment checklist

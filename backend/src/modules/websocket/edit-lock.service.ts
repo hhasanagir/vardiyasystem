@@ -82,9 +82,9 @@ export class EditLockService {
 
   releaseLock(scheduleId: string, userId: string): boolean {
     const lock = this.locks.get(scheduleId);
-
+    
     if (!lock) return false;
-
+    
     if (lock.userId !== userId) {
       return false;
     }
@@ -119,7 +119,7 @@ export class EditLockService {
 
   refreshLock(scheduleId: string, userId: string): boolean {
     const lock = this.locks.get(scheduleId);
-
+    
     if (!lock || lock.userId !== userId) {
       return false;
     }
@@ -133,14 +133,12 @@ export class EditLockService {
 
   extendLock(scheduleId: string, userId: string): boolean {
     const lock = this.locks.get(scheduleId);
-
+    
     if (!lock || lock.userId !== userId) {
       return false;
     }
 
-    const newExpiresAt = new Date(
-      lock.expiresAt.getTime() + this.LOCK_EXTENSION_MS,
-    );
+    const newExpiresAt = new Date(lock.expiresAt.getTime() + this.LOCK_EXTENSION_MS);
     lock.expiresAt = newExpiresAt;
 
     return true;
@@ -148,9 +146,9 @@ export class EditLockService {
 
   getScheduleLock(scheduleId: string): EditLock | null {
     const lock = this.locks.get(scheduleId);
-
+    
     if (!lock) return null;
-
+    
     if (this.isLockExpired(lock)) {
       this.forceReleaseLock(scheduleId);
       return null;
@@ -176,21 +174,21 @@ export class EditLockService {
   getExpiredLocks(): EditLock[] {
     const now = new Date();
     const expired: EditLock[] = [];
-
+    
     for (const lock of this.locks.values()) {
       if (lock.expiresAt < now) {
         expired.push(lock);
       }
     }
-
+    
     return expired;
   }
 
   isScheduleLocked(scheduleId: string): boolean {
     const lock = this.locks.get(scheduleId);
-
+    
     if (!lock) return false;
-
+    
     if (this.isLockExpired(lock)) {
       this.forceReleaseLock(scheduleId);
       return false;
@@ -205,9 +203,7 @@ export class EditLockService {
   }
 
   getAllLocks(): EditLock[] {
-    return Array.from(this.locks.values()).filter(
-      (l) => !this.isLockExpired(l),
-    );
+    return Array.from(this.locks.values()).filter(l => !this.isLockExpired(l));
   }
 
   private isLockExpired(lock: EditLock): boolean {

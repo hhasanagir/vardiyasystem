@@ -76,7 +76,7 @@ export class SessionTimeoutService {
     this.ngZone.runOutsideAngular(() => {
       this.warningTimer = setInterval(() => {
         this.ngZone.run(() => {
-          this.remainingSeconds.update((v) => Math.max(0, v - 1));
+          this.remainingSeconds.update(v => Math.max(0, v - 1));
         });
       }, 1000);
     });

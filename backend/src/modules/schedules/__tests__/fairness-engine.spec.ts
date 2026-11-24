@@ -1,18 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import {
-  FairnessEngine,
-  FairnessInput,
-  FairnessPersonnelInfo,
-} from '../domain/models/fairness-engine';
+import { FairnessEngine, FairnessInput, FairnessPersonnelInfo } from '../domain/models/fairness-engine';
 
 function makeFairnessInput(
   personnel: FairnessPersonnelInfo[],
-  assignFn: (pid: string) => {
-    nights: number;
-    weekends: number;
-    holidays: number;
-    hours: number;
-  },
+  assignFn: (pid: string) => { nights: number; weekends: number; holidays: number; hours: number },
 ): FairnessInput {
   return {
     assignments: null as any,
@@ -50,11 +41,10 @@ describe('FairnessEngine - Characterization Tests', () => {
       monthDays: 30,
     };
     const result = engine.calculate(input);
-    const expected =
-      result.nightScore * 0.25 +
-      result.weekendScore * 0.2 +
-      result.holidayScore * 0.15 +
-      result.workloadScore * 0.4;
+    const expected = result.nightScore * 0.25
+      + result.weekendScore * 0.20
+      + result.holidayScore * 0.15
+      + result.workloadScore * 0.40;
     expect(result.overallScore).toBe(Math.round(expected * 10) / 10);
   });
 
@@ -79,9 +69,7 @@ describe('FairnessEngine - Characterization Tests', () => {
     const engine = new FairnessEngine();
     const result = engine.calculate({
       assignments: null as any,
-      personnel: [
-        { id: 'p1', name: 'A', nightShiftEligible: true, maxWeeklyHours: 40 },
-      ],
+      personnel: [{ id: 'p1', name: 'A', nightShiftEligible: true, maxWeeklyHours: 40 }],
       holidays: new Set(),
       monthDays: 30,
     });

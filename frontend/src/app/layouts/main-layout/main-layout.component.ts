@@ -268,6 +268,8 @@ export class MainLayoutComponent {
   readonly mobileSidebarOpen = signal(false);
   readonly profileOpen = signal(false);
 
+  readonly fieldSupervisorUnitType = signal<string | undefined>(undefined);
+
   readonly user = computed(() => this.auth.user());
   readonly userRoleLabel = computed(() => getRoleLabel(this.user()?.role || ''));
   readonly userInitials = computed(() => {
@@ -278,8 +280,12 @@ export class MainLayoutComponent {
 
   readonly isMobile = signal(false);
 
-  /** Route-guard-consistent visibility for supervisor-surface nav items (matches the `minRole: 'supervisor'` route guards). */
-  readonly hasSupervisorSurfaces = computed(() => hasMinRole(this.user()?.role || '', 'supervisor'));
+  /** Route-guard-consistent visibility for supervisor-surface nav items (FE threshold: field_supervisor=450). */
+  readonly hasSupervisorSurfaces = computed(() => hasMinRole(this.user()?.role || '', 'field_supervisor'));
+
+  readonly isFieldSupervisor = computed(() => {
+    return this.user()?.role === 'field_supervisor' || this.rbac.isFieldSupervisor();
+  });
 
   private readonly activeRouteEvent = toSignal(
     this.router.events.pipe(
@@ -307,8 +313,13 @@ export class MainLayoutComponent {
     { id: 'supervizor', label: 'Süpervizör', route: '/app/supervizor-plan', color: '#8b5cf6', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>' },
   ];
 
-  /** Sidebar unit links. */
-  readonly units = computed(() => this.allUnits);
+  /** Sidebar unit links, role-aware: a field supervisor sees only their own unit. */
+  readonly units = computed(() => {
+    if (!this.isFieldSupervisor()) return this.allUnits;
+    const ownType = this.fieldSupervisorUnitType();
+    if (!ownType) return [];
+    return this.allUnits.filter(u => u.id === ownType);
+  });
 
   readonly mainNav = computed(() => [
     { id: 'dashboard', label: 'Kontrol Paneli', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="4"/><rect x="14" y="10" width="7" height="11"/><rect x="3" y="13" width="7" height="8"/></svg>', route: '/app/dashboard', visible: true, badge: '' },
@@ -317,7 +328,7 @@ export class MainLayoutComponent {
     { id: 'employees', label: 'Personel', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>', route: '/app/employees', visible: true, badge: '' },
     { id: 'reports', label: 'Raporlar', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>', route: '/app/reports', visible: true, badge: '' },
     { id: 'settings', label: 'Ayarlar', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>', route: '/app/settings', visible: true, badge: '' },
-    { id: 'ops-center', label: 'Operasyon Merkezi', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>', route: '/app/command-center', visible: this.hasSupervisorSurfaces(), badge: '' },
+    { id: 'ops-center', label: 'Operasyon Merkezi', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>', route: '/app/supervisor-center', visible: this.hasSupervisorSurfaces(), badge: '' },
     { id: 'section-enterprise', label: 'Isletme', icon: '', route: '', visible: this.hasSupervisorSurfaces(), badge: '', isSection: true },
     { id: 'assets', label: 'Cihaz Yönetimi', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>', route: '/app/assets', visible: this.hasSupervisorSurfaces(), badge: '' },
     { id: 'enterprise-biomedical', label: 'Biyomedikal', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>', route: '/app/enterprise/biomedical', visible: this.hasSupervisorSurfaces(), badge: '' },
@@ -343,7 +354,11 @@ export class MainLayoutComponent {
     this.isMobile.set(mq.matches);
     mq.addEventListener('change', e => this.isMobile.set(e.matches));
 
-    void this.rbac.ensureLoaded();
+    this.rbac.ensureLoaded().then(() => {
+      if (this.rbac.isFieldSupervisor()) {
+        this.rbac.getFieldSupervisorUnitType().then(t => this.fieldSupervisorUnitType.set(t));
+      }
+    });
 
     effect(() => {
       if (!this.isMobile()) this.mobileSidebarOpen.set(false);

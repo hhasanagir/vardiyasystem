@@ -1,11 +1,7 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { Observable, tap, catchError, throwError, finalize } from 'rxjs';
 import { ApiService } from '../../../core/api/api.service';
-import type {
-  RadiationDosimeter,
-  RadiationMeasurement,
-  RadiationArea,
-} from '../models/radiation.models';
+import type { RadiationDosimeter, RadiationMeasurement, RadiationArea } from '../models/radiation.models';
 
 @Injectable({ providedIn: 'root' })
 export class RadiationSafetyService {
@@ -26,8 +22,8 @@ export class RadiationSafetyService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<RadiationDosimeter[]>('/radiation/dosimeters').pipe(
-      tap((d) => this._dosimeters.set(d)),
-      catchError((err) => {
+      tap(d => this._dosimeters.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Dozimetreler yüklenemedi');
         return throwError(() => err);
       }),
@@ -39,8 +35,8 @@ export class RadiationSafetyService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<RadiationMeasurement[]>('/radiation/measurements').pipe(
-      tap((d) => this._measurements.set(d)),
-      catchError((err) => {
+      tap(d => this._measurements.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Ölçümler yüklenemedi');
         return throwError(() => err);
       }),
@@ -52,8 +48,8 @@ export class RadiationSafetyService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<RadiationArea[]>('/radiation/areas').pipe(
-      tap((d) => this._areas.set(d)),
-      catchError((err) => {
+      tap(d => this._areas.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Alanlar yüklenemedi');
         return throwError(() => err);
       }),

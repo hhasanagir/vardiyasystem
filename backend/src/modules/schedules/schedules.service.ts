@@ -1,17 +1,7 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  BadRequestException,
-  ForbiddenException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Prisma, ScheduleStatus, ShiftType, UnitType } from '@prisma/client';
-import type {
-  AssignmentViolation,
-  AssignmentValidationResult,
-  ViolationRule,
-} from './types/violation.types';
+import type { AssignmentViolation, AssignmentValidationResult, ViolationRule } from './types/violation.types';
+import { normalizeViolationPolicy } from './types/violation-policy';
 import { PrismaService } from '../../prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { UnitsService } from '../units/units.service';
@@ -19,17 +9,24 @@ import { ScheduleGateway } from '../websocket/schedule.gateway';
 import { NotificationEventService } from '../notifications/notification-event.service';
 import { MetricsService } from '../../metrics/metrics.service';
 import { EventBusService } from '../../events/event-bus.service';
-import {
-  createEvent,
-  EVENT_NAMES,
-  AGGREGATE_TYPES,
-} from '../../events/domain-event.interface';
+import { UnitScopeService } from '../rbac/services/unit-scope.service';
+import { createEvent, EVENT_NAMES, AGGREGATE_TYPES } from '../../events/domain-event.interface';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { PublishUnitScheduleDto } from './dto/publish-unit-schedule.dto';
 import { SchedulesWorkflowService } from './schedules-workflow.service';
-import { canPublish, canDirectAssign } from '../../models/schedule-status';
+import { canPublish, canDirectAssign, isPublished, isEditable } from '../../models/schedule-status';
+import { ToggleDeviceOffDto } from './dto/toggle-device-off.dto';
+import { normalizeExpectedVersion } from './version-precondition';
+import { PersonnelAvailabilityService } from './services/personnel-availability.service';
+import {
+  addDays,
+  dateKey,
+  dayOfWeek,
+  parseDateParts,
+  todayKey,
+} from './domain/value-objects/local-date';
 
 interface UserContext {
   id: string;
@@ -69,9 +66,86 @@ export class SchedulesService {
     private notificationEvent: NotificationEventService,
     private metrics: MetricsService,
     private eventBus: EventBusService,
+    private readonly unitScope: UnitScopeService,
   ) {}
 
+  /**
+   * Bump the schedule version, optionally under an optimistic-concurrency
+   * precondition. When expectedVersion is provided the bump is atomic:
+   * the row is only updated if the stored version still equals the expected
+   * value, otherwise the mutation fails with a structured 409 and the
+   * surrounding transaction rolls back. When absent, legacy behavior is kept.
+   */
+  private async bumpScheduleVersion(tx: Prisma.TransactionClient, scheduleId: string, expectedVersion?: number) {
+    const precondition = normalizeExpectedVersion(expectedVersion);
+    if (precondition !== undefined) {
+      const updated = await tx.schedule.updateMany({
+        where: { id: scheduleId, version: precondition },
+        data: { version: { increment: 1 } },
+      });
+      if (updated.count === 0) {
+        throw new ConflictException({
+          message: `Optimistic locking conflict: expected version ${precondition}, actual version changed`,
+          error: 'SCHEDULE_VERSION_CONFLICT',
+          statusCode: 409,
+          localVersion: precondition,
+          scheduleId,
+        });
+      }
+      return;
+    }
+    await tx.schedule.update({
+      where: { id: scheduleId },
+      data: { version: { increment: 1 } },
+    });
+  }
+
+  /**
+   * Resolve a client-supplied unit TYPE to a single database unit that the
+   * authenticated user is tenant-scoped to reach (Phase 5C.18 / RT-01).
+   *
+   * The unit must belong to the user's resolved organization, otherwise null
+   * (the caller converts null into a controlled 404). A strictly unit-scoped
+   * role (saha sorumlusu) must additionally match its assigned unit exactly:
+   * a type that resolves inside the tenant but to a sibling unit is DENIED
+   * (null). An unresolved organization scope (legacy NULL-org accounts) fails
+   * CLOSED so the unit-by-type lookup can never bleed across tenants.
+   */
+  private async resolveTenantScopedUnit(unitType: string, user: UserContext) {
+    if (!unitType) return null;
+
+    const scope = await this.unitScope.resolveScope(user);
+    if (!scope.organizationId) {
+      return null;
+    }
+
+    const unit = await this.prisma.unit.findFirst({
+      where: { type: unitType as UnitType, organizationId: scope.organizationId },
+    });
+    if (!unit) return null;
+
+    if (scope.strictUnitId && unit.id !== scope.strictUnitId) {
+      return null;
+    }
+
+    return unit;
+  }
+
   async create(dto: CreateScheduleDto, userId: string) {
+    // The tenant middleware only stamps `organizationId` when the caller has
+    // one; a system_admin without an organization therefore wrote schedules with
+    // a NULL tenant, and every tenant-scoped read (which filters on
+    // organizationId) then hid them as "not found". The owning organization is
+    // derived from the unit - server-side data, never client input.
+    const ownerUnit = await this.prisma.unit.findUnique({
+      where: { id: dto.unitId },
+      select: { id: true, organizationId: true },
+    });
+
+    if (!ownerUnit) {
+      throw new NotFoundException(`Birim bulunamadi: ${dto.unitId}`);
+    }
+
     const existing = await this.prisma.schedule.findFirst({
       where: {
         unitId: dto.unitId,
@@ -81,14 +155,13 @@ export class SchedulesService {
     });
 
     if (existing) {
-      throw new ConflictException(
-        'Schedule already exists for this unit and period',
-      );
+      throw new ConflictException('Schedule already exists for this unit and period');
     }
 
     const schedule = await this.prisma.schedule.create({
       data: {
         unitId: dto.unitId,
+        organizationId: ownerUnit.organizationId,
         month: dto.month,
         year: dto.year,
         status: 'draft',
@@ -105,63 +178,45 @@ export class SchedulesService {
       },
     });
 
-    await this.auditLog
-      .log({
-        userId,
-        action: 'CREATE',
-        entityType: 'schedule',
-        entityId: schedule.id,
-        after: schedule,
-      })
-      .catch(() => {});
+    await this.auditLog.log({
+      userId,
+      action: 'CREATE',
+      entityType: 'schedule',
+      entityId: schedule.id,
+      after: schedule,
+    }).catch(() => {});
 
-    this.gateway
-      .broadcastPersonnelUpdate({
-        action: 'created',
-        personnelId: schedule.id,
-        personnelName: `Schedule ${schedule.month}/${schedule.year}`,
+    this.gateway.broadcastPersonnelUpdate({
+      action: 'created',
+      personnelId: schedule.id,
+      personnelName: `Schedule ${schedule.month}/${schedule.year}`,
+      unitId: schedule.unitId,
+      organizationId: schedule.unit?.organizationId || undefined,
+    }).catch(() => {});
+
+    this.metrics.shiftCreatedTotal.inc({ unit_id: schedule.unitId || 'unknown' });
+
+    this.eventBus.publish(createEvent(
+      EVENT_NAMES.SCHEDULE_CREATED,
+      schedule.id,
+      AGGREGATE_TYPES.SCHEDULE,
+      {
+        scheduleId: schedule.id,
         unitId: schedule.unitId,
-        organizationId: schedule.unit?.organizationId || undefined,
-      })
-      .catch(() => {});
-
-    this.metrics.shiftCreatedTotal.inc({
-      unit_id: schedule.unitId || 'unknown',
-    });
-
-    this.eventBus.publish(
-      createEvent(
-        EVENT_NAMES.SCHEDULE_CREATED,
-        schedule.id,
-        AGGREGATE_TYPES.SCHEDULE,
-        {
-          scheduleId: schedule.id,
-          unitId: schedule.unitId,
-          month: schedule.month,
-          year: schedule.year,
-          userId,
-          status: schedule.status,
-        },
+        month: schedule.month,
+        year: schedule.year,
         userId,
-      ),
-    );
+        status: schedule.status,
+      },
+      userId,
+    ));
 
     return schedule;
   }
 
-  async findAll(filters: {
-    organizationId?: string;
-    unitId?: string;
-    month?: number;
-    year?: number;
-    status?: string;
-    take?: number;
-    skip?: number;
-  }) {
+  async findAll(filters: { organizationId?: string; unitId?: string; month?: number; year?: number; status?: string; take?: number; skip?: number }) {
     const where: Prisma.ScheduleWhereInput = {
-      ...(filters.organizationId && {
-        unit: { organizationId: filters.organizationId },
-      }),
+      ...(filters.organizationId && { unit: { organizationId: filters.organizationId } }),
       ...(filters.unitId && { unitId: filters.unitId }),
       ...(filters.month && { month: filters.month }),
       ...(filters.year && { year: filters.year }),
@@ -178,16 +233,17 @@ export class SchedulesService {
         assignments: {
           include: {
             personnel: { select: { id: true, name: true, role: true } },
-            device: {
-              select: { id: true, code: true, name: true, mode: true },
-            },
+            device: { select: { id: true, code: true, name: true, mode: true } },
           },
         },
         createdBy: {
           select: { id: true, name: true, email: true },
         },
       },
-      orderBy: [{ year: 'desc' }, { month: 'desc' }],
+      orderBy: [
+        { year: 'desc' },
+        { month: 'desc' },
+      ],
     });
   }
 
@@ -239,7 +295,7 @@ export class SchedulesService {
     return schedule ?? null;
   }
 
-  async findByUnitType(unitType: string, month: number, year: number) {
+  async findByUnitType(unitType: string, month: number, year: number, user?: UserContext) {
     if (!unitType) {
       throw new BadRequestException('Birim parametresi zorunludur');
     }
@@ -247,9 +303,17 @@ export class SchedulesService {
       throw new BadRequestException('Ay ve yıl parametreleri zorunludur');
     }
 
-    const unit = await this.prisma.unit.findFirst({
-      where: { type: unitType as UnitType },
-    });
+    let unit;
+    if (user) {
+      // RT-01: when the caller can identify the acting user, resolve the unit
+      // inside the actor's own tenant instead of a global type lookup so a
+      // scoped mutation tail can never leak another organization's plan.
+      unit = await this.resolveTenantScopedUnit(unitType, user);
+    } else {
+      unit = await this.prisma.unit.findFirst({
+        where: { type: unitType as UnitType },
+      });
+    }
 
     if (!unit) {
       throw new NotFoundException(`Birim bulunamadı: ${unitType}`);
@@ -262,100 +326,18 @@ export class SchedulesService {
     const personShiftConfig = await this.loadPersonShiftConfig(unit.id);
 
     if (!schedule) {
-      const deviceIds = devices.map((d) => d.id);
+      const deviceIds = devices.map(d => d.id);
       const shiftDefs = await this.prisma.shifts.findMany({
         where: {
           organizationId: unit?.organizationId || undefined,
           deviceId: { in: deviceIds },
           isActive: true,
         },
-        select: {
-          id: true,
-          deviceId: true,
-          type: true,
-          startTime: true,
-          endTime: true,
-          name: true,
-          personnelType: true,
-          blockId: true,
-          optionalOnWeekends: true,
-          optionalOnHolidays: true,
-          isMaster: true,
-        },
+        select: { id: true, deviceId: true, type: true, startTime: true, endTime: true, name: true, personnelType: true, blockId: true, optionalOnWeekends: true, optionalOnHolidays: true, isMaster: true },
       });
-      const deviceShiftConfig = devices.map((d) => ({
+      const deviceShiftConfig = devices.map(d => ({
         deviceId: d.id,
-        shifts: shiftDefs
-          .filter((s) => s.deviceId === d.id)
-          .map((s) => ({
-            id: s.id,
-            type: s.type,
-            startTime: s.startTime,
-            endTime: s.endTime,
-            name: s.name,
-            personnelType: s.personnelType,
-            blockId: s.blockId,
-            optionalOnWeekends: s.optionalOnWeekends,
-            optionalOnHolidays: s.optionalOnHolidays,
-            isMaster: s.isMaster,
-          })),
-      }));
-      return {
-        unit: unitType,
-        month,
-        year,
-        id: null as string | null,
-        version: 0,
-        status: 'draft' as const,
-        devices: devices.map((d) => ({
-          id: d.id,
-          code: d.code,
-          name: d.name,
-          mode: d.mode,
-          blockCode: d.blockCode,
-          isMaster: d.isMaster,
-          workDays: d.workDays,
-        })),
-        deviceShiftConfig,
-        personShiftConfig,
-        assignments: [],
-        personAssignments: [],
-        createdBy: null,
-        createdAt: null,
-        updatedAt: null,
-        workflow: null,
-      };
-    }
-
-    const deviceIds = devices.map((d) => d.id);
-
-    const shiftDefs = await this.prisma.shifts.findMany({
-      where: {
-        organizationId:
-          schedule.unit?.organizationId || unit?.organizationId || undefined,
-        deviceId: { in: deviceIds },
-        isActive: true,
-      },
-      select: {
-        id: true,
-        deviceId: true,
-        type: true,
-        startTime: true,
-        endTime: true,
-        name: true,
-        personnelType: true,
-        blockId: true,
-        optionalOnWeekends: true,
-        optionalOnHolidays: true,
-        isMaster: true,
-      },
-    });
-
-    const deviceShiftConfig = devices.map((d) => ({
-      deviceId: d.id,
-      shifts: shiftDefs
-        .filter((s) => s.deviceId === d.id)
-        .map((s) => ({
+        shifts: shiftDefs.filter(s => s.deviceId === d.id).map(s => ({
           id: s.id,
           type: s.type,
           startTime: s.startTime,
@@ -367,7 +349,72 @@ export class SchedulesService {
           optionalOnHolidays: s.optionalOnHolidays,
           isMaster: s.isMaster,
         })),
+      }));
+
+      const deviceOffRecords = await this.prisma.deviceOffDate.findMany({
+        where: { deviceId: { in: deviceIds }, isActive: true },
+        select: { deviceId: true, date: true, reason: true, isActive: true },
+      });
+
+      return {
+        unit: unitType,
+        month,
+        year,
+        id: null as string | null,
+        version: 0,
+        status: 'draft' as const,
+        devices: devices.map(d => ({
+          id: d.id,
+          code: d.code,
+          name: d.name,
+          mode: d.mode,
+          blockCode: d.blockCode,
+          isMaster: d.isMaster,
+          workDays: d.workDays,
+        })),
+        deviceShiftConfig,
+        personShiftConfig,
+        deviceOffDates: deviceOffRecords,
+        assignments: [],
+        personAssignments: [],
+        createdBy: null,
+        createdAt: null,
+        updatedAt: null,
+        workflow: null,
+      };
+    }
+
+    const deviceIds = devices.map(d => d.id);
+
+    const shiftDefs = await this.prisma.shifts.findMany({
+      where: {
+        organizationId: schedule.unit?.organizationId || unit?.organizationId || undefined,
+        deviceId: { in: deviceIds },
+        isActive: true,
+      },
+      select: { id: true, deviceId: true, type: true, startTime: true, endTime: true, name: true, personnelType: true, blockId: true, optionalOnWeekends: true, optionalOnHolidays: true, isMaster: true },
+    });
+
+    const deviceShiftConfig = devices.map(d => ({
+      deviceId: d.id,
+      shifts: shiftDefs.filter(s => s.deviceId === d.id).map(s => ({
+        id: s.id,
+        type: s.type,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        name: s.name,
+        personnelType: s.personnelType,
+        blockId: s.blockId,
+        optionalOnWeekends: s.optionalOnWeekends,
+        optionalOnHolidays: s.optionalOnHolidays,
+        isMaster: s.isMaster,
+      })),
     }));
+
+    const deviceOffRecords = await this.prisma.deviceOffDate.findMany({
+      where: { deviceId: { in: deviceIds }, isActive: true },
+      select: { deviceId: true, date: true, reason: true, isActive: true },
+    });
 
     return {
       id: schedule.id,
@@ -376,7 +423,7 @@ export class SchedulesService {
       year: schedule.year,
       version: schedule.version,
       status: schedule.status,
-      devices: devices.map((d) => ({
+      devices: devices.map(d => ({
         id: d.id,
         code: d.code,
         name: d.name,
@@ -387,67 +434,56 @@ export class SchedulesService {
       })),
       deviceShiftConfig,
       personShiftConfig,
-      assignments: schedule.assignments
-        .filter((a) => a.kind !== 'person')
-        .map((a) => ({
-          id: a.id,
-          scheduleId: a.scheduleId,
-          personnelId: a.personnelId,
-          personnelName: a.personnel?.name || '',
-          personnelType: a.personnel?.role || null,
-          deviceId: a.deviceId,
-          deviceCode: a.device?.code || null,
-          date: a.date,
-          shiftType: a.shiftType,
-          startTime: a.startTime,
-          endTime: a.endTime,
-          isConfirmed: a.isConfirmed,
-          version: a.version,
-        })),
-      personAssignments: schedule.assignments
-        .filter((a) => a.kind === 'person')
-        .map((a) => ({
-          id: a.id,
-          scheduleId: a.scheduleId,
-          personnelId: a.personnelId,
-          personnelName: a.personnel?.name || '',
-          personnelType: a.personnel?.role || a.personnelType || null,
-          personnelGroupId: a.personnelGroupId,
-          shiftTemplateId: a.shiftTemplateId,
-          unitId: a.unitId,
-          date: a.date,
-          shiftType: a.shiftType,
-          startTime: a.startTime,
-          endTime: a.endTime,
-          isConfirmed: a.isConfirmed,
-          version: a.version,
-        })),
-      createdBy: schedule.createdBy
-        ? {
-            id: schedule.createdBy.id,
-            name: schedule.createdBy.name,
-            email: schedule.createdBy.email,
-          }
-        : null,
+      deviceOffDates: deviceOffRecords,
+      assignments: schedule.assignments.filter(a => a.kind !== 'person').map(a => ({
+        id: a.id,
+        scheduleId: a.scheduleId,
+        personnelId: a.personnelId,
+        personnelName: a.personnel?.name || '',
+        personnelType: a.personnel?.role || null,
+        deviceId: a.deviceId,
+        deviceCode: a.device?.code || null,
+        date: a.date,
+        shiftType: a.shiftType,
+        startTime: a.startTime,
+        endTime: a.endTime,
+        isConfirmed: a.isConfirmed,
+        version: a.version,
+      })),
+      personAssignments: schedule.assignments.filter(a => a.kind === 'person').map(a => ({
+        id: a.id,
+        scheduleId: a.scheduleId,
+        personnelId: a.personnelId,
+        personnelName: a.personnel?.name || '',
+        personnelType: a.personnel?.role || a.personnelType || null,
+        personnelGroupId: a.personnelGroupId,
+        shiftTemplateId: a.shiftTemplateId,
+        unitId: a.unitId,
+        date: a.date,
+        shiftType: a.shiftType,
+        startTime: a.startTime,
+        endTime: a.endTime,
+        isConfirmed: a.isConfirmed,
+        version: a.version,
+      })),
+      createdBy: schedule.createdBy ? {
+        id: schedule.createdBy.id,
+        name: schedule.createdBy.name,
+        email: schedule.createdBy.email,
+      } : null,
       createdAt: schedule.createdAt,
       updatedAt: schedule.updatedAt,
-      workflow: schedule.approval
-        ? {
-            submittedBy: schedule.approval.submittedBy ?? undefined,
-            submittedAt:
-              schedule.approval.submittedAt?.toISOString() ?? undefined,
-            approvedBy: schedule.approval.approvedBy ?? undefined,
-            approvedAt:
-              schedule.approval.approvedAt?.toISOString() ?? undefined,
-            publishedBy: schedule.approval.publishedBy ?? undefined,
-            publishedAt:
-              schedule.approval.publishedAt?.toISOString() ?? undefined,
-            rejectedBy: schedule.approval.rejectedBy ?? undefined,
-            rejectedAt:
-              schedule.approval.rejectedAt?.toISOString() ?? undefined,
-            rejectionReason: schedule.approval.rejectionReason ?? undefined,
-          }
-        : null,
+      workflow: schedule.approval ? {
+        submittedBy: schedule.approval.submittedBy ?? undefined,
+        submittedAt: schedule.approval.submittedAt?.toISOString() ?? undefined,
+        approvedBy: schedule.approval.approvedBy ?? undefined,
+        approvedAt: schedule.approval.approvedAt?.toISOString() ?? undefined,
+        publishedBy: schedule.approval.publishedBy ?? undefined,
+        publishedAt: schedule.approval.publishedAt?.toISOString() ?? undefined,
+        rejectedBy: schedule.approval.rejectedBy ?? undefined,
+        rejectedAt: schedule.approval.rejectedAt?.toISOString() ?? undefined,
+        rejectionReason: schedule.approval.rejectionReason ?? undefined,
+      } : null,
     };
   }
 
@@ -463,12 +499,12 @@ export class SchedulesService {
       orderBy: { name: 'asc' },
     });
 
-    return groups.map((g) => ({
+    return groups.map(g => ({
       groupId: g.id,
       code: g.code,
       name: g.name,
       description: g.description,
-      templates: g.shiftTemplates.map((t) => ({
+      templates: g.shiftTemplates.map(t => ({
         id: t.id,
         name: t.name,
         shiftType: t.shiftType,
@@ -478,20 +514,12 @@ export class SchedulesService {
     }));
   }
 
-  async publishByUnit(
-    unitType: string,
-    dto: PublishUnitScheduleDto,
-    user: UserContext,
-  ) {
+  async publishByUnit(unitType: string, dto: PublishUnitScheduleDto, user: UserContext) {
     if (!canPublish(user.role)) {
-      throw new ForbiddenException(
-        'Bu işlemi yapmak için yetkiniz yok. Sadece Proje Yöneticisi yayınlayabilir.',
-      );
+      throw new ForbiddenException('Bu işlemi yapmak için yetkiniz yok. Sadece Proje Yöneticisi yayınlayabilir.');
     }
 
-    const unit = await this.prisma.unit.findFirst({
-      where: { type: unitType as UnitType },
-    });
+    const unit = await this.resolveTenantScopedUnit(unitType, user);
 
     if (!unit) {
       throw new NotFoundException(`Birim bulunamadı: ${unitType}`);
@@ -501,10 +529,20 @@ export class SchedulesService {
       where: { unitId: unit.id, month: dto.month, year: dto.year },
     });
 
+    // Published/archived plans are immutable. A published plan may only change
+    // through the explicit revision flow (createRevision), never by silently
+    // deleting and recreating its assignments from a request payload.
+    if (schedule && isPublished(schedule.status)) {
+      throw new ConflictException(
+        'Yayınlanmış/arşivlenmiş program değiştirilemez. Önce revizyon oluşturun.',
+      );
+    }
+
     if (!schedule) {
       schedule = await this.prisma.schedule.create({
         data: {
           unitId: unit.id,
+          organizationId: unit.organizationId,
           month: dto.month,
           year: dto.year,
           status: 'draft',
@@ -514,6 +552,15 @@ export class SchedulesService {
     }
 
     if (dto.assignments && dto.assignments.length > 0) {
+      // Assignment payloads are only accepted while the plan is editable. An
+      // under-review or approved plan must not be rewritten behind the back of
+      // the person who reviewed it.
+      if (!isEditable(schedule.status)) {
+        throw new ConflictException(
+          `Program ${schedule.status} durumunda düzenlenemez. Yalnızca taslak/reddedilmiş programlar güncellenebilir.`,
+        );
+      }
+
       for (const a of dto.assignments) {
         const errors = await this.validateAssignment(schedule.id, {
           personnelId: a.personnelId,
@@ -525,16 +572,15 @@ export class SchedulesService {
           personnelType: a.personnelType,
         });
         if (errors.length > 0) {
-          throw new ConflictException(
-            `Assignment validation failed: ${errors.join('; ')}`,
-          );
+          throw new ConflictException(`Assignment validation failed: ${errors.join('; ')}`);
         }
       }
       await this.prisma.$transaction(async (tx) => {
         await tx.assignment.deleteMany({ where: { scheduleId: schedule.id } });
         await tx.assignment.createMany({
-          data: (dto.assignments || []).map((a) => ({
+          data: (dto.assignments || []).map(a => ({
             scheduleId: schedule.id,
+            organizationId: unit.organizationId ?? schedule.organizationId ?? undefined,
             personnelId: a.personnelId,
             deviceId: a.deviceId,
             date: a.date,
@@ -547,75 +593,55 @@ export class SchedulesService {
       });
     }
 
-    const wfUser: UserContext = user;
-    let result;
-
-    try {
-      if (schedule.status === 'draft') {
-        result = await this.workflowService.submitForReview(
-          schedule.id,
-          wfUser,
-          'Birim üzerinden otomatik gönderim',
-        );
-        result = await this.workflowService.approve(
-          schedule.id,
-          wfUser,
-          'Birim üzerinden otomatik onay',
-        );
-        result = await this.workflowService.publish(schedule.id, wfUser);
-      } else if (schedule.status === 'under_review') {
-        result = await this.workflowService.approve(
-          schedule.id,
-          wfUser,
-          'Birim üzerinden otomatik onay',
-        );
-        result = await this.workflowService.publish(schedule.id, wfUser);
-      } else if (schedule.status === 'approved') {
-        result = await this.workflowService.publish(schedule.id, wfUser);
-      } else if (schedule.status === 'rejected') {
-        await this.prisma.schedule.update({
-          where: { id: schedule.id },
-          data: { status: 'draft' },
-        });
-        result = await this.workflowService.submitForReview(
-          schedule.id,
-          wfUser,
-          'Birim üzerinden yeniden gönderim',
-        );
-        result = await this.workflowService.approve(
-          schedule.id,
-          wfUser,
-          'Birim üzerinden otomatik onay',
-        );
-        result = await this.workflowService.publish(schedule.id, wfUser);
-      } else if (schedule.status === 'archived') {
-        await this.prisma.schedule.update({
-          where: { id: schedule.id },
-          data: { status: 'draft' },
-        });
-        result = await this.workflowService.submitForReview(
-          schedule.id,
-          wfUser,
-          'Arşivden birim üzerinden gönderim',
-        );
-        result = await this.workflowService.approve(
-          schedule.id,
-          wfUser,
-          'Birim üzerinden otomatik onay',
-        );
-        result = await this.workflowService.publish(schedule.id, wfUser);
-      }
-    } catch (e) {
-      await this.prisma.schedule
-        .update({
-          where: { id: schedule.id },
-          data: { status: (schedule as any).status },
-        })
-        .catch(() => {});
-      throw e;
+    // REAL four-eyes: the acting user submits; approval must be performed by a
+    // DIFFERENT authorized person. The previous implementation fabricated a
+    // `system-schedule-autopublish` actor, which made the submitter check
+    // always pass and effectively disabled four-eyes.
+    if (schedule.status === 'draft') {
+      const submitted = await this.workflowService.submitForReview(
+        schedule.id,
+        user,
+        'Birim üzerinden onaya gönderim',
+      );
+      return {
+        ...submitted,
+        requiresApproval: true,
+        message:
+          'Program onaya gönderildi. Four-eyes gereği farklı bir yetkili tarafından onaylanmalıdır.',
+      };
     }
 
-    return result;
+    if (schedule.status === 'under_review') {
+      throw new ConflictException(
+        'Program zaten onay bekliyor. Four-eyes gereği farklı bir yetkili tarafından onaylanmalıdır.',
+      );
+    }
+
+    if (schedule.status === 'approved') {
+      return this.workflowService.publish(schedule.id, user);
+    }
+
+    if (schedule.status === 'rejected') {
+      await this.prisma.schedule.update({
+        where: { id: schedule.id },
+        data: { status: 'draft' },
+      });
+      const submitted = await this.workflowService.submitForReview(
+        schedule.id,
+        user,
+        'Birim üzerinden yeniden gönderim',
+      );
+      return {
+        ...submitted,
+        requiresApproval: true,
+        message:
+          'Program yeniden onaya gönderildi. Four-eyes gereği farklı bir yetkili tarafından onaylanmalıdır.',
+      };
+    }
+
+    throw new ConflictException(
+      `Program ${schedule.status} durumunda yayınlanamaz. Geçerli bir durum geçişi yoktur.`,
+    );
   }
 
   async findMyShifts(userEmail: string, month: number, year: number) {
@@ -624,15 +650,7 @@ export class SchedulesService {
     });
 
     if (!personnel) {
-      // Same key set as the other two exits: consumers cannot branch on
-      // `summary === null` / missing `month` depending on the caller.
-      return {
-        shifts: [],
-        personnel: null,
-        month,
-        year,
-        status: 'no_personnel',
-      };
+      return { shifts: [], personnel: null };
     }
 
     const schedule = await this.prisma.schedule.findFirst({
@@ -649,19 +667,12 @@ export class SchedulesService {
     if (!schedule) {
       return {
         shifts: [],
-        personnel: {
-          id: personnel.id,
-          name: personnel.name,
-          role: personnel.role,
-          unitId: personnel.unitId,
-        },
-        month,
-        year,
-        status: 'no_schedule',
+        personnel: { id: personnel.id, name: personnel.name, role: personnel.role, unitId: personnel.unitId },
+        month, year, status: 'no_schedule',
       };
     }
 
-    const shifts = schedule.assignments.map((a) => ({
+    const shifts = schedule.assignments.map(a => ({
       id: a.id,
       date: a.date,
       shiftType: a.shiftType,
@@ -675,12 +686,7 @@ export class SchedulesService {
 
     return {
       shifts,
-      personnel: {
-        id: personnel.id,
-        name: personnel.name,
-        role: personnel.role,
-        unitId: personnel.unitId,
-      },
+      personnel: { id: personnel.id, name: personnel.name, role: personnel.role, unitId: personnel.unitId },
       scheduleId: schedule.id,
       unit: schedule.unit?.type?.toLowerCase() || '',
       unitName: schedule.unit?.name || '',
@@ -696,26 +702,13 @@ export class SchedulesService {
     });
 
     if (!personnel) {
-      // Same key set as the other two exits, zero-filled instead of null so the
-      // response shape does not change with the caller's Personnel record.
-      return {
-        today: null,
-        week: [],
-        upcoming: [],
-        summary: {
-          totalShifts: 0,
-          totalHours: 0,
-          nightShifts: 0,
-          weekendShifts: 0,
-          overtimeHours: 0,
-        },
-      };
+      return { today: null, week: [], upcoming: [], summary: null };
     }
 
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = todayKey(now);
 
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - now.getDay());
@@ -723,11 +716,7 @@ export class SchedulesService {
     weekEnd.setDate(weekStart.getDate() + 6);
 
     const schedule = await this.prisma.schedule.findFirst({
-      where: {
-        unitId: personnel.unitId,
-        month: currentMonth,
-        year: currentYear,
-      },
+      where: { unitId: personnel.unitId, month: currentMonth, year: currentYear },
       include: {
         unit: true,
         assignments: {
@@ -739,21 +728,10 @@ export class SchedulesService {
     });
 
     if (!schedule) {
-      return {
-        today: null,
-        week: [],
-        upcoming: [],
-        summary: {
-          totalShifts: 0,
-          totalHours: 0,
-          nightShifts: 0,
-          weekendShifts: 0,
-          overtimeHours: 0,
-        },
-      };
+      return { today: null, week: [], upcoming: [], summary: { totalShifts: 0, totalHours: 0, nightShifts: 0, weekendShifts: 0, overtimeHours: 0 } };
     }
 
-    const allShifts = schedule.assignments.map((a) => ({
+    const allShifts = schedule.assignments.map(a => ({
       id: a.id,
       date: a.date,
       shiftType: a.shiftType,
@@ -764,20 +742,18 @@ export class SchedulesService {
       isConfirmed: a.isConfirmed,
     }));
 
-    const todayShift = allShifts.find((s) => s.date === todayStr) || null;
+    const todayShift = allShifts.find(s => s.date === todayStr) || null;
 
-    const weekShifts = allShifts.filter((s) => {
+    const weekShifts = allShifts.filter(s => {
       const d = new Date(s.date);
       return d >= weekStart && d <= weekEnd;
     });
 
-    const upcomingShifts = allShifts
-      .filter((s) => s.date >= todayStr)
-      .slice(0, 10);
+    const upcomingShifts = allShifts.filter(s => s.date >= todayStr).slice(0, 10);
 
     const totalShifts = allShifts.length;
-    const nightShifts = allShifts.filter((s) => s.shiftType === 'night').length;
-    const weekendShifts = allShifts.filter((s) => {
+    const nightShifts = allShifts.filter(s => s.shiftType === 'night').length;
+    const weekendShifts = allShifts.filter(s => {
       const d = new Date(s.date);
       return d.getDay() === 0 || d.getDay() === 6;
     }).length;
@@ -806,20 +782,20 @@ export class SchedulesService {
     };
   }
 
-  async update(
-    id: string,
-    dto: UpdateScheduleDto,
-    userId: string,
-    expectedVersion?: number,
-  ) {
+  async update(id: string, dto: UpdateScheduleDto, userId: string, expectedVersion?: number) {
     const schedule = await this.prisma.schedule.findUnique({ where: { id } });
     if (!schedule) {
       throw new NotFoundException('Schedule not found');
     }
 
-    if (expectedVersion !== undefined && schedule.version !== expectedVersion) {
+    if (dto.assignments) {
+      this.assertNotPublished(schedule);
+    }
+
+    const precondition = normalizeExpectedVersion(expectedVersion);
+    if (precondition !== undefined && schedule.version !== precondition) {
       throw new ConflictException(
-        `Optimistic locking conflict: expected version ${expectedVersion}, actual ${schedule.version}`,
+        `Optimistic locking conflict: expected version ${precondition}, actual ${schedule.version}`
       );
     }
 
@@ -836,119 +812,107 @@ export class SchedulesService {
           endTime: a.endTime,
         });
         if (errors.length > 0) {
-          throw new ConflictException(
-            `Assignment validation failed: ${errors.join('; ')}`,
-          );
+          throw new ConflictException(`Assignment validation failed: ${errors.join('; ')}`);
         }
-      }
-
-      await this.prisma.assignment.deleteMany({ where: { scheduleId: id } });
-
-      if (dto.assignments.length > 0) {
-        await this.prisma.assignment.createMany({
-          data: dto.assignments.map((a) => ({
-            scheduleId: id,
-            personnelId: a.personnelId,
-            deviceId: a.deviceId,
-            date: a.date,
-            shiftType: a.shiftType,
-            startTime: a.startTime,
-            endTime: a.endTime,
-          })),
-        });
       }
     }
 
-    const updated = await this.prisma.schedule.update({
-      where: { id },
-      data: {
-        status: dto.status,
-        version: { increment: 1 },
-        publishedAt: dto.status === 'published' ? new Date() : undefined,
-      },
-      include: {
-        unit: true,
-        assignments: {
-          include: {
-            personnel: true,
-            device: true,
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (dto.assignments) {
+        await tx.assignment.deleteMany({ where: { scheduleId: id } });
+
+        if (dto.assignments.length > 0) {
+          await tx.assignment.createMany({
+            data: dto.assignments.map((a) => ({
+              scheduleId: id,
+              organizationId: schedule.organizationId ?? undefined,
+              personnelId: a.personnelId,
+              deviceId: a.deviceId,
+              date: a.date,
+              shiftType: a.shiftType,
+              startTime: a.startTime,
+              endTime: a.endTime,
+            })),
+          });
+        }
+      }
+
+      return tx.schedule.update({
+        where: { id },
+        data: {
+          version: { increment: 1 },
+        },
+        include: {
+          unit: true,
+          assignments: {
+            include: {
+              personnel: true,
+              device: true,
+            },
           },
         },
-      },
+      });
     });
 
-    await this.auditLog
-      .log({
-        userId,
-        action: dto.status === 'published' ? 'PUBLISH' : 'UPDATE',
-        entityType: 'schedule',
-        entityId: id,
-        before: schedule,
-        after: updated,
-      })
-      .catch(() => {});
+    await this.auditLog.log({
+      userId,
+      action: 'UPDATE',
+      entityType: 'schedule',
+      entityId: id,
+      before: schedule,
+      after: updated,
+    }).catch(() => {});
 
-    this.eventBus.publish(
-      createEvent(
-        dto.status === 'published'
-          ? EVENT_NAMES.SCHEDULE_APPROVED
-          : EVENT_NAMES.SCHEDULE_UPDATED,
-        id,
-        AGGREGATE_TYPES.SCHEDULE,
-        {
-          scheduleId: id,
-          unitId: schedule.unitId,
-          month: schedule.month,
-          year: schedule.year,
-          userId,
-          status: dto.status || schedule.status,
-        },
+    this.eventBus.publish(createEvent(
+      EVENT_NAMES.SCHEDULE_UPDATED,
+      id,
+      AGGREGATE_TYPES.SCHEDULE,
+      {
+        scheduleId: id,
+        unitId: schedule.unitId,
+        month: schedule.month,
+        year: schedule.year,
         userId,
-      ),
-    );
+        status: schedule.status,
+      },
+      userId,
+    ));
 
     return updated;
   }
 
-  private async validateAssignment(
-    scheduleId: string,
-    dto: {
-      personnelId: string;
-      deviceId?: string | null;
-      kind?: string;
-      unitId?: string;
-      personnelGroupId?: string;
-      shiftTemplateId?: string;
-      date: string;
-      shiftType: string;
-      startTime: string;
-      endTime: string;
-      personnelType?: string;
-      reason?: string;
-    },
-    excludeAssignmentId?: string,
-  ): Promise<string[]> {
+  private assertNotPublished(schedule: { status?: string | null }): void {
+    if (isPublished(schedule?.status as any)) {
+      throw new ConflictException('Yayınlanmış programlar düzenlenemez. Revizyon oluşturun.');
+    }
+  }
+
+  private async validateAssignment(scheduleId: string, dto: {
+    personnelId: string;
+    deviceId?: string | null;
+    kind?: string;
+    unitId?: string;
+    personnelGroupId?: string;
+    shiftTemplateId?: string;
+    date: string;
+    shiftType: string;
+    startTime: string;
+    endTime: string;
+    personnelType?: string;
+    reason?: string;
+  }, excludeAssignmentId?: string): Promise<string[]> {
     const errors: string[] = [];
     const shiftType = dto.shiftType as ShiftType;
-    const kind: 'device' | 'person' =
-      dto.kind === 'person' ? 'person' : 'device';
+    const kind: 'device' | 'person' = dto.kind === 'person' ? 'person' : 'device';
 
     const personnelRec = await this.prisma.personnel.findUnique({
       where: { id: dto.personnelId },
-      select: {
-        role: true,
-        offDays: true,
-        isActive: true,
-        nightShiftEligible: true,
-        unitId: true,
-        groupId: true,
-      },
+      select: { role: true, offDays: true, isActive: true, nightShiftEligible: true, unitId: true, groupId: true },
     });
     if (!personnelRec) {
       return ['Personel bulunamadı'];
     }
-    const personnelType =
-      dto.personnelType || personnelRec.role || 'technician';
+    const personnelType = dto.personnelType || personnelRec.role || 'technician';
 
     if (kind === 'device') {
       if (!dto.deviceId) {
@@ -966,27 +930,37 @@ export class SchedulesService {
         },
       });
       if (sameDevice) {
-        errors.push(
-          `Cihaz ${dto.date} tarihinde ${shiftType} vardiyası için dolu`,
-        );
+        errors.push(`Cihaz ${dto.date} tarihinde ${shiftType} vardiyası için dolu`);
+      }
+      const deviceRec = await this.prisma.device.findUnique({
+        where: { id: dto.deviceId },
+        select: { workDays: true, name: true },
+      });
+      if (deviceRec && deviceRec.workDays && deviceRec.workDays.length > 0) {
+        const dateNum = dayOfWeek(dto.date);
+        if (!deviceRec.workDays.includes(dateNum)) {
+          const dayName = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'][dateNum];
+          errors.push(`${deviceRec.name || 'Cihaz'} ${dto.date} tarihinde kapalı (${dayName})`);
+        }
+      }
+      const deviceOff = await this.prisma.deviceOffDate.findFirst({
+        where: { deviceId: dto.deviceId, date: dto.date, isActive: true },
+      });
+      if (deviceOff) {
+        errors.push(`${deviceRec?.name || 'Cihaz'} ${dto.date} tarihinde kapalı (cihaz devre dışı)`);
       }
     } else {
       if (dto.deviceId) {
         errors.push('Personel nöbeti cihaz gerektirmez');
       }
       if (!dto.unitId || !dto.personnelGroupId || !dto.shiftTemplateId) {
-        errors.push(
-          'Personel nöbeti için birim, personel grubu ve vardiya şablonu zorunludur',
-        );
+        errors.push('Personel nöbeti için birim, personel grubu ve vardiya şablonu zorunludur');
         return errors;
       }
       if (personnelRec.unitId !== dto.unitId) {
         errors.push('Personel seçilen birime bağlı değildir');
       }
-      if (
-        personnelRec.groupId &&
-        personnelRec.groupId !== dto.personnelGroupId
-      ) {
+      if (personnelRec.groupId && personnelRec.groupId !== dto.personnelGroupId) {
         errors.push('Personel seçilen gruba bağlı değildir');
       }
       const group = await this.prisma.personnelGroup.findUnique({
@@ -1000,12 +974,7 @@ export class SchedulesService {
       }
       const template = await this.prisma.personShiftTemplate.findUnique({
         where: { id: dto.shiftTemplateId },
-        select: {
-          id: true,
-          personnelGroupId: true,
-          unitId: true,
-          shiftType: true,
-        },
+        select: { id: true, personnelGroupId: true, unitId: true, shiftType: true },
       });
       if (!template) {
         errors.push('Vardiya şablonu bulunamadı');
@@ -1031,9 +1000,7 @@ export class SchedulesService {
         },
       });
       if (groupSlot) {
-        errors.push(
-          `Bu grup için ${dto.date} tarihinde ${shiftType} vardiyası zaten dolu`,
-        );
+        errors.push(`Bu grup için ${dto.date} tarihinde ${shiftType} vardiyası zaten dolu`);
       }
     }
 
@@ -1047,9 +1014,7 @@ export class SchedulesService {
       },
     });
     if (samePersonnel) {
-      errors.push(
-        `Personel ${dto.date} tarihinde ${shiftType} vardiyasına zaten atanmıştır`,
-      );
+      errors.push(`Personel ${dto.date} tarihinde ${shiftType} vardiyasına zaten atanmıştır`);
     }
 
     if (dto.startTime && dto.endTime && !dto.reason) {
@@ -1058,26 +1023,14 @@ export class SchedulesService {
           scheduleId,
           personnelId: dto.personnelId,
           date: dto.date,
-          shiftType: {
-            notIn: [
-              'off',
-              'leave',
-              'sick',
-              'training',
-              'backup',
-            ] as ShiftType[],
-          },
+          shiftType: { notIn: ['off', 'leave', 'sick', 'training', 'backup'] as ShiftType[] },
           ...(excludeAssignmentId ? { id: { not: excludeAssignmentId } } : {}),
         },
         select: { startTime: true, endTime: true, shiftType: true },
       });
-      const overlap = overlapping.find((o) =>
-        this.timesOverlap(o.startTime, o.endTime, dto.startTime, dto.endTime),
-      );
+      const overlap = overlapping.find(o => this.timesOverlap(o.startTime, o.endTime, dto.startTime, dto.endTime));
       if (overlap) {
-        errors.push(
-          `Personel ${dto.date} tarihinde ${overlap.startTime}-${overlap.endTime} saatlerinde başka bir vardiyaya atanmıştır (saat çakışması)`,
-        );
+        errors.push(`Personel ${dto.date} tarihinde ${overlap.startTime}-${overlap.endTime} saatlerinde başka bir vardiyaya atanmıştır (saat çakışması)`);
       }
     }
 
@@ -1085,30 +1038,20 @@ export class SchedulesService {
       if (!personnelRec.isActive) {
         errors.push('Personel pasif durumdadır');
       }
-      if (
-        personnelRec.nightShiftEligible === false &&
-        (shiftType === 'night' || shiftType === 'evening')
-      ) {
+      if (personnelRec.nightShiftEligible === false && (shiftType === 'night' || shiftType === 'evening')) {
         errors.push('Personel gece vardiyası için uygun değildir');
       }
-      const dateNum = new Date(dto.date).getDay();
+      const dateNum = dayOfWeek(dto.date);
       const offDays = personnelRec.offDays;
       if (offDays && Array.isArray(offDays) && offDays.includes(dateNum)) {
-        errors.push(
-          `Personelin ${dto.date} tarihinde (gün ${dateNum}) izin günü bulunmaktadır`,
-        );
+        errors.push(`Personelin ${dto.date} tarihinde (gün ${dateNum}) izin günü bulunmaktadır`);
       }
     }
 
-    const prevDate = new Date(dto.date);
-    if (isNaN(prevDate.getTime())) return errors;
-    prevDate.setDate(prevDate.getDate() - 1);
-    const prevDateStr = prevDate.toISOString().split('T')[0];
+    if (isNaN(new Date(dto.date).getTime())) return errors;
+    const prevDateStr = addDays(dto.date, -1);
 
-    if (
-      (dto.shiftType === 'day' || dto.shiftType === 'morning') &&
-      !dto.reason
-    ) {
+    if ((dto.shiftType === 'day' || dto.shiftType === 'morning') && !dto.reason) {
       const prevNight = await this.prisma.assignment.findFirst({
         where: {
           scheduleId,
@@ -1119,21 +1062,14 @@ export class SchedulesService {
         },
       });
       if (prevNight) {
-        errors.push(
-          'Personel önceki gece vardiyasında çalışmıştır - gündüz vardiyası atanamaz (dinlenme kuralı)',
-        );
+        errors.push('Personel önceki gece vardiyasında çalışmıştır - gündüz vardiyası atanamaz (dinlenme kuralı)');
       }
     }
 
     return errors;
   }
 
-  private timesOverlap(
-    startA: string,
-    endA: string,
-    startB: string,
-    endB: string,
-  ): boolean {
+  private timesOverlap(startA: string, endA: string, startB: string, endB: string): boolean {
     const toMin = (t: string): number => {
       const [h, m] = (t || '00:00').split(':').map(Number);
       return (h || 0) * 60 + (m || 0);
@@ -1153,40 +1089,27 @@ export class SchedulesService {
     return a.sMin < b.eMin && b.sMin < a.eMin;
   }
 
-  private async validateAssignmentDetailed(
-    scheduleId: string,
-    dto: {
-      personnelId: string;
-      deviceId?: string | null;
-      kind?: string;
-      unitId?: string;
-      personnelGroupId?: string;
-      shiftTemplateId?: string;
-      date: string;
-      shiftType: string;
-      startTime: string;
-      endTime: string;
-      personnelType?: string;
-      reason?: string;
-    },
-    excludeAssignmentId?: string,
-  ): Promise<AssignmentValidationResult> {
+  private async validateAssignmentDetailed(scheduleId: string, dto: {
+    personnelId: string;
+    deviceId?: string | null;
+    kind?: string;
+    unitId?: string;
+    personnelGroupId?: string;
+    shiftTemplateId?: string;
+    date: string;
+    shiftType: string;
+    startTime: string;
+    endTime: string;
+    personnelType?: string;
+    reason?: string;
+  }, excludeAssignmentId?: string): Promise<AssignmentValidationResult> {
     const violations: AssignmentViolation[] = [];
     const shiftType = dto.shiftType as ShiftType;
-    const kind: 'device' | 'person' =
-      dto.kind === 'person' ? 'person' : 'device';
+    const kind: 'device' | 'person' = dto.kind === 'person' ? 'person' : 'device';
 
     const personnelRec = await this.prisma.personnel.findUnique({
       where: { id: dto.personnelId },
-      select: {
-        role: true,
-        offDays: true,
-        isActive: true,
-        nightShiftEligible: true,
-        unitId: true,
-        groupId: true,
-        name: true,
-      },
+      select: { role: true, offDays: true, isActive: true, nightShiftEligible: true, unitId: true, groupId: true, name: true },
     });
     if (!personnelRec) {
       violations.push({
@@ -1197,8 +1120,37 @@ export class SchedulesService {
       });
       return { violations, hasBlocking: true, hasOverridable: false };
     }
-    const personnelType =
-      dto.personnelType || personnelRec.role || 'technician';
+    const personnelType = dto.personnelType || personnelRec.role || 'technician';
+
+    // PHASE 5C.25 — availability (izin/rapor/uygunsuz) is now an authoritative
+    // input on the legacy engine too: active LEAVE/ABSENCE/UNAVAILABLE rows
+    // block the assignment (BLOCKING, non-overridable). Weekly off-days remain
+    // the existing non-blocking OFF_DAY_CONFLICT warning below.
+    const availabilityClient = (this.prisma as any).personnelDateAvailability;
+    if (availabilityClient?.findUnique) {
+      try {
+        const availabilityRow = await availabilityClient.findUnique({
+          where: { personnelId_date: { personnelId: dto.personnelId, date: dto.date } },
+          select: { type: true, isActive: true },
+        });
+        const eligibility = PersonnelAvailabilityService.resolveDateEligibility(
+          personnelRec.offDays || [],
+          availabilityRow?.isActive ? { type: availabilityRow.type } : null,
+          dto.date,
+        );
+        if (!eligibility.available && eligibility.blocking && eligibility.blocking !== 'WEEKLY_OFF_DAY') {
+          violations.push({
+            rule: 'PERSONNEL_AVAILABILITY_CONFLICT',
+            severity: 'BLOCKING',
+            message: `Personel ${dto.date} tarihinde müsait değil (${eligibility.blocking})`,
+            details: { blockingType: eligibility.blocking, personnelName: personnelRec.name },
+            isOverrideAllowed: false,
+          });
+        }
+      } catch {
+        /* availability lookup must never break a manual assignment */
+      }
+    }
 
     if (kind === 'device') {
       if (!dto.deviceId) {
@@ -1216,9 +1168,7 @@ export class SchedulesService {
             date: dto.date,
             shiftType,
             personnelType,
-            ...(excludeAssignmentId
-              ? { id: { not: excludeAssignmentId } }
-              : {}),
+            ...(excludeAssignmentId ? { id: { not: excludeAssignmentId } } : {}),
           },
           include: { personnel: { select: { name: true } } },
         });
@@ -1228,19 +1178,37 @@ export class SchedulesService {
             severity: 'BLOCKING',
             message: `Cihaz ${dto.date} tarihinde ${shiftType} vardiyası için dolu`,
             details: {
-              currentShift: {
-                date: sameDevice.date,
-                shiftType: sameDevice.shiftType,
-                startTime: sameDevice.startTime,
-                endTime: sameDevice.endTime,
-              },
-              newShift: {
-                date: dto.date,
-                shiftType,
-                startTime: dto.startTime,
-                endTime: dto.endTime,
-              },
+              currentShift: { date: sameDevice.date, shiftType: sameDevice.shiftType, startTime: sameDevice.startTime, endTime: sameDevice.endTime },
+              newShift: { date: dto.date, shiftType, startTime: dto.startTime, endTime: dto.endTime },
             },
+            isOverrideAllowed: false,
+          });
+        }
+        const deviceRec = await this.prisma.device.findUnique({
+          where: { id: dto.deviceId },
+          select: { workDays: true, name: true, code: true, isActive: true },
+        });
+        if (deviceRec && deviceRec.workDays && deviceRec.workDays.length > 0) {
+          const dateNum = dayOfWeek(dto.date);
+          if (!deviceRec.workDays.includes(dateNum)) {
+            const dayName = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'][dateNum];
+            violations.push({
+              rule: 'UNIT_CLOSED',
+              severity: 'BLOCKING',
+              message: `${deviceRec.name || 'Cihaz'} ${dto.date} tarihinde kapalı (${dayName})`,
+              details: { dayOfWeek: dayName },
+              isOverrideAllowed: false,
+            });
+          }
+        }
+        const deviceOff = await this.prisma.deviceOffDate.findFirst({
+          where: { deviceId: dto.deviceId, date: dto.date, isActive: true },
+        });
+        if (deviceOff) {
+          violations.push({
+            rule: 'DEVICE_OFF_DATE',
+            severity: 'BLOCKING',
+            message: `${deviceRec?.name || 'Cihaz'} ${dto.date} tarihinde kapalı (cihaz devre dışı)`,
             isOverrideAllowed: false,
           });
         }
@@ -1258,8 +1226,7 @@ export class SchedulesService {
         violations.push({
           rule: 'PERSON_FIELDS_REQUIRED',
           severity: 'BLOCKING',
-          message:
-            'Personel nöbeti için birim, personel grubu ve vardiya şablonu zorunludur',
+          message: 'Personel nöbeti için birim, personel grubu ve vardiya şablonu zorunludur',
           isOverrideAllowed: false,
         });
       }
@@ -1271,10 +1238,7 @@ export class SchedulesService {
           isOverrideAllowed: false,
         });
       }
-      if (
-        personnelRec.groupId &&
-        personnelRec.groupId !== dto.personnelGroupId
-      ) {
+      if (personnelRec.groupId && personnelRec.groupId !== dto.personnelGroupId) {
         violations.push({
           rule: 'PERSONNEL_NOT_IN_GROUP',
           severity: 'BLOCKING',
@@ -1306,12 +1270,7 @@ export class SchedulesService {
       if (dto.shiftTemplateId) {
         const template = await this.prisma.personShiftTemplate.findUnique({
           where: { id: dto.shiftTemplateId },
-          select: {
-            id: true,
-            personnelGroupId: true,
-            unitId: true,
-            shiftType: true,
-          },
+          select: { id: true, personnelGroupId: true, unitId: true, shiftType: true },
         });
         if (!template) {
           violations.push({
@@ -1355,9 +1314,7 @@ export class SchedulesService {
             personnelGroupId: dto.personnelGroupId,
             date: dto.date,
             shiftType,
-            ...(excludeAssignmentId
-              ? { id: { not: excludeAssignmentId } }
-              : {}),
+            ...(excludeAssignmentId ? { id: { not: excludeAssignmentId } } : {}),
           },
           include: { personnel: { select: { name: true } } },
         });
@@ -1367,12 +1324,7 @@ export class SchedulesService {
             severity: 'BLOCKING',
             message: `Bu grup için ${dto.date} tarihinde ${shiftType} vardiyası zaten dolu`,
             details: {
-              currentShift: {
-                date: groupSlot.date,
-                shiftType: groupSlot.shiftType,
-                startTime: groupSlot.startTime,
-                endTime: groupSlot.endTime,
-              },
+              currentShift: { date: groupSlot.date, shiftType: groupSlot.shiftType, startTime: groupSlot.startTime, endTime: groupSlot.endTime },
               personnelName: groupSlot.personnel?.name,
             },
             isOverrideAllowed: false,
@@ -1396,18 +1348,8 @@ export class SchedulesService {
         severity: 'BLOCKING',
         message: `Personel ${dto.date} tarihinde ${shiftType} vardiyasına zaten atanmıştır`,
         details: {
-          currentShift: {
-            date: samePersonnel.date,
-            shiftType: samePersonnel.shiftType,
-            startTime: samePersonnel.startTime,
-            endTime: samePersonnel.endTime,
-          },
-          newShift: {
-            date: dto.date,
-            shiftType,
-            startTime: dto.startTime,
-            endTime: dto.endTime,
-          },
+          currentShift: { date: samePersonnel.date, shiftType: samePersonnel.shiftType, startTime: samePersonnel.startTime, endTime: samePersonnel.endTime },
+          newShift: { date: dto.date, shiftType, startTime: dto.startTime, endTime: dto.endTime },
           personnelName: personnelRec.name,
         },
         isOverrideAllowed: false,
@@ -1420,49 +1362,22 @@ export class SchedulesService {
           scheduleId,
           personnelId: dto.personnelId,
           date: dto.date,
-          shiftType: {
-            notIn: [
-              'off',
-              'leave',
-              'sick',
-              'training',
-              'backup',
-            ] as ShiftType[],
-          },
+          shiftType: { notIn: ['off', 'leave', 'sick', 'training', 'backup'] as ShiftType[] },
           ...(excludeAssignmentId ? { id: { not: excludeAssignmentId } } : {}),
         },
         select: { startTime: true, endTime: true, shiftType: true, date: true },
       });
-      const overlap = overlapping.find((o) =>
-        this.timesOverlap(o.startTime, o.endTime, dto.startTime, dto.endTime),
-      );
+      const overlap = overlapping.find(o => this.timesOverlap(o.startTime, o.endTime, dto.startTime, dto.endTime));
       if (overlap) {
-        const toMin = (t: string): number => {
-          const [h, m] = (t || '00:00').split(':').map(Number);
-          return (h || 0) * 60 + (m || 0);
-        };
-        const overlapMinutes =
-          Math.min(
-            toMin(overlap.endTime) || toMin(overlap.startTime) + 480,
-            toMin(dto.endTime),
-          ) - Math.max(toMin(overlap.startTime), toMin(dto.startTime));
+        const toMin = (t: string): number => { const [h, m] = (t || '00:00').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+        const overlapMinutes = Math.min(toMin(overlap.endTime) || toMin(overlap.startTime) + 480, toMin(dto.endTime)) - Math.max(toMin(overlap.startTime), toMin(dto.startTime));
         violations.push({
           rule: 'TIME_OVERLAP',
           severity: 'WARNING',
           message: `Personel ${dto.date} tarihinde ${overlap.startTime}-${overlap.endTime} saatlerinde başka bir vardiyaya atanmıştır (saat çakışması)`,
           details: {
-            currentShift: {
-              date: dto.date,
-              shiftType: overlap.shiftType,
-              startTime: overlap.startTime,
-              endTime: overlap.endTime,
-            },
-            newShift: {
-              date: dto.date,
-              shiftType,
-              startTime: dto.startTime,
-              endTime: dto.endTime,
-            },
+            currentShift: { date: dto.date, shiftType: overlap.shiftType, startTime: overlap.startTime, endTime: overlap.endTime },
+            newShift: { date: dto.date, shiftType, startTime: dto.startTime, endTime: dto.endTime },
             restHours: Math.max(0, overlapMinutes),
           },
           isOverrideAllowed: true,
@@ -1478,10 +1393,7 @@ export class SchedulesService {
         isOverrideAllowed: false,
       });
     }
-    if (
-      personnelRec.nightShiftEligible === false &&
-      (shiftType === 'night' || shiftType === 'evening')
-    ) {
+    if (personnelRec.nightShiftEligible === false && (shiftType === 'night' || shiftType === 'evening')) {
       violations.push({
         rule: 'NOT_NIGHT_ELIGIBLE',
         severity: 'WARNING',
@@ -1490,16 +1402,8 @@ export class SchedulesService {
       });
     }
 
-    const dateNum = new Date(dto.date).getDay();
-    const dayNames = [
-      'Pazar',
-      'Pazartesi',
-      'Salı',
-      'Çarşamba',
-      'Perşembe',
-      'Cuma',
-      'Cumartesi',
-    ];
+    const dateNum = dayOfWeek(dto.date);
+    const dayNames = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
     const offDays = personnelRec.offDays;
     if (offDays && Array.isArray(offDays) && offDays.includes(dateNum)) {
       violations.push({
@@ -1511,10 +1415,8 @@ export class SchedulesService {
       });
     }
 
-    const prevDate = new Date(dto.date);
-    if (!isNaN(prevDate.getTime())) {
-      prevDate.setDate(prevDate.getDate() - 1);
-      const prevDateStr = prevDate.toISOString().split('T')[0];
+    if (!isNaN(new Date(dto.date).getTime())) {
+      const prevDateStr = addDays(dto.date, -1);
 
       if (dto.shiftType === 'day' || dto.shiftType === 'morning') {
         const prevNight = await this.prisma.assignment.findFirst({
@@ -1523,36 +1425,20 @@ export class SchedulesService {
             personnelId: dto.personnelId,
             date: prevDateStr,
             shiftType: 'night',
-            ...(excludeAssignmentId
-              ? { id: { not: excludeAssignmentId } }
-              : {}),
+            ...(excludeAssignmentId ? { id: { not: excludeAssignmentId } } : {}),
           },
         });
         if (prevNight) {
-          const toMin = (t: string): number => {
-            const [h, m] = (t || '00:00').split(':').map(Number);
-            return (h || 0) * 60 + (m || 0);
-          };
-          const restMinutes =
-            toMin(dto.startTime) - toMin(prevNight.endTime) + 1440;
-          const restHours = Math.round((restMinutes / 60) * 10) / 10;
+          const toMin = (t: string): number => { const [h, m] = (t || '00:00').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+          const restMinutes = toMin(dto.startTime) - toMin(prevNight.endTime) + 1440;
+          const restHours = Math.round(restMinutes / 60 * 10) / 10;
           violations.push({
             rule: 'REST_RULE_VIOLATION',
             severity: 'WARNING',
             message: `Personel önceki gece vardiyasında çalışmıştır - dinlenme süresi yetersiz (gece ${prevNight.endTime} → sabah ${dto.startTime}, ${restHours} saat)`,
             details: {
-              currentShift: {
-                date: prevDateStr,
-                shiftType: 'night',
-                startTime: prevNight.startTime,
-                endTime: prevNight.endTime,
-              },
-              newShift: {
-                date: dto.date,
-                shiftType,
-                startTime: dto.startTime,
-                endTime: dto.endTime,
-              },
+              currentShift: { date: prevDateStr, shiftType: 'night', startTime: prevNight.startTime, endTime: prevNight.endTime },
+              newShift: { date: dto.date, shiftType, startTime: dto.startTime, endTime: dto.endTime },
               restHours,
               minRestHours: 11,
             },
@@ -1562,41 +1448,30 @@ export class SchedulesService {
       }
     }
 
-    const hasBlocking = violations.some((v) => v.severity === 'BLOCKING');
-    const hasOverridable = violations.some((v) => v.isOverrideAllowed);
+    // P1-A4: the legacy validator and the DDD engine must agree. Normalize
+    // through the single policy source before deriving gate flags so a
+    // historically "WARNING/overridable" rule cannot weaken a BLOCKING rule.
+    const normalizedViolations = violations.map(v => normalizeViolationPolicy(v));
+    const hasBlocking = normalizedViolations.some(v => v.severity === 'BLOCKING');
+    const hasOverridable = normalizedViolations.some(v => v.isOverrideAllowed);
 
-    return { violations, hasBlocking, hasOverridable };
+    return { violations: normalizedViolations, hasBlocking, hasOverridable };
   }
 
-  async addAssignment(
-    scheduleId: string,
-    dto: CreateAssignmentDto,
-    userId: string,
-    userRole?: string,
-  ) {
+  async addAssignment(scheduleId: string, dto: CreateAssignmentDto, userId: string, userRole?: string, expectedVersion?: number) {
     const schedule = await this.prisma.schedule.findUnique({
       where: { id: scheduleId },
-      include: {
-        unit: true,
-        createdBy: { select: { id: true, organizationId: true } },
-      },
+      include: { unit: true, createdBy: { select: { id: true, organizationId: true } } },
     });
     if (!schedule) {
       throw new NotFoundException('Schedule not found');
     }
+    this.assertNotPublished(schedule);
 
     const result = await this.validateAssignmentDetailed(scheduleId, dto);
     if (result.violations.length > 0) {
-      const OVERRIDE_ROLES = [
-        'system_admin',
-        'hospital_admin',
-        'imaging_director',
-        'supervisor',
-      ];
-      const canOverride =
-        result.hasOverridable &&
-        !!userRole &&
-        OVERRIDE_ROLES.includes(userRole);
+      const OVERRIDE_ROLES = ['system_admin', 'hospital_admin', 'imaging_director', 'supervisor'];
+      const canOverride = result.hasOverridable && !!userRole && OVERRIDE_ROLES.includes(userRole);
       throw new ConflictException({
         message: 'Atama doğrulama hatası',
         violations: result.violations,
@@ -1609,92 +1484,63 @@ export class SchedulesService {
       where: { id: dto.personnelId },
       select: { role: true },
     });
-    const personnelType =
-      dto.personnelType || personnelRec?.role || 'technician';
+    const personnelType = dto.personnelType || personnelRec?.role || 'technician';
     const kind = dto.kind === 'person' ? 'person' : 'device';
 
-    const assignment = await this.prisma.assignment.create({
-      data: {
-        scheduleId,
-        personnelId: dto.personnelId,
-        deviceId: kind === 'device' ? dto.deviceId : null,
-        unitId: kind === 'person' ? dto.unitId : null,
-        personnelGroupId: kind === 'person' ? dto.personnelGroupId : null,
-        shiftTemplateId: kind === 'person' ? dto.shiftTemplateId : null,
-        kind,
-        date: dto.date,
-        shiftType: dto.shiftType,
-        startTime: dto.startTime,
-        endTime: dto.endTime,
-        personnelType,
-      },
-      include: {
-        personnel: true,
-        device: true,
-      },
+    const assignment = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.assignment.create({
+        data: {
+          scheduleId,
+          personnelId: dto.personnelId,
+          deviceId: kind === 'device' ? dto.deviceId : null,
+          unitId: kind === 'person' ? dto.unitId : null,
+          personnelGroupId: kind === 'person' ? dto.personnelGroupId : null,
+          shiftTemplateId: kind === 'person' ? dto.shiftTemplateId : null,
+          kind,
+          date: dto.date,
+          shiftType: dto.shiftType,
+          startTime: dto.startTime,
+          endTime: dto.endTime,
+          personnelType,
+        },
+        include: {
+          personnel: true,
+          device: true,
+        },
+      });
+
+      await this.bumpScheduleVersion(tx, scheduleId, expectedVersion);
+
+      return created;
     });
 
-    await this.prisma.schedule.update({
-      where: { id: scheduleId },
-      data: { version: { increment: 1 } },
-    });
+    await this.auditLog.log({
+      userId,
+      action: 'CREATE',
+      entityType: 'assignment',
+      entityId: assignment.id,
+      after: assignment,
+    }).catch(() => {});
 
-    await this.auditLog
-      .log({
-        userId,
-        action: 'CREATE',
-        entityType: 'assignment',
-        entityId: assignment.id,
-        after: assignment,
-      })
-      .catch(() => {});
-
-    this.gateway
-      .broadcastAlertUpdate({
-        scheduleId,
-        unitId: schedule.unitId,
-        organizationId:
-          schedule.createdBy?.organizationId ||
-          schedule.unit?.organizationId ||
-          undefined,
-      })
-      .catch(() => {});
+    this.gateway.broadcastAlertUpdate({
+      scheduleId,
+      unitId: schedule.unitId,
+      organizationId: schedule.createdBy?.organizationId || schedule.unit?.organizationId || undefined,
+    }).catch(() => {});
 
     this.notificationEvent.assignmentCreated(
       dto.personnelId,
       schedule.createdBy?.organizationId || schedule.unit?.organizationId || '',
-      {
-        scheduleId,
-        assignmentId: assignment.id,
-        date: assignment.date,
-        deviceName: assignment.device?.name || 'Cihaz',
-      },
+      { scheduleId, assignmentId: assignment.id, date: assignment.date, deviceName: assignment.device?.name || 'Cihaz' },
     );
 
-    return this.findByUnitType(
-      (schedule.unit?.type as string) || '',
-      schedule.month,
-      schedule.year,
-    );
+    return this.findByUnitType(schedule.unit?.type as string || '', schedule.month, schedule.year);
   }
 
-  async overrideAssignment(
-    scheduleId: string,
-    dto: any,
-    userId: string,
-    userRole: string,
-    userName: string,
-  ) {
-    const OVERRIDE_ROLES = [
-      'system_admin',
-      'hospital_admin',
-      'imaging_director',
-      'supervisor',
-    ];
+  async overrideAssignment(scheduleId: string, dto: any, userId: string, userRole: string, userName: string, expectedVersion?: number) {
+    const OVERRIDE_ROLES = ['system_admin', 'hospital_admin', 'imaging_director', 'supervisor'];
     if (!OVERRIDE_ROLES.includes(userRole)) {
-      throw new ForbiddenException(
-        'Bu işlem için yetkiniz yok. Süpervizör ve üzeri rol gerekli.',
-      );
+      throw new ForbiddenException('Bu işlem için yetkiniz yok. Süpervizör ve üzeri rol gerekli.');
     }
 
     if (!dto.confirmedByUser) {
@@ -1706,19 +1552,16 @@ export class SchedulesService {
 
     const schedule = await this.prisma.schedule.findUnique({
       where: { id: scheduleId },
-      include: {
-        unit: true,
-        createdBy: { select: { id: true, organizationId: true } },
-      },
+      include: { unit: true, createdBy: { select: { id: true, organizationId: true } } },
     });
     if (!schedule) {
       throw new NotFoundException('Schedule not found');
     }
 
+    this.assertNotPublished(schedule);
+
     const result = await this.validateAssignmentDetailed(scheduleId, dto);
-    const nonOverridable = result.violations.filter(
-      (v) => !v.isOverrideAllowed,
-    );
+    const nonOverridable = result.violations.filter(v => !v.isOverrideAllowed);
     if (nonOverridable.length > 0) {
       throw new ConflictException({
         message: 'Bu kurallar istisna ile aşılamaz',
@@ -1732,86 +1575,67 @@ export class SchedulesService {
       where: { id: dto.personnelId },
       select: { role: true },
     });
-    const personnelType =
-      dto.personnelType || personnelRec?.role || 'technician';
+    const personnelType = dto.personnelType || personnelRec?.role || 'technician';
     const kind = dto.kind === 'person' ? 'person' : 'device';
 
-    const assignment = await this.prisma.assignment.create({
-      data: {
-        scheduleId,
-        personnelId: dto.personnelId,
-        deviceId: kind === 'device' ? dto.deviceId : null,
-        unitId: kind === 'person' ? dto.unitId : null,
-        personnelGroupId: kind === 'person' ? dto.personnelGroupId : null,
-        shiftTemplateId: kind === 'person' ? dto.shiftTemplateId : null,
-        kind,
-        date: dto.date,
-        shiftType: dto.shiftType,
-        startTime: dto.startTime,
-        endTime: dto.endTime,
-        personnelType,
-      },
-      include: {
-        personnel: true,
-        device: true,
-      },
-    });
-
-    await this.prisma.schedule.update({
-      where: { id: scheduleId },
-      data: { version: { increment: 1 } },
-    });
-
-    await this.auditLog
-      .log({
-        userId,
-        action: 'ASSIGNMENT_OVERRIDE',
-        entityType: 'assignment',
-        entityId: assignment.id,
-        after: assignment,
-        reason: dto.overrideReason,
-        description: `İstisna onayı ile atama yapıldı. Onaylayan: ${userName} (${userRole}). Gerekçe: ${dto.overrideReason}. Override edilen kurallar: ${dto.violatedRules?.join(', ') || 'N/A'}`,
-        metadata: {
-          overrideReason: dto.overrideReason,
-          violatedRules: dto.violatedRules || [],
-          overriddenBy: userId,
-          overriddenByName: userName,
-          overriddenByRole: userRole,
-          originalViolations: result.violations.map((v) => ({
-            rule: v.rule,
-            severity: v.severity,
-          })),
+    const assignment = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.assignment.create({
+        data: {
+          scheduleId,
+          personnelId: dto.personnelId,
+          deviceId: kind === 'device' ? dto.deviceId : null,
+          unitId: kind === 'person' ? dto.unitId : null,
+          personnelGroupId: kind === 'person' ? dto.personnelGroupId : null,
+          shiftTemplateId: kind === 'person' ? dto.shiftTemplateId : null,
+          kind,
+          date: dto.date,
+          shiftType: dto.shiftType,
+          startTime: dto.startTime,
+          endTime: dto.endTime,
+personnelType,
         },
-      })
-      .catch(() => {});
+        include: {
+          personnel: true,
+          device: true,
+        },
+      });
 
-    this.gateway
-      .broadcastAlertUpdate({
-        scheduleId,
-        unitId: schedule.unitId,
-        organizationId:
-          schedule.createdBy?.organizationId ||
-          schedule.unit?.organizationId ||
-          undefined,
-      })
-      .catch(() => {});
+      await this.bumpScheduleVersion(tx, scheduleId, expectedVersion);
+
+      return created;
+    });
+
+    await this.auditLog.log({
+      userId,
+      action: 'CREATE',
+      entityType: 'assignment',
+      entityId: assignment.id,
+      after: assignment,
+      reason: dto.overrideReason,
+      description: `İstisna onayı ile atama yapıldı. Onaylayan: ${userName} (${userRole}). Gerekçe: ${dto.overrideReason}. Override edilen kurallar: ${dto.violatedRules?.join(', ') || 'N/A'}`,
+      metadata: {
+        overrideReason: dto.overrideReason,
+        violatedRules: dto.violatedRules || [],
+        overriddenBy: userId,
+        overriddenByName: userName,
+        overriddenByRole: userRole,
+        originalViolations: result.violations.map(v => ({ rule: v.rule, severity: v.severity })),
+      },
+    }).catch(() => {});
+
+    this.gateway.broadcastAlertUpdate({
+      scheduleId,
+      unitId: schedule.unitId,
+      organizationId: schedule.createdBy?.organizationId || schedule.unit?.organizationId || undefined,
+    }).catch(() => {});
 
     this.notificationEvent.assignmentCreated(
       dto.personnelId,
       schedule.createdBy?.organizationId || schedule.unit?.organizationId || '',
-      {
-        scheduleId,
-        assignmentId: assignment.id,
-        date: assignment.date,
-        deviceName: assignment.device?.name || 'Personel',
-      },
+      { scheduleId, assignmentId: assignment.id, date: assignment.date, deviceName: assignment.device?.name || 'Personel' },
     );
 
-    return this.findByUnitType(
-      (schedule.unit?.type as string) || '',
-      schedule.month,
-      schedule.year,
-    );
+    return this.findByUnitType(schedule.unit?.type as string || '', schedule.month, schedule.year);
   }
 
   async directAssign(
@@ -1823,15 +1647,19 @@ export class SchedulesService {
     userRole: string,
     userName: string,
     userEmail: string,
+    userOrganizationId?: string,
+    expectedVersion?: number,
   ) {
     if (!canDirectAssign(userRole)) {
-      throw new ForbiddenException(
-        'Bu islemi yapmak icin yetkiniz yok. Sorumlu Tekniker ve ustu rol gerekli.',
-      );
+      throw new ForbiddenException('Bu islemi yapmak icin yetkiniz yok. Sorumlu Tekniker ve ustu rol gerekli.');
     }
 
-    const unit = await this.prisma.unit.findFirst({
-      where: { type: unitType as any },
+    const unit = await this.resolveTenantScopedUnit(unitType, {
+      id: userId,
+      name: userName,
+      email: userEmail,
+      role: userRole,
+      organizationId: userOrganizationId,
     });
     if (!unit) {
       throw new NotFoundException(`Birim bulunamadi: ${unitType}`);
@@ -1846,55 +1674,34 @@ export class SchedulesService {
       schedule = await this.prisma.schedule.create({
         data: {
           unitId: unit.id,
+          organizationId: unit.organizationId,
           month,
           year,
-          status: 'published',
-          publishedAt: new Date(),
+          status: 'draft',
           createdById: userId,
         },
       });
 
-      await this.auditLog
-        .log({
-          userId,
-          action: 'CREATE',
-          entityType: 'schedule',
-          entityId: schedule.id,
-          after: { ...schedule!, status: 'published', autoCreated: true },
-        })
-        .catch(() => {});
-    } else if (schedule!.status !== 'published') {
-      await this.prisma.schedule.update({
-        where: { id: schedule!.id },
-        data: {
-          status: 'published',
-          publishedAt: new Date(),
-        },
-      });
-
-      await this.auditLog
-        .log({
-          userId,
-          action: 'PUBLISH',
-          entityType: 'schedule',
-          entityId: schedule!.id,
-          before: { status: schedule!.status },
-          after: { status: 'published', autoPublished: true },
-        })
-        .catch(() => {});
+      await this.auditLog.log({
+        userId,
+        action: 'CREATE',
+        entityType: 'schedule',
+        entityId: schedule.id,
+        after: { ...schedule, status: 'draft', autoCreated: true },
+      }).catch(() => {});
+    } else {
+      // DIRECT-01: a direct assignment must NEVER force-publish a schedule or
+      // silently mutate its workflow status (draft/under_review/rejected stay
+      // untouched). Published/archived plans are read-only via the same gate
+      // used by every other assignment mutation (assertNotPublished).
+      this.assertNotPublished(schedule!);
     }
 
     const scheduleId = schedule!.id;
     const result = await this.validateAssignmentDetailed(scheduleId, dto);
     if (result.violations.length > 0) {
-      const OVERRIDE_ROLES = [
-        'system_admin',
-        'hospital_admin',
-        'imaging_director',
-        'supervisor',
-      ];
-      const canOverride =
-        result.hasOverridable && OVERRIDE_ROLES.includes(userRole);
+      const OVERRIDE_ROLES = ['system_admin', 'hospital_admin', 'imaging_director', 'supervisor'];
+      const canOverride = result.hasOverridable && OVERRIDE_ROLES.includes(userRole);
       throw new ConflictException({
         message: 'Atama doğrulama hatası',
         violations: result.violations,
@@ -1907,84 +1714,79 @@ export class SchedulesService {
       where: { id: dto.personnelId },
       select: { role: true },
     });
-    const personnelType =
-      dto.personnelType || personnelRec?.role || 'technician';
+    const personnelType = dto.personnelType || personnelRec?.role || 'technician';
     const kind = dto.kind === 'person' ? 'person' : 'device';
 
-    const assignment = await this.prisma.assignment.create({
-      data: {
-        scheduleId,
-        personnelId: dto.personnelId,
-        deviceId: kind === 'device' ? dto.deviceId : null,
-        unitId: kind === 'person' ? dto.unitId : null,
-        personnelGroupId: kind === 'person' ? dto.personnelGroupId : null,
-        shiftTemplateId: kind === 'person' ? dto.shiftTemplateId : null,
-        kind,
-        date: dto.date,
-        shiftType: dto.shiftType,
-        startTime: dto.startTime,
-        endTime: dto.endTime,
-        personnelType,
-      },
-      include: {
-        personnel: true,
-        device: true,
-      },
+    const assignment = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.assignment.create({
+        data: {
+          scheduleId,
+          personnelId: dto.personnelId,
+          deviceId: kind === 'device' ? dto.deviceId : null,
+          unitId: kind === 'person' ? dto.unitId : null,
+          personnelGroupId: kind === 'person' ? dto.personnelGroupId : null,
+          shiftTemplateId: kind === 'person' ? dto.shiftTemplateId : null,
+          kind,
+          date: dto.date,
+          shiftType: dto.shiftType,
+          startTime: dto.startTime,
+          endTime: dto.endTime,
+          personnelType,
+        },
+        include: {
+          personnel: true,
+          device: true,
+        },
+      });
+
+      await this.bumpScheduleVersion(tx, scheduleId, expectedVersion);
+
+      return created;
     });
 
-    await this.prisma.schedule.update({
-      where: { id: scheduleId },
-      data: { version: { increment: 1 } },
-    });
+    await this.auditLog.log({
+      userId,
+      action: 'CREATE',
+      entityType: 'assignment',
+      entityId: assignment.id,
+      after: assignment,
+    }).catch(() => {});
 
-    await this.auditLog
-      .log({
-        userId,
-        action: 'CREATE',
-        entityType: 'assignment',
-        entityId: assignment.id,
-        after: assignment,
-      })
-      .catch(() => {});
+    this.gateway.broadcastAlertUpdate({
+      scheduleId,
+      unitId: unit.id,
+      organizationId: unit.organizationId || undefined,
+    }).catch(() => {});
 
-    this.gateway
-      .broadcastAlertUpdate({
-        scheduleId,
-        unitId: unit.id,
-        organizationId: unit.organizationId || undefined,
-      })
-      .catch(() => {});
-
-    this.gateway
-      .broadcastPersonnelUpdate({
-        action: 'updated',
-        personnelId: assignment.personnelId,
-        personnelName: assignment.personnel?.name || '',
-        unitId: unit.id,
-        organizationId: unit.organizationId || undefined,
-      })
-      .catch(() => {});
+    this.gateway.broadcastPersonnelUpdate({
+      action: 'updated',
+      personnelId: assignment.personnelId,
+      personnelName: assignment.personnel?.name || '',
+      unitId: unit.id,
+      organizationId: unit.organizationId || undefined,
+    }).catch(() => {});
 
     this.notificationEvent.assignmentCreated(
       dto.personnelId,
       unit.organizationId || '',
-      {
-        scheduleId,
-        assignmentId: assignment.id,
-        date: assignment.date,
-        deviceName: assignment.device?.name || 'Cihaz',
-      },
+      { scheduleId, assignmentId: assignment.id, date: assignment.date, deviceName: assignment.device?.name || 'Cihaz' },
     );
 
-    return this.findByUnitType(unitType, month, year);
+    return this.findByUnitType(
+      unitType,
+      month,
+      year,
+      {
+        id: userId,
+        name: userName,
+        email: userEmail,
+        role: userRole,
+        organizationId: userOrganizationId,
+      },
+    );
   }
 
-  async updateAssignment(
-    id: string,
-    assignmentId: string,
-    dto: Partial<CreateAssignmentDto>,
-    userId: string,
-  ) {
+  async updateAssignment(id: string, assignmentId: string, dto: Partial<CreateAssignmentDto>, userId: string, expectedVersion?: number) {
     const existing = await this.prisma.assignment.findUnique({
       where: { id: assignmentId },
       include: { schedule: { include: { unit: true } } },
@@ -1992,23 +1794,14 @@ export class SchedulesService {
     if (!existing || existing.scheduleId !== id) {
       throw new NotFoundException('Assignment not found');
     }
+    this.assertNotPublished(existing.schedule as { status: string });
 
     const mergedDto = {
       personnelId: dto.personnelId ?? existing.personnelId,
-      deviceId:
-        dto.deviceId !== undefined ? dto.deviceId || null : existing.deviceId,
-      unitId:
-        dto.unitId !== undefined
-          ? dto.unitId || undefined
-          : existing.unitId || undefined,
-      personnelGroupId:
-        dto.personnelGroupId !== undefined
-          ? dto.personnelGroupId || undefined
-          : existing.personnelGroupId || undefined,
-      shiftTemplateId:
-        dto.shiftTemplateId !== undefined
-          ? dto.shiftTemplateId || undefined
-          : existing.shiftTemplateId || undefined,
+      deviceId: dto.deviceId !== undefined ? (dto.deviceId || null) : existing.deviceId,
+      unitId: dto.unitId !== undefined ? (dto.unitId || undefined) : (existing.unitId || undefined),
+      personnelGroupId: dto.personnelGroupId !== undefined ? (dto.personnelGroupId || undefined) : (existing.personnelGroupId || undefined),
+      shiftTemplateId: dto.shiftTemplateId !== undefined ? (dto.shiftTemplateId || undefined) : (existing.shiftTemplateId || undefined),
       kind: dto.kind ?? existing.kind,
       date: dto.date ?? existing.date,
       shiftType: (dto.shiftType ?? existing.shiftType) as string,
@@ -2017,11 +1810,7 @@ export class SchedulesService {
       personnelType: dto.personnelType ?? existing.personnelType ?? undefined,
     };
 
-    const result = await this.validateAssignmentDetailed(
-      id,
-      mergedDto,
-      assignmentId,
-    );
+    const result = await this.validateAssignmentDetailed(id, mergedDto, assignmentId);
     if (result.violations.length > 0) {
       throw new ConflictException({
         message: 'Atama doğrulama hatası',
@@ -2033,38 +1822,42 @@ export class SchedulesService {
 
     const kind = mergedDto.kind === 'person' ? 'person' : 'device';
 
-    await this.prisma.assignment.update({
-      where: { id: assignmentId },
-      data: {
-        personnelId: mergedDto.personnelId,
-        deviceId: kind === 'device' ? mergedDto.deviceId : null,
-        unitId: kind === 'person' ? mergedDto.unitId : null,
-        personnelGroupId: kind === 'person' ? mergedDto.personnelGroupId : null,
-        shiftTemplateId: kind === 'person' ? mergedDto.shiftTemplateId : null,
-        kind,
-        date: mergedDto.date,
-        shiftType: mergedDto.shiftType as ShiftType,
-        startTime: mergedDto.startTime,
-        endTime: mergedDto.endTime,
-        ...(mergedDto.personnelType
-          ? { personnelType: mergedDto.personnelType }
-          : {}),
-      },
+    const updatedAssignment = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.assignment.update({
+        where: { id: assignmentId },
+        data: {
+          personnelId: mergedDto.personnelId,
+          deviceId: kind === 'device' ? mergedDto.deviceId : null,
+          unitId: kind === 'person' ? mergedDto.unitId : null,
+          personnelGroupId: kind === 'person' ? mergedDto.personnelGroupId : null,
+          shiftTemplateId: kind === 'person' ? mergedDto.shiftTemplateId : null,
+          kind,
+          date: mergedDto.date,
+          shiftType: mergedDto.shiftType as ShiftType,
+          startTime: mergedDto.startTime,
+          endTime: mergedDto.endTime,
+          ...(mergedDto.personnelType ? { personnelType: mergedDto.personnelType } : {}),
+        },
+      });
+
+      await this.bumpScheduleVersion(tx, id, expectedVersion);
+
+      return updated;
     });
 
-    await this.prisma.schedule.update({
-      where: { id },
-      data: { version: { increment: 1 } },
-    });
+    await this.auditLog.log({
+      userId,
+      action: 'UPDATE',
+      entityType: 'assignment',
+      entityId: assignmentId,
+      before: existing,
+      after: updatedAssignment,
+    }).catch(() => {});
 
-    return this.findByUnitType(
-      (existing.schedule?.unit?.type as string) || '',
-      existing.schedule.month,
-      existing.schedule.year,
-    );
+    return this.findByUnitType(existing.schedule?.unit?.type as string || '', existing.schedule.month, existing.schedule.year);
   }
 
-  async removeAssignment(id: string, assignmentId: string, userId: string) {
+  async removeAssignment(id: string, assignmentId: string, userId: string, expectedVersion?: number) {
     const assignment = await this.prisma.assignment.findUnique({
       where: { id: assignmentId },
       include: { personnel: { select: { id: true, name: true } } },
@@ -2083,30 +1876,27 @@ export class SchedulesService {
       throw new NotFoundException('Schedule not found');
     }
 
-    await this.prisma.assignment.delete({ where: { id: assignmentId } });
+    this.assertNotPublished(schedule);
 
-    await this.prisma.schedule.update({
-      where: { id },
-      data: { version: { increment: 1 } },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.assignment.delete({ where: { id: assignmentId } });
+
+      await this.bumpScheduleVersion(tx, id, expectedVersion);
     });
 
-    await this.auditLog
-      .log({
-        userId,
-        action: 'DELETE',
-        entityType: 'assignment',
-        entityId: assignmentId,
-        before: assignment,
-      })
-      .catch(() => {});
+    await this.auditLog.log({
+      userId,
+      action: 'DELETE',
+      entityType: 'assignment',
+      entityId: assignmentId,
+      before: assignment,
+    }).catch(() => {});
 
-    this.gateway
-      .broadcastAlertUpdate({
-        scheduleId: id,
-        unitId: schedule?.unitId || '',
-        organizationId: schedule?.unit?.organizationId || undefined,
-      })
-      .catch(() => {});
+    this.gateway.broadcastAlertUpdate({
+      scheduleId: id,
+      unitId: schedule?.unitId || '',
+      organizationId: schedule?.unit?.organizationId || undefined,
+    }).catch(() => {});
 
     if (assignment.personnelId) {
       this.notificationEvent.assignmentRemoved(
@@ -2116,18 +1906,10 @@ export class SchedulesService {
       );
     }
 
-    return this.findByUnitType(
-      (schedule.unit?.type as string) || '',
-      schedule.month,
-      schedule.year,
-    );
+    return this.findByUnitType(schedule.unit?.type as string || '', schedule.month, schedule.year);
   }
 
-  async findPersonScheduleByUnitType(
-    unitType: string,
-    month: number,
-    year: number,
-  ) {
+  async findPersonScheduleByUnitType(unitType: string, month: number, year: number) {
     if (!unitType) {
       throw new BadRequestException('Birim parametresi zorunludur');
     }
@@ -2157,7 +1939,7 @@ export class SchedulesService {
     });
 
     const personAssignments = schedule
-      ? schedule.assignments.filter((a) => a.kind === 'person')
+      ? schedule.assignments.filter(a => a.kind === 'person')
       : [];
 
     return {
@@ -2167,13 +1949,13 @@ export class SchedulesService {
       scheduleId: schedule?.id ?? null,
       status: schedule?.status ?? 'draft',
       unitId: unit.id,
-      groups: groups.map((g) => ({
+      groups: groups.map(g => ({
         id: g.id,
         code: g.code,
         name: g.name,
         description: g.description,
         personnelCount: g._count.personnel,
-        templates: g.shiftTemplates.map((t) => ({
+        templates: g.shiftTemplates.map(t => ({
           id: t.id,
           name: t.name,
           shiftType: t.shiftType,
@@ -2181,8 +1963,8 @@ export class SchedulesService {
           endTime: t.endTime,
         })),
         assignments: personAssignments
-          .filter((a) => a.personnelGroupId === g.id)
-          .map((a) => ({
+          .filter(a => a.personnelGroupId === g.id)
+          .map(a => ({
             id: a.id,
             date: a.date,
             shiftType: a.shiftType,
@@ -2197,12 +1979,7 @@ export class SchedulesService {
     };
   }
 
-  async getPersonShiftReport(
-    unitType: string,
-    month: number,
-    year: number,
-    filters?: { groupId?: string; personnelId?: string },
-  ) {
+  async getPersonShiftReport(unitType: string, month: number, year: number, filters?: { groupId?: string; personnelId?: string }) {
     const unit = await this.prisma.unit.findFirst({
       where: { type: unitType as UnitType },
     });
@@ -2211,27 +1988,21 @@ export class SchedulesService {
     }
 
     const schedule = await this.findByUnitMonthYear(unit.id, month, year);
-    const personAssignments = (schedule?.assignments || []).filter(
-      (a) => a.kind === 'person',
-    );
+    const personAssignments = (schedule?.assignments || []).filter(a => a.kind === 'person');
 
-    const groupWhere: Prisma.PersonnelGroupWhereInput = {
-      unitId: unit.id,
-      isActive: true,
-    };
+    const groupWhere: Prisma.PersonnelGroupWhereInput = { unitId: unit.id, isActive: true };
     if (filters?.groupId) groupWhere.id = filters.groupId;
     const groups = await this.prisma.personnelGroup.findMany({
       where: groupWhere,
       include: { _count: { select: { personnel: true } } },
       orderBy: { name: 'asc' },
     });
-    const groupNameMap = new Map(groups.map((g) => [g.id, g.name]));
+    const groupNameMap = new Map(groups.map(g => [g.id, g.name]));
 
     const byPersonnel = new Map<string, any>();
     for (const a of personAssignments) {
       if (filters?.groupId && a.personnelGroupId !== filters.groupId) continue;
-      if (filters?.personnelId && a.personnelId !== filters.personnelId)
-        continue;
+      if (filters?.personnelId && a.personnelId !== filters.personnelId) continue;
       const key = a.personnelId;
       if (!byPersonnel.has(key)) {
         byPersonnel.set(key, {
@@ -2252,12 +2023,11 @@ export class SchedulesService {
       const row = byPersonnel.get(key);
       row.totalShifts += 1;
       row.totalHours += this.shiftHours(a.startTime, a.endTime);
-      if (a.shiftType === 'day' || a.shiftType === 'morning')
-        row.dayShifts += 1;
+      if (a.shiftType === 'day' || a.shiftType === 'morning') row.dayShifts += 1;
       else if (a.shiftType === 'evening') row.eveningShifts += 1;
       else if (a.shiftType === 'night') row.nightShifts += 1;
-      const dayOfWeek = new Date(a.date).getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const weekday = dayOfWeek(a.date);
+      const isWeekend = weekday === 0 || weekday === 6;
       if (isWeekend) row.weekendShifts += 1;
       row.dates.push({
         date: a.date,
@@ -2269,21 +2039,20 @@ export class SchedulesService {
       });
     }
 
-    const rows = [...byPersonnel.values()].map((r) => ({
+    const rows = [...byPersonnel.values()].map(r => ({
       ...r,
       dates: r.dates.sort((x: any, y: any) => x.date.localeCompare(y.date)),
     }));
 
-    const groupSummary = groups.map((g) => {
-      const groupRows = rows.filter((r) => r.groupId === g.id);
+    const groupSummary = groups.map(g => {
+      const groupRows = rows.filter(r => r.groupId === g.id);
       return {
         groupId: g.id,
         groupName: g.name,
         personnelCount: g._count.personnel,
         assignedPersonnel: groupRows.length,
         totalShifts: groupRows.reduce((s, r) => s + r.totalShifts, 0),
-        totalHours:
-          Math.round(groupRows.reduce((s, r) => s + r.totalHours, 0) * 10) / 10,
+        totalHours: Math.round(groupRows.reduce((s, r) => s + r.totalHours, 0) * 10) / 10,
         nightShifts: groupRows.reduce((s, r) => s + r.nightShifts, 0),
         weekendShifts: groupRows.reduce((s, r) => s + r.weekendShifts, 0),
       };
@@ -2299,15 +2068,8 @@ export class SchedulesService {
       groups: groupSummary,
       summary: {
         totalAssignments: personAssignments.length,
-        totalHours:
-          Math.round(
-            personAssignments.reduce(
-              (s, a) => s + this.shiftHours(a.startTime, a.endTime),
-              0,
-            ) * 10,
-          ) / 10,
-        nightShifts: personAssignments.filter((a) => a.shiftType === 'night')
-          .length,
+        totalHours: Math.round(personAssignments.reduce((s, a) => s + this.shiftHours(a.startTime, a.endTime), 0) * 10) / 10,
+        nightShifts: personAssignments.filter(a => a.shiftType === 'night').length,
         weekendShifts: rows.reduce((s, r) => s + r.weekendShifts, 0),
       },
     };
@@ -2324,7 +2086,7 @@ export class SchedulesService {
     return diff / 60;
   }
 
-  async rollback(id: string, version: number, userId: string) {
+  async rollback(id: string, version: number, userId: string, expectedVersion?: number) {
     const snapshot = await this.prisma.scheduleSnapshot.findFirst({
       where: {
         scheduleId: id,
@@ -2338,7 +2100,13 @@ export class SchedulesService {
 
     const currentSchedule = await this.prisma.schedule.findUnique({
       where: { id },
+      include: { unit: { select: { organizationId: true } } },
     });
+
+    const rollbackOrganizationId =
+      currentSchedule?.organizationId
+      ?? currentSchedule?.unit?.organizationId
+      ?? undefined;
 
     const data = snapshot.data as unknown as SnapshotData;
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -2350,6 +2118,7 @@ export class SchedulesService {
             const kind = a.kind === 'person' ? 'person' : 'device';
             return {
               scheduleId: id,
+              organizationId: rollbackOrganizationId,
               personnelId: a.personnelId,
               deviceId: kind === 'device' ? a.deviceId : null,
               unitId: kind === 'person' ? a.unitId : null,
@@ -2365,11 +2134,15 @@ export class SchedulesService {
         });
       }
 
+      // P3-07 — bumpScheduleVersion() is the single version mutation. The old
+      // second `version: { increment: 1 }` here advanced the schedule by two
+      // versions on every legacy rollback. Keep this update as a relation
+      // re-read only, so CAS/precondition semantics stay intact.
+      await this.bumpScheduleVersion(tx, id, expectedVersion);
+
       return tx.schedule.update({
         where: { id },
-        data: {
-          version: { increment: 1 },
-        },
+        data: {},
         include: {
           unit: true,
           assignments: {
@@ -2382,16 +2155,14 @@ export class SchedulesService {
       });
     });
 
-    await this.auditLog
-      .log({
-        userId,
-        action: 'ROLLBACK',
-        entityType: 'schedule',
-        entityId: id,
-        before: currentSchedule,
-        after: { rolledBackToVersion: version, schedule: updated },
-      })
-      .catch(() => {});
+    await this.auditLog.log({
+      userId,
+      action: 'ROLLBACK',
+      entityType: 'schedule',
+      entityId: id,
+      before: currentSchedule,
+      after: { rolledBackToVersion: version, schedule: updated },
+    }).catch(() => {});
 
     return updated;
   }
@@ -2442,84 +2213,97 @@ export class SchedulesService {
 
     await this.prisma.schedule.delete({ where: { id } });
 
-    await this.auditLog
-      .log({
-        userId,
-        action: 'DELETE',
-        entityType: 'schedule',
-        entityId: id,
-        before: schedule,
-      })
-      .catch(() => {});
+    await this.auditLog.log({
+      userId,
+      action: 'DELETE',
+      entityType: 'schedule',
+      entityId: id,
+      before: schedule,
+    }).catch(() => {});
 
-    this.gateway
-      .broadcastPersonnelUpdate({
-        action: 'deleted',
-        personnelId: id,
-        personnelName: `Schedule ${schedule.month}/${schedule.year}`,
-        unitId: schedule.unitId,
-        organizationId: schedule.unit?.organizationId || undefined,
-      })
-      .catch(() => {});
+    this.gateway.broadcastPersonnelUpdate({
+      action: 'deleted',
+      personnelId: id,
+      personnelName: `Schedule ${schedule.month}/${schedule.year}`,
+      unitId: schedule.unitId,
+      organizationId: schedule.unit?.organizationId || undefined,
+    }).catch(() => {});
 
     return { success: true };
   }
 
-  async duplicate(
-    sourceId: string,
-    targetMonth: number,
-    targetYear: number,
-    userId: string,
-  ) {
+  async duplicate(sourceId: string, targetMonth: number, targetYear: number, userId: string) {
     const source = await this.findOne(sourceId);
 
-    const schedule = await this.prisma.schedule.create({
-      data: {
-        unitId: source.unitId,
-        month: targetMonth,
-        year: targetYear,
-        status: 'draft',
-        createdById: userId,
-      },
-    });
+    const schedule = await this.prisma.$transaction(async (tx) => {
+      // Same tenant rule as `create`: the copy belongs to the source unit's
+      // organization, otherwise it is invisible to every tenant-scoped reader.
+      // `findOne` already loaded the unit, so the owner is known without a
+      // second query - and it stays correct even if the source row predates the
+      // backfill migration.
+      const ownerOrganizationId = source.unit?.organizationId
+        ?? await tx.schedule.findFirst({
+          where: { unitId: source.unitId },
+          select: { organizationId: true },
+        }).then((row) => row?.organizationId ?? null);
 
-    if (source.assignments && source.assignments.length > 0) {
-      const dateMap = new Map<string, string>();
+      const created = await tx.schedule.create({
+        data: {
+          unitId: source.unitId,
+          organizationId: ownerOrganizationId,
+          month: targetMonth,
+          year: targetYear,
+          status: 'draft',
+          createdById: userId,
+        },
+      });
 
-      for (const assignment of source.assignments) {
-        const sourceDate = new Date(assignment.date);
-        const targetDate = new Date(
-          targetYear,
-          targetMonth - 1,
-          sourceDate.getDate(),
-        );
-        const newDate = targetDate.toISOString().split('T')[0];
+      if (source.assignments && source.assignments.length > 0) {
+        const dateMap = new Map<string, string>();
 
-        if (!dateMap.has(assignment.date)) {
-          dateMap.set(assignment.date, newDate);
+        for (const assignment of source.assignments) {
+          // P2-12 — keep the calendar day; never parse it as a UTC instant.
+          const sourceDay = parseDateParts(assignment.date).day;
+          const newDate = dateKey(targetYear, targetMonth, sourceDay);
+
+          if (!dateMap.has(assignment.date)) {
+            dateMap.set(assignment.date, newDate);
+          }
         }
+
+        await tx.assignment.createMany({
+          data: source.assignments.map((a: any) => {
+            const newDate = dateMap.get(a.date) || a.date;
+            const kind = a.kind === 'person' ? 'person' : 'device';
+            return {
+              scheduleId: created.id,
+              organizationId: ownerOrganizationId ?? undefined,
+              personnelId: a.personnelId,
+              deviceId: kind === 'device' ? a.deviceId : null,
+              unitId: kind === 'person' ? a.unitId : null,
+              personnelGroupId: kind === 'person' ? a.personnelGroupId : null,
+              shiftTemplateId: kind === 'person' ? a.shiftTemplateId : null,
+              kind,
+              date: newDate,
+              shiftType: a.shiftType as ShiftType,
+              startTime: a.startTime,
+              endTime: a.endTime,
+            };
+          }),
+        });
       }
 
-      await this.prisma.assignment.createMany({
-        data: source.assignments.map((a: any) => {
-          const newDate = dateMap.get(a.date) || a.date;
-          const kind = a.kind === 'person' ? 'person' : 'device';
-          return {
-            scheduleId: schedule.id,
-            personnelId: a.personnelId,
-            deviceId: kind === 'device' ? a.deviceId : null,
-            unitId: kind === 'person' ? a.unitId : null,
-            personnelGroupId: kind === 'person' ? a.personnelGroupId : null,
-            shiftTemplateId: kind === 'person' ? a.shiftTemplateId : null,
-            kind,
-            date: newDate,
-            shiftType: a.shiftType as ShiftType,
-            startTime: a.startTime,
-            endTime: a.endTime,
-          };
-        }),
-      });
-    }
+      return created;
+    });
+
+    await this.auditLog.log({
+      userId,
+      action: 'CREATE',
+      entityType: 'schedule',
+      entityId: schedule.id,
+      after: { duplicatedFrom: sourceId, targetMonth, targetYear, scheduleId: schedule.id },
+      description: `Program ${sourceId} kaynağından ${targetMonth}/${targetYear} dönemine kopyalandı`,
+    }).catch(() => {});
 
     return this.findOne(schedule.id);
   }
@@ -2546,7 +2330,7 @@ export class SchedulesService {
         shift: { select: { id: true, deviceId: true, name: true } },
       },
     });
-    return overrides.map((o) => ({
+    return overrides.map(o => ({
       id: o.id,
       shiftId: o.shiftId,
       date: o.date,
@@ -2569,16 +2353,12 @@ export class SchedulesService {
     if (!unit) {
       throw new NotFoundException(`Birim bulunamadı: ${unitType}`);
     }
-    const shift = await this.prisma.shifts.findUnique({
-      where: { id: shiftId },
-    });
+    const shift = await this.prisma.shifts.findUnique({ where: { id: shiftId } });
     if (!shift || shift.unitId !== unit.id) {
       throw new NotFoundException('Vardiya bulunamadı');
     }
     if (!shift.optionalOnWeekends && !shift.optionalOnHolidays) {
-      throw new BadRequestException(
-        'Bu vardiya hafta sonu / resmi tatil için opsiyonel değildir',
-      );
+      throw new BadRequestException('Bu vardiya hafta sonu / resmi tatil için opsiyonel değildir');
     }
 
     const existing = await this.prisma.shiftDateOverride.findUnique({
@@ -2601,9 +2381,7 @@ export class SchedulesService {
     }
 
     if (existing) {
-      await this.prisma.shiftDateOverride.delete({
-        where: { id: existing.id },
-      });
+      await this.prisma.shiftDateOverride.delete({ where: { id: existing.id } });
     }
     return { success: true, shiftId, date, isEnabled: false };
   }
@@ -2614,15 +2392,9 @@ export class SchedulesService {
       scheduleWhere.unit = { organizationId };
     }
 
-    const totalSchedules = await this.prisma.schedule.count({
-      where: scheduleWhere,
-    });
-    const draftSchedules = await this.prisma.schedule.count({
-      where: { ...scheduleWhere, status: 'draft' },
-    });
-    const publishedSchedules = await this.prisma.schedule.count({
-      where: { ...scheduleWhere, status: 'published' },
-    });
+    const totalSchedules = await this.prisma.schedule.count({ where: scheduleWhere });
+    const draftSchedules = await this.prisma.schedule.count({ where: { ...scheduleWhere, status: 'draft' } });
+    const publishedSchedules = await this.prisma.schedule.count({ where: { ...scheduleWhere, status: 'published' } });
     const totalAssignments = await this.prisma.assignment.count();
     const totalPersonnel = await this.prisma.personnel.count();
     const totalDevices = await this.prisma.device.count({
@@ -2649,7 +2421,7 @@ export class SchedulesService {
       totalAssignments,
       totalPersonnel,
       totalDevices,
-      unitBreakdown: unitBreakdown.map((u) => ({
+      unitBreakdown: unitBreakdown.map(u => ({
         code: u.code,
         name: u.name,
         type: u.type,
@@ -2662,7 +2434,7 @@ export class SchedulesService {
 
   async getDashboardStats(organizationId?: string) {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = todayKey(now);
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
     const monthStr = `${year}-${String(month).padStart(2, '0')}`;
@@ -2681,12 +2453,7 @@ export class SchedulesService {
       }),
       this.prisma.assignment.findMany({
         where: { date: { startsWith: monthStr } },
-        select: {
-          shiftType: true,
-          personnelId: true,
-          scheduleId: true,
-          date: true,
-        },
+        select: { shiftType: true, personnelId: true, scheduleId: true, date: true },
       }),
       this.prisma.assignment.findMany({
         where: { date: today },
@@ -2698,33 +2465,19 @@ export class SchedulesService {
         select: { mode: true },
       }),
       this.prisma.schedule.findMany({
-        where: {
-          ...(organizationId ? { unit: { organizationId } } : {}),
-          month,
-          year,
-        },
-        select: {
-          status: true,
-          id: true,
-          _count: { select: { assignments: true } },
-        },
+        where: { ...(organizationId ? { unit: { organizationId } } : {}), month, year },
+        select: { status: true, id: true, _count: { select: { assignments: true } } },
       }),
     ]);
 
-    const activeShifts = monthSchedules.filter(
-      (s) => s.status === 'published',
-    ).length;
-    const missingAssignments = monthSchedules.filter(
-      (s) => s._count.assignments === 0,
-    ).length;
+    const activeShifts = monthSchedules.filter(s => s.status === 'published').length;
+    const missingAssignments = monthSchedules.filter(s => s._count.assignments === 0).length;
     const todayShifts = todayAssignments.length;
-    const nightShifts = allAssignments.filter(
-      (a) => a.shiftType === 'night',
-    ).length;
+    const nightShifts = allAssignments.filter(a => a.shiftType === 'night').length;
     const monthlyHours = allAssignments.length * 8;
 
-    const uniquePersonnel = new Set(allAssignments.map((a) => a.personnelId));
-    const weeklyAssignments = allAssignments.filter((a) => {
+    const uniquePersonnel = new Set(allAssignments.map(a => a.personnelId));
+    const weeklyAssignments = allAssignments.filter(a => {
       const d = new Date(a.date + 'T00:00:00');
       const weekStart = new Date(now);
       weekStart.setDate(now.getDate() - now.getDay());
@@ -2732,22 +2485,12 @@ export class SchedulesService {
     });
     const weeklyHours = weeklyAssignments.length * 8;
 
-    const mrDevices = devices.filter((d) =>
-      d.mode?.toLowerCase().includes('mr'),
-    ).length;
-    const btDevices = devices.filter(
-      (d) =>
-        d.mode?.toLowerCase().includes('bt') ||
-        d.mode?.toLowerCase().includes('ct'),
-    ).length;
+    const mrDevices = devices.filter(d => d.mode?.toLowerCase().includes('mr')).length;
+    const btDevices = devices.filter(d => d.mode?.toLowerCase().includes('bt') || d.mode?.toLowerCase().includes('ct')).length;
 
-    const fairnessScore =
-      uniquePersonnel.size > 0
-        ? Math.min(
-            100,
-            Math.round((allAssignments.length / uniquePersonnel.size) * 10),
-          )
-        : 100;
+    const fairnessScore = uniquePersonnel.size > 0
+      ? Math.min(100, Math.round((allAssignments.length / uniquePersonnel.size) * 10))
+      : 100;
 
     return {
       activeShifts,
@@ -2760,8 +2503,106 @@ export class SchedulesService {
       todayShifts,
       weeklyHours,
       nightShifts,
-      overtimeHours: Math.max(0, monthlyHours - uniquePersonnel.size * 160),
+      overtimeHours: Math.max(0, monthlyHours - (uniquePersonnel.size * 160)),
       fairnessScore,
     };
+  }
+
+  async toggleDeviceOff(scheduleId: string, dto: ToggleDeviceOffDto, userId: string, userRole: string) {
+    const schedule = await this.prisma.schedule.findUnique({
+      where: { id: scheduleId },
+      include: { unit: true },
+    });
+    if (!schedule) {
+      throw new NotFoundException('Program bulunamadı');
+    }
+
+    const device = await this.prisma.device.findUnique({ where: { id: dto.deviceId } });
+    if (!device) {
+      throw new NotFoundException('Cihaz bulunamadı');
+    }
+    if (device.unitId !== schedule.unitId) {
+      throw new ForbiddenException('Cihaz bu programa ait değil');
+    }
+
+    const dateObj = new Date(dto.date);
+    if (isNaN(dateObj.getTime()) || !/^\d{4}-\d{2}-\d{2}$/.test(dto.date)) {
+      throw new BadRequestException('Geçersiz tarih formatı. YYYY-MM-DD kullanın.');
+    }
+    if (dateObj.getUTCMonth() + 1 !== schedule.month || dateObj.getUTCFullYear() !== schedule.year) {
+      throw new BadRequestException(`Tarih program ayına ait değil. Beklenen: ${schedule.year}-${String(schedule.month).padStart(2, '0')}`);
+    }
+
+    if (dto.isOff) {
+      const activeAssignments = await this.prisma.assignment.count({
+        where: {
+          scheduleId,
+          deviceId: dto.deviceId,
+          date: dto.date,
+        },
+      });
+      if (activeAssignments > 0) {
+        throw new ConflictException(
+          JSON.stringify({
+            code: 'DEVICE_HAS_ASSIGNMENTS',
+            message: `Bu cihazın bu tarihte ${activeAssignments} aktif ataması var. Önce atamaları kaldırın veya yeniden planlayın.`,
+            assignmentCount: activeAssignments,
+          }),
+        );
+      }
+
+      const existing = await this.prisma.deviceOffDate.findUnique({
+        where: { deviceId_date: { deviceId: dto.deviceId, date: dto.date } },
+      });
+
+      if (existing) {
+        const updated = await this.prisma.deviceOffDate.update({
+          where: { id: existing.id },
+          data: { isActive: true, reason: dto.reason ?? existing.reason },
+        });
+        return { deviceId: updated.deviceId, date: updated.date, isActive: updated.isActive, reason: updated.reason };
+      }
+
+      const created = await this.prisma.deviceOffDate.create({
+        data: {
+          date: dto.date,
+          reason: dto.reason,
+          isActive: true,
+          device: { connect: { id: dto.deviceId } },
+          createdBy: { connect: { id: userId } },
+        },
+      });
+      return { deviceId: created.deviceId, date: created.date, isActive: created.isActive, reason: created.reason };
+    }
+
+    const existing = await this.prisma.deviceOffDate.findUnique({
+      where: { deviceId_date: { deviceId: dto.deviceId, date: dto.date } },
+    });
+
+    if (existing && existing.isActive) {
+      const updated = await this.prisma.deviceOffDate.update({
+        where: { id: existing.id },
+        data: { isActive: false },
+      });
+      return { deviceId: updated.deviceId, date: updated.date, isActive: updated.isActive, reason: updated.reason };
+    }
+
+    return { deviceId: dto.deviceId, date: dto.date, isActive: false, reason: null };
+  }
+
+  async getDeviceOffDates(scheduleId: string) {
+    const schedule = await this.prisma.schedule.findUnique({ where: { id: scheduleId } });
+    if (!schedule) {
+      throw new NotFoundException('Program bulunamadı');
+    }
+
+    const records = await this.prisma.deviceOffDate.findMany({
+      where: {
+        device: { unitId: schedule.unitId },
+        isActive: true,
+      },
+      select: { deviceId: true, date: true, isActive: true, reason: true },
+    });
+    return records;
   }
 }

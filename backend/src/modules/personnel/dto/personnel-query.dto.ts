@@ -15,9 +15,7 @@ export class PersonnelQueryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(({ value }) =>
-    value === undefined ? undefined : value === true || value === 'true',
-  )
+  @Transform(({ value }) => value === undefined ? undefined : (value === true || value === 'true'))
   @IsBoolean()
   isActive?: boolean;
 
@@ -28,22 +26,14 @@ export class PersonnelQueryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(({ value }) =>
-    value === undefined || value === null || value === ''
-      ? undefined
-      : Number(value),
-  )
+  @Transform(({ value }) => (value === undefined || value === null || value === '' ? undefined : Number(value)))
   @IsInt()
   @Min(1)
   month?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(({ value }) =>
-    value === undefined || value === null || value === ''
-      ? undefined
-      : Number(value),
-  )
+  @Transform(({ value }) => (value === undefined || value === null || value === '' ? undefined : Number(value)))
   @IsInt()
   @Min(2000)
   year?: number;

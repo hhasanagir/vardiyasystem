@@ -22,8 +22,8 @@ export class ContractsService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<ServiceContract[]>('/contracts').pipe(
-      tap((d) => this._contracts.set(d)),
-      catchError((err) => {
+      tap(d => this._contracts.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Sözleşmeler yüklenemedi');
         return throwError(() => err);
       }),
@@ -35,8 +35,8 @@ export class ContractsService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<ServiceContract>(`/contracts/${id}`).pipe(
-      tap((d) => this._selectedContract.set(d)),
-      catchError((err) => {
+      tap(d => this._selectedContract.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Sözleşme yüklenemedi');
         return throwError(() => err);
       }),
@@ -48,7 +48,7 @@ export class ContractsService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.post<ServiceContract>('/contracts', data).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Sözleşme oluşturulamadı');
         return throwError(() => err);
       }),
@@ -60,7 +60,7 @@ export class ContractsService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.put<ServiceContract>(`/contracts/${id}`, data).pipe(
-      catchError((err) => {
+      catchError(err => {
         this._error.set(err.message || 'Sözleşme güncellenemedi');
         return throwError(() => err);
       }),
@@ -72,8 +72,8 @@ export class ContractsService {
     this._isLoading.set(true);
     this._error.set(null);
     return this.api.get<ServiceContract[]>('/contracts/expiring').pipe(
-      tap((d) => this._expiringContracts.set(d)),
-      catchError((err) => {
+      tap(d => this._expiringContracts.set(d)),
+      catchError(err => {
         this._error.set(err.message || 'Sona eren sözleşmeler yüklenemedi');
         return throwError(() => err);
       }),

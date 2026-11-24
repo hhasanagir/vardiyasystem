@@ -1,0 +1,415 @@
+{
+  "configVersion": 1,
+  "timestamp": 1784878737946,
+  "index": "/index.html",
+  "assetGroups": [
+    {
+      "name": "app-shell",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "urls": [
+        "/approval-center.component-DLM47MF2.js",
+        "/asset-detail.component-M5DC46FJ.js",
+        "/asset-management.component-25B6JRE5.js",
+        "/audit-center.component-2KC677DI.js",
+        "/biomedical.component-VYPEG4OT.js",
+        "/chunk-2325T7AW.js",
+        "/chunk-25SBY3S7.js",
+        "/chunk-2EZRBULH.js",
+        "/chunk-2KYWLR7J.js",
+        "/chunk-5ODKT2A3.js",
+        "/chunk-6ALUOPNO.js",
+        "/chunk-6WZAOIUH.js",
+        "/chunk-7BBYNKGO.js",
+        "/chunk-AAMPWXCV.js",
+        "/chunk-CKB2YTSN.js",
+        "/chunk-CYGU4KV4.js",
+        "/chunk-CZBNAKVT.js",
+        "/chunk-D3TMUBZI.js",
+        "/chunk-EQBI5XEP.js",
+        "/chunk-FTX5CPDI.js",
+        "/chunk-GYH65FDB.js",
+        "/chunk-H2PCVXAM.js",
+        "/chunk-HP3EMVF2.js",
+        "/chunk-I7OKRB4L.js",
+        "/chunk-JJ2IUHOT.js",
+        "/chunk-KBQ2ONJP.js",
+        "/chunk-L2AODKLO.js",
+        "/chunk-LICKNP67.js",
+        "/chunk-NPX7ZKLZ.js",
+        "/chunk-OAEIHFDY.js",
+        "/chunk-OITYYXDU.js",
+        "/chunk-PG6J5NCR.js",
+        "/chunk-Q7L6LLAK.js",
+        "/chunk-QEPKLZVG.js",
+        "/chunk-QLUWV7IV.js",
+        "/chunk-QYEQI4EQ.js",
+        "/chunk-RE3A7Q7L.js",
+        "/chunk-RYESTRDT.js",
+        "/chunk-VGKYVPCE.js",
+        "/chunk-VHUD3C4V.js",
+        "/chunk-VOELJFGH.js",
+        "/chunk-XZ4OH3ZA.js",
+        "/chunk-YBJ5CGD2.js",
+        "/chunk-YTAIU5SE.js",
+        "/chunk-YXFVKJDB.js",
+        "/command-center.component-B5DMZQ7R.js",
+        "/consumables.component-YKWRHHE4.js",
+        "/contracts.component-KJDBU4KE.js",
+        "/dashboard.component-WJP5WUOP.js",
+        "/device-incident-report.component-KRZBAA6A.js",
+        "/duty-roster.component-ZSA7A33P.js",
+        "/employees.component-JMC3MI7P.js",
+        "/fairness-analysis.component-5MVHPS22.js",
+        "/favicon.ico",
+        "/handover-notes.component-HVEHY7OK.js",
+        "/icons/icon-192.svg",
+        "/icons/icon-512.svg",
+        "/icons/icon-72.svg",
+        "/index.html",
+        "/inventory.component-2HRUXBCE.js",
+        "/kpi-overview.component-X3GMWAMO.js",
+        "/leave-management.component-OUQ3BUDV.js",
+        "/live-tracking.component-AZIUWBF6.js",
+        "/login.component-DWSW7W6P.js",
+        "/main-5QFO56E6.js",
+        "/main-layout.component-2IOORKZF.js",
+        "/management-dashboard.component-PD4S27JY.js",
+        "/manifest.webmanifest",
+        "/my-day.component-FWL67MAE.js",
+        "/my-shifts.component-2MDSVIFS.js",
+        "/notification-center.component-76K5SJFW.js",
+        "/onboarding.component-NJC4I663.js",
+        "/performance.component-OULHVGPO.js",
+        "/plan-page.component-XBH322CL.js",
+        "/procurement.component-PUQXD73F.js",
+        "/profile.component-PMZF3ZBD.js",
+        "/quality.component-7ZULF4XW.js",
+        "/radiation-safety.component-DR7AIM6M.js",
+        "/register.component-G7QKV7HX.js",
+        "/reports.component-ONCLOGEM.js",
+        "/settings.component-DCHQV7XH.js",
+        "/shifts.component-VDUWSLTF.js",
+        "/skill-matrix.component-WIEB3BAK.js",
+        "/smart-recommendations.component-NMNC7656.js",
+        "/styles-7RY5ZPUL.css",
+        "/subswap-requests.component-6ROS2E77.js",
+        "/supervisor-center.component-X5W4XVLY.js",
+        "/supervisor.component-HBRZJR5C.js",
+        "/suppliers.component-VISHYB4T.js",
+        "/training-list.component-CHAONFLV.js",
+        "/web-EHUJLQJC.js",
+        "/web-M3PJ5WH4.js"
+      ],
+      "patterns": []
+    },
+    {
+      "name": "assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "urls": [
+        "/media/primeicons-DHQU4SEP.svg"
+      ],
+      "patterns": []
+    }
+  ],
+  "dataGroups": [
+    {
+      "name": "api-schedules",
+      "patterns": [
+        "\\/api\\/schedules",
+        "\\/api\\/schedules\\/.*"
+      ],
+      "strategy": "freshness",
+      "maxSize": 100,
+      "maxAge": 300000,
+      "timeoutMs": 10000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    },
+    {
+      "name": "api-my-shifts",
+      "patterns": [
+        "\\/api\\/schedules\\/my-shifts",
+        "\\/api\\/schedules\\/my-day"
+      ],
+      "strategy": "performance",
+      "maxSize": 50,
+      "maxAge": 1800000,
+      "timeoutMs": 5000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    },
+    {
+      "name": "api-personnel",
+      "patterns": [
+        "\\/api\\/personnel",
+        "\\/api\\/personnel\\/.*"
+      ],
+      "strategy": "performance",
+      "maxSize": 50,
+      "maxAge": 3600000,
+      "timeoutMs": 5000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    },
+    {
+      "name": "api-devices",
+      "patterns": [
+        "\\/api\\/devices",
+        "\\/api\\/devices\\/.*",
+        "\\/api\\/device-groups\\/.*"
+      ],
+      "strategy": "performance",
+      "maxSize": 50,
+      "maxAge": 3600000,
+      "timeoutMs": 5000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    },
+    {
+      "name": "api-units",
+      "patterns": [
+        "\\/api\\/units\\/.*",
+        "\\/api\\/schedule-configs\\/.*"
+      ],
+      "strategy": "performance",
+      "maxSize": 50,
+      "maxAge": 3600000,
+      "timeoutMs": 5000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    },
+    {
+      "name": "api-notifications",
+      "patterns": [
+        "\\/api\\/notifications",
+        "\\/api\\/notifications\\/.*"
+      ],
+      "strategy": "freshness",
+      "maxSize": 50,
+      "maxAge": 120000,
+      "timeoutMs": 5000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    },
+    {
+      "name": "api-analytics",
+      "patterns": [
+        "\\/api\\/analytics\\/.*",
+        "\\/api\\/insights\\/.*"
+      ],
+      "strategy": "freshness",
+      "maxSize": 50,
+      "maxAge": 600000,
+      "timeoutMs": 10000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    },
+    {
+      "name": "api-attendance",
+      "patterns": [
+        "\\/api\\/v1\\/attendance\\/today",
+        "\\/api\\/v1\\/attendance\\/history",
+        "\\/api\\/v1\\/attendance\\/stats"
+      ],
+      "strategy": "freshness",
+      "maxSize": 20,
+      "maxAge": 300000,
+      "timeoutMs": 5000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    },
+    {
+      "name": "api-shift-tasks",
+      "patterns": [
+        "\\/api\\/v1\\/shift-tasks",
+        "\\/api\\/v1\\/shift-tasks\\/.*"
+      ],
+      "strategy": "freshness",
+      "maxSize": 20,
+      "maxAge": 300000,
+      "timeoutMs": 5000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    },
+    {
+      "name": "api-handover-notes",
+      "patterns": [
+        "\\/api\\/v1\\/handover-notes\\/.*"
+      ],
+      "strategy": "freshness",
+      "maxSize": 20,
+      "maxAge": 300000,
+      "timeoutMs": 5000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    },
+    {
+      "name": "api-device-incidents",
+      "patterns": [
+        "\\/api\\/v1\\/device-incidents\\/.*"
+      ],
+      "strategy": "freshness",
+      "maxSize": 20,
+      "maxAge": 300000,
+      "timeoutMs": 5000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    }
+  ],
+  "hashTable": {
+    "/approval-center.component-DLM47MF2.js": "e8dd353b8be1c84e4617a949f175738b7aef9246",
+    "/asset-detail.component-M5DC46FJ.js": "8ef42f584129f84945fa07c84b110796a70bdd73",
+    "/asset-management.component-25B6JRE5.js": "c172401f465b1633aa745dcab8a084b9c8710c9c",
+    "/audit-center.component-2KC677DI.js": "b80cdd83bf3d0b3ab29c6c52d0878c9a747ea79f",
+    "/biomedical.component-VYPEG4OT.js": "bd901aba745150b4b1956c24c89fbcb3c0ee3d4d",
+    "/chunk-2325T7AW.js": "42fdc254bb58a173495866b5979317b5026c1b6e",
+    "/chunk-25SBY3S7.js": "304a4e686891e4ca06b02ab301251a886ce1059b",
+    "/chunk-2EZRBULH.js": "7a5b24b08b869144e11290a11b534ac1c631b6cd",
+    "/chunk-2KYWLR7J.js": "a0aec9e8f19ccfdc9aec00ed9fc94da611aea93c",
+    "/chunk-5ODKT2A3.js": "820e2450fb7bc787691e7694bfd76aabf65f47be",
+    "/chunk-6ALUOPNO.js": "7312b5a59b1969dfe974b6a2325e9591003b2120",
+    "/chunk-6WZAOIUH.js": "edfdc1ad4fb9174ce37de4842372c7e3841d8321",
+    "/chunk-7BBYNKGO.js": "4a17940e73a766eaf9798800a0ddc311ead57c8b",
+    "/chunk-AAMPWXCV.js": "d7cd506aea4fd6a206ab73e2d963420a8eb289d4",
+    "/chunk-CKB2YTSN.js": "648aa5e97ce045e98aa83f390fec08e50cfa0fe5",
+    "/chunk-CYGU4KV4.js": "2c5a55c65c404da01c945b7e8d8634f67ea9305c",
+    "/chunk-CZBNAKVT.js": "43e6240ee5b61cd0b52175435ac8a092eb1dffa6",
+    "/chunk-D3TMUBZI.js": "e14828c55f571bf53fbb1c30f50b9fd2e6efb0c1",
+    "/chunk-EQBI5XEP.js": "4037a4b316bca11ac20943ee68fb2a463773445e",
+    "/chunk-FTX5CPDI.js": "2281cf2cf67dd01457b98b68c4af57e57b7f8c24",
+    "/chunk-GYH65FDB.js": "a0737bbd0004837872cb30441fcf1649113f5306",
+    "/chunk-H2PCVXAM.js": "742035396306317001f63b134163247caaf8a8cb",
+    "/chunk-HP3EMVF2.js": "78d27e638fc5a568c342cb3b89c84ded7ef48aa4",
+    "/chunk-I7OKRB4L.js": "8fd78eb0f073c88c71471c3a9f35c86bd046f0c5",
+    "/chunk-JJ2IUHOT.js": "32ba06f6de77094b733b2eae7a7ca3b851a5e5bd",
+    "/chunk-KBQ2ONJP.js": "1be8e647b450a28a94cef4094436522333141989",
+    "/chunk-L2AODKLO.js": "56e9bd6dd2988fe82d877f230d3f10f3a4b1ba18",
+    "/chunk-LICKNP67.js": "9434958653952867b094098ed105bb5881599e95",
+    "/chunk-NPX7ZKLZ.js": "eb8a1f0e8eaab37730adf00a5b3b438e0f4bbfcc",
+    "/chunk-OAEIHFDY.js": "d881a0847823a69afef79efd4cddb629c29faace",
+    "/chunk-OITYYXDU.js": "e80620e706e93d2b3dddcd5daf20f2a9c8eb717c",
+    "/chunk-PG6J5NCR.js": "f4d9a572dc77a2b3050aa95af256d9350a5ea039",
+    "/chunk-Q7L6LLAK.js": "28f341fabdab775caf9c7ec5bf0113f6ae1f4b8c",
+    "/chunk-QEPKLZVG.js": "435c5adf0c44be22626db5042cc7950de0d75d22",
+    "/chunk-QLUWV7IV.js": "3775d9be57723b05370a7394416cc78a74b42d83",
+    "/chunk-QYEQI4EQ.js": "6c6a181c35fcacdeb3c000e5e8a15ef1122e622e",
+    "/chunk-RE3A7Q7L.js": "0dc96f4f2f2974589a9b38902b07b6018176298d",
+    "/chunk-RYESTRDT.js": "0080858a9dd34a3c36c5669dec646fd46c30bd31",
+    "/chunk-VGKYVPCE.js": "e8332ee2a2569ee363f677cbeeff4e041752c08c",
+    "/chunk-VHUD3C4V.js": "fbfda7135455a69e821a2eef75ae96e80906b8a8",
+    "/chunk-VOELJFGH.js": "39f4f1360438a539d56fef641f532ebe32ba26cb",
+    "/chunk-XZ4OH3ZA.js": "af506ce0f10d4a567c3bc24256c984c6337df35c",
+    "/chunk-YBJ5CGD2.js": "af63da3d59add7e6fb36360830c8e334d6068317",
+    "/chunk-YTAIU5SE.js": "42a862e5bb0125c9ef6bd73b9895ea9391b450ea",
+    "/chunk-YXFVKJDB.js": "32f5be09cc4354fb201566f702cda971ce0fb023",
+    "/command-center.component-B5DMZQ7R.js": "b6d250f49ab29cb39c3c550424341d7e9a51d6e9",
+    "/consumables.component-YKWRHHE4.js": "f55b8fee2e026655fba34b79feb6fb519307666e",
+    "/contracts.component-KJDBU4KE.js": "908dfdbc03d26b4e5808b0d8332488c659990d75",
+    "/dashboard.component-WJP5WUOP.js": "9c6963d31931c54e368db3a331b10b9b8cab31f1",
+    "/device-incident-report.component-KRZBAA6A.js": "543ac0979300a1584d3c7884fe03a6e61c77be59",
+    "/duty-roster.component-ZSA7A33P.js": "20c970153ef9f25a0804159088f89d5c3977d2f4",
+    "/employees.component-JMC3MI7P.js": "a99d6e314578ba291f13230680097f8f507026f5",
+    "/fairness-analysis.component-5MVHPS22.js": "726f0a1f8b75f202c49f2e67ef5bdeaba3064a1c",
+    "/favicon.ico": "9c39f434fe1261f68c5e3eefdf734630d99c5670",
+    "/handover-notes.component-HVEHY7OK.js": "3e4a215b5c0470bc940842deff28e88ed8d8a52e",
+    "/icons/icon-192.svg": "9a03178d5c36452b30ac8b407f38b21a4992a9c9",
+    "/icons/icon-512.svg": "6b6cbd64252e7262fccbe64c142230bc1e039c79",
+    "/icons/icon-72.svg": "57d797458371a13093a0b0a2b85df242114b39a0",
+    "/index.html": "2e9591ab73a3b831ad40f858a1b7d72214060a58",
+    "/inventory.component-2HRUXBCE.js": "4fc6e7959148c3b863bb59ff4db315687d3d35da",
+    "/kpi-overview.component-X3GMWAMO.js": "4f2816f20f9702b3bc392a9ffee41fe41423f6c1",
+    "/leave-management.component-OUQ3BUDV.js": "d8bd448d15bb9d31a2b6d033e4dd5e6dd3dd4344",
+    "/live-tracking.component-AZIUWBF6.js": "83cf6d2ecb67eeac622b1df365dfb53d276b6ec3",
+    "/login.component-DWSW7W6P.js": "0d88b469d20e8d8dcf0a5b5eaf715d3012d598e5",
+    "/main-5QFO56E6.js": "fe234a174b14352f5f0ca0a1236363fd3e018a67",
+    "/main-layout.component-2IOORKZF.js": "12b56d9d6d11c984bb9085a23b55115976770d86",
+    "/management-dashboard.component-PD4S27JY.js": "b4805870c2f5c2210e291383371a5a0c3191f33d",
+    "/manifest.webmanifest": "51e50d54afd352bd18cd624e1a3fdc3ca6223da6",
+    "/media/primeicons-DHQU4SEP.svg": "a07ae39027c1a780b42fd82fad7575c2924d9d28",
+    "/my-day.component-FWL67MAE.js": "09149132c4e836ed8b74cff6eaa7c18909d0f2ab",
+    "/my-shifts.component-2MDSVIFS.js": "33034a8cf00a30d69e9384e8236a16268bb87348",
+    "/notification-center.component-76K5SJFW.js": "53382b183eb72c649291108f4c72e72a59baf8b3",
+    "/onboarding.component-NJC4I663.js": "3f74cac016e09ea463c430e221384910ea800a80",
+    "/performance.component-OULHVGPO.js": "9ea90cbf7db87ceed6bea62ee5dba2862723c7d0",
+    "/plan-page.component-XBH322CL.js": "d8ae542c70a34bd3ed6833eb8ed8459e11c92481",
+    "/procurement.component-PUQXD73F.js": "4c798b1d8624050215f739d2578d9bc9694dcd8c",
+    "/profile.component-PMZF3ZBD.js": "52f18557a27d3a3005ec160c731a8884ccb7e91f",
+    "/quality.component-7ZULF4XW.js": "de4c94ceba21b45c731c59aa51062bf97d595e42",
+    "/radiation-safety.component-DR7AIM6M.js": "e8ca2c7bdadd67674361a24efe91b1177022cd1d",
+    "/register.component-G7QKV7HX.js": "0f18d285e277635918d6ddfe2c05c44961564220",
+    "/reports.component-ONCLOGEM.js": "d6b9aa93d59ca832ea4a35e215781fe28701884b",
+    "/settings.component-DCHQV7XH.js": "841316001088b2a78fe31d84482f18a5d40c0422",
+    "/shifts.component-VDUWSLTF.js": "93ff3c3bb3419ac1f52a76e6ac7dab5a748fb836",
+    "/skill-matrix.component-WIEB3BAK.js": "64d2374e843d60a6b41986e8774809ba25dc8d0c",
+    "/smart-recommendations.component-NMNC7656.js": "12e5cc54a703a9e3d67df256b7c5400c04016b09",
+    "/styles-7RY5ZPUL.css": "81ee6905e7524fb854b39bc9fb617317fbc72e03",
+    "/subswap-requests.component-6ROS2E77.js": "6d050e368a8935ec0472d14fbe94d14d7f5a73a1",
+    "/supervisor-center.component-X5W4XVLY.js": "389c354bca788c692795b87f239bf2fab06e4b5b",
+    "/supervisor.component-HBRZJR5C.js": "4948a129e87e1b808c157ce81164cc8a86c477cd",
+    "/suppliers.component-VISHYB4T.js": "507bd5a4ebeaf79d3c4f0d59006a38c71db97fc9",
+    "/training-list.component-CHAONFLV.js": "fead572636a604f67efe22c03b0e839d336362c1",
+    "/web-EHUJLQJC.js": "4758b1acb2febfc286a67179f0c2b121e33d1ccd",
+    "/web-M3PJ5WH4.js": "d472ffdedec5e738f9826b1c8f9ade2f4de7ae02"
+  },
+  "navigationUrls": [
+    {
+      "positive": true,
+      "regex": "^\\/.*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*\\.css$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*\\.js$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*\\.svg$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*\\.ico$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*\\.json$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/api\\/.*$"
+    }
+  ],
+  "navigationRequestStrategy": "performance"
+}

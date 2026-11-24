@@ -1,10 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { NotificationType } from './interfaces/notification-type.enum';
-import {
-  NotificationPriority,
-  PRIORITY_LEVELS,
-} from './interfaces/notification-priority.enum';
+import { NotificationPriority, PRIORITY_LEVELS } from './interfaces/notification-priority.enum';
 import { DeliveryChannel } from './interfaces/channel-type.enum';
 import { NotificationFilter } from './interfaces/notification.interface';
 
@@ -39,13 +36,11 @@ export class NotificationsService {
   }
 
   async addRecipient(notificationId: string, userId: string) {
-    return this.prisma.notificationRecipient
-      .create({
-        data: { notificationId, userId },
-      })
-      .catch(() => {
-        // duplicate ignored
-      });
+    return this.prisma.notificationRecipient.create({
+      data: { notificationId, userId },
+    }).catch(() => {
+      // duplicate ignored
+    });
   }
 
   async addRecipients(notificationId: string, userIds: string[]) {
@@ -67,11 +62,7 @@ export class NotificationsService {
     return validIds;
   }
 
-  async createDelivery(
-    notificationId: string,
-    recipientId: string,
-    channel: DeliveryChannel,
-  ) {
+  async createDelivery(notificationId: string, recipientId: string, channel: DeliveryChannel) {
     return this.prisma.notificationDelivery.create({
       data: {
         notificationId,
@@ -104,10 +95,8 @@ export class NotificationsService {
         { message: { contains: filter.search, mode: 'insensitive' } },
       ];
     }
-    if (filter?.startDate)
-      where.createdAt = { ...where.createdAt, gte: filter.startDate };
-    if (filter?.endDate)
-      where.createdAt = { ...where.createdAt, lte: filter.endDate };
+    if (filter?.startDate) where.createdAt = { ...where.createdAt, gte: filter.startDate };
+    if (filter?.endDate) where.createdAt = { ...where.createdAt, lte: filter.endDate };
 
     const [data, total] = await Promise.all([
       this.prisma.notification.findMany({
@@ -118,28 +107,11 @@ export class NotificationsService {
         include: {
           recipients: {
             where: { userId },
-            select: {
-              id: true,
-              userId: true,
-              isRead: true,
-              readAt: true,
-              createdAt: true,
-              isDeleted: true,
-            },
+            select: { id: true, userId: true, isRead: true, readAt: true, createdAt: true, isDeleted: true },
           },
           deliveries: {
             where: { recipientId: userId },
-            select: {
-              id: true,
-              channel: true,
-              status: true,
-              deliveredAt: true,
-              readAt: true,
-              clickedAt: true,
-              failedAt: true,
-              errorMessage: true,
-              attemptCount: true,
-            },
+            select: { id: true, channel: true, status: true, deliveredAt: true, readAt: true, clickedAt: true, failedAt: true, errorMessage: true, attemptCount: true },
           },
           sender: { select: { id: true, name: true } },
         },
@@ -206,11 +178,7 @@ export class NotificationsService {
     return { success: true };
   }
 
-  async markClicked(
-    notificationId: string,
-    userId: string,
-    channel?: DeliveryChannel,
-  ) {
+  async markClicked(notificationId: string, userId: string, channel?: DeliveryChannel) {
     const where: any = { notificationId, recipientId: userId };
     if (channel) where.channel = channel;
     await this.prisma.notificationDelivery.updateMany({

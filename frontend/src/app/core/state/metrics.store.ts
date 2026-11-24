@@ -1,12 +1,5 @@
-import { Injectable, signal, computed, effect } from '@angular/core';
-import {
-  UnitType,
-  UnitMetrics,
-  HeatmapMetrics,
-  Conflict,
-  Device,
-  ShiftAssignment,
-} from './state.models';
+﻿import { Injectable, signal, computed, effect } from '@angular/core';
+import { UnitType, UnitMetrics, HeatmapMetrics, Conflict, Device, ShiftAssignment } from './state.models';
 
 interface DashboardMetrics {
   activeMRDevices: number;
@@ -21,7 +14,7 @@ interface DashboardMetrics {
 }
 
 @Injectable({
-  providedIn: 'root',
+  providedIn: 'root'
 })
 export class MetricsStore {
   private readonly _metrics = signal<DashboardMetrics>({
@@ -33,7 +26,7 @@ export class MetricsStore {
     onDutyPersonnel: 0,
     pendingRequests: 0,
     occupancyRate: 0,
-    riskScore: 0,
+    riskScore: 0
   });
 
   private readonly _pendingSwaps = signal<number>(0);
@@ -64,13 +57,7 @@ export class MetricsStore {
 
   readonly totalActiveDevices = computed(() => {
     const m = this._metrics();
-    return (
-      m.activeMRDevices +
-      m.activeBTDevices +
-      m.activeRontgenDevices +
-      m.activeNukleerTipDevices +
-      m.activeOnkolojiDevices
-    );
+    return m.activeMRDevices + m.activeBTDevices + m.activeRontgenDevices + m.activeNukleerTipDevices + m.activeOnkolojiDevices;
   });
 
   readonly criticalAlertsCount = computed(() => this._criticalAlerts().length);
@@ -90,26 +77,22 @@ export class MetricsStore {
     };
 
     for (const unit of ['mr', 'bt', 'rontgen', 'nukleer', 'onkoloji', 'supervizor'] as UnitType[]) {
-      const unitDevices = devices.filter((d) => d.unit === unit && d.isActive);
-      const todayAssignments = assignments.filter(
-        (a) => a.date === today && unitDevices.some((d) => d.id === a.deviceId),
-      );
+      const unitDevices = devices.filter(d => d.unit === unit && d.isActive);
+      const todayAssignments = assignments.filter(a => a.date === today && unitDevices.some(d => d.id === a.deviceId));
 
-      const occupiedDevices = new Set(todayAssignments.map((a) => a.deviceId));
-      const criticalCount =
-        todayAssignments.length < unitDevices.length ? Math.ceil(unitDevices.length * 0.2) : 0;
+      const occupiedDevices = new Set(todayAssignments.map(a => a.deviceId));
+      const criticalCount = todayAssignments.length < unitDevices.length ? Math.ceil(unitDevices.length * 0.2) : 0;
 
       const totalOccupancy = todayAssignments.length;
       const maxOccupancy = unitDevices.length * 2;
-      const occupancyRate =
-        maxOccupancy > 0 ? Math.round((totalOccupancy / maxOccupancy) * 100) : 0;
+      const occupancyRate = maxOccupancy > 0 ? Math.round((totalOccupancy / maxOccupancy) * 100) : 0;
 
       result[unit] = {
         active: Math.max(0, unitDevices.length - criticalCount),
         idle: Math.max(0, unitDevices.length - occupiedDevices.size),
         maintenance: 0,
         critical: criticalCount,
-        occupancyRate,
+        occupancyRate
       };
     }
 
@@ -121,7 +104,7 @@ export class MetricsStore {
   });
 
   updateMetrics(updates: Partial<DashboardMetrics>): void {
-    this._metrics.update((m) => ({ ...m, ...updates }));
+    this._metrics.update(m => ({ ...m, ...updates }));
   }
 
   setMetrics(metrics: DashboardMetrics): void {
@@ -153,59 +136,59 @@ export class MetricsStore {
   }
 
   addAssignment(assignment: ShiftAssignment): void {
-    this._assignments.update((a) => [...a, assignment]);
+    this._assignments.update(a => [...a, assignment]);
   }
 
   removeAssignment(assignmentId: string): void {
-    this._assignments.update((a) => a.filter((assign) => assign.id !== assignmentId));
+    this._assignments.update(a => a.filter(assign => assign.id !== assignmentId));
   }
 
   updateAssignment(assignment: ShiftAssignment): void {
-    this._assignments.update((a) =>
-      a.map((existing) => (existing.id === assignment.id ? assignment : existing)),
-    );
+    this._assignments.update(a => a.map(existing => 
+      existing.id === assignment.id ? assignment : existing
+    ));
   }
 
   getDevicesByUnit(unit: UnitType): Device[] {
-    return this._devices().filter((d) => d.unit === unit);
+    return this._devices().filter(d => d.unit === unit);
   }
 
   getActiveDevicesByUnit(unit: UnitType): Device[] {
-    return this._devices().filter((d) => d.unit === unit && d.isActive);
+    return this._devices().filter(d => d.unit === unit && d.isActive);
   }
 
   getAssignmentsByDevice(deviceId: string): ShiftAssignment[] {
-    return this._assignments().filter((a) => a.deviceId === deviceId);
+    return this._assignments().filter(a => a.deviceId === deviceId);
   }
 
   getAssignmentsByDate(date: string): ShiftAssignment[] {
-    return this._assignments().filter((a) => a.date === date);
+    return this._assignments().filter(a => a.date === date);
   }
 
   calculateOccupancyRate(devices: Device[], assignments: ShiftAssignment[], date: string): number {
-    const activeDevices = devices.filter((d) => d.isActive);
-    const dayAssignments = assignments.filter((a) => a.date === date);
-
+    const activeDevices = devices.filter(d => d.isActive);
+    const dayAssignments = assignments.filter(a => a.date === date);
+    
     if (activeDevices.length === 0) return 0;
-
+    
     const maxShifts = activeDevices.reduce((sum, d) => sum + (d.mode === 'vardiya' ? 2 : 1), 0);
     const actualShifts = dayAssignments.length;
-
+    
     return maxShifts > 0 ? Math.round((actualShifts / maxShifts) * 100) : 0;
   }
 
   calculateRiskScore(metrics: DashboardMetrics): number {
     let score = 0;
-
+    
     if (metrics.occupancyRate > 90) score += 30;
     else if (metrics.occupancyRate > 75) score += 15;
-
+    
     if (metrics.pendingRequests > 5) score += 25;
     else if (metrics.pendingRequests > 2) score += 10;
-
+    
     if (metrics.onDutyPersonnel < 10) score += 20;
     else if (metrics.onDutyPersonnel < 15) score += 10;
-
+    
     return Math.min(100, score);
   }
 
@@ -219,7 +202,7 @@ export class MetricsStore {
       onDutyPersonnel: 0,
       pendingRequests: 0,
       occupancyRate: 0,
-      riskScore: 0,
+      riskScore: 0
     });
     this._criticalAlerts.set([]);
     this._pendingSwaps.set(0);

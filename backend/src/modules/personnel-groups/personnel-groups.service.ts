@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma.service';
 import { CreatePersonnelGroupDto } from './dto/create-personnel-group.dto';
@@ -33,16 +28,14 @@ export class PersonnelGroupsService {
       orderBy: { name: 'asc' },
     });
 
-    return groups.map((g) => this.toResponse(g));
+    return groups.map(g => this.toResponse(g));
   }
 
   async findOne(id: string) {
     const group = await this.prisma.personnelGroup.findUnique({
       where: { id },
       include: {
-        shiftTemplates: {
-          orderBy: [{ startTime: 'asc' }, { shiftType: 'asc' }],
-        },
+        shiftTemplates: { orderBy: [{ startTime: 'asc' }, { shiftType: 'asc' }] },
         personnel: {
           select: { id: true, name: true, role: true, isActive: true },
           orderBy: { name: 'asc' },
@@ -56,11 +49,7 @@ export class PersonnelGroupsService {
     return this.toResponse(group);
   }
 
-  async create(
-    dto: CreatePersonnelGroupDto,
-    organizationId?: string,
-    userId?: string,
-  ) {
+  async create(dto: CreatePersonnelGroupDto, organizationId?: string, userId?: string) {
     const existing = await this.prisma.personnelGroup.findFirst({
       where: { code: dto.code },
     });
@@ -69,9 +58,7 @@ export class PersonnelGroupsService {
     }
 
     if (dto.unitId) {
-      const unit = await this.prisma.unit.findUnique({
-        where: { id: dto.unitId },
-      });
+      const unit = await this.prisma.unit.findUnique({ where: { id: dto.unitId } });
       if (!unit) {
         throw new BadRequestException('Seçilen birim bulunamadı');
       }
@@ -97,9 +84,7 @@ export class PersonnelGroupsService {
   }
 
   async update(id: string, dto: UpdatePersonnelGroupDto) {
-    const existing = await this.prisma.personnelGroup.findUnique({
-      where: { id },
-    });
+    const existing = await this.prisma.personnelGroup.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Personel grubu bulunamadı');
     }
@@ -109,9 +94,7 @@ export class PersonnelGroupsService {
         where: { code: dto.code, id: { not: id } },
       });
       if (duplicate) {
-        throw new ConflictException(
-          'Bu kod ile bir personel grubu zaten mevcut',
-        );
+        throw new ConflictException('Bu kod ile bir personel grubu zaten mevcut');
       }
     }
 
@@ -135,9 +118,7 @@ export class PersonnelGroupsService {
   }
 
   async remove(id: string) {
-    const existing = await this.prisma.personnelGroup.findUnique({
-      where: { id },
-    });
+    const existing = await this.prisma.personnelGroup.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Personel grubu bulunamadı');
     }
@@ -150,14 +131,8 @@ export class PersonnelGroupsService {
     return { success: true, id };
   }
 
-  async createTemplate(
-    groupId: string,
-    dto: CreateShiftTemplateDto,
-    organizationId?: string,
-  ) {
-    const group = await this.prisma.personnelGroup.findUnique({
-      where: { id: groupId },
-    });
+  async createTemplate(groupId: string, dto: CreateShiftTemplateDto, organizationId?: string) {
+    const group = await this.prisma.personnelGroup.findUnique({ where: { id: groupId } });
     if (!group) {
       throw new NotFoundException('Personel grubu bulunamadı');
     }
@@ -171,9 +146,7 @@ export class PersonnelGroupsService {
       },
     });
     if (existing) {
-      throw new ConflictException(
-        'Bu grup için aynı saat aralığında bu vardiya şablonu zaten mevcut',
-      );
+      throw new ConflictException('Bu grup için aynı saat aralığında bu vardiya şablonu zaten mevcut');
     }
 
     const template = await this.prisma.personShiftTemplate.create({
@@ -193,9 +166,7 @@ export class PersonnelGroupsService {
   }
 
   async findTemplates(groupId: string) {
-    const group = await this.prisma.personnelGroup.findUnique({
-      where: { id: groupId },
-    });
+    const group = await this.prisma.personnelGroup.findUnique({ where: { id: groupId } });
     if (!group) {
       throw new NotFoundException('Personel grubu bulunamadı');
     }
@@ -206,9 +177,7 @@ export class PersonnelGroupsService {
   }
 
   async updateTemplate(templateId: string, dto: UpdateShiftTemplateDto) {
-    const template = await this.prisma.personShiftTemplate.findUnique({
-      where: { id: templateId },
-    });
+    const template = await this.prisma.personShiftTemplate.findUnique({ where: { id: templateId } });
     if (!template) {
       throw new NotFoundException('Vardiya şablonu bulunamadı');
     }
@@ -228,9 +197,7 @@ export class PersonnelGroupsService {
   }
 
   async removeTemplate(templateId: string) {
-    const template = await this.prisma.personShiftTemplate.findUnique({
-      where: { id: templateId },
-    });
+    const template = await this.prisma.personShiftTemplate.findUnique({ where: { id: templateId } });
     if (!template) {
       throw new NotFoundException('Vardiya şablonu bulunamadı');
     }

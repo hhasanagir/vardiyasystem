@@ -66,18 +66,6 @@ playwright/.cache/
 # Docker secrets (real secret files — never commit)
 secrets/*.txt
 
-# Runtime/stray artifacts (release integrity: never commit)
-dump.rdb
-server_log.txt
-/query
-
-# Generated FE bundles staged inside backend (served by nginx in prod; rebuilt in CI)
-backend/static/
-
-# Stray nested duplicates (unreferenced by build: angular sourceRoot "src"/main.ts, nest main.ts)
-frontend/src/src/
-backend/src/src/
-
 # Misc
 *.tgz
 .cache/

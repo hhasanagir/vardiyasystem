@@ -10,22 +10,22 @@ export interface ScheduleFilter {
   skip?: number;
 }
 
+export interface ScheduleSaveOptions {
+  /** Write a version snapshot in the same transaction as the state change. */
+  snapshot?: { userId: string; comment?: string };
+  /** Cancel SwapRequests that reference this schedule's assignments. */
+  cancelSwapRequestsReason?: string;
+}
+
 export interface ScheduleRepositoryPort {
   findById(id: string): Promise<Schedule | null>;
-  findByUnitMonthYear(
-    unitId: string,
-    month: number,
-    year: number,
-  ): Promise<Schedule | null>;
+  findByUnitMonthYear(unitId: string, month: number, year: number): Promise<Schedule | null>;
   findAll(filter: ScheduleFilter): Promise<Schedule[]>;
-  save(schedule: Schedule, expectedVersion?: number): Promise<void>;
+  save(schedule: Schedule, expectedVersion?: number, options?: ScheduleSaveOptions): Promise<void>;
   delete(id: string): Promise<void>;
   count(filter?: ScheduleFilter): Promise<number>;
   findPendingApprovals(): Promise<Schedule[]>;
-  getVersionSnapshot(
-    scheduleId: string,
-    version: number,
-  ): Promise<VersionSnapshotRecord | null>;
+  getVersionSnapshot(scheduleId: string, version: number): Promise<VersionSnapshotRecord | null>;
 }
 
 export interface VersionSnapshotRecord {
@@ -39,10 +39,7 @@ export interface VersionSnapshotRecord {
 
 export interface PersonnelRepositoryPort {
   findById(id: string): Promise<PersonnelRecord | null>;
-  findMany(filter: {
-    unitId?: string;
-    isActive?: boolean;
-  }): Promise<PersonnelRecord[]>;
+  findMany(filter: { unitId?: string; isActive?: boolean }): Promise<PersonnelRecord[]>;
 }
 
 export interface PersonnelRecord {
@@ -63,10 +60,7 @@ export interface PersonnelRecord {
 
 export interface DeviceRepositoryPort {
   findById(id: string): Promise<DeviceRecord | null>;
-  findMany(filter: {
-    unitId?: string;
-    isActive?: boolean;
-  }): Promise<DeviceRecord[]>;
+  findMany(filter: { unitId?: string; isActive?: boolean }): Promise<DeviceRecord[]>;
 }
 
 export interface DeviceRecord {
@@ -85,10 +79,7 @@ export interface DeviceRecord {
 
 export interface ShiftTemplateRepositoryPort {
   findById(id: string): Promise<ShiftTemplateRecord | null>;
-  findMany(filter: {
-    unitId?: string;
-    isActive?: boolean;
-  }): Promise<ShiftTemplateRecord[]>;
+  findMany(filter: { unitId?: string; isActive?: boolean }): Promise<ShiftTemplateRecord[]>;
 }
 
 export interface ShiftTemplateRecord {

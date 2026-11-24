@@ -5,28 +5,22 @@ import * as Joi from 'joi';
 const logger = new Logger('EnvValidation');
 
 export const validationSchema = Joi.object({
-  NODE_ENV: Joi.string()
-    .valid('development', 'production', 'test')
-    .default('development'),
+  NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
   PORT: Joi.number().default(3000),
   DATABASE_URL: Joi.string().required(),
   DATABASE_DIRECT_URL: Joi.string().optional(),
-  JWT_ACCESS_TOKEN_SECRET: Joi.string().when('NODE_ENV', {
-    is: 'production',
-    then: Joi.string()
-      .required()
-      .min(32)
-      .description('JWT access token secret (min 32 chars)'),
-    otherwise: Joi.string().default('dev-jwt-access-secret'),
-  }),
-  JWT_REFRESH_TOKEN_SECRET: Joi.string().when('NODE_ENV', {
-    is: 'production',
-    then: Joi.string()
-      .required()
-      .min(32)
-      .description('JWT refresh token secret (min 32 chars)'),
-    otherwise: Joi.string().default('dev-jwt-refresh-secret'),
-  }),
+  JWT_ACCESS_TOKEN_SECRET: Joi.string()
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.string().required().min(32).description('JWT access token secret (min 32 chars)'),
+      otherwise: Joi.string().default('dev-jwt-access-secret'),
+    }),
+  JWT_REFRESH_TOKEN_SECRET: Joi.string()
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.string().required().min(32).description('JWT refresh token secret (min 32 chars)'),
+      otherwise: Joi.string().default('dev-jwt-refresh-secret'),
+    }),
   JWT_ACCESS_TOKEN_EXPIRES_IN: Joi.string().default('15m'),
   JWT_REFRESH_TOKEN_EXPIRES_IN: Joi.string().default('7d'),
   FRONTEND_URL: Joi.string().default('http://localhost:4200'),
@@ -48,37 +42,34 @@ export const validationSchema = Joi.object({
   WS_RECONNECT_COOLDOWN_MS: Joi.number().default(2000),
   TRUST_PROXY_LEVEL: Joi.number().default(1),
   REDIS_URL: Joi.string().optional(),
-  COOKIE_SECRET: Joi.string().when('NODE_ENV', {
-    is: 'production',
-    then: Joi.string()
-      .required()
-      .min(32)
-      .description('Cookie signing secret (min 32 chars)'),
-    otherwise: Joi.string().default('dev-cookie-secret-change-in-production'),
-  }),
-  VAPID_PUBLIC_KEY: Joi.string().when('NODE_ENV', {
-    is: 'production',
-    then: Joi.string().required(),
-    otherwise: Joi.string().default(
-      'BJmBEUlEpzbxsHEWjAAFuI-iKEJ171-JUZYmtVYBc-V84pBMyvqLDGtCeW__3I3OjaKYQ7TLpqOTQKuzCHLKNOc',
-    ),
-  }),
-  VAPID_PRIVATE_KEY: Joi.string().when('NODE_ENV', {
-    is: 'production',
-    then: Joi.string().required(),
-    otherwise: Joi.string().default(
-      'LCOGiaom9OORU7nWAZoBeNgtFVGdf-bCjRuKBkUE-Iw',
-    ),
-  }),
+  COOKIE_SECRET: Joi.string()
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.string().required().min(32).description('Cookie signing secret (min 32 chars)'),
+      otherwise: Joi.string().default('dev-cookie-secret-change-in-production'),
+    }),
+  VAPID_PUBLIC_KEY: Joi.string()
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.string().required(),
+      otherwise: Joi.string().default('BJmBEUlEpzbxsHEWjAAFuI-iKEJ171-JUZYmtVYBc-V84pBMyvqLDGtCeW__3I3OjaKYQ7TLpqOTQKuzCHLKNOc'),
+    }),
+  VAPID_PRIVATE_KEY: Joi.string()
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.string().required(),
+      otherwise: Joi.string().default('LCOGiaom9OORU7nWAZoBeNgtFVGdf-bCjRuKBkUE-Iw'),
+    }),
   VAPID_SUBJECT: Joi.string().default('mailto:vardiyaos@hospital.com'),
-  LOG_LEVEL: Joi.string()
-    .valid('error', 'warn', 'info', 'debug', 'verbose')
-    .default('info'),
+  LOG_LEVEL: Joi.string().valid('error', 'warn', 'info', 'log', 'debug', 'verbose').default('info'),
   LOG_DIR: Joi.string().default('logs'),
   ENABLE_REALTIME_COLLABORATION: Joi.boolean().default(false),
   ENABLE_ADVANCED_AUDIT: Joi.boolean().default(false),
   ENABLE_FOUR_EYES_APPROVAL: Joi.boolean().default(true),
   ENABLE_SCHEDULE_GENERATION_ASYNC: Joi.boolean().default(false),
+  // P2-01/02/03 — default OFF: legacy generation stays active; the flag first
+  // switches only the read-only dry-run to canonical DDD policy evaluation.
+  ENABLE_DDD_CANONICAL_SCHEDULING: Joi.boolean().default(false),
   ENABLE_OFFLINE_MODE: Joi.boolean().default(false),
   ENABLE_EXPORT_ASYNC: Joi.boolean().default(false),
   ENABLE_BIOMETRIC_AUTH: Joi.boolean().default(false),
@@ -91,24 +82,15 @@ export function validateStartupConfig(configService: ConfigService): void {
   if (nodeEnv === 'production') {
     const jwtAccess = configService.get<string>('JWT_ACCESS_TOKEN_SECRET', '');
     if (jwtAccess === 'dev-jwt-access-secret' || jwtAccess.length < 32) {
-      errors.push(
-        'JWT_ACCESS_TOKEN_SECRET must be a strong secret (min 32 chars) in production',
-      );
+      errors.push('JWT_ACCESS_TOKEN_SECRET must be a strong secret (min 32 chars) in production');
     }
-    const jwtRefresh = configService.get<string>(
-      'JWT_REFRESH_TOKEN_SECRET',
-      '',
-    );
+    const jwtRefresh = configService.get<string>('JWT_REFRESH_TOKEN_SECRET', '');
     if (jwtRefresh === 'dev-jwt-refresh-secret' || jwtRefresh.length < 32) {
-      errors.push(
-        'JWT_REFRESH_TOKEN_SECRET must be a strong secret (min 32 chars) in production',
-      );
+      errors.push('JWT_REFRESH_TOKEN_SECRET must be a strong secret (min 32 chars) in production');
     }
     const cookieSecret = configService.get<string>('COOKIE_SECRET', '');
     if (cookieSecret.includes('dev-') || cookieSecret.length < 32) {
-      errors.push(
-        'COOKIE_SECRET must be a strong secret (min 32 chars) in production',
-      );
+      errors.push('COOKIE_SECRET must be a strong secret (min 32 chars) in production');
     }
     const frontendUrl = configService.get<string>('FRONTEND_URL', '');
     if (frontendUrl.includes('localhost')) {
@@ -175,9 +157,6 @@ export class AppConfig {
   }
 
   get vapidSubject(): string {
-    return this.config.get<string>(
-      'VAPID_SUBJECT',
-      'mailto:vardiyaos@hospital.com',
-    );
+    return this.config.get<string>('VAPID_SUBJECT', 'mailto:vardiyaos@hospital.com');
   }
 }

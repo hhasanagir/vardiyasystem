@@ -21,8 +21,7 @@ export const NOTIFICATION_TYPES = {
   SCHEDULE_REMINDER: 'SCHEDULE_REMINDER',
 } as const;
 
-export type NotificationType =
-  (typeof NOTIFICATION_TYPES)[keyof typeof NOTIFICATION_TYPES];
+export type NotificationType = (typeof NOTIFICATION_TYPES)[keyof typeof NOTIFICATION_TYPES];
 
 export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   SCHEDULE_CHANGED: 'Vardiya Değişikliği',

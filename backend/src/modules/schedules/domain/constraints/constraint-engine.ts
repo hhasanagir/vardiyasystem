@@ -11,6 +11,7 @@ import {
   GroupLookup,
 } from './constraint.interface';
 import { ALL_HARD_CONSTRAINTS } from './hard-constraints';
+import { normalizeViolationPolicy } from '../../types/violation-policy';
 
 export interface ValidationReport {
   violations: AssignmentViolation[];
@@ -32,8 +33,10 @@ export class ConstraintEngine {
     personnelLookup: PersonnelLookup,
     deviceLookup: DeviceLookup,
     holidays: Set<string>,
+    deviceOffDates: Set<string>,
     templates: ShiftTemplateLookup,
     groups: GroupLookup,
+    personnelBlockedDates?: Map<string, Set<string>>,
   ): ValidationReport {
     const context: ConstraintContext = {
       assignment,
@@ -41,22 +44,25 @@ export class ConstraintEngine {
       personnelLookup,
       deviceLookup,
       holidays,
+      deviceOffDates,
       templates,
       groups,
       now: new Date(),
+      personnelBlockedDates,
     };
 
     const allViolations: AssignmentViolation[] = [];
 
     for (const constraint of this.constraints) {
       const result = constraint.evaluate(context);
-      allViolations.push(...result.violations);
+      // Central normalization point: every engine result obeys the same policy.
+      allViolations.push(...result.violations.map(violation => normalizeViolationPolicy(violation)));
     }
 
     return {
       violations: allViolations,
-      hasBlocking: allViolations.some((v) => v.severity === 'BLOCKING'),
-      hasOverridable: allViolations.some((v) => v.isOverrideAllowed),
+      hasBlocking: allViolations.some(v => v.severity === 'BLOCKING'),
+      hasOverridable: allViolations.some(v => v.isOverrideAllowed),
       checkedConstraints: this.constraints.length,
     };
   }
@@ -67,9 +73,11 @@ export class ConstraintEngine {
     personnelLookup: PersonnelLookup,
     deviceLookup: DeviceLookup,
     holidays: Set<string>,
+    deviceOffDates: Set<string>,
     templates: ShiftTemplateLookup,
     groups: GroupLookup,
     overrideRules: string[],
+    personnelBlockedDates?: Map<string, Set<string>>,
   ): ValidationReport {
     const report = this.validate(
       assignment,
@@ -77,25 +85,19 @@ export class ConstraintEngine {
       personnelLookup,
       deviceLookup,
       holidays,
+      deviceOffDates,
       templates,
       groups,
+      personnelBlockedDates,
     );
 
     if (!report.hasBlocking) return report;
 
     const overridableViolations = report.violations.filter(
-      (v) =>
-        v.severity === 'BLOCKING' &&
-        v.isOverrideAllowed &&
-        overrideRules.includes(v.rule),
+      v => v.severity === 'BLOCKING' && v.isOverrideAllowed && overrideRules.includes(v.rule),
     );
     const blockingViolations = report.violations.filter(
-      (v) =>
-        !(
-          v.severity === 'BLOCKING' &&
-          v.isOverrideAllowed &&
-          overrideRules.includes(v.rule)
-        ),
+      v => !(v.severity === 'BLOCKING' && v.isOverrideAllowed && overrideRules.includes(v.rule)),
     );
 
     return {
@@ -112,9 +114,11 @@ export class ConstraintEngine {
     personnelLookup: PersonnelLookup,
     deviceLookup: DeviceLookup,
     holidays: Set<string>,
+    deviceOffDates: Set<string>,
     templates: ShiftTemplateLookup,
     groups: GroupLookup,
     overrideRules: string[],
+    personnelBlockedDates?: Map<string, Set<string>>,
   ): { canOverride: boolean; blockingViolations: AssignmentViolation[] } {
     const report = this.validate(
       assignment,
@@ -122,20 +126,20 @@ export class ConstraintEngine {
       personnelLookup,
       deviceLookup,
       holidays,
+      deviceOffDates,
       templates,
       groups,
+      personnelBlockedDates,
     );
 
-    const blockingViolations = report.violations.filter(
-      (v) => v.severity === 'BLOCKING',
-    );
+    const blockingViolations = report.violations.filter(v => v.severity === 'BLOCKING');
 
     if (blockingViolations.length === 0) {
       return { canOverride: true, blockingViolations: [] };
     }
 
     const allOverridable = blockingViolations.every(
-      (v) => v.isOverrideAllowed && overrideRules.includes(v.rule),
+      v => v.isOverrideAllowed && overrideRules.includes(v.rule),
     );
 
     return {

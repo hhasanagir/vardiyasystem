@@ -1,4 +1,4 @@
-export const UnitTypeEnum = {
+﻿export const UnitTypeEnum = {
   MR: 'mr',
   BT: 'bt',
   RONTGEN: 'rontgen',
@@ -23,47 +23,32 @@ export type ShiftType = (typeof ShiftTypeEnum)[keyof typeof ShiftTypeEnum];
 
 export function normalizeShiftType(type: string): ShiftType {
   const lower = type.toLowerCase();
-  if (lower.includes('gündüz') || lower.includes('gunduz') || lower === 'day')
-    return ShiftTypeEnum.DAY;
-  if (lower.includes('akşam') || lower.includes('aksam') || lower === 'evening')
-    return ShiftTypeEnum.EVENING;
+  if (lower.includes('gündüz') || lower.includes('gunduz') || lower === 'day') return ShiftTypeEnum.DAY;
+  if (lower.includes('akşam') || lower.includes('aksam') || lower === 'evening') return ShiftTypeEnum.EVENING;
   if (lower.includes('gece') || lower === 'night') return ShiftTypeEnum.NIGHT;
   if (lower.includes('sabah') || lower === 'morning') return ShiftTypeEnum.MORNING;
   if (lower.includes('izin') || lower === 'off') return ShiftTypeEnum.OFF;
   if (lower.includes('rapor') || lower === 'leave') return ShiftTypeEnum.LEAVE;
   if (lower.includes('hasta') || lower === 'sick') return ShiftTypeEnum.SICK;
-  if (lower.includes('eğitim') || lower.includes('egitim') || lower === 'training')
-    return ShiftTypeEnum.TRAINING;
+  if (lower.includes('eğitim') || lower.includes('egitim') || lower === 'training') return ShiftTypeEnum.TRAINING;
   if (lower.includes('yedek') || lower === 'backup') return ShiftTypeEnum.BACKUP;
   return ShiftTypeEnum.DAY;
 }
 
 export function getShiftTypeLabel(type: ShiftType | string): string {
   const map: Record<string, string> = {
-    day: 'Gündüz',
-    evening: 'Akşam',
-    night: 'Gece',
-    morning: 'Sabah',
-    off: 'İzin (Off)',
-    leave: 'Raporlu İzin',
-    sick: 'Hasta',
-    training: 'Eğitim',
-    backup: 'Yedek Süpervizör',
+    day: 'Gündüz', evening: 'Akşam', night: 'Gece', morning: 'Sabah',
+    off: 'İzin (Off)', leave: 'Raporlu İzin', sick: 'Hasta',
+    training: 'Eğitim', backup: 'Yedek Süpervizör',
   };
   return map[type] || type;
 }
 
 export function getShiftTypeColor(type: ShiftType | string): string {
   const map: Record<string, string> = {
-    day: '#fbbf24',
-    evening: '#f97316',
-    night: '#6366f1',
-    morning: '#22d3ee',
-    off: '#94a3b8',
-    leave: '#a78bfa',
-    sick: '#f87171',
-    training: '#34d399',
-    backup: '#8b5cf6',
+    day: '#fbbf24', evening: '#f97316', night: '#6366f1', morning: '#22d3ee',
+    off: '#94a3b8', leave: '#a78bfa', sick: '#f87171',
+    training: '#34d399', backup: '#8b5cf6',
   };
   return map[type] || '#64748b';
 }
@@ -94,14 +79,7 @@ export function isSchedulePublished(status: ScheduleStatus): boolean {
 
 export function normalizeScheduleStatus(status: string): ScheduleStatus {
   const normalized = status.toLowerCase() as ScheduleStatus;
-  const validStatuses: ScheduleStatus[] = [
-    'draft',
-    'under_review',
-    'approved',
-    'published',
-    'archived',
-    'rejected',
-  ];
+  const validStatuses: ScheduleStatus[] = ['draft', 'under_review', 'approved', 'published', 'archived', 'rejected'];
   return validStatuses.includes(normalized) ? normalized : 'draft';
 }
 
@@ -138,8 +116,7 @@ export const ConstraintSeverityEnum = {
   ERROR: 'error',
   WARNING: 'warning',
 } as const;
-export type ConstraintSeverity =
-  (typeof ConstraintSeverityEnum)[keyof typeof ConstraintSeverityEnum];
+export type ConstraintSeverity = (typeof ConstraintSeverityEnum)[keyof typeof ConstraintSeverityEnum];
 
 export const ConflictSeverityEnum = {
   CRITICAL: 'critical',
@@ -163,12 +140,9 @@ export type PersonnelType = (typeof PersonnelTypeEnum)[keyof typeof PersonnelTyp
 
 export function getPersonnelTypeLabel(type: PersonnelType): string {
   switch (type) {
-    case PersonnelTypeEnum.ASSISTANT_TECHNICIAN:
-      return 'Yardımcı Tekniker';
-    case PersonnelTypeEnum.TECHNICIAN:
-      return 'Tekniker';
-    default:
-      return type;
+    case PersonnelTypeEnum.ASSISTANT_TECHNICIAN: return 'Yardımcı Tekniker';
+    case PersonnelTypeEnum.TECHNICIAN: return 'Tekniker';
+    default: return type;
   }
 }
 
@@ -176,7 +150,11 @@ export const UserRoleEnum = {
   SYSTEM_ADMIN: 'system_admin',
   HOSPITAL_ADMIN: 'hospital_admin',
   IMAGING_DIRECTOR: 'imaging_director',
+  PROJECT_MANAGER: 'project_manager',
+  CHIEF_TECHNICIAN: 'chief_technician',
+  HR: 'hr',
   SUPERVISOR: 'supervisor',
+  FIELD_SUPERVISOR: 'field_supervisor',
   MEDICAL_ENGINEER: 'medical_engineer',
   SENIOR_TECHNICIAN: 'senior_technician',
   TECHNICIAN: 'technician',
@@ -224,5 +202,4 @@ export const AnalyticsWarningTypeEnum = {
   IMBALANCE: 'imbalance',
   EMPTY: 'empty',
 } as const;
-export type AnalyticsWarningType =
-  (typeof AnalyticsWarningTypeEnum)[keyof typeof AnalyticsWarningTypeEnum];
+export type AnalyticsWarningType = (typeof AnalyticsWarningTypeEnum)[keyof typeof AnalyticsWarningTypeEnum];

@@ -5,7 +5,6 @@ All notable changes to this project will be documented in this file.
 ## [1.0.0] - 2026-06-29
 
 ### Added
-
 - **Production infrastructure**: Helm umbrella chart (49 files, 7 subcharts), Istio service mesh (gateway, VirtualService, DestinationRules, STRICT mTLS), ArgoCD GitOps (6 Applications), Argo Rollouts (blue-green/canary), cert-manager (3 ClusterIssuers, ECDSA P256), Unsealed Secrets (90-day rotation), Prometheus Operator (6 ServiceMonitors), OpenTelemetry Collector (HPA 2-6), NetworkPolicy + PodSecurityAdmission
 - **Monitoring**: Prometheus + Grafana + Loki + Tempo + AlertManager (Docker Compose + Helm), alert rules (15+ across 4 groups), auto-provisioned datasources, health dashboard (dark mode, per-endpoint P95/P99)
 - **Performance engineering**: k6 load test suite (4 scenarios + smoke + helpers), 5-tier load testing (100-5000 users), 10 composite database indexes, PgBouncer transaction pooling
@@ -28,13 +27,11 @@ All notable changes to this project will be documented in this file.
 - **Documentation**: 53 files across 16 docs/ subdirectories (enterprise: SLOs, IR, on-call, DR, capacity; compliance: KVKK/GDPR/HIPAA; devops: deployment, rollback, release; performance: testing, results)
 
 ### Changed
-
 - Prisma schema: 36 original models + 11 new compliance models + 6 new enums + 10 composite indexes
 - Backend: 32 controllers → 44 controllers (12 new), 200+ endpoints → ~250 endpoints
 - NestJS modules: 33 feature modules → 44 modules (7 compliance + 4 infrastructure)
 
 ### Security
-
 - ASVS Level 2 compliant (OWASP Application Security Verification Standard)
 - All 5 critical + 5 high findings from security review remediated
 - Gitleaks + TruffleHog + CodeQL scanning (weekly + per-PR)
@@ -43,7 +40,6 @@ All notable changes to this project will be documented in this file.
 ## [0.1.0] - 2026-05-16
 
 ### Added
-
 - Initial release: NestJS backend, Angular frontend, PostgreSQL database
 - Core features: authentication, schedule management, personnel management, shift tracking
 - Basic DevOps: Docker Compose, PostgreSQL, Redis, simple CI/CD

@@ -21,27 +21,13 @@ export abstract class Entity<TProps = unknown> {
     this.props = props;
   }
 
-  get id(): EntityId {
-    return this._id;
-  }
-  get createdAt(): Date {
-    return this._createdAt;
-  }
-  get updatedAt(): Date {
-    return this._updatedAt;
-  }
-  get deletedAt(): Date | null {
-    return this._deletedAt;
-  }
-  get version(): number {
-    return this._version;
-  }
-  get isDeleted(): boolean {
-    return this._deletedAt !== null;
-  }
-  get domainEvents(): DomainEvent[] {
-    return [...this._domainEvents];
-  }
+  get id(): EntityId { return this._id; }
+  get createdAt(): Date { return this._createdAt; }
+  get updatedAt(): Date { return this._updatedAt; }
+  get deletedAt(): Date | null { return this._deletedAt; }
+  get version(): number { return this._version; }
+  get isDeleted(): boolean { return this._deletedAt !== null; }
+  get domainEvents(): DomainEvent[] { return [...this._domainEvents]; }
 
   protected addDomainEvent(event: DomainEvent): void {
     this._domainEvents.push(event);

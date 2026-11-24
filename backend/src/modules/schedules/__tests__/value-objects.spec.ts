@@ -18,9 +18,7 @@ describe('Value Objects', () => {
     });
 
     it('rejects invalid format', () => {
-      expect(() => AssignmentDate.create('2026/08/15')).toThrow(
-        'Invalid date format',
-      );
+      expect(() => AssignmentDate.create('2026/08/15')).toThrow('Invalid date format');
     });
 
     it('rejects invalid day', () => {

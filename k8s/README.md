@@ -57,7 +57,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: vardiya
 resources:
-  - ../base # or the existing k8s/ directory
+  - ../base  # or the existing k8s/ directory
   - postgres-exporter.yaml
   - redis-exporter.yaml
   - network-policy.yaml
@@ -65,24 +65,24 @@ resources:
 
 ## Files Overview
 
-| File                           | Type                          | Description                                                                                       |
-| ------------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------- |
-| `namespace.yaml`               | Namespace                     | `vardiya` with production label                                                                   |
-| `configmap.yaml`               | ConfigMap                     | App env vars + nginx config                                                                       |
-| `secrets.yaml`                 | Secret                        | Empty placeholder — NOT in kustomization; provision via Sealed Secrets or `kubectl create secret` |
-| `backend-deployment.yaml`      | Deployment+HPA+PDB+Service    | NestJS API, 2-6 pods, 70% CPU HPA, `prisma migrate deploy` initContainer                          |
-| `frontend-deployment.yaml`     | Deployment+HPA+PDB+Service    | Angular SPA, 2-4 pods, 70% CPU HPA                                                                |
-| `postgres-statefulset.yaml`    | StatefulSet+Service           | PostgreSQL 15 + PgBouncer deployment                                                              |
-| `redis-deployment.yaml`        | Deployment+Service+PVC        | Redis 7 standalone                                                                                |
-| `ingress.yaml`                 | Ingress                       | nginx ingress, TLS via cert-manager                                                               |
-| `kustomization.yaml`           | Kustomization                 | Lists all 9 base resources                                                                        |
-| `service-account.yaml`         | SA+RBAC                       | Backend/frontend SAs, ClusterRole, bindings                                                       |
-| `postgres-exporter.yaml`       | Deployment+Service            | PG metrics on :9187                                                                               |
-| `redis-exporter.yaml`          | Deployment+Service            | Redis metrics on :9121                                                                            |
-| `redis-sentinel.yaml`          | StatefulSet+ConfigMap+Service | 3-node Sentinel for Redis HA                                                                      |
-| `network-policy.yaml`          | NetworkPolicy                 | Default-deny + per-service ingress rules                                                          |
-| `resource-quota.yaml`          | ResourceQuota+LimitRange      | Compute/storage quotas                                                                            |
-| `backend-service-monitor.yaml` | ServiceMonitor+PrometheusRule | Prometheus Operator CRDs                                                                          |
+| File | Type | Description |
+|------|------|-------------|
+| `namespace.yaml` | Namespace | `vardiya` with production label |
+| `configmap.yaml` | ConfigMap | App env vars + nginx config |
+| `secrets.yaml` | Secret | Empty placeholder — NOT in kustomization; provision via Sealed Secrets or `kubectl create secret` |
+| `backend-deployment.yaml` | Deployment+HPA+PDB+Service | NestJS API, 2-6 pods, 70% CPU HPA, `prisma migrate deploy` initContainer |
+| `frontend-deployment.yaml` | Deployment+HPA+PDB+Service | Angular SPA, 2-4 pods, 70% CPU HPA |
+| `postgres-statefulset.yaml` | StatefulSet+Service | PostgreSQL 15 + PgBouncer deployment |
+| `redis-deployment.yaml` | Deployment+Service+PVC | Redis 7 standalone |
+| `ingress.yaml` | Ingress | nginx ingress, TLS via cert-manager |
+| `kustomization.yaml` | Kustomization | Lists all 9 base resources |
+| `service-account.yaml` | SA+RBAC | Backend/frontend SAs, ClusterRole, bindings |
+| `postgres-exporter.yaml` | Deployment+Service | PG metrics on :9187 |
+| `redis-exporter.yaml` | Deployment+Service | Redis metrics on :9121 |
+| `redis-sentinel.yaml` | StatefulSet+ConfigMap+Service | 3-node Sentinel for Redis HA |
+| `network-policy.yaml` | NetworkPolicy | Default-deny + per-service ingress rules |
+| `resource-quota.yaml` | ResourceQuota+LimitRange | Compute/storage quotas |
+| `backend-service-monitor.yaml` | ServiceMonitor+PrometheusRule | Prometheus Operator CRDs |
 
 ## Architecture
 

@@ -33,10 +33,10 @@
 
 ## Key Risk Areas
 
-| Area                                    | Risk                                                                 | Current State                                                                                          |
-| --------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Schedule list endpoint                  | Could trigger N+1 **if** it loads assignments per schedule in a loop | Mitigated — repository-level `include` prevents this                                                   |
-| `findAll` in `PrismaScheduleRepository` | Large datasets inflate join size                                     | Efficient today (`include: { assignments: true }`), but unbounded result sets remain a scaling concern |
+| Area | Risk | Current State |
+|---|---|---|
+| Schedule list endpoint | Could trigger N+1 **if** it loads assignments per schedule in a loop | Mitigated — repository-level `include` prevents this |
+| `findAll` in `PrismaScheduleRepository` | Large datasets inflate join size | Efficient today (`include: { assignments: true }`), but unbounded result sets remain a scaling concern |
 
 ## Findings Detail
 

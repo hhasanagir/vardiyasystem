@@ -1,13 +1,4 @@
-import {
-  Directive,
-  Input,
-  TemplateRef,
-  ViewContainerRef,
-  OnInit,
-  inject,
-  OnDestroy,
-  effect,
-} from '@angular/core';
+import { Directive, Input, TemplateRef, ViewContainerRef, OnInit, inject, OnDestroy, effect } from '@angular/core';
 import { RbacService } from '../../services/rbac.service';
 
 @Directive({
@@ -43,7 +34,8 @@ export class HasPermissionDirective implements OnInit, OnDestroy {
     }
   }
 
-  ngOnInit() {}
+  ngOnInit() {
+  }
 
   ngOnDestroy() {
     this.effectRef.destroy();
@@ -68,10 +60,9 @@ export class HasPermissionDirective implements OnInit, OnDestroy {
       this.viewContainer.createEmbeddedView(this.templateRef);
       return;
     }
-    const hasAccess =
-      this.mode === 'any'
-        ? this.rbac.hasAnyPermission(permissions)
-        : this.rbac.hasAllPermissions(permissions);
+    const hasAccess = this.mode === 'any'
+      ? this.rbac.hasAnyPermission(permissions)
+      : this.rbac.hasAllPermissions(permissions);
     if (hasAccess) {
       if (this.viewContainer.length === 0) {
         this.viewContainer.createEmbeddedView(this.templateRef);

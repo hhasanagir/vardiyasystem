@@ -29,10 +29,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   validateStartupConfig(configService);
   const isProduction = configService.get('NODE_ENV') === 'production';
-  const frontendUrl = configService.get(
-    'FRONTEND_URL',
-    'http://localhost:4200',
-  );
+  const frontendUrl = configService.get('FRONTEND_URL', 'http://localhost:4200');
 
   const trustLevel = configService.get<number>('TRUST_PROXY_LEVEL', 1);
   app.getHttpAdapter().getInstance().set('trust proxy', trustLevel);
@@ -49,38 +46,34 @@ async function bootstrap() {
   const cookieSecret = configService.get<string>('COOKIE_SECRET');
   app.use(cookieParser(cookieSecret));
 
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        useDefaults: true,
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          imgSrc: ["'self'", 'data:'],
-          connectSrc: ["'self'", frontendUrl],
-          fontSrc: ["'self'"],
-          objectSrc: ["'none'"],
-          frameAncestors: ["'none'"],
-          baseUri: ["'self'"],
-          formAction: ["'self'"],
-          ...(isProduction ? { upgradeInsecureRequests: [] } : {}),
-        },
+  app.use(helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:"],
+        connectSrc: ["'self'", frontendUrl],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        ...(isProduction ? { upgradeInsecureRequests: [] } : {}),
       },
-      crossOriginEmbedderPolicy: false,
-      crossOriginResourcePolicy: { policy: 'same-origin' },
-      hsts: isProduction
-        ? {
-            maxAge: 31536000,
-            includeSubDomains: true,
-            preload: true,
-          }
-        : false,
-      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-      permittedCrossDomainPolicies: { permittedPolicies: 'none' },
-      xFrameOptions: { action: 'deny' },
-    }),
-  );
+    },
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'same-origin' },
+    hsts: isProduction ? {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    } : false,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    permittedCrossDomainPolicies: { permittedPolicies: 'none' },
+    xFrameOptions: { action: 'deny' },
+  }));
 
   const correlationService = app.get(CorrelationService);
   const healthMonitor = app.get(HealthMonitorService);
@@ -90,28 +83,21 @@ async function bootstrap() {
     new MetricsInterceptor(app.get(MetricsService)),
   );
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      forbidUnknownValues: true,
-      transform: true,
-      transformOptions: { enableImplicitConversion: true },
-      validationError: { target: false, value: false },
-      stopAtFirstError: true,
-    }),
-  );
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    forbidUnknownValues: true,
+    transform: true,
+    transformOptions: { enableImplicitConversion: true },
+    validationError: { target: false, value: false },
+    stopAtFirstError: true,
+  }));
 
   app.enableCors({
     origin: frontendUrl,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'x-csrf-token',
-      'X-Correlation-Id',
-    ],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token', 'X-Correlation-Id'],
     exposedHeaders: ['X-Correlation-Id'],
   });
 
@@ -147,18 +133,11 @@ async function bootstrap() {
     message: `API server started on port ${port} (${process.env.NODE_ENV || 'development'})`,
     severity: 'info',
     source: 'bootstrap',
-    metadata: {
-      port,
-      nodeVersion: process.version,
-      platform: process.platform,
-    },
+    metadata: { port, nodeVersion: process.version, platform: process.platform },
   });
 
   const shutdownHandler = async (signal: string) => {
-    winstonLogger.info('shutdown_initiated', {
-      signal,
-      uptime: process.uptime(),
-    });
+    winstonLogger.info('shutdown_initiated', { signal, uptime: process.uptime() });
     logger.log(`Received ${signal}. Starting graceful shutdown...`);
 
     try {
@@ -178,9 +157,7 @@ async function bootstrap() {
 }
 
 bootstrap().catch((err) => {
-  winstonLogger.error('bootstrap_failed', {
-    error: (err as Error).message,
-    stack: (err as Error).stack,
-  });
+  winstonLogger.error('bootstrap_failed', { error: (err as Error).message, stack: (err as Error).stack });
   process.exit(1);
 });
+

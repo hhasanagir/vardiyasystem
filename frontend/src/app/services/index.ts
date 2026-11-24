@@ -11,6 +11,5 @@ export * from './websocket.service';
 export * from './mobile.service';
 export * from './biometric-auth.service';
 export * from './push-notification.service';
-export * from './api-cache.service';
 export * from './camera.service';
 export * from './deep-link.service';

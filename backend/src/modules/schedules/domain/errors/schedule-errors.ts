@@ -1,12 +1,8 @@
 export class StaleVersionError extends Error {
-  constructor(
-    scheduleId: string,
-    expectedVersion: number,
-    actualVersion: number,
-  ) {
+  constructor(scheduleId: string, expectedVersion: number, actualVersion: number) {
     super(
       `Schedule ${scheduleId} version conflict: expected version ${expectedVersion} but found ${actualVersion}. ` +
-        `Another user has modified this schedule. Please refresh and try again.`,
+      `Another user has modified this schedule. Please refresh and try again.`,
     );
     this.name = 'StaleVersionError';
   }
@@ -14,9 +10,7 @@ export class StaleVersionError extends Error {
 
 export class ScheduleLockError extends Error {
   constructor(scheduleId: string) {
-    super(
-      `Schedule ${scheduleId} is locked by another operation. Please try again.`,
-    );
+    super(`Schedule ${scheduleId} is locked by another operation. Please try again.`);
     this.name = 'ScheduleLockError';
   }
 }
@@ -25,7 +19,7 @@ export class IdempotencyConflictError extends Error {
   constructor(operation: string, idempotencyKey: string) {
     super(
       `Duplicate ${operation} detected (idempotency key: ${idempotencyKey}). ` +
-        `This operation was already processed.`,
+      `This operation was already processed.`,
     );
     this.name = 'IdempotencyConflictError';
   }
@@ -39,11 +33,7 @@ export class ScheduleNotFoundError extends Error {
 }
 
 export class InvalidScheduleStateError extends Error {
-  constructor(
-    scheduleId: string,
-    currentStatus: string,
-    attemptedAction: string,
-  ) {
+  constructor(scheduleId: string, currentStatus: string, attemptedAction: string) {
     super(
       `Cannot ${attemptedAction} schedule ${scheduleId}: current status is '${currentStatus}'`,
     );
@@ -69,9 +59,7 @@ export class ScheduleValidationFailedError extends Error {
 
 export class AssignmentConflictError extends Error {
   constructor(scheduleId: string, conflictCode: string, message: string) {
-    super(
-      `Schedule ${scheduleId} assignment conflict [${conflictCode}]: ${message}`,
-    );
+    super(`Schedule ${scheduleId} assignment conflict [${conflictCode}]: ${message}`);
     this.name = 'AssignmentConflictError';
   }
 }
@@ -95,11 +83,7 @@ export class QualificationRequiredError extends Error {
 }
 
 export class OptimisticLockConflictError extends Error {
-  constructor(
-    scheduleId: string,
-    expectedVersion: number,
-    actualVersion: number,
-  ) {
+  constructor(scheduleId: string, expectedVersion: number, actualVersion: number) {
     super(
       `Optimistic lock conflict on schedule ${scheduleId}: expected v${expectedVersion}, found v${actualVersion}`,
     );

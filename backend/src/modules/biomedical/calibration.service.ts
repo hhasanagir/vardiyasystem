@@ -9,11 +9,7 @@ import { CompleteCalibrationDto } from './dto/calibration/complete-calibration.d
 export class CalibrationService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(filters?: {
-    assetId?: string;
-    status?: string;
-    type?: string;
-  }) {
+  async findAll(filters?: { assetId?: string; status?: string; type?: string }) {
     const where: Prisma.CalibrationRecordWhereInput = {};
     if (filters?.assetId) where.assetId = filters.assetId;
     if (filters?.status) where.status = filters.status;
@@ -48,9 +44,7 @@ export class CalibrationService {
     if (!calibrationNumber) {
       const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       const count = await this.prisma.calibrationRecord.count({
-        where: {
-          createdAt: { gte: new Date(new Date().toISOString().slice(0, 10)) },
-        },
+        where: { createdAt: { gte: new Date(new Date().toISOString().slice(0, 10)) } },
       });
       calibrationNumber = `CAL-${today}-${String(count + 1).padStart(4, '0')}`;
     }
@@ -62,18 +56,14 @@ export class CalibrationService {
         type: dto.type,
         status: dto.status || 'scheduled',
         scheduledDate: new Date(dto.scheduledDate),
-        completedDate: dto.completedDate
-          ? new Date(dto.completedDate)
-          : undefined,
+        completedDate: dto.completedDate ? new Date(dto.completedDate) : undefined,
         performedById: dto.performedById,
         vendorId: dto.vendorId,
         standard: dto.standard,
         results: dto.results,
         measurementValues: dto.measurementValues,
         certificateRef: dto.certificateRef,
-        nextCalibrationDate: dto.nextCalibrationDate
-          ? new Date(dto.nextCalibrationDate)
-          : undefined,
+        nextCalibrationDate: dto.nextCalibrationDate ? new Date(dto.nextCalibrationDate) : undefined,
         intervalDays: dto.intervalDays,
         cost: dto.cost,
         notes: dto.notes,
@@ -85,29 +75,22 @@ export class CalibrationService {
   }
 
   async update(id: string, dto: UpdateCalibrationDto) {
-    const existing = await this.prisma.calibrationRecord.findUnique({
-      where: { id },
-    });
+    const existing = await this.prisma.calibrationRecord.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Calibration record not found');
 
     const data: Prisma.CalibrationRecordUncheckedUpdateInput = {};
     if (dto.assetId !== undefined) data.assetId = dto.assetId;
     if (dto.type !== undefined) data.type = dto.type;
     if (dto.status !== undefined) data.status = dto.status;
-    if (dto.scheduledDate !== undefined)
-      data.scheduledDate = new Date(dto.scheduledDate);
-    if (dto.completedDate !== undefined)
-      data.completedDate = new Date(dto.completedDate);
+    if (dto.scheduledDate !== undefined) data.scheduledDate = new Date(dto.scheduledDate);
+    if (dto.completedDate !== undefined) data.completedDate = new Date(dto.completedDate);
     if (dto.performedById !== undefined) data.performedById = dto.performedById;
     if (dto.vendorId !== undefined) data.vendorId = dto.vendorId;
     if (dto.standard !== undefined) data.standard = dto.standard;
     if (dto.results !== undefined) data.results = dto.results;
-    if (dto.measurementValues !== undefined)
-      data.measurementValues = dto.measurementValues;
-    if (dto.certificateRef !== undefined)
-      data.certificateRef = dto.certificateRef;
-    if (dto.nextCalibrationDate !== undefined)
-      data.nextCalibrationDate = new Date(dto.nextCalibrationDate);
+    if (dto.measurementValues !== undefined) data.measurementValues = dto.measurementValues;
+    if (dto.certificateRef !== undefined) data.certificateRef = dto.certificateRef;
+    if (dto.nextCalibrationDate !== undefined) data.nextCalibrationDate = new Date(dto.nextCalibrationDate);
     if (dto.intervalDays !== undefined) data.intervalDays = dto.intervalDays;
     if (dto.cost !== undefined) data.cost = dto.cost;
     if (dto.notes !== undefined) data.notes = dto.notes;
@@ -122,9 +105,7 @@ export class CalibrationService {
   }
 
   async complete(id: string, dto: CompleteCalibrationDto) {
-    const existing = await this.prisma.calibrationRecord.findUnique({
-      where: { id },
-    });
+    const existing = await this.prisma.calibrationRecord.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Calibration record not found');
 
     return this.prisma.calibrationRecord.update({
@@ -136,9 +117,7 @@ export class CalibrationService {
         measurementValues: dto.measurementValues,
         certificateRef: dto.certificateRef,
         notes: dto.notes,
-        nextCalibrationDate: dto.nextCalibrationDate
-          ? new Date(dto.nextCalibrationDate)
-          : undefined,
+        nextCalibrationDate: dto.nextCalibrationDate ? new Date(dto.nextCalibrationDate) : undefined,
         intervalDays: dto.intervalDays,
         cost: dto.cost,
       },
@@ -166,9 +145,7 @@ export class CalibrationService {
   }
 
   async remove(id: string) {
-    const existing = await this.prisma.calibrationRecord.findUnique({
-      where: { id },
-    });
+    const existing = await this.prisma.calibrationRecord.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Calibration record not found');
     await this.prisma.calibrationRecord.delete({ where: { id } });
     return { success: true };

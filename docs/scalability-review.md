@@ -2,7 +2,7 @@
 
 > **Date:** 2026-06-13  
 > **Scope:** Backend API (`backend/`), Frontend SPA (`frontend/`), Infrastructure (Docker, nginx, PostgreSQL, Redis)  
-> **Target deployment:** 50 hospitals, 5,000 employees, 100,000 shift records, 500 concurrent users
+> **Target deployment:** 50 hospitals, 5,000 employees, 100,000 shift records, 500 concurrent users  
 
 ---
 
@@ -23,13 +23,11 @@
 ---
 
 <a name="executive"></a>
-
 ## 1. Executive Summary
 
 The system can handle its current single-hospital load but will encounter **7 critical bottlenecks** at 500-CCU / 50-hospital scale. The three highest-risk areas are (a) in-memory state preventing horizontal backend scaling, (b) lack of PgBouncer/connection pooling for PostgreSQL, and (c) no caching layer for frequently accessed data. The frontend SPA delivery model and single-process WebSocket adapter are also significant constraints. Remediation is estimated at **2-3 weeks engineering time** for the P0/P1 items, with P2/P3 items spread over the following 2 months.
 
 **Key metrics at target load:**
-
 - Shift records: ~100,000 (currently ~5,000)
 - Concurrent API users: ~500
 - Concurrent WebSocket connections: ~500
@@ -40,22 +38,20 @@ The system can handle its current single-hospital load but will encounter **7 cr
 ---
 
 <a name="snapshot"></a>
-
 ## 2. Current Architecture Snapshot
 
-| Component     | Technology                   | Instance Count    | Scaling Mechanism             |
-| ------------- | ---------------------------- | ----------------- | ----------------------------- |
-| Backend API   | NestJS (Express), Node.js 20 | 1 container       | None (in-memory state)        |
-| Database      | PostgreSQL 16                | 1 Docker instance | None (single node)            |
-| Cache/Queue   | Redis 7                      | 1 Docker instance | None (single node)            |
-| WebSocket     | Socket.IO (in-process)       | 1 (same as API)   | None (in-memory adapter)      |
-| Frontend      | Angular 17 SPA               | 1 nginx container | None (single origin)          |
-| Reverse Proxy | nginx (API)                  | 1 container       | Round-robin (no backend pool) |
+| Component | Technology | Instance Count | Scaling Mechanism |
+|---|---|---|---|
+| Backend API | NestJS (Express), Node.js 20 | 1 container | None (in-memory state) |
+| Database | PostgreSQL 16 | 1 Docker instance | None (single node) |
+| Cache/Queue | Redis 7 | 1 Docker instance | None (single node) |
+| WebSocket | Socket.IO (in-process) | 1 (same as API) | None (in-memory adapter) |
+| Frontend | Angular 17 SPA | 1 nginx container | None (single origin) |
+| Reverse Proxy | nginx (API) | 1 container | Round-robin (no backend pool) |
 
 ---
 
 <a name="database"></a>
-
 ## 3. Database Layer
 
 ### 3.1 No connection pooling middleware
@@ -69,7 +65,6 @@ The system can handle its current single-hospital load but will encounter **7 cr
 **Solution:** Deploy PgBouncer in transaction-pooling mode between Prisma and PostgreSQL. Configure `default_pool_size=50`, `max_client_conn=200`.
 
 **Steps:**
-
 1. Add `pgbouncer` service to `docker-compose.yml` (image: `edoburu/pgbouncer:1.23`)
 2. Set `DATABASE_URL` → `pgbouncer:6432/vardiya?pool=50`, `DIRECT_URL` → direct PostgreSQL for Prisma migrations
 3. Calculate pool: 500 CCU × ~2 queries/page × 5s query time / 50 pool = 100 concurrent → `pool_size=50` adequate
@@ -86,7 +81,6 @@ The system can handle its current single-hospital load but will encounter **7 cr
 **Solution:** Configure Prisma read replicas via `@prisma/extension-read-replicas`. Route reporting/analytics queries to a read replica.
 
 **Steps:**
-
 1. Provision a read-replica PostgreSQL instance
 2. Install `@prisma/extension-read-replicas`
 3. Configure `PrismaClient` with `replicas: [readReplicaUrl]`
@@ -101,21 +95,20 @@ The system can handle its current single-hospital load but will encounter **7 cr
 
 **Identified query patterns needing composite indexes:**
 
-| Table              | Columns                         | Reason                            |
-| ------------------ | ------------------------------- | --------------------------------- |
-| `schedules`        | `(unitId, month, year)`         | Per-unit monthly schedule queries |
-| `schedules`        | `(employeeId, date)`            | Employee shift history view       |
-| `swap_requests`    | `(status, createdAt)`           | Pending swaps dashboard           |
-| `device_incidents` | `(unitId, severity, createdAt)` | Unit incident timeline            |
-| `device_incidents` | `(assignedTo, status)`          | Personnel assigned incidents      |
-| `notifications`    | `(userId, read, createdAt)`     | User notification inbox           |
-| `audit_log`        | `(organizationId, createdAt)`   | Org audit trail                   |
-| `sessions`         | `(userId, active)`              | Active sessions management        |
+| Table | Columns | Reason |
+|---|---|---|
+| `schedules` | `(unitId, month, year)` | Per-unit monthly schedule queries |
+| `schedules` | `(employeeId, date)` | Employee shift history view |
+| `swap_requests` | `(status, createdAt)` | Pending swaps dashboard |
+| `device_incidents` | `(unitId, severity, createdAt)` | Unit incident timeline |
+| `device_incidents` | `(assignedTo, status)` | Personnel assigned incidents |
+| `notifications` | `(userId, read, createdAt)` | User notification inbox |
+| `audit_log` | `(organizationId, createdAt)` | Org audit trail |
+| `sessions` | `(userId, active)` | Active sessions management |
 
 **Impact:** Full table scans on schedule/swap/incident queries at 100k shift records. Estimated 10-50x slowdown on common pages.
 
 **Steps:**
-
 1. Generate Prisma migration for each composite index
 2. Validate query plans with `EXPLAIN ANALYZE` before/after
 3. Monitor pg_stat_user_tables for seq_scans improvement
@@ -129,7 +122,6 @@ The system can handle its current single-hospital load but will encounter **7 cr
 **Impact at scale:** Loading 100k shift records into Node.js memory to compute monthly statistics will cause OOM crashes (backend limited to 512MB). Each aggregation request could allocate 200MB+ temporary arrays.
 
 **Solution options (in priority order):**
-
 1. Push aggregations into PostgreSQL via raw SQL with window functions — 0 additional infrastructure
 2. Create materialized views refreshed hourly — simple, read-only snapshot
 3. Use TimescaleDB for time-series analytics — powerful but adds infrastructure
@@ -140,7 +132,6 @@ The system can handle its current single-hospital load but will encounter **7 cr
 ---
 
 <a name="api"></a>
-
 ## 4. API Layer
 
 ### 4.1 In-memory state prevents horizontal scaling
@@ -157,7 +148,6 @@ The system can handle its current single-hospital load but will encounter **7 cr
 - `PushSubscriptionService` — in-memory Map of push subscriptions (also in DB)
 
 **Impact:** Cannot run more than 1 backend instance. Adding a second instance:
-
 - Token blacklist is not shared — revoked tokens still valid on instance 2
 - Rate limiting (login attempts) has different limits per instance
 - WebSocket rooms are per-instance — users connected to instance 2 can't receive broadcasts from instance 1
@@ -166,17 +156,16 @@ The system can handle its current single-hospital load but will encounter **7 cr
 
 **Solution:** Extract all in-memory state to Redis-backed services. Priority order:
 
-| Service                 | Redis Data Structure         | Key Pattern              |
-| ----------------------- | ---------------------------- | ------------------------ |
-| TokenBlacklistService   | `SET` + TTL (token expiry)   | `blacklist:{jwt}`        |
-| LoginAttemptsService    | `STRING` + TTL (1hr window)  | `login_attempts:{email}` |
-| JWT user cache          | `STRING` (JSON) + TTL (5min) | `user_cache:{userId}`    |
-| HeavyEditGuard          | `STRING` + TTL (heartbeat)   | `edit_lock:{scheduleId}` |
-| WebSocket rooms         | Socket.IO Redis adapter      | (handled by adapter)     |
-| PushSubscriptionService | `SET` per user               | `push_subs:{userId}`     |
+| Service | Redis Data Structure | Key Pattern |
+|---|---|---|
+| TokenBlacklistService | `SET` + TTL (token expiry) | `blacklist:{jwt}` |
+| LoginAttemptsService | `STRING` + TTL (1hr window) | `login_attempts:{email}` |
+| JWT user cache | `STRING` (JSON) + TTL (5min) | `user_cache:{userId}` |
+| HeavyEditGuard | `STRING` + TTL (heartbeat) | `edit_lock:{scheduleId}` |
+| WebSocket rooms | Socket.IO Redis adapter | (handled by adapter) |
+| PushSubscriptionService | `SET` per user | `push_subs:{userId}` |
 
 **Steps:**
-
 1. Create `RedisStateService` (or extend existing `EventStoreService`) with generic GET/SET/EXPIRE
 2. Refactor `TokenBlacklistService` to use Redis `SET` with TTL matching token expiry
 3. Refactor `LoginAttemptsService` to use Redis `INCR` + `EXPIRE`
@@ -209,7 +198,6 @@ The system can handle its current single-hospital load but will encounter **7 cr
 **Impact:** Future breaking changes to API contracts (e.g., schedule object restructuring) will break existing frontend deployments. Can't run multiple frontend versions simultaneously during phased rollouts.
 
 **Solution:** Introduce API versioning via NestJS global prefix in `main.ts`:
-
 - Set `app.setGlobalPrefix('api/v1')`
 - Maintain backward compatibility for at least 1 major version
 - Document deprecation in response headers: `X-API-Deprecated: true` + `Sunset: Sat, 13 Dec 2026 00:00:00 GMT`
@@ -223,7 +211,6 @@ The system can handle its current single-hospital load but will encounter **7 cr
 **Impact at 500 CCU:** 500 users × multiple requests = throttle limits may be hit under normal load if not per-tenant.
 
 **Solution:**
-
 1. Verify throttler uses Redis storage (not in-memory) for distributed rate limiting
 2. Make auth throttler per-IP with lower limit (5 attempts per 60s)
 3. Add per-tenant (organizationId) throttling for general API limits
@@ -238,7 +225,6 @@ The system can handle its current single-hospital load but will encounter **7 cr
 **Impact at 100k records:** A query returning 500 employees each with 3 relations → class transformer overhead of ~5-10ms per 100 records. At 200 req/s, this adds 10-20ms latency.
 
 **Solution:**
-
 1. Use `@SerializeOptions({ strategy: 'excludeAll' })` instead of `@Exclude()` on every property — reduces per-field reflection overhead
 2. Consider `@nestjs/mapped-types` `PartialType` for response DTOs instead of class-transformer
 3. For list endpoints, use raw Prisma result types (no serialization) with explicit response fields
@@ -246,7 +232,6 @@ The system can handle its current single-hospital load but will encounter **7 cr
 ---
 
 <a name="websocket"></a>
-
 ## 5. WebSocket Layer
 
 ### 5.1 Socket.IO in-memory adapter
@@ -256,24 +241,21 @@ The system can handle its current single-hospital load but will encounter **7 cr
 **Current state:** `ScheduleGateway` uses `@WebSocketGateway()` with the default in-memory adapter. Rooms, presence, and broadcasts are per-process.
 
 **Impact at scale:** With 2+ backend instances:
-
 - Room membership is per-instance: broadcasting to `unit:42` only reaches clients connected to the same instance
 - User connected to instance A cannot receive events from instance B
 - Connected client count metrics are per-instance
 
 **Solution:** Add Socket.IO Redis adapter:
-
 ```bash
 npm install @socket.io/redis-adapter ioredis
 ```
 
 In `main.ts` or a dedicated `websocket.module.ts`:
-
 ```typescript
-import { createAdapter } from "@socket.io/redis-adapter";
-import Redis from "ioredis";
+import { createAdapter } from '@socket.io/redis-adapter';
+import Redis from 'ioredis';
 
-const pubClient = new Redis({ host: "redis", port: 6379, db: 1 });
+const pubClient = new Redis({ host: 'redis', port: 6379, db: 1 });
 const subClient = pubClient.duplicate();
 app.get(IOAdapter).createWSEmiter(pubClient, subClient);
 ```
@@ -287,7 +269,6 @@ app.get(IOAdapter).createWSEmiter(pubClient, subClient);
 **Impact:** A malicious client or misconfigured frontend could flood the server with `joinRoom`/`leaveRoom` events. At 500 clients, even normal event bursts (shift created → everyone joins room → 500 broadcasts) could cause event storms.
 
 **Solution:**
-
 1. Add Socket.IO `maxClients` per namespace/room (via middleware)
 2. Implement per-client event rate limiting in gateway middleware (e.g., max 10 messages/sec per socket)
 3. Use `@WSCreate` middleware for connection admission control
@@ -300,7 +281,6 @@ app.get(IOAdapter).createWSEmiter(pubClient, subClient);
 **Current state:** No mechanism to detect when a WebSocket server instance becomes unhealthy and drain its connections gracefully.
 
 **Solution:**
-
 1. Add a `/ws-health` endpoint to Socket.IO that returns connection count, room count, memory usage
 2. Implement connection draining: on `SIGTERM`, stop accepting new connections, notify connected clients to reconnect, then shutdown
 3. Use Socket.IO `allowEIO3: true` for graceful client migration
@@ -308,7 +288,6 @@ app.get(IOAdapter).createWSEmiter(pubClient, subClient);
 ---
 
 <a name="caching"></a>
-
 ## 6. Caching Layer
 
 ### 6.1 No application-level cache for frequent queries
@@ -319,13 +298,13 @@ app.get(IOAdapter).createWSEmiter(pubClient, subClient);
 
 **High-frequency query patterns (cache-worthy):**
 
-| Query endpoint                 | Frequency                      | Staleness tolerance | Current avg latency |
-| ------------------------------ | ------------------------------ | ------------------- | ------------------- |
-| Unit health status (dashboard) | Every page load (~30s/session) | 30-60s              | ~80ms               |
-| Employee schedule summary      | Per employee view              | 60s                 | ~150ms              |
-| Device list + status           | Per unit view                  | 30s                 | ~120ms              |
-| Notification unread count      | Every request (navbar)         | 15s                 | ~40ms               |
-| Organization settings          | Rarely changes                 | 5min                | ~20ms               |
+| Query endpoint | Frequency | Staleness tolerance | Current avg latency |
+|---|---|---|---|
+| Unit health status (dashboard) | Every page load (~30s/session) | 30-60s | ~80ms |
+| Employee schedule summary | Per employee view | 60s | ~150ms |
+| Device list + status | Per unit view | 30s | ~120ms |
+| Notification unread count | Every request (navbar) | 15s | ~40ms |
+| Organization settings | Rarely changes | 5min | ~20ms |
 
 **Solution:** Implement a caching decorator/service:
 
@@ -344,25 +323,24 @@ Using `ioredis` with JSON serialization. Cache key patterns should include entit
 
 **Memory projection at scale:**
 
-| Usage                     | Per-item   | Estimated items | Memory     |
-| ------------------------- | ---------- | --------------- | ---------- |
-| BullMQ job data (queued)  | ~1KB       | 1,000           | ~1MB       |
-| BullMQ completed jobs     | ~500B      | 10,000          | ~5MB       |
-| Event store (7-day TTL)   | ~2KB       | 50,000          | ~100MB     |
-| Token blacklist           | ~300B      | 10,000          | ~3MB       |
-| Login attempt tracking    | ~100B      | 5,000           | ~500KB     |
-| JWT user cache            | ~500B      | 5,000           | ~2.5MB     |
-| Edit locks                | ~200B      | 200             | ~40KB      |
-| Dashboard query cache     | ~10KB      | 500             | ~5MB       |
-| WebSocket adapter pub/sub | negligible | —               | —          |
-| **Total estimated**       |            |                 | **~117MB** |
+| Usage | Per-item | Estimated items | Memory |
+|---|---|---|---|
+| BullMQ job data (queued) | ~1KB | 1,000 | ~1MB |
+| BullMQ completed jobs | ~500B | 10,000 | ~5MB |
+| Event store (7-day TTL) | ~2KB | 50,000 | ~100MB |
+| Token blacklist | ~300B | 10,000 | ~3MB |
+| Login attempt tracking | ~100B | 5,000 | ~500KB |
+| JWT user cache | ~500B | 5,000 | ~2.5MB |
+| Edit locks | ~200B | 200 | ~40KB |
+| Dashboard query cache | ~10KB | 500 | ~5MB |
+| WebSocket adapter pub/sub | negligible | — | — |
+| **Total estimated** | | | **~117MB** |
 
 128MB limit leaves only ~11MB headroom. **Increase to 256MB minimum.**
 
 ---
 
 <a name="frontend"></a>
-
 ## 7. Frontend Layer
 
 ### 7.1 No content delivery network (CDN)
@@ -382,13 +360,11 @@ Using `ioredis` with JSON serialization. Cache key patterns should include entit
 **Current state:** Angular SPA is pure client-side rendering. Initial HTML contains `<app-root></app-root>` with all content rendered after JS downloads and executes.
 
 **Impact:**
-
 - **Perceived performance:** First paint after JS download + parse + execute = 2-5s on slow connections
 - **SEO:** Search engines see empty page — zero SEO for public-facing pages (not critical for internal app, but impacts any future public features)
 - **Social sharing:** No Open Graph metadata — link previews show blank
 
 **Solution options:**
-
 1. **Angular Universal (SSR)** — Server-side rendering on Node.js. Adds complexity but best UX. Need SSR server infrastructure.
 2. **Prerendering (SSG)** — Pre-render static pages at build time. Works for pages that don't change per-user. Not suitable for dashboard/personalized content.
 3. **Accept current state** — For an internal enterprise app, the SEO/performance hit may be acceptable.
@@ -404,7 +380,6 @@ Using `ioredis` with JSON serialization. Cache key patterns should include entit
 **Impact:** Every page load requires downloading and parsing the entire shared module, including rarely used code (admin panels, analytics charts, etc.).
 
 **Solution:**
-
 1. Audit shared module imports — move module-specific components out of shared
 2. Use Angular `loadChildren` for all feature routes (already partially done)
 3. Use `defer` loading for heavy third-party components (chart libraries, PDF exports)
@@ -417,7 +392,6 @@ Using `ioredis` with JSON serialization. Cache key patterns should include entit
 **Current state:** Angular service worker is configured (`@angular/service-worker` with `ngsw-config.json`) but only caches static assets. No API response caching strategy.
 
 **Solution:**
-
 1. Add `dataGroups` in `ngsw-config.json` for API endpoints with cache-first or network-first strategy
 2. Cache `/api/units/:id/health`, `/api/notifications/unread-count` with freshness TTL
 3. Implement stale-while-revalidate for read-only data to mask network latency
@@ -448,7 +422,6 @@ brotli_types application/javascript text/css application/json;
 **Current state:** Frontend nginx uses HTTP/1.1.
 
 **Solution:** Add `http2` to the listen directive in `frontend/nginx.conf`:
-
 ```nginx
 server {
     listen 443 ssl http2;
@@ -459,7 +432,6 @@ server {
 ---
 
 <a name="infrastructure"></a>
-
 ## 8. Infrastructure Layer
 
 ### 8.1 No container orchestration
@@ -471,7 +443,6 @@ server {
 **Impact at scale:** A single node failure takes down the entire application. Rolling out updates requires downtime or manual blue-green switching. No auto-scaling during traffic spikes.
 
 **Solution options:**
-
 1. **Docker Swarm** — Lowest complexity. Built into Docker. Supports rolling updates, service scaling, secrets management. Good for 3-5 node clusters.
 2. **Kubernetes (K3s/K8s)** — Most features. Steep learning curve. Overkill for <10 nodes but ideal for larger deployments.
 
@@ -486,7 +457,6 @@ server {
 **Impact:** Database failure = complete application outage. Data loss risk if volume corrupted.
 
 **Solution:**
-
 1. Configure PostgreSQL streaming replication (primary + 1-2 standbys)
 2. Add Patroni or repmgr for automated failover
 3. Use `pgBackRest` or `pg_dump` with automated schedule and off-site storage
@@ -501,7 +471,6 @@ server {
 **Impact:** Event queue data loss during Redis failure. Lost events = lost notifications, lost audit trail. BullMQ has some recovery but in-flight jobs lost without persistence.
 
 **Solution:**
-
 1. Enable Redis AOF persistence (`appendonly yes` in redis.conf)
 2. Configure Redis Sentinel for automated failover (3 sentinel nodes minimum)
 3. For production, use Redis Cluster or managed Redis (AWS ElastiCache, Redis Enterprise)
@@ -512,26 +481,25 @@ server {
 
 **Current state:**
 
-| Service          | Memory Limit |
-| ---------------- | ------------ |
-| Backend          | 512MB        |
-| Frontend (nginx) | 256MB        |
-| PostgreSQL       | 512MB        |
-| Redis            | 128MB        |
+| Service | Memory Limit |
+|---|---|
+| Backend | 512MB |
+| Frontend (nginx) | 256MB |
+| PostgreSQL | 512MB |
+| Redis | 128MB |
 
 **Impact at scale (500 CCU):**
-
 - **Backend (512MB):** Node.js heap (V8) defaults to ~1GB on a 2GB machine. With 512MB limit, garbage collection runs aggressively. At 500 concurrent requests with ~2MB per request overhead + event bus + WebSocket connections → estimated 600-800MB needed. Risk of OOM kills.
 - **Redis (128MB):** As calculated in §6.2, estimated usage is ~117MB. No headroom.
 
 **Recommended limits at scale:**
 
-| Service    | Recommended      | Rationale                                      |
-| ---------- | ---------------- | ---------------------------------------------- |
-| Backend    | 1024MB           | Node.js heap + request memory + WS connections |
-| Frontend   | 256MB            | Static file serving — adequate                 |
-| PostgreSQL | 1024MB           | Shared buffers + connection overhead           |
-| Redis      | 256MB (or 512MB) | Event store + cache + BullMQ + state           |
+| Service | Recommended | Rationale |
+|---|---|---|
+| Backend | 1024MB | Node.js heap + request memory + WS connections |
+| Frontend | 256MB | Static file serving — adequate |
+| PostgreSQL | 1024MB | Shared buffers + connection overhead |
+| Redis | 256MB (or 512MB) | Event store + cache + BullMQ + state |
 
 ### 8.5 No health-based load balancing
 
@@ -540,7 +508,6 @@ server {
 **Current state:** nginx upstream configuration uses round-robin without active health checks. If a backend instance goes down, nginx continues sending requests for a full timeout.
 
 **Solution:**
-
 ```nginx
 upstream backend {
     least_conn;  # better than round-robin for variable request durations
@@ -559,7 +526,6 @@ Also enable active health checks in nginx Plus or use a separate health-checking
 **Current state:** Prisma migrations run as part of deployment and block the application while running. At 100k records, migrations may take 30s+.
 
 **Solution:** Use expand-contract pattern:
-
 1. **Phase 1 (expand):** Deploy new code that reads both old and new schema — add columns/tables without removing old ones
 2. **Phase 2 (migrate):** Backfill data while old code still works
 3. **Phase 3 (contract):** Deploy code that only uses new schema — remove old columns/tables
@@ -574,7 +540,6 @@ Also enable active health checks in nginx Plus or use a separate health-checking
 **Impact at 500 CCU:** Each user makes ~10-15 requests per page load across multiple API endpoints. Without sufficient keepalive connections, nginx and backend waste resources on connection establishment (TCP handshake, SSL negotiation).
 
 **Calculation:**
-
 - 500 CCU × 2 req/s average = 1,000 req/s
 - Average request duration: ~100ms
 - Concurrent connections needed during peak: 1,000 × 0.1s = 100 connections
@@ -585,7 +550,6 @@ Also enable active health checks in nginx Plus or use a separate health-checking
 ---
 
 <a name="observability"></a>
-
 ## 9. Observability Layer
 
 ### 9.1 Distributed tracing not enabled by default
@@ -597,7 +561,6 @@ Also enable active health checks in nginx Plus or use a separate health-checking
 **Impact:** When enabled, OTel SDK adds startup time (~500ms) and per-span processing overhead (~0.1ms per request). At 200 req/s, that's ~20ms of CPU per second — acceptable. However, without an OTLP collector endpoint configured, spans are dropped.
 
 **Solution:**
-
 1. Deploy an OTLP collector (Grafana Tempo + Grafana, or Jaeger, or SigNoz)
 2. Set `OTEL_ENABLED=true` and `OTEL_EXPORTER_OTLP_ENDPOINT` in production env
 3. Sample at 10% for general traffic, 100% for errors (head-based sampling)
@@ -612,7 +575,6 @@ Also enable active health checks in nginx Plus or use a separate health-checking
 **Impact at scale:** The `/api/schedules/:id` route creates a new metric series for each schedule ID. Prometheus memory grows linearly with unique label values. At 100k schedules, a metric with `schedule_id` label creates 100k time series — OOM risk for Prometheus.
 
 **Solution:**
-
 1. Use `route` pattern (with `:id` placeholder) not actual request path
 2. Whitelist allowed HTTP methods + status codes
 3. Set up prom-client metric limit warnings
@@ -626,7 +588,6 @@ Also enable active health checks in nginx Plus or use a separate health-checking
 **Current state:** No performance/load tests. No baseline metrics for response times, throughput, or error rates under load.
 
 **Solution:**
-
 1. Create k6/artillery load test scripts for critical paths:
    - `GET /api/units/:id/schedules` — schedule list
    - `POST /api/auth/login` — authentication
@@ -638,44 +599,42 @@ Also enable active health checks in nginx Plus or use a separate health-checking
 ---
 
 <a name="matrix"></a>
-
 ## 10. Priority Matrix
 
-| ID   | Issue                                       | Layer         | Risk | Effort   | Impact                                     |
-| ---- | ------------------------------------------- | ------------- | ---- | -------- | ------------------------------------------ |
-| DB1  | No PgBouncer/connection pooling             | Database      | P0   | 1 day    | Prevents >20 concurrent connections        |
-| API1 | In-memory state prevents horizontal scaling | API           | P0   | 3 days   | Can't run >1 backend instance              |
-| WS1  | Socket.IO in-memory adapter                 | WebSocket     | P0   | 0.5 day  | WebSocket broken with >1 instance          |
-| DB2  | No read replicas for reporting              | Database      | P1   | 2 days   | Reporting queries block transaction writes |
-| DB3  | Missing composite indexes                   | Database      | P1   | 0.5 day  | 10-50x query slowdown at 100k records      |
-| DB4  | Analytics in-memory aggregation             | Database      | P1   | 1 day    | OOM risk on analytics queries              |
-| API2 | No HTTP response caching                    | API           | P1   | 1 day    | Unnecessary DB load on dashboards          |
-| CD1  | No CDN                                      | Frontend      | P1   | 1 day    | Slow global asset delivery                 |
-| CD2  | No SSR                                      | Frontend      | P1   | 5 days   | Poor initial load performance              |
-| INF1 | No container orchestration                  | Infra         | P1   | 3 days   | No HA, no rolling updates                  |
-| INF2 | No database HA                              | Infra         | P1   | 3 days   | Single point of failure                    |
-| CCH1 | No application cache                        | Caching       | P1   | 2 days   | Unnecessary DB load on all queries         |
-| API3 | No API versioning                           | API           | P2   | 0.5 day  | Breaking changes impossible                |
-| API4 | Throttler config validation                 | API           | P2   | 0.5 day  | Rate limiting may be wrong                 |
-| API5 | Serialization overhead                      | API           | P2   | 1 day    | 10-20ms extra latency per request          |
-| WS2  | No WS backpressure                          | WebSocket     | P2   | 1 day    | Abusable event flooding                    |
-| WS3  | No WS health check                          | WebSocket     | P2   | 0.5 day  | No graceful drain                          |
-| CCH2 | Redis memory planning                       | Caching       | P2   | 0.25 day | OOM risk at 128MB                          |
-| CD3  | Lazy-loading audit                          | Frontend      | P2   | 1 day    | Unnecessary bundle size                    |
-| CD4  | Service worker API cache                    | Frontend      | P2   | 1 day    | No offline/resilient API calls             |
-| CD5  | No compression                              | Frontend      | P2   | 0.25 day | 3-4x larger asset downloads                |
-| INF3 | No Redis HA                                 | Infra         | P2   | 2 days   | BullMQ/event store single point            |
-| INF4 | Docker memory limits                        | Infra         | P2   | 0.25 day | OOM risk for backend/Redis                 |
-| INF5 | No health-based LB                          | Infra         | P2   | 0.5 day  | Requests routed to dead instances          |
-| INF6 | DB migration strategy                       | Infra         | P2   | 1 day    | Downtime on schema changes                 |
-| INF7 | nginx keepalive tuning                      | Infra         | P2   | 0.25 day | Connection churn under load                |
-| OBS2 | Metric cardinality                          | Observability | P2   | 0.5 day  | Prometheus OOM risk                        |
-| CD6  | HTTP/2 support                              | Frontend      | P3   | 0.25 day | Marginal performance gain                  |
-| OBS1 | Tracing enabled by default                  | Observability | P3   | 1 day    | Debugging aid, not blocking                |
-| OBS3 | Load testing baseline                       | Observability | P3   | 2 days   | No performance regression detection        |
+| ID | Issue | Layer | Risk | Effort | Impact |
+|---|---|---|---|---|---|
+| DB1 | No PgBouncer/connection pooling | Database | P0 | 1 day | Prevents >20 concurrent connections |
+| API1 | In-memory state prevents horizontal scaling | API | P0 | 3 days | Can't run >1 backend instance |
+| WS1 | Socket.IO in-memory adapter | WebSocket | P0 | 0.5 day | WebSocket broken with >1 instance |
+| DB2 | No read replicas for reporting | Database | P1 | 2 days | Reporting queries block transaction writes |
+| DB3 | Missing composite indexes | Database | P1 | 0.5 day | 10-50x query slowdown at 100k records |
+| DB4 | Analytics in-memory aggregation | Database | P1 | 1 day | OOM risk on analytics queries |
+| API2 | No HTTP response caching | API | P1 | 1 day | Unnecessary DB load on dashboards |
+| CD1 | No CDN | Frontend | P1 | 1 day | Slow global asset delivery |
+| CD2 | No SSR | Frontend | P1 | 5 days | Poor initial load performance |
+| INF1 | No container orchestration | Infra | P1 | 3 days | No HA, no rolling updates |
+| INF2 | No database HA | Infra | P1 | 3 days | Single point of failure |
+| CCH1 | No application cache | Caching | P1 | 2 days | Unnecessary DB load on all queries |
+| API3 | No API versioning | API | P2 | 0.5 day | Breaking changes impossible |
+| API4 | Throttler config validation | API | P2 | 0.5 day | Rate limiting may be wrong |
+| API5 | Serialization overhead | API | P2 | 1 day | 10-20ms extra latency per request |
+| WS2 | No WS backpressure | WebSocket | P2 | 1 day | Abusable event flooding |
+| WS3 | No WS health check | WebSocket | P2 | 0.5 day | No graceful drain |
+| CCH2 | Redis memory planning | Caching | P2 | 0.25 day | OOM risk at 128MB |
+| CD3 | Lazy-loading audit | Frontend | P2 | 1 day | Unnecessary bundle size |
+| CD4 | Service worker API cache | Frontend | P2 | 1 day | No offline/resilient API calls |
+| CD5 | No compression | Frontend | P2 | 0.25 day | 3-4x larger asset downloads |
+| INF3 | No Redis HA | Infra | P2 | 2 days | BullMQ/event store single point |
+| INF4 | Docker memory limits | Infra | P2 | 0.25 day | OOM risk for backend/Redis |
+| INF5 | No health-based LB | Infra | P2 | 0.5 day | Requests routed to dead instances |
+| INF6 | DB migration strategy | Infra | P2 | 1 day | Downtime on schema changes |
+| INF7 | nginx keepalive tuning | Infra | P2 | 0.25 day | Connection churn under load |
+| OBS2 | Metric cardinality | Observability | P2 | 0.5 day | Prometheus OOM risk |
+| CD6 | HTTP/2 support | Frontend | P3 | 0.25 day | Marginal performance gain |
+| OBS1 | Tracing enabled by default | Observability | P3 | 1 day | Debugging aid, not blocking |
+| OBS3 | Load testing baseline | Observability | P3 | 2 days | No performance regression detection |
 
 **Priority definitions:**
-
 - **P0:** Blocks any horizontal scaling. Must fix before running >1 instance.
 - **P1:** Significant performance or reliability risk at target scale.
 - **P2:** Moderate risk — can defer 1-2 months but should address.
@@ -684,23 +643,21 @@ Also enable active health checks in nginx Plus or use a separate health-checking
 ---
 
 <a name="roadmap"></a>
-
 ## 11. Recommended Roadmap
 
 ### Sprint 1: Horizontal scaling foundation (duration: 2 weeks)
 
-| Order | Task                                                                                       | ID         | Dependencies |
-| ----- | ------------------------------------------------------------------------------------------ | ---------- | ------------ |
-| 1     | Extract in-memory state to Redis (token blacklist, login attempts, user cache, edit locks) | API1       | —            |
-| 2     | Add Socket.IO Redis adapter                                                                | WS1        | —            |
-| 3     | Deploy PgBouncer sidecar                                                                   | DB1        | —            |
-| 4     | Create composite indexes                                                                   | DB3        | —            |
-| 5     | Add nginx active health checks + increase keepalive 64→128                                 | INF5, INF7 | —            |
-| 6     | Increase Docker memory limits                                                              | INF4       | —            |
-| 7     | Verify throttler uses Redis store                                                          | API4       | API1         |
+| Order | Task | ID | Dependencies |
+|---|---|---|---|
+| 1 | Extract in-memory state to Redis (token blacklist, login attempts, user cache, edit locks) | API1 | — |
+| 2 | Add Socket.IO Redis adapter | WS1 | — |
+| 3 | Deploy PgBouncer sidecar | DB1 | — |
+| 4 | Create composite indexes | DB3 | — |
+| 5 | Add nginx active health checks + increase keepalive 64→128 | INF5, INF7 | — |
+| 6 | Increase Docker memory limits | INF4 | — |
+| 7 | Verify throttler uses Redis store | API4 | API1 |
 
 **Validation:** Deploy 2 backend instances behind nginx. Verify:
-
 - WebSocket broadcasts reach all clients
 - Token blacklist works across instances
 - Login rate limits are shared
@@ -709,47 +666,47 @@ Also enable active health checks in nginx Plus or use a separate health-checking
 
 ### Sprint 2: Caching + performance (duration: 1 week)
 
-| Order | Task                                                | ID   | Dependencies        |
-| ----- | --------------------------------------------------- | ---- | ------------------- |
-| 1     | Implement Redis query cache for dashboard endpoints | CCH1 | API1 (Redis client) |
-| 2     | Refactor analytics to use SQL aggregation           | DB4  | —                   |
-| 3     | Add nginx gzip/brotli compression                   | CD5  | —                   |
-| 4     | Configure service worker API caching (dataGroups)   | CD4  | —                   |
+| Order | Task | ID | Dependencies |
+|---|---|---|---|
+| 1 | Implement Redis query cache for dashboard endpoints | CCH1 | API1 (Redis client) |
+| 2 | Refactor analytics to use SQL aggregation | DB4 | — |
+| 3 | Add nginx gzip/brotli compression | CD5 | — |
+| 4 | Configure service worker API caching (dataGroups) | CD4 | — |
 
 ### Sprint 3: Infrastructure hardening (duration: 1 week)
 
-| Order | Task                                       | ID   | Dependencies |
-| ----- | ------------------------------------------ | ---- | ------------ |
-| 1     | Migrate to Docker Swarm                    | INF1 | Sprint 1     |
-| 2     | Configure PostgreSQL replication + Patroni | INF2 | —            |
-| 3     | Enable Redis AOF + Sentinel                | INF3 | —            |
+| Order | Task | ID | Dependencies |
+|---|---|---|---|
+| 1 | Migrate to Docker Swarm | INF1 | Sprint 1 |
+| 2 | Configure PostgreSQL replication + Patroni | INF2 | — |
+| 3 | Enable Redis AOF + Sentinel | INF3 | — |
 
 ### Sprint 4: Frontend optimization (duration: 1 week)
 
-| Order | Task                                        | ID   | Dependencies     |
-| ----- | ------------------------------------------- | ---- | ---------------- |
-| 1     | Bundle analysis + lazy-loading improvements | CD3  | —                |
-| 2     | Add CDN deployment to CI/CD                 | CD1  | Sprint 3 (Swarm) |
-| 3     | Enable HTTP/2 on frontend nginx             | CD6  | —                |
-| 4     | API versioning prefix (v1)                  | API3 | —                |
+| Order | Task | ID | Dependencies |
+|---|---|---|---|
+| 1 | Bundle analysis + lazy-loading improvements | CD3 | — |
+| 2 | Add CDN deployment to CI/CD | CD1 | Sprint 3 (Swarm) |
+| 3 | Enable HTTP/2 on frontend nginx | CD6 | — |
+| 4 | API versioning prefix (v1) | API3 | — |
 
 ### Sprint 5: Observability + testing (duration: 1 week)
 
-| Order | Task                                    | ID   | Dependencies |
-| ----- | --------------------------------------- | ---- | ------------ |
-| 1     | Deploy Grafana Tempo OTLP collector     | OBS1 | Sprint 1     |
-| 2     | Write k6 load tests + run baseline      | OBS3 | —            |
-| 3     | Fix metric cardinality                  | OBS2 | —            |
-| 4     | Expand-contract migration strategy docs | INF6 | —            |
+| Order | Task | ID | Dependencies |
+|---|---|---|---|
+| 1 | Deploy Grafana Tempo OTLP collector | OBS1 | Sprint 1 |
+| 2 | Write k6 load tests + run baseline | OBS3 | — |
+| 3 | Fix metric cardinality | OBS2 | — |
+| 4 | Expand-contract migration strategy docs | INF6 | — |
 
 ### Sprint 6: Advanced (duration: 2 weeks, if needed)
 
-| Order | Task                                        | ID  | Dependencies           |
-| ----- | ------------------------------------------- | --- | ---------------------- |
-| 1     | PostgreSQL read replicas + Prisma extension | DB2 | Sprint 3 (replication) |
-| 2     | Angular Universal SSR                       | CD2 | Sprint 1               |
-| 3     | WebSocket backpressure + rate limiting      | WS2 | —                      |
-| 4     | WebSocket draining/health                   | WS3 | Sprint 1               |
+| Order | Task | ID | Dependencies |
+|---|---|---|---|
+| 1 | PostgreSQL read replicas + Prisma extension | DB2 | Sprint 3 (replication) |
+| 2 | Angular Universal SSR | CD2 | Sprint 1 |
+| 3 | WebSocket backpressure + rate limiting | WS2 | — |
+| 4 | WebSocket draining/health | WS3 | Sprint 1 |
 
 ---
 

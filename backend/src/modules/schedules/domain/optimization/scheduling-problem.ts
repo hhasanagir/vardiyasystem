@@ -12,6 +12,13 @@ export interface SchedulingProblemPersonnel {
   offDays: number[];
   maxWeeklyHours: number;
   isActive: boolean;
+  /** P2-10 — real seniority from Personnel (used by the seniority tie-break). */
+  seniority?: number;
+  /** PHASE 5C.25 — authoritative exact-date blocked dates (leave/absence/
+   *  unsuitable + weekly offDays resolved with AVAILABLE override). When
+   *  present it REPLACES the raw offDays filter (AVAILABLE override honored);
+   *  absent falls back to offDays. */
+  blockedDates?: string[];
 }
 
 export interface SchedulingProblemDevice {
@@ -31,6 +38,14 @@ export interface SchedulingProblemShiftDef {
   startTime: string;
   endTime: string;
   personnelType: string;
+  /** PHASE 5C.26 P1-A2 — shift row id, needed for ShiftDateOverride gating. */
+  id?: string;
+  /** PHASE 5C.26 P1-A2 — shared assistant slot keying. */
+  blockId?: string | null;
+  /** PHASE 5C.26 P1-A2 — optional-on-weekends assistant defs require an override. */
+  optionalOnWeekends?: boolean;
+  /** PHASE 5C.26 P1-A2 — optional-on-holidays assistant defs require an override. */
+  optionalOnHolidays?: boolean;
 }
 
 export interface SchedulingProblemConfig {
@@ -41,6 +56,13 @@ export interface SchedulingProblemConfig {
   minRestHours: number;
   maxConsecutiveDays: number;
   maxConsecutiveNights: number;
+}
+
+/** PHASE 5C.26 P1-A2 — production-only coverage context for the optimizer. */
+export interface SchedulingCoverageContext {
+  shiftDateOverrides?: Set<string>;
+  assistantPersonnelCount: number;
+  supervisorPersonnelCount: number;
 }
 
 export interface SchedulingProblem {
@@ -55,5 +77,10 @@ export interface SchedulingProblem {
   shiftDefinitions: SchedulingProblemShiftDef[];
   existingAssignments: AssignmentCollection;
   holidays: Set<string>;
+  deviceOffDates?: Set<string>;
   configuration: SchedulingProblemConfig;
+  /** PHASE 5C.26 P1-A2 — enforces minimum coverage as a hard constraint.
+   *  Opt-in so existing optimizer fixtures remain untouched. */
+  coverageEnabled?: boolean;
+  coverageContext?: SchedulingCoverageContext;
 }

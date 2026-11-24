@@ -43,21 +43,11 @@ describe('DeviceStatusService', () => {
       };
       mockPrisma.deviceStatusLog.create.mockResolvedValue(fakeLog);
 
-      const result = await service.updateStatus(
-        'user-1',
-        'device-1',
-        'active',
-        'All good',
-      );
+      const result = await service.updateStatus('user-1', 'device-1', 'active', 'All good');
 
       expect(result).toEqual(fakeLog);
       expect(mockPrisma.deviceStatusLog.create).toHaveBeenCalledWith({
-        data: {
-          userId: 'user-1',
-          deviceId: 'device-1',
-          status: 'active',
-          notes: 'All good',
-        },
+        data: { userId: 'user-1', deviceId: 'device-1', status: 'active', notes: 'All good' },
       });
     });
   });
@@ -93,30 +83,9 @@ describe('DeviceStatusService', () => {
   describe('getStatusHistory', () => {
     it('should return entries in reverse chronological order', async () => {
       const fakeLogs = [
-        {
-          id: 'log-3',
-          deviceId: 'device-1',
-          userId: 'user-1',
-          status: 'active',
-          notes: null,
-          createdAt: new Date('2026-05-30T10:00:00Z'),
-        },
-        {
-          id: 'log-2',
-          deviceId: 'device-1',
-          userId: 'user-1',
-          status: 'maintenance',
-          notes: null,
-          createdAt: new Date('2026-05-30T09:00:00Z'),
-        },
-        {
-          id: 'log-1',
-          deviceId: 'device-1',
-          userId: 'user-1',
-          status: 'fault',
-          notes: 'Error',
-          createdAt: new Date('2026-05-30T08:00:00Z'),
-        },
+        { id: 'log-3', deviceId: 'device-1', userId: 'user-1', status: 'active', notes: null, createdAt: new Date('2026-05-30T10:00:00Z') },
+        { id: 'log-2', deviceId: 'device-1', userId: 'user-1', status: 'maintenance', notes: null, createdAt: new Date('2026-05-30T09:00:00Z') },
+        { id: 'log-1', deviceId: 'device-1', userId: 'user-1', status: 'fault', notes: 'Error', createdAt: new Date('2026-05-30T08:00:00Z') },
       ];
       mockPrisma.deviceStatusLog.findMany.mockResolvedValue(fakeLogs);
 
@@ -145,18 +114,8 @@ describe('DeviceStatusService', () => {
       mockPrisma.device.findMany.mockResolvedValue(devices);
 
       const statusLogs = [
-        {
-          deviceId: 'device-1',
-          status: 'active',
-          notes: null,
-          createdAt: new Date(),
-        },
-        {
-          deviceId: 'device-2',
-          status: 'fault',
-          notes: 'Broken',
-          createdAt: new Date(),
-        },
+        { deviceId: 'device-1', status: 'active', notes: null, createdAt: new Date() },
+        { deviceId: 'device-2', status: 'fault', notes: 'Broken', createdAt: new Date() },
       ];
       mockPrisma.deviceStatusLog.findMany.mockResolvedValue(statusLogs);
 

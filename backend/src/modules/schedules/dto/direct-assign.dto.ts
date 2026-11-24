@@ -18,10 +18,7 @@ export class DirectAssignDto {
   @IsString()
   personnelId: string;
 
-  @ApiPropertyOptional({
-    description:
-      'Cihaz kimliği. Personel bazlı nöbet (kind=person) için boş bırakılır.',
-  })
+  @ApiPropertyOptional({ description: 'Cihaz kimliği. Personel bazlı nöbet (kind=person) için boş bırakılır.' })
   @IsOptional()
   @IsString()
   deviceId?: string;

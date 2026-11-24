@@ -53,13 +53,8 @@ export class NotificationPreferenceService {
     }
   }
 
-  async updatePreferences(
-    userId: string,
-    prefs: Partial<UserNotificationPreferences>,
-  ) {
-    const existing = await this.prisma.notificationPreference.findUnique({
-      where: { userId },
-    });
+  async updatePreferences(userId: string, prefs: Partial<UserNotificationPreferences>) {
+    const existing = await this.prisma.notificationPreference.findUnique({ where: { userId } });
     if (existing) {
       return this.prisma.notificationPreference.update({
         where: { userId },

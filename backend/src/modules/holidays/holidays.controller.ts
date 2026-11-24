@@ -1,18 +1,5 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { HolidaysService } from './holidays.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -41,10 +28,7 @@ export class HolidaysController {
   @ApiOperation({ summary: 'Get holidays by date range' })
   @ApiQuery({ name: 'startDate', required: true })
   @ApiQuery({ name: 'endDate', required: true })
-  findByDateRange(
-    @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string,
-  ) {
+  findByDateRange(@Query('startDate') startDate: string, @Query('endDate') endDate: string) {
     return this.holidaysService.findByDateRange(startDate, endDate);
   }
 
@@ -57,11 +41,7 @@ export class HolidaysController {
 
   @Post()
   @Roles(MinRole.HEAD_TECHNICIAN)
-  @Log({
-    action: 'HOLIDAY_CREATED',
-    entityType: 'holiday',
-    description: 'Tatil günü oluşturuldu',
-  })
+  @Log({ action: 'HOLIDAY_CREATED', entityType: 'holiday', description: 'Tatil günü oluşturuldu' })
   @ApiOperation({ summary: 'Create holiday' })
   create(@Body() dto: CreateHolidayDto) {
     return this.holidaysService.create(dto);
@@ -69,11 +49,7 @@ export class HolidaysController {
 
   @Post('seed-2026')
   @Roles(MinRole.ADMIN)
-  @Log({
-    action: 'HOLIDAYS_SEEDED',
-    entityType: 'holiday',
-    description: '2026 tatil günleri yüklendi',
-  })
+  @Log({ action: 'HOLIDAYS_SEEDED', entityType: 'holiday', description: '2026 tatil günleri yüklendi' })
   @ApiOperation({ summary: 'Seed 2026 Turkish holidays' })
   seed2026() {
     return this.holidaysService.seed2026Holidays();

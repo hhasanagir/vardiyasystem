@@ -71,11 +71,10 @@ For critical releases, add manual approval between steps:
 ```yaml
 steps:
   - setWeight: 50
-  - pause: {} # Wait for manual approval
+  - pause: {}  # Wait for manual approval
 ```
 
 Then:
-
 ```bash
 kubectl argo rollouts promote rollout/vardiya-frontend -n vardiya
 ```
@@ -84,19 +83,19 @@ kubectl argo rollouts promote rollout/vardiya-frontend -n vardiya
 
 ### success-rate
 
-| Metric       | Threshold | Failure Limit | Interval | Count |
-| ------------ | --------- | ------------- | -------- | ----- |
-| Success rate | ≥ 95%     | 3             | 1m       | 5     |
-| Error rate   | ≤ 5%      | 3             | 1m       | 5     |
-| p95 latency  | ≤ 2000ms  | 3             | 1m       | 5     |
+| Metric | Threshold | Failure Limit | Interval | Count |
+|--------|-----------|---------------|----------|-------|
+| Success rate | ≥ 95% | 3 | 1m | 5 |
+| Error rate | ≤ 5% | 3 | 1m | 5 |
+| p95 latency | ≤ 2000ms | 3 | 1m | 5 |
 
 Failure limit = 3 means the analysis stops after 3 consecutive failures.
 
 ### smoke
 
-| Test                 | Expected |
-| -------------------- | -------- |
-| /api/v1/health/live  | HTTP 200 |
+| Test | Expected |
+|------|----------|
+| /api/v1/health/live | HTTP 200 |
 | /api/v1/health/ready | HTTP 200 |
 
 ## Monitoring Rollouts

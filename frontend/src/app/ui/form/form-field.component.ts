@@ -4,21 +4,15 @@ import { Component, input, ChangeDetectionStrategy, contentChild } from '@angula
   selector: 'app-form-field',
   standalone: true,
   template: `
-    <div
-      class="form-field"
-      [class.form-field-error]="!!error()"
-      [class.form-field-disabled]="disabled()"
-    >
+    <div class="form-field" [class.form-field-error]="!!error()" [class.form-field-disabled]="disabled()">
       @if (label()) {
         <label class="form-label" [attr.for]="for()">
           {{ label() }}
-          @if (required()) {
-            <span class="form-required" aria-hidden="true">*</span>
-          }
+          @if (required()) { <span class="form-required" aria-hidden="true">*</span> }
         </label>
       }
       <div class="form-control-wrapper">
-        <ng-content />
+        <ng-content/>
       </div>
       @if (hint() && !error()) {
         <p class="form-hint">{{ hint() }}</p>
@@ -31,43 +25,14 @@ import { Component, input, ChangeDetectionStrategy, contentChild } from '@angula
       }
     </div>
   `,
-  styles: [
-    `
-      .form-field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.375rem;
-      }
-      .form-label {
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: var(--text-primary);
-      }
-      .form-required {
-        color: var(--status-danger);
-        margin-left: 0.125rem;
-      }
-      .form-hint {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        margin: 0;
-      }
-      .form-error {
-        font-size: 0.75rem;
-        color: var(--status-danger);
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-      }
-      .form-charcount {
-        font-size: 0.7rem;
-        color: var(--text-muted);
-        margin: 0;
-        text-align: right;
-      }
-    `,
-  ],
+  styles: [`
+    .form-field { display: flex; flex-direction: column; gap: 0.375rem; }
+    .form-label { font-size: 0.875rem; font-weight: 500; color: var(--text-primary); }
+    .form-required { color: var(--status-danger); margin-left: 0.125rem; }
+    .form-hint { font-size: 0.75rem; color: var(--text-muted); margin: 0; }
+    .form-error { font-size: 0.75rem; color: var(--status-danger); margin: 0; display: flex; align-items: center; gap: 0.25rem; }
+    .form-charcount { font-size: 0.7rem; color: var(--text-muted); margin: 0; text-align: right; }
+  `],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormFieldComponent {

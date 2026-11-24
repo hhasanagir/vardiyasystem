@@ -8,6 +8,15 @@ import type {
   ValidationResult,
 } from '../models';
 
+/** Real audited activity row returned by GET /schedules/activities (P2-16). */
+export interface ScheduleActivity {
+  id: string;
+  type: string;
+  message: string;
+  timestamp: string;
+  employeeName?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ScheduleApiService {
   private readonly api = inject(ApiService);
@@ -172,6 +181,13 @@ export class ScheduleApiService {
       `${ScheduleApiService.BASE}/${scheduleId}/validate`,
       {},
     );
+  }
+
+  /** Tenant-scoped audit feed; the backend derives the org from the JWT. */
+  getActivities(limit = 10): Observable<ScheduleActivity[]> {
+    return this.api.get<ScheduleActivity[]>('/schedules/activities', {
+      params: { limit: String(limit) },
+    });
   }
 
   private buildVersionParams(expectedVersion?: number): Record<string, string> | undefined {

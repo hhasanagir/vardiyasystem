@@ -17,16 +17,13 @@ export class DataRetentionController {
   }
 
   @Post('policies')
-  async upsertPolicy(
-    @Body()
-    data: {
-      entityType: string;
-      retentionDays: number;
-      archiveAfterDays?: number;
-      purgeAfterDays?: number;
-      description?: string;
-    },
-  ) {
+  async upsertPolicy(@Body() data: {
+    entityType: string;
+    retentionDays: number;
+    archiveAfterDays?: number;
+    purgeAfterDays?: number;
+    description?: string;
+  }) {
     return this.dataRetentionService.upsertPolicy(data);
   }
 
@@ -38,8 +35,6 @@ export class DataRetentionController {
 
   @Get('jobs')
   async getJobHistory(@Query('limit') limit?: string) {
-    return this.dataRetentionService.getJobHistory(
-      limit ? parseInt(limit, 10) : 50,
-    );
+    return this.dataRetentionService.getJobHistory(limit ? parseInt(limit, 10) : 50);
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -7,10 +7,7 @@ import { SessionService } from './session.service';
 @Injectable()
 export class RefreshTokenService {
   private readonly logger = new Logger(RefreshTokenService.name);
-  private recentlyUsed = new Map<
-    string,
-    { usedAt: Date; ipAddress?: string }
-  >();
+  private recentlyUsed = new Map<string, { usedAt: Date; ipAddress?: string }>();
   private readonly IN_MEMORY_TTL_MS = 3600000;
 
   constructor(
@@ -26,13 +23,22 @@ export class RefreshTokenService {
     return this.sessionService.hashToken(token);
   }
 
-  async markUsed(params: {
+  /**
+   * Records a completed refresh rotation: marks the jti as recently used in
+   * memory, touches the session and appends a REFRESH_USED audit attempt.
+   *
+   * Note on concurrency: `authAttempt.jti` is only indexed, not unique, so this
+   * insert is NOT the serialization point. Concurrent rotations of one token are
+   * serialized by the distributed refresh lock in AuthService; replay detection
+   * then relies on this in-memory window plus the audit trail.
+   */
+  async recordRotation(params: {
     jti: string;
     userId: string;
     sessionId: string;
     ipAddress?: string;
     userAgent?: string;
-  }) {
+  }): Promise<void> {
     this.recentlyUsed.set(params.jti, {
       usedAt: new Date(),
       ipAddress: params.ipAddress,
@@ -53,13 +59,9 @@ export class RefreshTokenService {
         },
       });
     } catch (error) {
-      this.logger.error(
-        'Failed to record refresh token use',
-        (error as Error).message,
-      );
+      this.logger.error('Failed to record refresh token rotation', (error as Error).message);
     }
   }
-
   async detectReplay(params: {
     jti: string;
     userId: string;
@@ -69,9 +71,7 @@ export class RefreshTokenService {
   }): Promise<{ replay: boolean; firstIp?: string }> {
     const inMemoryHit = this.recentlyUsed.get(params.jti);
     if (inMemoryHit) {
-      this.logger.warn(
-        `Refresh token replay detected (in-memory): jti=${params.jti}, userId=${params.userId}`,
-      );
+      this.logger.warn(`Refresh token replay detected (in-memory): jti=${params.jti}, userId=${params.userId}`);
       await this.logReplay(params, inMemoryHit);
       return { replay: true, firstIp: inMemoryHit.ipAddress };
     }
@@ -84,13 +84,8 @@ export class RefreshTokenService {
     });
 
     if (dbHit) {
-      this.logger.warn(
-        `Refresh token replay detected (DB): jti=${params.jti}, userId=${params.userId}`,
-      );
-      await this.logReplay(params, {
-        usedAt: dbHit.createdAt,
-        ipAddress: dbHit.ipAddress || undefined,
-      });
+      this.logger.warn(`Refresh token replay detected (DB): jti=${params.jti}, userId=${params.userId}`);
+      await this.logReplay(params, { usedAt: dbHit.createdAt, ipAddress: dbHit.ipAddress || undefined });
       return { replay: true, firstIp: dbHit.ipAddress || undefined };
     }
 
@@ -98,12 +93,7 @@ export class RefreshTokenService {
   }
 
   private async logReplay(
-    params: {
-      jti: string;
-      userId: string;
-      ipAddress?: string;
-      userAgent?: string;
-    },
+    params: { jti: string; userId: string; ipAddress?: string; userAgent?: string },
     firstUse: { usedAt: Date; ipAddress?: string },
   ) {
     try {
@@ -138,10 +128,7 @@ export class RefreshTokenService {
         reason: 'Refresh token replay detected — possible token theft',
       });
     } catch (error) {
-      this.logger.error(
-        'Failed to log replay detection',
-        (error as Error).message,
-      );
+      this.logger.error('Failed to log replay detection', (error as Error).message);
     }
   }
 

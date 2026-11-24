@@ -43,29 +43,9 @@ export const MR_MASTER_DEVICES: MasterDeviceDef[] = [
     blockCode: 'A',
     deviceName: 'A Blok Fujifilm Açık MR 1.2 Tesla',
     shifts: [
-      {
-        name: 'Tekniker',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '20:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker',
-        type: ShiftType.night,
-        startTime: '20:00',
-        endTime: '08:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Yardımcı Tekniker',
-        type: ShiftType.day,
-        startTime: '10:00',
-        endTime: '20:00',
-        personnelType: 'assistant_technician',
-        optionalOnWeekends: true,
-        optionalOnHolidays: true,
-      },
+      { name: 'Tekniker', type: ShiftType.day, startTime: '08:00', endTime: '20:00', personnelType: 'technician' },
+      { name: 'Tekniker', type: ShiftType.night, startTime: '20:00', endTime: '08:00', personnelType: 'technician' },
+      { name: 'Yardımcı Tekniker', type: ShiftType.day, startTime: '10:00', endTime: '20:00', personnelType: 'assistant_technician', optionalOnWeekends: true, optionalOnHolidays: true },
     ],
   },
   {
@@ -73,36 +53,10 @@ export const MR_MASTER_DEVICES: MasterDeviceDef[] = [
     blockCode: 'B',
     deviceName: 'B Blok Philips MR 1.5 Tesla',
     shifts: [
-      {
-        name: 'Tekniker',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '20:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker',
-        type: ShiftType.night,
-        startTime: '20:00',
-        endTime: '08:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Yardımcı Tekniker (Paylaşımlı)',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '20:00',
-        personnelType: 'assistant_technician',
-        blockId: 'B',
-      },
-      {
-        name: 'Yardımcı Tekniker (Paylaşımlı)',
-        type: ShiftType.night,
-        startTime: '20:00',
-        endTime: '08:00',
-        personnelType: 'assistant_technician',
-        blockId: 'B',
-      },
+      { name: 'Tekniker', type: ShiftType.day, startTime: '08:00', endTime: '20:00', personnelType: 'technician' },
+      { name: 'Tekniker', type: ShiftType.night, startTime: '20:00', endTime: '08:00', personnelType: 'technician' },
+      { name: 'Yardımcı Tekniker (Paylaşımlı)', type: ShiftType.day, startTime: '08:00', endTime: '20:00', personnelType: 'assistant_technician', blockId: 'B' },
+      { name: 'Yardımcı Tekniker (Paylaşımlı)', type: ShiftType.night, startTime: '20:00', endTime: '08:00', personnelType: 'assistant_technician', blockId: 'B' },
     ],
   },
   {
@@ -110,20 +64,8 @@ export const MR_MASTER_DEVICES: MasterDeviceDef[] = [
     blockCode: 'B',
     deviceName: 'B Blok Fujifilm MR 1.5 Tesla',
     shifts: [
-      {
-        name: 'Tekniker',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '20:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker',
-        type: ShiftType.night,
-        startTime: '20:00',
-        endTime: '08:00',
-        personnelType: 'technician',
-      },
+      { name: 'Tekniker', type: ShiftType.day, startTime: '08:00', endTime: '20:00', personnelType: 'technician' },
+      { name: 'Tekniker', type: ShiftType.night, startTime: '20:00', endTime: '08:00', personnelType: 'technician' },
     ],
   },
   {
@@ -131,36 +73,10 @@ export const MR_MASTER_DEVICES: MasterDeviceDef[] = [
     blockCode: 'C',
     deviceName: 'C Blok Philips MR 3 Tesla',
     shifts: [
-      {
-        name: 'Tekniker',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '20:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker',
-        type: ShiftType.night,
-        startTime: '20:00',
-        endTime: '08:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Yardımcı Tekniker (Paylaşımlı)',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '20:00',
-        personnelType: 'assistant_technician',
-        blockId: 'C',
-      },
-      {
-        name: 'Yardımcı Tekniker (Paylaşımlı)',
-        type: ShiftType.night,
-        startTime: '20:00',
-        endTime: '08:00',
-        personnelType: 'assistant_technician',
-        blockId: 'C',
-      },
+      { name: 'Tekniker', type: ShiftType.day, startTime: '08:00', endTime: '20:00', personnelType: 'technician' },
+      { name: 'Tekniker', type: ShiftType.night, startTime: '20:00', endTime: '08:00', personnelType: 'technician' },
+      { name: 'Yardımcı Tekniker (Paylaşımlı)', type: ShiftType.day, startTime: '08:00', endTime: '20:00', personnelType: 'assistant_technician', blockId: 'C' },
+      { name: 'Yardımcı Tekniker (Paylaşımlı)', type: ShiftType.night, startTime: '20:00', endTime: '08:00', personnelType: 'assistant_technician', blockId: 'C' },
     ],
   },
   {
@@ -168,20 +84,8 @@ export const MR_MASTER_DEVICES: MasterDeviceDef[] = [
     blockCode: 'C',
     deviceName: 'C Blok Fujifilm MR 1.5 Tesla',
     shifts: [
-      {
-        name: 'Tekniker',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '20:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker',
-        type: ShiftType.night,
-        startTime: '20:00',
-        endTime: '08:00',
-        personnelType: 'technician',
-      },
+      { name: 'Tekniker', type: ShiftType.day, startTime: '08:00', endTime: '20:00', personnelType: 'technician' },
+      { name: 'Tekniker', type: ShiftType.night, startTime: '20:00', endTime: '08:00', personnelType: 'technician' },
     ],
   },
   {
@@ -189,29 +93,9 @@ export const MR_MASTER_DEVICES: MasterDeviceDef[] = [
     blockCode: 'D',
     deviceName: 'D Blok Fujifilm MR 1.5 Tesla',
     shifts: [
-      {
-        name: 'Tekniker',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '20:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker',
-        type: ShiftType.night,
-        startTime: '20:00',
-        endTime: '08:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Yardımcı Tekniker',
-        type: ShiftType.day,
-        startTime: '10:00',
-        endTime: '20:00',
-        personnelType: 'assistant_technician',
-        optionalOnWeekends: true,
-        optionalOnHolidays: true,
-      },
+      { name: 'Tekniker', type: ShiftType.day, startTime: '08:00', endTime: '20:00', personnelType: 'technician' },
+      { name: 'Tekniker', type: ShiftType.night, startTime: '20:00', endTime: '08:00', personnelType: 'technician' },
+      { name: 'Yardımcı Tekniker', type: ShiftType.day, startTime: '10:00', endTime: '20:00', personnelType: 'assistant_technician', optionalOnWeekends: true, optionalOnHolidays: true },
     ],
   },
   {
@@ -219,29 +103,9 @@ export const MR_MASTER_DEVICES: MasterDeviceDef[] = [
     blockCode: 'F',
     deviceName: 'F Blok Philips MR 1.5 Tesla',
     shifts: [
-      {
-        name: 'Tekniker',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '20:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker',
-        type: ShiftType.night,
-        startTime: '20:00',
-        endTime: '08:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Yardımcı Tekniker',
-        type: ShiftType.day,
-        startTime: '10:00',
-        endTime: '20:00',
-        personnelType: 'assistant_technician',
-        optionalOnWeekends: true,
-        optionalOnHolidays: true,
-      },
+      { name: 'Tekniker', type: ShiftType.day, startTime: '08:00', endTime: '20:00', personnelType: 'technician' },
+      { name: 'Tekniker', type: ShiftType.night, startTime: '20:00', endTime: '08:00', personnelType: 'technician' },
+      { name: 'Yardımcı Tekniker', type: ShiftType.day, startTime: '10:00', endTime: '20:00', personnelType: 'assistant_technician', optionalOnWeekends: true, optionalOnHolidays: true },
     ],
   },
   {
@@ -249,34 +113,10 @@ export const MR_MASTER_DEVICES: MasterDeviceDef[] = [
     blockCode: 'ACIL',
     deviceName: 'Erişkin Acil Philips MR 1.5 Tesla',
     shifts: [
-      {
-        name: 'Tekniker',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '20:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Tekniker',
-        type: ShiftType.night,
-        startTime: '20:00',
-        endTime: '08:00',
-        personnelType: 'technician',
-      },
-      {
-        name: 'Yardımcı Tekniker',
-        type: ShiftType.day,
-        startTime: '08:00',
-        endTime: '20:00',
-        personnelType: 'assistant_technician',
-      },
-      {
-        name: 'Yardımcı Tekniker',
-        type: ShiftType.night,
-        startTime: '20:00',
-        endTime: '08:00',
-        personnelType: 'assistant_technician',
-      },
+      { name: 'Tekniker', type: ShiftType.day, startTime: '08:00', endTime: '20:00', personnelType: 'technician' },
+      { name: 'Tekniker', type: ShiftType.night, startTime: '20:00', endTime: '08:00', personnelType: 'technician' },
+      { name: 'Yardımcı Tekniker', type: ShiftType.day, startTime: '08:00', endTime: '20:00', personnelType: 'assistant_technician' },
+      { name: 'Yardımcı Tekniker', type: ShiftType.night, startTime: '20:00', endTime: '08:00', personnelType: 'assistant_technician' },
     ],
   },
 ];
@@ -342,16 +182,13 @@ export async function applyMrMasterConfig(
       });
       wantedKeys.add(key);
 
-      const match = existingShifts.find(
-        (s) =>
-          shiftMatchKey({
-            deviceId: s.deviceId as string,
-            type: s.type,
-            personnelType: s.personnelType,
-            startTime: s.startTime,
-            endTime: s.endTime,
-          }) === key,
-      );
+      const match = existingShifts.find(s => shiftMatchKey({
+        deviceId: s.deviceId as string,
+        type: s.type,
+        personnelType: s.personnelType,
+        startTime: s.startTime,
+        endTime: s.endTime,
+      }) === key);
 
       const data = {
         name: shiftDef.name,
@@ -399,16 +236,13 @@ export async function applyMrMasterConfig(
     }
 
     const stale = existingShifts.filter(
-      (s) =>
-        !wantedKeys.has(
-          shiftMatchKey({
-            deviceId: s.deviceId as string,
-            type: s.type,
-            personnelType: s.personnelType,
-            startTime: s.startTime,
-            endTime: s.endTime,
-          }),
-        ),
+      s => !wantedKeys.has(shiftMatchKey({
+        deviceId: s.deviceId as string,
+        type: s.type,
+        personnelType: s.personnelType,
+        startTime: s.startTime,
+        endTime: s.endTime,
+      })),
     );
     for (const s of stale) {
       if (s.isActive) {

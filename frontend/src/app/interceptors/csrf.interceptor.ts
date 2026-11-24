@@ -21,7 +21,7 @@ export const csrfInterceptor: HttpInterceptorFn = (req, next) => {
 
 function parseCookie(cookie: string): Record<string, string> {
   const result: Record<string, string> = {};
-  cookie.split(';').forEach((pair) => {
+  cookie.split(';').forEach(pair => {
     const [key, ...rest] = pair.trim().split('=');
     if (key) {
       result[key] = rest.join('=');

@@ -34,11 +34,11 @@ The `ScoreAggregator` clamps values to 0..100 via `normalizeScore()`.
 
 ## Default Weights
 
-| Dimension | Weight | Source            |
-| --------- | ------ | ----------------- |
-| Fairness  | 0.40   | Backend canonical |
-| Workload  | 0.30   | Backend canonical |
-| Fatigue   | 0.30   | Backend canonical |
+| Dimension | Weight | Source |
+|---|---|---|
+| Fairness | 0.40 | Backend canonical |
+| Workload | 0.30 | Backend canonical |
+| Fatigue | 0.30 | Backend canonical |
 
 ## Characterization Tests
 

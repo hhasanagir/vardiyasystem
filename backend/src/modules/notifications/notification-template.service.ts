@@ -7,18 +7,12 @@ import { DeliveryChannel } from './interfaces/channel-type.enum';
 export class NotificationTemplateService {
   constructor(private prisma: PrismaService) {}
 
-  async render(
-    type: NotificationType,
-    vars: Record<string, any>,
-  ): Promise<{ title: string; message: string }> {
+  async render(type: NotificationType, vars: Record<string, any>): Promise<{ title: string; message: string }> {
     let template = await this.prisma.notificationTemplate.findFirst({
       where: { type: type as any, isActive: true },
     });
     if (!template) {
-      return {
-        title: this.getDefaultTitle(type),
-        message: this.getDefaultMessage(type, vars),
-      };
+      return { title: this.getDefaultTitle(type), message: this.getDefaultMessage(type, vars) };
     }
     return {
       title: this.interpolate(template.titleTemplate, vars),
@@ -26,11 +20,7 @@ export class NotificationTemplateService {
     };
   }
 
-  async renderForChannel(
-    type: NotificationType,
-    channel: DeliveryChannel,
-    vars: Record<string, string>,
-  ) {
+  async renderForChannel(type: NotificationType, channel: DeliveryChannel, vars: Record<string, string>) {
     let template = await this.prisma.notificationTemplate.findFirst({
       where: { type: type as any, channel: channel as any, isActive: true },
     });
@@ -40,10 +30,7 @@ export class NotificationTemplateService {
       });
     }
     if (!template) {
-      return {
-        title: this.getDefaultTitle(type),
-        message: this.getDefaultMessage(type, vars),
-      };
+      return { title: this.getDefaultTitle(type), message: this.getDefaultMessage(type, vars) };
     }
     return {
       title: this.interpolate(template.titleTemplate, vars),
@@ -52,10 +39,7 @@ export class NotificationTemplateService {
   }
 
   private interpolate(template: string, vars: Record<string, any>): string {
-    return template.replace(
-      /\{\{(\w+)\}\}/g,
-      (_, key) => vars[key] || `{{${key}}}`,
-    );
+    return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] || `{{${key}}}`);
   }
 
   private getDefaultTitle(type: NotificationType): string {
@@ -84,24 +68,18 @@ export class NotificationTemplateService {
     return titles[type] || 'Bildirim';
   }
 
-  private getDefaultMessage(
-    type: NotificationType,
-    vars: Record<string, string>,
-  ): string {
+  private getDefaultMessage(type: NotificationType, vars: Record<string, string>): string {
     const defaults: Record<string, string> = {
       SCHEDULE_CHANGED: 'Vardiya programınız güncellendi.',
       SCHEDULE_APPROVED: 'Programınız onaylandı.',
       SCHEDULE_REJECTED: 'Programınız reddedildi: {{reason}}',
-      SHIFT_SWAP_REQUESTED:
-        '{{requesterName}} sizden vardiya değişikliği talep ediyor.',
+      SHIFT_SWAP_REQUESTED: '{{requesterName}} sizden vardiya değişikliği talep ediyor.',
       SHIFT_SWAP_APPROVED: 'Vardiya değişikliğiniz onaylandı.',
       SHIFT_SWAP_REJECTED: 'Vardiya değişikliğiniz reddedildi.',
       TRAINING_ASSIGNED: '{{trainingName}} eğitimi size atandı.',
-      TRAINING_EXPIRING:
-        '{{trainingName}} eğitiminizin süresi {{days}} gün içinde doluyor.',
+      TRAINING_EXPIRING: '{{trainingName}} eğitiminizin süresi {{days}} gün içinde doluyor.',
       TRAINING_EXPIRED: '{{trainingName}} eğitiminizin süresi doldu.',
-      CERTIFICATION_EXPIRING:
-        '{{certName}} sertifikanızın süresi {{days}} gün içinde doluyor.',
+      CERTIFICATION_EXPIRING: '{{certName}} sertifikanızın süresi {{days}} gün içinde doluyor.',
       CERTIFICATION_EXPIRED: '{{certName}} sertifikanızın süresi doldu.',
       DEVICE_INCIDENT: '{{deviceName}} cihazında arıza bildirildi.',
       DEVICE_INCIDENT_CRITICAL: 'ACİL: {{deviceName}} cihazında kritik arıza!',

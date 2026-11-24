@@ -1,17 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { UnitsService } from '../units/units.service';
+import { ScheduleCoverageService } from './services/schedule-coverage.service';
+import { toCoverageAssignmentInput } from './domain/coverage/coverage-input-mapper';
+import { CoverageAssignmentInput } from './domain/coverage/coverage-types';
 
 export interface ScheduleAlert {
-  type:
-    | 'missing_staff'
-    | 'understaffed'
-    | 'double_booking'
-    | 'overtime'
-    | 'consecutive_night'
-    | 'unassigned_critical'
-    | 'workload_imbalance'
-    | 'shift_threshold';
+  type: 'missing_staff' | 'understaffed' | 'double_booking' | 'overtime' | 'consecutive_night' | 'unassigned_critical' | 'workload_imbalance' | 'shift_threshold';
   severity: 'info' | 'warning' | 'critical';
   message: string;
   unit: string;
@@ -26,7 +20,7 @@ export interface ScheduleAlert {
 export class ScheduleAlertService {
   constructor(
     private prisma: PrismaService,
-    private unitsService: UnitsService,
+    private coverageService: ScheduleCoverageService,
   ) {}
 
   async getAlerts(scheduleId: string): Promise<ScheduleAlert[]> {
@@ -43,79 +37,80 @@ export class ScheduleAlertService {
     if (!schedule) return [];
 
     const alerts: ScheduleAlert[] = [];
-    const unitType = (schedule.unit?.type?.toLowerCase() ||
-      'unknown') as string;
+    const unitType = (schedule.unit?.type?.toLowerCase() || 'unknown') as string;
     const assignments = schedule.assignments;
-    const devices = await this.unitsService.getDevices(schedule.unitId, true);
-    const daysInMonth = new Date(schedule.year, schedule.month, 0).getDate();
 
-    const dayNames = [
-      'Pazar',
-      'Pazartesi',
-      'Salı',
-      'Çarşamba',
-      'Perşembe',
-      'Cuma',
-      'Cumartesi',
-    ];
-    const monthNames = [
-      'Ocak',
-      'Şubat',
-      'Mart',
-      'Nisan',
-      'Mayıs',
-      'Haziran',
-      'Temmuz',
-      'Ağustos',
-      'Eylül',
-      'Ekim',
-      'Kasım',
-      'Aralık',
-    ];
+    const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 
-    const shiftTypes = ['day', 'evening', 'night'];
+    /**
+     * P3-11 — `missing_staff` is derived from CoverageEngine, the single source
+     * of truth. WorkDays, holidays, device-off dates, shift-date overrides,
+     * weekend flags and personnel availability are already applied by the
+     * authoritative loader; this service no longer invents a 1-per-device/per-day
+     * requirement that would alarm on closed weekends, holidays and off dates.
+     */
+    const coverage = await this.coverageService.evaluateScheduleCoverage({
+      unitId: schedule.unitId,
+      scheduleId,
+      year: schedule.year,
+      month: schedule.month,
+    });
 
-    for (const device of devices) {
-      for (let day = 1; day <= daysInMonth; day++) {
-        const dateStr = `${schedule.year}-${String(schedule.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        for (const shiftType of shiftTypes) {
-          const slotAssignments = assignments.filter(
-            (a) =>
-              a.deviceId === device.id &&
-              a.date === dateStr &&
-              a.shiftType === shiftType,
-          );
+    for (const line of coverage.underCoverage) {
+      alerts.push({
+        type: 'missing_staff',
+        severity: 'warning',
+        message:
+          `${line.deviceName} ${this.getShiftLabel(line.shiftType)} vardiyasında personel eksik ` +
+          `(${line.date}) — gerekli ${line.required}, atanmış ${line.assigned}`,
+        unit: unitType,
+        date: line.date,
+        deviceId: line.deviceId,
+        deviceName: line.deviceName,
+      });
+    }
 
-          if (slotAssignments.length === 0) {
-            alerts.push({
-              type: 'missing_staff',
-              severity: 'warning',
-              message: `${device.name || device.code} ${this.getShiftLabel(shiftType)} vardiyasında personel eksik (${dateStr})`,
-              unit: unitType,
-              date: dateStr,
-              deviceId: device.id,
-              deviceName: device.name || device.code,
-            });
-          } else if (slotAssignments.length > 1) {
-            for (const a of slotAssignments) {
-              alerts.push({
-                type: 'double_booking',
-                severity: 'critical',
-                message: `${device.name || device.code} ${dateStr} ${this.getShiftLabel(shiftType)} vardiyasında çift atama: ${a.personnel?.name || a.personnelId}`,
-                unit: unitType,
-                date: dateStr,
-                personnelId: a.personnelId,
-                personnelName: a.personnel?.name,
-                deviceId: device.id,
-                deviceName: device.name || device.code,
-              });
-            }
-          }
-        }
+    // Double-booking detection stays row-based (it is not a coverage rule), but
+    // the slot key is normalised through the shared coverage mapper so aliases
+    // (Turkish shift names, DutyRoster roles) cannot split one logical slot.
+    const slotAssignments = new Map<string, CoverageAssignmentInput[]>();
+    for (const a of assignments) {
+      const mapped = toCoverageAssignmentInput(a);
+      if (!mapped) continue;
+      const key = [mapped.deviceId, mapped.date, mapped.shiftType, mapped.personnelType].join('|');
+      const bucket = slotAssignments.get(key) || [];
+      bucket.push(mapped);
+      slotAssignments.set(key, bucket);
+    }
+    const personnelNameById = new Map(
+      assignments.map(a => [a.personnelId, a.personnel?.name || a.personnelId] as const),
+    );
+    const deviceNameById = new Map(
+      assignments
+        .filter(a => a.deviceId)
+        .map(a => [a.deviceId!, a.device?.name || a.device?.code || a.deviceId!] as const),
+    );
+
+    for (const [key, rows] of slotAssignments) {
+      if (rows.length <= 1) continue;
+      const [deviceId, date, shiftType] = key.split('|');
+      const deviceName = deviceNameById.get(deviceId) || deviceId;
+      for (const row of rows) {
+        alerts.push({
+          type: 'double_booking',
+          severity: 'critical',
+          message: `${deviceName} ${date} ${this.getShiftLabel(shiftType)} vardiyasında çift atama: ${personnelNameById.get(row.personnelId) || row.personnelId}`,
+          unit: unitType,
+          date,
+          personnelId: row.personnelId,
+          personnelName: personnelNameById.get(row.personnelId),
+          deviceId,
+          deviceName,
+        });
       }
     }
 
-    const personnelMap = new Map<string, (typeof assignments)[0][]>();
+    const personnelMap = new Map<string, typeof assignments[0][]>();
     for (const a of assignments) {
       const existing = personnelMap.get(a.personnelId) || [];
       existing.push(a);
@@ -127,7 +122,7 @@ export class ScheduleAlertService {
       const totalHours = personAssignments.reduce((sum, a) => {
         const [sh, sm] = a.startTime.split(':').map(Number);
         const [eh, em] = a.endTime.split(':').map(Number);
-        return sum + (eh * 60 + em - (sh * 60 + sm)) / 60;
+        return sum + ((eh * 60 + em) - (sh * 60 + sm)) / 60;
       }, 0);
 
       if (totalHours > 200) {
@@ -141,9 +136,7 @@ export class ScheduleAlertService {
         });
       }
 
-      const sortedByDate = [...personAssignments].sort((a, b) =>
-        a.date.localeCompare(b.date),
-      );
+      const sortedByDate = [...personAssignments].sort((a, b) => a.date.localeCompare(b.date));
       let consecutiveNights = 0;
       for (const a of sortedByDate) {
         if (a.shiftType === 'night') {
@@ -189,13 +182,7 @@ export class ScheduleAlertService {
   }
 
   private getShiftLabel(type: string): string {
-    const map: Record<string, string> = {
-      day: 'Gündüz',
-      evening: 'Akşam',
-      night: 'Gece',
-      morning: 'Sabah',
-      afternoon: 'İkindi',
-    };
+    const map: Record<string, string> = { day: 'Gündüz', evening: 'Akşam', night: 'Gece', morning: 'Sabah', afternoon: 'İkindi' };
     return map[type] || type;
   }
 }

@@ -2,23 +2,21 @@
 
 ## Severity Levels
 
-| Level    | Definition                                        | Response Time     | Examples                                            |
-| -------- | ------------------------------------------------- | ----------------- | --------------------------------------------------- |
-| **SEV1** | Complete service outage or data loss              | 15 min            | Database down, backend crash-loop, data corruption  |
-| **SEV2** | Major feature degradation affecting >20% of users | 30 min            | API latency >5s, notification failure, login issues |
-| **SEV3** | Minor degradation affecting <20% of users         | 2 hours           | Slow queries, non-critical feature bug              |
-| **SEV4** | Cosmetic or non-urgent                            | Next business day | UI typo, minor styling issue                        |
+| Level | Definition | Response Time | Examples |
+|-------|------------|---------------|----------|
+| **SEV1** | Complete service outage or data loss | 15 min | Database down, backend crash-loop, data corruption |
+| **SEV2** | Major feature degradation affecting >20% of users | 30 min | API latency >5s, notification failure, login issues |
+| **SEV3** | Minor degradation affecting <20% of users | 2 hours | Slow queries, non-critical feature bug |
+| **SEV4** | Cosmetic or non-urgent | Next business day | UI typo, minor styling issue |
 
 ## Incident Response Flow
 
 ### 1. Detection
-
 - **Automatic**: AlertManager → Slack #alerts-critical
 - **Manual**: Support team → #alerts Slack channel
 - **Monitoring**: Grafana dashboard, uptime monitor
 
 ### 2. Triage
-
 1. Confirm incident severity level
 2. Assign incident commander (first responder)
 3. Create incident channel (#incident-YYYYMMDD-NN)
@@ -30,20 +28,17 @@
    - SEV4: Engineering team (next standup)
 
 ### 3. Mitigation
-
 1. **Stop the bleeding**: Rollback, feature flag disable, scale up, restart
 2. **Restore service**: Prioritize availability over root cause analysis
 3. **Apply hotfix**: If root cause known and fix is low-risk
 4. **Verify**: Confirm service health via monitoring + manual test
 
 ### 4. Resolution
-
 1. Verify all metrics returned to baseline
 2. Confirm with stakeholders
 3. Remove incident channel (archive after 30 days)
 
 ### 5. Postmortem (within 48h for SEV1/SEV2)
-
 - Timeline of events
 - Root cause analysis (5 Whys)
 - Detection → response → resolution times
@@ -53,29 +48,26 @@
 ## On-Call Responsibilities
 
 Primary on-call:
-
 - Respond within 15 min (SEV1) or 30 min (SEV2)
 - Triage, mitigate, escalate as needed
 - Update incident log every 30 min during active incident
 
 Secondary on-call:
-
 - Backup for primary
 - Handles lower-severity alerts during active SEV1
 
 ## Escalation Matrix
 
-| Role             | Name       | Contact        |
-| ---------------- | ---------- | -------------- |
-| Primary On-Call  | (rotating) | #on-call Slack |
-| Engineering Lead | (named)    | Phone + Slack  |
-| CTO              | (named)    | Phone + Slack  |
-| CEO              | SEV1 only  | Phone          |
+| Role | Name | Contact |
+|------|------|---------|
+| Primary On-Call | (rotating) | #on-call Slack |
+| Engineering Lead | (named) | Phone + Slack |
+| CTO | (named) | Phone + Slack |
+| CEO | SEV1 only | Phone |
 
 ## Communication Templates
 
 ### Status Update (every 30 min during incident)
-
 ```
 Status: [INVESTIGATING / MITIGATING / RESOLVED]
 Impact: [X users affected, Y features degraded]
@@ -84,7 +76,6 @@ ETA: [Estimated resolution time]
 ```
 
 ### Postmortem Template
-
 ```
 # Postmortem: [Title]
 Date: YYYY-MM-DD

@@ -1,7 +1,1 @@
-export {
-  Schedule,
-  ScheduleProps,
-  ScheduleStatus,
-  ApprovalData,
-  ScheduleSnapshot,
-} from './schedule.aggregate';
+export { Schedule, ScheduleProps, ScheduleStatus, ApprovalData, ScheduleSnapshot } from './schedule.aggregate';

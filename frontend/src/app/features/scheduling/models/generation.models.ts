@@ -1,10 +1,4 @@
-export type GenerationAlgorithm =
-  | 'greedy'
-  | 'backtracking'
-  | 'heuristic'
-  | 'constraint-propagation'
-  | 'optimization'
-  | 'randomized';
+export type GenerationAlgorithm = 'greedy' | 'backtracking' | 'heuristic' | 'constraint-propagation' | 'optimization' | 'randomized';
 
 export interface GenerationConfiguration {
   algorithm: GenerationAlgorithm;

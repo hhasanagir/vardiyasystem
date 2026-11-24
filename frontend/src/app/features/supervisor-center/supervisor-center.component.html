@@ -8,13 +8,7 @@
     </div>
     <div class="sc-header-right">
       <span class="sc-refresh-badge">Otomatik: 30s</span>
-      <button
-        pButton
-        icon="pi pi-refresh"
-        class="p-button-sm p-button-outlined"
-        (click)="loadData()"
-        label="Yenile"
-      ></button>
+      <button pButton icon="pi pi-refresh" class="p-button-sm p-button-outlined" (click)="loadData()" label="Yenile"></button>
     </div>
   </header>
 
@@ -31,46 +25,37 @@
       <div class="sc-kpi-grid">
         <p-card class="kpi-card">
           <div class="kpi-inner">
-            <span class="kpi-value" style="color: #3b82f6">{{ kpis()?.totalPersonnel ?? 0 }}</span>
+            <span class="kpi-value" style="color:#3b82f6">{{ kpis()?.totalPersonnel ?? 0 }}</span>
             <span class="kpi-label">Toplam Personel</span>
           </div>
         </p-card>
         <p-card class="kpi-card">
           <div class="kpi-inner">
-            <span class="kpi-value" style="color: #22c55e">{{ kpis()?.activeToday ?? 0 }}</span>
+            <span class="kpi-value" style="color:#22c55e">{{ kpis()?.activeToday ?? 0 }}</span>
             <span class="kpi-label">Aktif Personel</span>
           </div>
         </p-card>
         <p-card class="kpi-card">
           <div class="kpi-inner">
-            <span class="kpi-value" style="color: #3b82f6"
-              >{{ kpis()?.devicesOnline ?? 0
-              }}<span class="kpi-sub">/{{ kpis()?.totalDevices ?? 0 }}</span></span
-            >
+            <span class="kpi-value" style="color:#3b82f6">{{ kpis()?.devicesOnline ?? 0 }}<span class="kpi-sub">/{{ kpis()?.totalDevices ?? 0 }}</span></span>
             <span class="kpi-label">Cihaz Çevrimiçi</span>
           </div>
         </p-card>
         <p-card class="kpi-card">
           <div class="kpi-inner">
-            <span class="kpi-value" style="color: #f97316">{{ kpis()?.shiftCoverage ?? 0 }}%</span>
+            <span class="kpi-value" style="color:#f97316">{{ kpis()?.shiftCoverage ?? 0 }}%</span>
             <span class="kpi-label">Vardiya Doluluk</span>
           </div>
         </p-card>
         <p-card class="kpi-card">
           <div class="kpi-inner">
-            <span
-              class="kpi-value"
-              [style.color]="(kpis()?.incidentsToday ?? 0) > 0 ? '#ef4444' : '#22c55e'"
-              >{{ kpis()?.incidentsToday ?? 0 }}</span
-            >
+            <span class="kpi-value" [style.color]="(kpis()?.incidentsToday ?? 0) > 0 ? '#ef4444' : '#22c55e'">{{ kpis()?.incidentsToday ?? 0 }}</span>
             <span class="kpi-label">Açık Arızalar</span>
           </div>
         </p-card>
         <p-card class="kpi-card">
           <div class="kpi-inner">
-            <span class="kpi-value" style="color: #a855f7">{{
-              kpis()?.pendingApprovals ?? 0
-            }}</span>
+            <span class="kpi-value" style="color:#a855f7">{{ kpis()?.pendingApprovals ?? 0 }}</span>
             <span class="kpi-label">Bekleyen Onay</span>
           </div>
         </p-card>
@@ -85,26 +70,10 @@
               <div class="unit-status-row">
                 <span class="unit-status-name">{{ unit.unitName }}</span>
                 <div class="unit-status-bars">
-                  <span
-                    class="bar-segment active-bar"
-                    [style.width.%]="unit.total > 0 ? (unit.active / unit.total) * 100 : 0"
-                    title="Aktif: {{ unit.active }}"
-                  ></span>
-                  <span
-                    class="bar-segment maint-bar"
-                    [style.width.%]="unit.total > 0 ? (unit.maintenance / unit.total) * 100 : 0"
-                    title="Bakım: {{ unit.maintenance }}"
-                  ></span>
-                  <span
-                    class="bar-segment fault-bar"
-                    [style.width.%]="unit.total > 0 ? (unit.fault / unit.total) * 100 : 0"
-                    title="Arıza: {{ unit.fault }}"
-                  ></span>
-                  <span
-                    class="bar-segment off-bar"
-                    [style.width.%]="unit.total > 0 ? (unit.outOfService / unit.total) * 100 : 0"
-                    title="Kapalı: {{ unit.outOfService }}"
-                  ></span>
+                  <span class="bar-segment active-bar" [style.width.%]="unit.total > 0 ? (unit.active / unit.total) * 100 : 0" title="Aktif: {{ unit.active }}"></span>
+                  <span class="bar-segment maint-bar" [style.width.%]="unit.total > 0 ? (unit.maintenance / unit.total) * 100 : 0" title="Bakım: {{ unit.maintenance }}"></span>
+                  <span class="bar-segment fault-bar" [style.width.%]="unit.total > 0 ? (unit.fault / unit.total) * 100 : 0" title="Arıza: {{ unit.fault }}"></span>
+                  <span class="bar-segment off-bar" [style.width.%]="unit.total > 0 ? (unit.outOfService / unit.total) * 100 : 0" title="Kapalı: {{ unit.outOfService }}"></span>
                 </div>
                 <div class="unit-status-stats">
                   <p-tag [value]="unit.total + ' cihaz'" severity="info" />
@@ -127,9 +96,7 @@
                 </div>
                 <div class="up-roles">
                   @for (entry of getRoleEntries(unit.roles); track entry[0]) {
-                    <span class="up-role"
-                      >{{ entry[0] }}: <strong>{{ entry[1] }}</strong></span
-                    >
+                    <span class="up-role">{{ entry[0] }}: <strong>{{ entry[1] }}</strong></span>
                   }
                 </div>
               </div>
@@ -146,10 +113,7 @@
               <div class="roster-entry">
                 <div class="re-info">
                   <span class="re-name">{{ entry.personnelName }}</span>
-                  <span class="re-unit"
-                    >{{ entry.unitName
-                    }}{{ entry.deviceName ? ' / ' + entry.deviceName : '' }}</span
-                  >
+                  <span class="re-unit">{{ entry.unitName }}{{ entry.deviceName ? ' / ' + entry.deviceName : '' }}</span>
                 </div>
                 <div class="re-meta">
                   <p-tag [value]="entry.shiftType" severity="info" />
@@ -180,7 +144,7 @@
                 </div>
                 <div class="ie-meta">
                   <span>{{ inc.unitName }}{{ inc.deviceName ? ' - ' + inc.deviceName : '' }}</span>
-                  <span>{{ inc.reporterName }} | {{ inc.reportedAt | date: 'dd.MM HH:mm' }}</span>
+                  <span>{{ inc.reporterName }} | {{ inc.reportedAt | date:'dd.MM HH:mm' }}</span>
                 </div>
               </div>
             } @empty {
@@ -195,10 +159,7 @@
             @for (alert of recentAlerts(); track alert.id) {
               <div class="alert-entry">
                 <div class="ae-header">
-                  <p-tag
-                    [value]="alert.priority"
-                    [severity]="getPrioritySeverity(alert.priority)"
-                  />
+                  <p-tag [value]="alert.priority" [severity]="getPrioritySeverity(alert.priority)" />
                 </div>
                 <div class="ae-body">
                   <span class="ae-title">{{ alert.title }}</span>
@@ -206,7 +167,7 @@
                 </div>
                 <div class="ae-meta">
                   <span>{{ alert.senderName }}</span>
-                  <span>{{ alert.createdAt | date: 'dd.MM HH:mm' }}</span>
+                  <span>{{ alert.createdAt | date:'dd.MM HH:mm' }}</span>
                 </div>
               </div>
             } @empty {
@@ -219,12 +180,7 @@
       <!-- Low Stock Alerts -->
       @if (lowStockAlerts().length > 0) {
         <p-card header="Düşük Stok Uyarıları" [subheader]="lowStockAlerts().length + ' kalem'">
-          <p-table
-            [value]="lowStockAlerts()"
-            [scrollable]="true"
-            [rows]="5"
-            [paginator]="lowStockAlerts().length > 5"
-          >
+          <p-table [value]="lowStockAlerts()" [scrollable]="true" [rows]="5" [paginator]="lowStockAlerts().length > 5">
             <ng-template pTemplate="header">
               <tr>
                 <th>Malzeme</th>
@@ -240,35 +196,21 @@
                 <td>{{ item.unitName }}</td>
                 <td>
                   <div class="stock-bar-container">
-                    <div
-                      class="stock-bar"
-                      [style.width.%]="getStockPercent(item.currentStock, item.minRequired)"
-                      [style.background]="
-                        getStockSeverity(item.currentStock, item.minRequired) === 'danger'
-                          ? '#ef4444'
-                          : '#f59e0b'
-                      "
-                    ></div>
+                    <div class="stock-bar" [style.width.%]="getStockPercent(item.currentStock, item.minRequired)"
+                         [style.background]="getStockSeverity(item.currentStock, item.minRequired) === 'danger' ? '#ef4444' : '#f59e0b'">
+                    </div>
                     <span>{{ item.currentStock }} {{ item.unit }}</span>
                   </div>
                 </td>
                 <td>{{ item.minRequired }} {{ item.unit }}</td>
                 <td>
-                  <p-tag
-                    [value]="
-                      getStockSeverity(item.currentStock, item.minRequired) === 'danger'
-                        ? 'Kritik'
-                        : 'Düşük'
-                    "
-                    [severity]="getStockSeverity(item.currentStock, item.minRequired)"
-                  />
+                  <p-tag [value]="getStockSeverity(item.currentStock, item.minRequired) === 'danger' ? 'Kritik' : 'Düşük'"
+                         [severity]="getStockSeverity(item.currentStock, item.minRequired)" />
                 </td>
               </tr>
             </ng-template>
             <ng-template pTemplate="emptymessage">
-              <tr>
-                <td colspan="5" class="sc-empty">Stok uyarısı bulunmuyor</td>
-              </tr>
+              <tr><td colspan="5" class="sc-empty">Stok uyarısı bulunmuyor</td></tr>
             </ng-template>
           </p-table>
         </p-card>

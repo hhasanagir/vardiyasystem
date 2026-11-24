@@ -1,20 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../core/api/api.service';
-import type {
-  AuditLogEntry,
-  PaginatedAuditResponse,
-  AuditQueryFilters,
-} from '../domain/models/audit-log';
+import type { AuditLogEntry, PaginatedAuditResponse, AuditQueryFilters } from '../domain/models/audit-log';
 
 @Injectable({ providedIn: 'root' })
 export class AuditService {
   private api = inject(ApiService);
 
   findAll(filters?: AuditQueryFilters): Observable<PaginatedAuditResponse> {
-    return this.api.get<PaginatedAuditResponse>('/audit', {
-      params: filters as Record<string, string>,
-    });
+    return this.api.get<PaginatedAuditResponse>('/audit', { params: filters as Record<string, string> });
   }
 
   findById(id: string): Observable<AuditLogEntry> {
@@ -22,9 +16,7 @@ export class AuditService {
   }
 
   findByUser(userId: string, filters?: AuditQueryFilters): Observable<PaginatedAuditResponse> {
-    return this.api.get<PaginatedAuditResponse>(`/audit/user/${userId}`, {
-      params: filters as Record<string, string>,
-    });
+    return this.api.get<PaginatedAuditResponse>(`/audit/user/${userId}`, { params: filters as Record<string, string> });
   }
 
   findByEntity(entityType: string, entityId: string): Observable<AuditLogEntry[]> {

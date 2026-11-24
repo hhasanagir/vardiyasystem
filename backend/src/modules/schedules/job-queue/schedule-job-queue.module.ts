@@ -5,12 +5,10 @@ import { ScheduleJobStatusService } from './schedule-job-status.service';
 import { ScheduleJobQueueService } from './schedule-job-queue.service';
 
 @Module({
-  imports: [BullModule.registerQueue({ name: 'schedule-jobs' })],
-  providers: [
-    ScheduleJobProcessor,
-    ScheduleJobStatusService,
-    ScheduleJobQueueService,
+  imports: [
+    BullModule.registerQueue({ name: 'schedule-jobs' }),
   ],
+  providers: [ScheduleJobProcessor, ScheduleJobStatusService, ScheduleJobQueueService],
   exports: [ScheduleJobQueueService, ScheduleJobStatusService],
 })
 export class ScheduleJobQueueModule {}

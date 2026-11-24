@@ -23,19 +23,29 @@ export class DevicesService {
     private unitsService: UnitsService,
   ) {}
 
-  async findAll(params?: {
-    unit?: string;
-    isActive?: boolean;
-  }): Promise<{ devices: DeviceResponse[]; total: number }> {
+  async findAll(params?: { unit?: string; isActive?: boolean; organizationId?: string; scopedUnitId?: string }): Promise<{ devices: DeviceResponse[]; total: number }> {
     const where: Prisma.DeviceWhereInput = {};
 
     if (params?.unit) {
       const unit = await this.prisma.unit.findFirst({
-        where: { type: params.unit as UnitType },
+        where: {
+          type: params.unit as UnitType,
+          ...(params.organizationId && typeof params.organizationId === 'string'
+            ? { OR: [{ organizationId: params.organizationId }, { organizationId: null }] }
+            : {}),
+        },
       });
       if (unit) {
         where.unitId = unit.id;
+      } else {
+        return { devices: [], total: 0 };
       }
+    } else if (params?.scopedUnitId) {
+      where.unitId = params.scopedUnitId;
+    }
+
+    if (params?.organizationId) {
+      where.organizationId = params.organizationId;
     }
 
     if (params?.isActive !== undefined) {
@@ -48,7 +58,7 @@ export class DevicesService {
     });
 
     return {
-      devices: devices.map((d) => ({
+      devices: devices.map(d => ({
         id: d.id,
         code: d.code,
         name: d.name,
@@ -64,9 +74,7 @@ export class DevicesService {
     };
   }
 
-  async findByUnitCode(
-    unitCode: string,
-  ): Promise<{ devices: DeviceResponse[]; total: number }> {
+  async findByUnitCode(unitCode: string): Promise<{ devices: DeviceResponse[]; total: number }> {
     const unit = await this.prisma.unit.findFirst({
       where: { type: unitCode as UnitType },
     });
@@ -78,7 +86,7 @@ export class DevicesService {
     const devices = await this.unitsService.getDevices(unit.id);
 
     return {
-      devices: devices.map((d) => ({
+      devices: devices.map(d => ({
         id: d.id,
         code: d.code,
         name: d.name,

@@ -30,10 +30,7 @@ describe('TokenBlacklistService', () => {
 
   describe('add', () => {
     it('should create a blacklist entry', async () => {
-      mockPrisma.tokenBlacklist.create.mockResolvedValue({
-        id: 'bl-1',
-        jti: 'test-jti',
-      });
+      mockPrisma.tokenBlacklist.create.mockResolvedValue({ id: 'bl-1', jti: 'test-jti' });
 
       await service.add('test-jti', 'user-1', 'User logout');
 
@@ -48,9 +45,7 @@ describe('TokenBlacklistService', () => {
     });
 
     it('should not throw on duplicate jti', async () => {
-      mockPrisma.tokenBlacklist.create.mockRejectedValue(
-        new Error('Unique constraint'),
-      );
+      mockPrisma.tokenBlacklist.create.mockRejectedValue(new Error('Unique constraint'));
 
       await expect(service.add('dup-jti', 'user-1')).resolves.toBeUndefined();
     });

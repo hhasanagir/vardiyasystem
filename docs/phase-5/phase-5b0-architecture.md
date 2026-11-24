@@ -54,15 +54,15 @@ score = max(0, 1 - stdDev / (mean + 1))  // ranges 0-1
 
 ### Comparison
 
-| Aspect            | Backend            | Frontend              | Consistent?          |
-| ----------------- | ------------------ | --------------------- | -------------------- |
-| Algorithm         | CV-based           | CV-based              | ✅                   |
-| Score range       | 0-100              | 0-1                   | ❌ (different scale) |
-| Night weight      | 25%                | 30%                   | ❌                   |
-| Weekend weight    | 20%                | 25%                   | ❌                   |
-| Holiday weight    | 15%                | 20%                   | ❌                   |
-| Fourth dimension  | Workload (40%)     | Device Rotation (25%) | ❌                   |
-| Per-person detail | Same score for all | Different per person  | ❌                   |
+| Aspect | Backend | Frontend | Consistent? |
+|---|---|---|---|
+| Algorithm | CV-based | CV-based | ✅ |
+| Score range | 0-100 | 0-1 | ❌ (different scale) |
+| Night weight | 25% | 30% | ❌ |
+| Weekend weight | 20% | 25% | ❌ |
+| Holiday weight | 15% | 20% | ❌ |
+| Fourth dimension | Workload (40%) | Device Rotation (25%) | ❌ |
+| Per-person detail | Same score for all | Different per person | ❌ |
 
 ### Canonical Decision
 
@@ -75,7 +75,6 @@ score = max(0, 1 - stdDev / (mean + 1))  // ranges 0-1
 ### Backend: NO Fatigue Engine
 
 The backend has only a `FatigueMetrics` interface in `validation-result.ts`:
-
 ```typescript
 interface FatigueMetrics {
   maxConsecutiveDays: number;
@@ -95,17 +94,16 @@ This is consumed by `ScoringModel.calculatePreferenceScore()` but there is NO st
 
 **Fatigue Factors & Coefficients:**
 
-| Factor                   | Coefficient               | Threshold | Severity |
-| ------------------------ | ------------------------- | --------- | -------- |
-| Consecutive nights       | `consecutiveNightPenalty` | ≥ 2       | High     |
-| Weekend work             | `weekendShiftPenalty`     | Per shift | Medium   |
-| Holiday work             | `holidayShiftPenalty`     | Flat      | Medium   |
-| Short rest (< 11h)       | `shortRestPenalty`        | < 11h     | Critical |
-| Consecutive days (> max) | `consecutiveDaysPenalty`  | > max (6) | High     |
-| Overtime (> 45h/week)    | `overtimePenalty`         | > 45h     | High     |
+| Factor | Coefficient | Threshold | Severity |
+|---|---|---|---|
+| Consecutive nights | `consecutiveNightPenalty` | ≥ 2 | High |
+| Weekend work | `weekendShiftPenalty` | Per shift | Medium |
+| Holiday work | `holidayShiftPenalty` | Flat | Medium |
+| Short rest (< 11h) | `shortRestPenalty` | < 11h | Critical |
+| Consecutive days (> max) | `consecutiveDaysPenalty` | > max (6) | High |
+| Overtime (> 45h/week) | `overtimePenalty` | > 45h | High |
 
 **Score Formula:**
-
 ```
 totalPenalty = Σ(factor × coefficient)
 score = max(0, min(100, 100 - totalPenalty × 100))
@@ -120,7 +118,6 @@ score = max(0, min(100, 100 - totalPenalty × 100))
 | ≥ 70 | LOW |
 
 **Profile:**
-
 - `currentFatigue` — today's fatigue score
 - `weeklyFatigue` — weekly aggregated score
 - `monthlyFatigue` — monthly aggregated score
@@ -128,14 +125,14 @@ score = max(0, min(100, 100 - totalPenalty × 100))
 
 ### Safety vs Soft Separation
 
-| Rule                   | Type | Implementation                         |
-| ---------------------- | ---- | -------------------------------------- |
-| Min rest ≥ 8h          | HARD | `RequiredRestConstraint` (backend)     |
-| Min rest ≥ 11h         | HARD | Should be aligned (constants.ts = 11h) |
-| Night→day rest < 24h   | SOFT | Fatigue scoring                        |
-| Consecutive nights ≥ 2 | SOFT | Fatigue scoring                        |
-| Consecutive days > 6   | SOFT | Fatigue scoring                        |
-| Overtime > 45h/week    | SOFT | Fatigue scoring                        |
+| Rule | Type | Implementation |
+|---|---|---|
+| Min rest ≥ 8h | HARD | `RequiredRestConstraint` (backend) |
+| Min rest ≥ 11h | HARD | Should be aligned (constants.ts = 11h) |
+| Night→day rest < 24h | SOFT | Fatigue scoring |
+| Consecutive nights ≥ 2 | SOFT | Fatigue scoring |
+| Consecutive days > 6 | SOFT | Fatigue scoring |
+| Overtime > 45h/week | SOFT | Fatigue scoring |
 
 ### Assumptions
 
@@ -171,7 +168,6 @@ score = max(0, min(100, 100 - totalPenalty × 100))
 **Overall:** `fairness×0.35 + fatigueSafety×0.35 + coverage×0.20 + preferenceMatch×0.10`
 
 **Rebalance Algorithm:**
-
 1. `findBestImprovement()` — iterate all same-date assignment pairs + replacement candidates
 2. `evaluateSwap()` — calculate fatigue improvement from swapping two personnel's assignments
 3. `findBetterReplacement()` — find lower-fatigue personnel to replace current assignee
@@ -179,33 +175,30 @@ score = max(0, min(100, 100 - totalPenalty × 100))
 5. Loop max 100 iterations, stops when improvement < 0.5
 
 **CRITICAL BUG:** Line 91 — `improvementPercent` calculation:
-
 ```typescript
-const improvementPercent =
-  ((currentScore.overall - previousScore.overall) / currentScore.overall) * 100;
+const improvementPercent = ((currentScore.overall - previousScore.overall) / currentScore.overall) * 100;
 ```
-
 This divides by `currentScore.overall` instead of `previousScore.overall`, making improvement always 0 or negative. The loop never actually improves.
 
 ### What Rebalancing Does
 
-| Operation         | Description                                        |
-| ----------------- | -------------------------------------------------- |
-| Swap personnel    | Exchange two assignments' `personnelId`            |
+| Operation | Description |
+|---|---|
+| Swap personnel | Exchange two assignments' `personnelId` |
 | Replace personnel | Find a lower-fatigue alternative for an assignment |
-| Score comparison  | Calculate before/after fairness + fatigue          |
-| Convergence       | Stop when improvement < 0.5 or max iterations      |
+| Score comparison | Calculate before/after fairness + fatigue |
+| Convergence | Stop when improvement < 0.5 or max iterations |
 
 ### What Rebalancing Does NOT Do
 
-| Operation                | Status                                |
-| ------------------------ | ------------------------------------- |
-| Change dates             | No                                    |
-| Change shift types       | No                                    |
-| Change devices           | No                                    |
-| Add/remove assignments   | No                                    |
-| Persist results          | No (returns modified schedule object) |
-| Respect hard constraints | Partially (uses fatigue check only)   |
+| Operation | Status |
+|---|---|
+| Change dates | No |
+| Change shift types | No |
+| Change devices | No |
+| Add/remove assignments | No |
+| Persist results | No (returns modified schedule object) |
+| Respect hard constraints | Partially (uses fatigue check only) |
 
 ### Future Architecture
 
@@ -235,29 +228,29 @@ Repeat Until Converged
 
 ### What Exists (Backend)
 
-| Component                  | Status        | Quality                         |
-| -------------------------- | ------------- | ------------------------------- |
-| ConstraintEngine (12 hard) | ✅ Production | High                            |
-| FairnessEngine             | ✅ Production | Medium (per-person score issue) |
-| ScoringModel               | ✅ Production | High                            |
-| SeededRandom               | ✅ Production | High                            |
-| Schedule aggregate         | ✅ Production | High                            |
-| Domain events              | ✅ Production | High                            |
-| Version management         | ✅ Production | High                            |
+| Component | Status | Quality |
+|---|---|---|
+| ConstraintEngine (12 hard) | ✅ Production | High |
+| FairnessEngine | ✅ Production | Medium (per-person score issue) |
+| ScoringModel | ✅ Production | High |
+| SeededRandom | ✅ Production | High |
+| Schedule aggregate | ✅ Production | High |
+| Domain events | ✅ Production | High |
+| Version management | ✅ Production | High |
 
 ### What Must Be Created (Phase 5B)
 
-| Component                    | Source                                    | Priority | Effort    |
-| ---------------------------- | ----------------------------------------- | -------- | --------- |
-| FatigueEngine                | Frontend FatigueEngineService             | HIGH     | 1 week    |
-| SoftConstraint interface     | New                                       | HIGH     | 3 days    |
-| 6 soft constraints           | New                                       | HIGH     | 1 week    |
-| ScheduleOptimizer            | Frontend ConstraintSolverService (GA)     | HIGH     | 2-3 weeks |
-| ScheduleRebalancer           | Frontend RebalanceEngineService           | MEDIUM   | 1 week    |
-| ScheduleGenerator (enhanced) | Merge backend + frontend generators       | MEDIUM   | 1 week    |
-| Unit-specific constraints    | Frontend ComprehensiveConstraintValidator | MEDIUM   | 1 week    |
-| Dry-run API                  | New                                       | MEDIUM   | 3 days    |
+| Component | Source | Priority | Effort |
+|---|---|---|---|
+| FatigueEngine | Frontend FatigueEngineService | HIGH | 1 week |
+| SoftConstraint interface | New | HIGH | 3 days |
+| 6 soft constraints | New | HIGH | 1 week |
+| ScheduleOptimizer | Frontend ConstraintSolverService (GA) | HIGH | 2-3 weeks |
+| ScheduleRebalancer | Frontend RebalanceEngineService | MEDIUM | 1 week |
+| ScheduleGenerator (enhanced) | Merge backend + frontend generators | MEDIUM | 1 week |
+| Unit-specific constraints | Frontend ComprehensiveConstraintValidator | MEDIUM | 1 week |
+| Dry-run API | New | MEDIUM | 3 days |
 
 ---
 
-_Audit completed: 2026-08-25_
+*Audit completed: 2026-08-25*

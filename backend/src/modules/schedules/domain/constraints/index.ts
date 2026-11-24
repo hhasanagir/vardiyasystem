@@ -17,5 +17,7 @@ export {
   TemplateValidationConstraint,
   GroupSlotOccupiedConstraint,
   RequiredRestConstraintNew,
+  DeviceOffDateConstraint,
+  PersonnelAvailabilityConstraint,
   ALL_HARD_CONSTRAINTS,
 } from './hard-constraints';

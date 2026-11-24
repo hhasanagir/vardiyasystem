@@ -6,11 +6,7 @@ import { PrismaService } from '../../prisma.service';
 export class ContractsService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(filters?: {
-    type?: string;
-    status?: string;
-    supplierId?: string;
-  }) {
+  async findAll(filters?: { type?: string; status?: string; supplierId?: string }) {
     const where: Prisma.ServiceContractWhereInput = {};
 
     if (filters?.type) where.type = filters.type as any;
@@ -77,38 +73,29 @@ export class ContractsService {
   }
 
   async update(id: string, data: any) {
-    const existing = await this.prisma.serviceContract.findUnique({
-      where: { id },
-    });
+    const existing = await this.prisma.serviceContract.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Contract not found');
     }
 
     const updateData: Prisma.ServiceContractUncheckedUpdateInput = {};
 
-    if (data.contractNumber !== undefined)
-      updateData.contractNumber = data.contractNumber;
+    if (data.contractNumber !== undefined) updateData.contractNumber = data.contractNumber;
     if (data.assetId !== undefined) updateData.assetId = data.assetId;
     if (data.supplierId !== undefined) updateData.supplierId = data.supplierId;
     if (data.type !== undefined) updateData.type = data.type;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.title !== undefined) updateData.title = data.title;
-    if (data.description !== undefined)
-      updateData.description = data.description;
-    if (data.startDate !== undefined)
-      updateData.startDate = new Date(data.startDate);
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
     if (data.endDate !== undefined) updateData.endDate = new Date(data.endDate);
-    if (data.renewalDate !== undefined)
-      updateData.renewalDate = new Date(data.renewalDate);
+    if (data.renewalDate !== undefined) updateData.renewalDate = new Date(data.renewalDate);
     if (data.value !== undefined) updateData.value = data.value;
     if (data.currency !== undefined) updateData.currency = data.currency;
-    if (data.slaResponseTime !== undefined)
-      updateData.slaResponseTime = data.slaResponseTime;
-    if (data.slaResolutionTime !== undefined)
-      updateData.slaResolutionTime = data.slaResolutionTime;
+    if (data.slaResponseTime !== undefined) updateData.slaResponseTime = data.slaResponseTime;
+    if (data.slaResolutionTime !== undefined) updateData.slaResolutionTime = data.slaResolutionTime;
     if (data.slaPenalty !== undefined) updateData.slaPenalty = data.slaPenalty;
-    if (data.paymentTerms !== undefined)
-      updateData.paymentTerms = data.paymentTerms;
+    if (data.paymentTerms !== undefined) updateData.paymentTerms = data.paymentTerms;
     if (data.scope !== undefined) updateData.scope = data.scope;
     if (data.exclusions !== undefined) updateData.exclusions = data.exclusions;
     if (data.notes !== undefined) updateData.notes = data.notes;

@@ -59,10 +59,7 @@ export class EventMonitoringService {
 
   recordProcessed(eventName: string, durationMs: number): void {
     this.eventsProcessedTotal.inc({ event_name: eventName });
-    this.eventProcessingDuration.observe(
-      { event_name: eventName },
-      durationMs / 1000,
-    );
+    this.eventProcessingDuration.observe({ event_name: eventName }, durationMs / 1000);
   }
 
   recordFailed(eventName: string): void {
@@ -74,9 +71,6 @@ export class EventMonitoringService {
   }
 
   recordLatency(eventName: string, latencyMs: number): void {
-    this.eventsLatencySeconds.observe(
-      { event_name: eventName },
-      latencyMs / 1000,
-    );
+    this.eventsLatencySeconds.observe({ event_name: eventName }, latencyMs / 1000);
   }
 }

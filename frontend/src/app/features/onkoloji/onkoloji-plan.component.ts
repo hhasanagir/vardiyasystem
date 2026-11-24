@@ -1,20 +1,8 @@
-import {
-  Component,
-  inject,
-  OnInit,
-  signal,
-  computed,
-  ChangeDetectionStrategy,
-} from '@angular/core';
+import { Component, inject, OnInit, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ScheduleStore } from '../../core/state';
-import {
-  getHoliday,
-  getHolidayCountForMonth,
-  isHoliday,
-  HOLIDAY_COLORS,
-} from '../../core/calendar/turkish-holidays';
+import { getHoliday, getHolidayCountForMonth, isHoliday, HOLIDAY_COLORS } from '../../core/calendar/turkish-holidays';
 import { ApiService } from '../../services/api.service';
 
 interface OncDeviceRow {
@@ -112,7 +100,7 @@ export class OnkolojiPlanComponent implements OnInit {
   deviceOccupancy = computed(() => {
     const devs = this.devices();
     if (devs.length === 0) return 0;
-    const active = devs.filter((d) => d.status === 'active').length;
+    const active = devs.filter(d => d.status === 'active').length;
     return Math.round((active / devs.length) * 100);
   });
 
@@ -156,29 +144,20 @@ export class OnkolojiPlanComponent implements OnInit {
         allDates.add(dateStr);
       }
     }
-    const hasHolidayAssignment = [...allDates].some((d) => holidayDates.has(d));
+    const hasHolidayAssignment = [...allDates].some(d => holidayDates.has(d));
     return hasHolidayAssignment ? 'Resmî tatil vardiyası — ek mesai planlaması doğrulayın' : null;
   });
 
   // Tooltip handler
   onHoverSession(e: MouseEvent, device: OncDeviceRow, session: SessionAssignment): void {
-    const typeLabel: Record<string, string> = {
-      MORNING: 'Sabah',
-      AFTERNOON: 'Öğleden',
-      EVENING: 'Akşam',
-    };
+    const typeLabel: Record<string, string> = { MORNING: 'Sabah', AFTERNOON: 'Öğleden', EVENING: 'Akşam' };
     this.tooltipData.set({
       deviceName: device.name,
       sessionType: typeLabel[session.sessionType] || session.sessionType,
       patientCount: session.patientCount,
       technicianName: session.technicianName,
       fractionCount: session.patientCount,
-      treatmentType:
-        device.type === 'LINAC'
-          ? 'IMRT/VMAT'
-          : device.type === 'TOMOTHERAPY'
-            ? 'Helikal'
-            : 'Görüntüleme',
+      treatmentType: device.type === 'LINAC' ? 'IMRT/VMAT' : device.type === 'TOMOTHERAPY' ? 'Helikal' : 'Görüntüleme',
     });
     this.tooltipX.set(e.clientX + 12);
     this.tooltipY.set(e.clientY - 10);
@@ -203,23 +182,12 @@ export class OnkolojiPlanComponent implements OnInit {
     for (const d of this.devices()) {
       for (const [dateStr, sessions] of d.assignments) {
         for (const s of sessions) {
-          const typeLabel: Record<string, string> = {
-            MORNING: 'Sabah',
-            AFTERNOON: 'Öğleden',
-            EVENING: 'Akşam',
-          };
-          rows.push([
-            d.name,
-            dateStr,
-            typeLabel[s.sessionType] || s.sessionType,
-            String(s.patientCount),
-            s.technicianName,
-            s.status === 'completed' ? 'Tamamlandı' : 'Planlandı',
-          ]);
+          const typeLabel: Record<string, string> = { MORNING: 'Sabah', AFTERNOON: 'Öğleden', EVENING: 'Akşam' };
+          rows.push([d.name, dateStr, typeLabel[s.sessionType] || s.sessionType, String(s.patientCount), s.technicianName, s.status === 'completed' ? 'Tamamlandı' : 'Planlandı']);
         }
       }
     }
-    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
+    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -251,22 +219,22 @@ export class OnkolojiPlanComponent implements OnInit {
   sessionTypes = [
     { value: 'SABAH', label: 'Sabah', class: 'sabah', icon: '☀️', time: '08:00-14:00' },
     { value: 'OGLE', label: 'Öğleden', class: 'ogleden', icon: '🌤️', time: '14:00-20:00' },
-    { value: 'AKSAM', label: 'Akşam', class: 'aksam', icon: '🌙', time: '20:00-02:00' },
+    { value: 'AKSAM', label: 'Akşam', class: 'aksam', icon: '🌙', time: '20:00-02:00' }
   ];
 
   totalSessions = computed(() => {
     let count = 0;
-    this.devices().forEach((d) => {
-      d.assignments.forEach((sessions) => (count += sessions.length));
+    this.devices().forEach(d => {
+      d.assignments.forEach(sessions => count += sessions.length);
     });
     return count;
   });
 
   activePatients = computed(() => {
     let count = 0;
-    this.devices().forEach((d) => {
-      d.assignments.forEach((sessions) => {
-        sessions.forEach((s) => {
+    this.devices().forEach(d => {
+      d.assignments.forEach(sessions => {
+        sessions.forEach(s => {
           if (s.status === 'in_progress') count += s.patientCount;
         });
       });
@@ -298,7 +266,7 @@ export class OnkolojiPlanComponent implements OnInit {
         isHoliday: !!holiday,
         holidayName: holiday?.name,
         holidayType: holiday?.type,
-        isToday: date.getTime() === today.getTime(),
+        isToday: date.getTime() === today.getTime()
       } as DayColumn;
     });
   });
@@ -312,14 +280,14 @@ export class OnkolojiPlanComponent implements OnInit {
 
     this.api.get<any>('/units').subscribe({
       next: (units) => {
-        const oncUnits = (Array.isArray(units) ? units : []).filter(
-          (u: any) => u.type === 'onkoloji' && u.isActive !== false,
+        const oncUnits = (Array.isArray(units) ? units : []).filter((u: any) =>
+          u.type === 'onkoloji' && u.isActive !== false
         );
 
         const techs: { id: string; name: string }[] = [];
         for (const u of oncUnits) {
-          for (const p of u.personnel || []) {
-            if (p.isActive !== false && !techs.find((t) => t.id === p.id)) {
+          for (const p of (u.personnel || [])) {
+            if (p.isActive !== false && !techs.find(t => t.id === p.id)) {
               techs.push({ id: p.id, name: p.name });
             }
           }
@@ -328,7 +296,7 @@ export class OnkolojiPlanComponent implements OnInit {
 
         const devices: OncDeviceRow[] = [];
         for (const u of oncUnits) {
-          for (const dev of u.devices || []) {
+          for (const dev of (u.devices || [])) {
             if (dev.isActive !== false) {
               const devType = (dev.type || '').toUpperCase();
               let oncType: 'LINAC' | 'TOMOTHERAPY' | 'CT_SIMULATOR' = 'LINAC';
@@ -349,22 +317,8 @@ export class OnkolojiPlanComponent implements OnInit {
 
         if (devices.length === 0) {
           devices.push(
-            {
-              id: 'linac1',
-              name: 'LİNAC-1',
-              code: 'L1',
-              type: 'LINAC',
-              status: 'active',
-              assignments: new Map(),
-            },
-            {
-              id: 'linac2',
-              name: 'LİNAC-2',
-              code: 'L2',
-              type: 'LINAC',
-              status: 'active',
-              assignments: new Map(),
-            },
+            { id: 'linac1', name: 'LİNAC-1', code: 'L1', type: 'LINAC', status: 'active', assignments: new Map() },
+            { id: 'linac2', name: 'LİNAC-2', code: 'L2', type: 'LINAC', status: 'active', assignments: new Map() },
           );
         }
 
@@ -384,18 +338,18 @@ export class OnkolojiPlanComponent implements OnInit {
   }
 
   getSessionByType(deviceId: string, date: Date, type: string): SessionAssignment | undefined {
-    const device = this.devices().find((d) => d.id === deviceId);
+    const device = this.devices().find(d => d.id === deviceId);
     if (!device) return undefined;
     const dateStr = this.formatDateKey(date);
     const sessions = device.assignments.get(dateStr) || [];
 
     const typeMap: Record<string, string> = {
-      SABAH: 'MORNING',
-      OGLE: 'AFTERNOON',
-      AKSAM: 'EVENING',
+      'SABAH': 'MORNING',
+      'OGLE': 'AFTERNOON',
+      'AKSAM': 'EVENING'
     };
 
-    return sessions.find((s) => s.sessionType === typeMap[type]);
+    return sessions.find(s => s.sessionType === typeMap[type]);
   }
 
   private formatDateKey(date: Date): string {
@@ -460,21 +414,19 @@ export class OnkolojiPlanComponent implements OnInit {
     if (!device || !day) return;
 
     const timeMap: Record<string, { start: string; end: string }> = {
-      SABAH: { start: '08:00', end: '14:00' },
-      OGLE: { start: '14:00', end: '20:00' },
-      AKSAM: { start: '20:00', end: '02:00' },
+      'SABAH': { start: '08:00', end: '14:00' },
+      'OGLE': { start: '14:00', end: '20:00' },
+      'AKSAM': { start: '20:00', end: '02:00' }
     };
 
     const typeMap: Record<string, 'MORNING' | 'AFTERNOON' | 'EVENING'> = {
-      SABAH: 'MORNING',
-      OGLE: 'AFTERNOON',
-      AKSAM: 'EVENING',
+      'SABAH': 'MORNING',
+      'OGLE': 'AFTERNOON',
+      'AKSAM': 'EVENING'
     };
 
     const newSession: SessionAssignment = {
-      id:
-        this.existingSession()?.id ||
-        `${device.id}-${this.formatDateKey(day.date)}-${this.selectedSessionType().toLowerCase()}`,
+      id: this.existingSession()?.id || `${device.id}-${this.formatDateKey(day.date)}-${this.selectedSessionType().toLowerCase()}`,
       date: this.formatDateKey(day.date),
       sessionType: typeMap[this.selectedSessionType()],
       startTime: timeMap[this.selectedSessionType()].start,
@@ -482,18 +434,16 @@ export class OnkolojiPlanComponent implements OnInit {
       patientCount: this.patientCount,
       technicianId: this.selectedTechnician(),
       technicianName: this.selectedTechnicianName(),
-      status: 'planned',
+      status: 'planned'
     };
 
-    this.devices.update((devices) => {
-      return devices.map((d) => {
+    this.devices.update(devices => {
+      return devices.map(d => {
         if (d.id === device.id) {
           const newAssignments = new Map(d.assignments);
           const dateStr = this.formatDateKey(day.date);
           const existingForDate = newAssignments.get(dateStr) || [];
-          const filtered = existingForDate.filter(
-            (s) => s.sessionType !== typeMap[this.selectedSessionType()],
-          );
+          const filtered = existingForDate.filter(s => s.sessionType !== typeMap[this.selectedSessionType()]);
           newAssignments.set(dateStr, [...filtered, newSession]);
           return { ...d, assignments: newAssignments };
         }
@@ -510,20 +460,18 @@ export class OnkolojiPlanComponent implements OnInit {
     if (!device || !day) return;
 
     const typeMap: Record<string, 'MORNING' | 'AFTERNOON' | 'EVENING'> = {
-      SABAH: 'MORNING',
-      OGLE: 'AFTERNOON',
-      AKSAM: 'EVENING',
+      'SABAH': 'MORNING',
+      'OGLE': 'AFTERNOON',
+      'AKSAM': 'EVENING'
     };
 
-    this.devices.update((devices) => {
-      return devices.map((d) => {
+    this.devices.update(devices => {
+      return devices.map(d => {
         if (d.id === device.id) {
           const newAssignments = new Map(d.assignments);
           const dateStr = this.formatDateKey(day.date);
           const existingForDate = newAssignments.get(dateStr) || [];
-          const filtered = existingForDate.filter(
-            (s) => s.sessionType !== typeMap[this.selectedSessionType()],
-          );
+          const filtered = existingForDate.filter(s => s.sessionType !== typeMap[this.selectedSessionType()]);
           if (filtered.length > 0) {
             newAssignments.set(dateStr, filtered);
           } else {

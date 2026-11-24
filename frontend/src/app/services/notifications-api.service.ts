@@ -78,9 +78,7 @@ export class NotificationsApiService {
         if (v !== undefined && v !== null) httpParams = httpParams.set(k, String(v));
       });
     }
-    return this.http.get<PaginatedResponse<NotificationRecipientInfo>>(this.apiUrl, {
-      params: httpParams,
-    });
+    return this.http.get<PaginatedResponse<NotificationRecipientInfo>>(this.apiUrl, { params: httpParams });
   }
 
   getUnreadCount(): Observable<{ count: number }> {

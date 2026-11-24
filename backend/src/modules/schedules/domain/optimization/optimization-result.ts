@@ -43,6 +43,8 @@ export interface OptimizationMetadata {
   validCandidates: number;
   deterministic: boolean;
   seed?: number;
+  /** P2-01/02/03 — which policy surface produced this read-only preview. */
+  rolloutMode?: 'legacy-migration' | 'canonical';
 }
 
 export function createOptimizationResult(
@@ -64,30 +66,15 @@ export function createOptimizationResult(
       totalAssignments: totalCount,
       existingAssignments: existingCount,
       newAssignments: newCount,
-      personnelCount: new Set(candidate.assignments.map((a) => a.personnelId))
-        .size,
-      deviceCount: new Set(candidate.assignments.map((a) => a.deviceId)).size,
+      personnelCount: new Set(candidate.assignments.map(a => a.personnelId)).size,
+      deviceCount: new Set(candidate.assignments.map(a => a.deviceId)).size,
       hardViolations: candidate.hardConstraintViolations.length,
-      softViolations: candidate.softConstraintScores.filter(
-        (s) => s.rawScore < 50,
-      ).length,
+      softViolations: candidate.softConstraintScores.filter(s => s.rawScore < 50).length,
       totalScore: candidate.totalScore,
       scoreComponents: {
-        fairness: extractComponent(
-          candidate.softConstraintScores,
-          'FAIRNESS',
-          candidate.scoreBreakdown.fairness,
-        ),
-        workload: extractComponent(
-          candidate.softConstraintScores,
-          'WORKLOAD_BALANCE',
-          candidate.scoreBreakdown.workload,
-        ),
-        fatigue: extractComponent(
-          candidate.softConstraintScores,
-          'FATIGUE',
-          candidate.scoreBreakdown.fatigue,
-        ),
+        fairness: extractComponent(candidate.softConstraintScores, 'FAIRNESS', candidate.scoreBreakdown.fairness),
+        workload: extractComponent(candidate.softConstraintScores, 'WORKLOAD_BALANCE', candidate.scoreBreakdown.workload),
+        fatigue: extractComponent(candidate.softConstraintScores, 'FATIGUE', candidate.scoreBreakdown.fatigue),
       },
     },
     metadata,
@@ -95,12 +82,8 @@ export function createOptimizationResult(
   };
 }
 
-function extractComponent(
-  scores: ConstraintScore[],
-  constraintId: string,
-  weightedScore: number,
-): ScoreComponent {
-  const score = scores.find((s) => s.constraintId === constraintId);
+function extractComponent(scores: ConstraintScore[], constraintId: string, weightedScore: number): ScoreComponent {
+  const score = scores.find(s => s.constraintId === constraintId);
   return {
     rawScore: score?.rawScore ?? 0,
     weight: score?.weight ?? 0,

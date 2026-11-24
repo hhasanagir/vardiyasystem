@@ -9,7 +9,6 @@
 ## EXECUTIVE SUMMARY
 
 This document outlines a complete system reconstruction plan. We will:
-
 1. **DELETE** duplicate/obsolete modules
 2. **MERGE** overlapping implementations
 3. **REWRITE** broken/undersized components
@@ -23,38 +22,38 @@ This document outlines a complete system reconstruction plan. We will:
 
 ### 1.1 Duplicate Services (Frontend)
 
-| File to Delete                                                      | Reason                                                   | Keep Instead                                   |
-| ------------------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------- |
-| `app/core/scheduling/conflict-detector.service.ts`                  | Duplicated by conflict-engine.service.ts                 | `app/core/services/conflict-engine.service.ts` |
-| `app/core/scheduling/solver-validation.service.ts`                  | Unused/duplicated                                        | Remove if not imported                         |
-| `app/core/scheduling/constraint-solver.service.ts`                  | Unused/duplicated                                        | Remove if not imported                         |
-| `app/core/scheduling/recommendation-engine.service.ts`              | Duplicated by recommendations.service.ts                 | Merge                                          |
-| `app/core/scheduling/fatigue-engine.service.ts`                     | Can be simplified                                        | Merge into constraint validator                |
-| `app/core/scheduling/comprehensive-constraint-validator.service.ts` | Overlap with constraint-validator.service.ts             | Keep one                                       |
-| `app/core/state/persistence.store.ts`                               | Duplicate of persistence.service.ts                      | Remove                                         |
-| `app/services/notification.service.ts`                              | Duplicate of `app/core/services/notification.service.ts` | `app/core/services/notification.service.ts`    |
-| `app/models/index.ts`                                               | Duplicates domain/                                       | Remove                                         |
+| File to Delete | Reason | Keep Instead |
+|----------------|--------|--------------|
+| `app/core/scheduling/conflict-detector.service.ts` | Duplicated by conflict-engine.service.ts | `app/core/services/conflict-engine.service.ts` |
+| `app/core/scheduling/solver-validation.service.ts` | Unused/duplicated | Remove if not imported |
+| `app/core/scheduling/constraint-solver.service.ts` | Unused/duplicated | Remove if not imported |
+| `app/core/scheduling/recommendation-engine.service.ts` | Duplicated by recommendations.service.ts | Merge |
+| `app/core/scheduling/fatigue-engine.service.ts` | Can be simplified | Merge into constraint validator |
+| `app/core/scheduling/comprehensive-constraint-validator.service.ts` | Overlap with constraint-validator.service.ts | Keep one |
+| `app/core/state/persistence.store.ts` | Duplicate of persistence.service.ts | Remove |
+| `app/services/notification.service.ts` | Duplicate of `app/core/services/notification.service.ts` | `app/core/services/notification.service.ts` |
+| `app/models/index.ts` | Duplicates domain/ | Remove |
 
 ### 1.2 Unused Components
 
-| File to Delete                                | Reason                     |
-| --------------------------------------------- | -------------------------- |
+| File to Delete | Reason |
+|----------------|--------|
 | `app/components/landing/landing.component.ts` | Not routed, appears unused |
-| `app/app.ts`                                  | Unclear purpose, not used  |
-| `app/environments.prod.ts` (duplicate)        | Already in environments/   |
+| `app/app.ts` | Unclear purpose, not used |
+| `app/environments.prod.ts` (duplicate) | Already in environments/ |
 
 ### 1.3 Duplicate Plan Implementation
 
-| File to Delete                                     | Reason                       | Keep Instead                                |
-| -------------------------------------------------- | ---------------------------- | ------------------------------------------- |
+| File to Delete | Reason | Keep Instead |
+|----------------|--------|--------------|
 | `app/features/onkoloji/onkoloji-plan.component.ts` | Duplicate of plan-page logic | `app/features/plans/plan-page.component.ts` |
 
 ### 1.4 Stale Mock Files
 
-| File to Delete                                                                  | Reason |
-| ------------------------------------------------------------------------------- | ------ |
+| File to Delete | Reason |
+|----------------|--------|
 | Any file with `[seed]` or `[mock]` in comments that isn't a proper mock service |
-| Hardcoded arrays in stores that should come from API                            |
+| Hardcoded arrays in stores that should come from API |
 
 ---
 
@@ -63,7 +62,6 @@ This document outlines a complete system reconstruction plan. We will:
 ### 2.1 Scheduling Services (10 → 1)
 
 **Current:**
-
 ```
 app/core/scheduling/
 ├── schedule-generator.service.ts
@@ -80,14 +78,12 @@ app/core/scheduling/
 ```
 
 **Merge Into:**
-
 ```
 app/core/scheduling/
 └── scheduling.service.ts (NEW UNIFIED SERVICE)
 ```
 
 **Rationale:** These services are tightly coupled and share data. Separating them causes:
-
 - Inconsistent validation logic
 - Circular dependencies
 - Difficult maintenance
@@ -95,7 +91,6 @@ app/core/scheduling/
 ### 2.2 Notification Services (2 → 1)
 
 **Current:**
-
 ```
 app/services/notification.service.ts
 app/core/services/notification.service.ts
@@ -107,7 +102,6 @@ app/core/services/notification.service.ts
 ### 2.3 Backend Services (2 → 1 each)
 
 **Merge:**
-
 - `backend/src/services/rebalance-engine.service.ts` → `backend/src/modules/schedules/schedules.service.ts`
 - `backend/src/services/conflicts.service.ts` → `backend/src/modules/schedules/schedules.service.ts`
 - `backend/src/services/recommendations.service.ts` → `backend/src/modules/schedules/schedules.service.ts`
@@ -115,20 +109,16 @@ app/core/services/notification.service.ts
 ### 2.4 State Management
 
 **Merge Schedule Stores:**
-
 ```
 app/services/schedule.service.ts + app/core/state/schedule.store.ts
 ```
-
 **Keep:** `app/core/state/schedule.store.ts` (Signal-based, modern)
 **Delete:** `app/services/schedule.service.ts`
 
 **Merge Dashboard Stores:**
-
 ```
 app/services/dashboard.service.ts + app/core/state/metrics.store.ts
 ```
-
 **Keep:** `app/core/state/metrics.store.ts`
 **Delete:** `app/services/dashboard.service.ts`
 
@@ -141,7 +131,6 @@ app/services/dashboard.service.ts + app/core/state/metrics.store.ts
 **Problem:** 1770 lines, bloated
 
 **Solution:** Modularize into:
-
 ```
 layouts/main-layout/
 ├── main-layout.component.ts (300 lines - shell only)
@@ -159,7 +148,6 @@ layouts/main-layout/
 ```
 
 **Files to Rewrite:**
-
 - `app/layouts/main-layout/main-layout.component.ts` → Split into modules
 - Create `app/layouts/main-layout/nav-config.ts` (navigation structure)
 
@@ -168,7 +156,6 @@ layouts/main-layout/
 **Problem:** 3012 lines, monolithic
 
 **Solution:** Modularize into:
-
 ```
 features/operations/
 ├── operations-center.component.ts (400 lines - container)
@@ -186,14 +173,12 @@ features/operations/
 
 ### 3.3 Plan Page - Unified Component
 
-**Problem:**
-
+**Problem:** 
 - `onkoloji-plan.component.ts` duplicates `plan-page.component.ts`
 - Missing workflow UI integration
 - Mock data still active
 
 **Solution:** Create unified plan architecture:
-
 ```
 features/plans/
 ├── plan-page.component.ts (CLEAN unified - 400 lines)
@@ -210,7 +195,6 @@ features/plans/
 ```
 
 **Key Features:**
-
 - Single component handles MR/BT/Röntgen/Nükleer/RONK
 - Workflow status badge (DRAFT/UNDER_REVIEW/APPROVED/PUBLISHED)
 - Context-sensitive action buttons
@@ -221,7 +205,6 @@ features/plans/
 **Problem:** Basic, no KPIs, no live data
 
 **Solution:** Create enterprise dashboard:
-
 ```
 features/dashboard/
 ├── dashboard.component.ts (600 lines)
@@ -267,7 +250,6 @@ backend/src/modules/audit/
 ### 3.7 Prisma Schema Update
 
 **Missing Tables:**
-
 ```prisma
 model ScheduleVersion {
   id          String   @id @default(uuid())
@@ -287,24 +269,24 @@ model ScheduleApproval {
   id          String   @id @default(uuid())
   scheduleId  String
   status      String   // UNDER_REVIEW, APPROVED, REJECTED, PUBLISHED
-
+  
   submittedBy String?
   submittedAt DateTime?
   submittedComment String?
-
+  
   reviewedBy  String?
   reviewedAt  DateTime?
-
+  
   approvedBy  String?
   approvedAt  DateTime?
-
+  
   rejectedBy  String?
   rejectedAt  DateTime?
   rejectionReason String?
-
+  
   publishedBy String?
   publishedAt DateTime?
-
+  
   @@unique([scheduleId])
 }
 
@@ -333,38 +315,38 @@ model ShiftAuditLog {
 
 ### 4.1 Frontend (Working)
 
-| Module            | Location                             | Reason                 |
-| ----------------- | ------------------------------------ | ---------------------- |
-| Auth service      | `app/services/auth.service.ts`       | Works with backend     |
-| API service       | `app/services/api.service.ts`        | Base HTTP client       |
-| WebSocket service | `app/services/websocket.service.ts`  | Real-time foundation   |
-| Auth guards       | `app/guards/`                        | Route protection works |
-| Login/Register    | `app/components/login/`, `register/` | Working auth flow      |
-| Onboarding        | `app/components/onboarding/`         | Working setup flow     |
-| Employee list     | `app/components/employees/`          | Basic CRUD works       |
-| Leave management  | `app/components/leave-management/`   | Basic functionality    |
+| Module | Location | Reason |
+|--------|----------|--------|
+| Auth service | `app/services/auth.service.ts` | Works with backend |
+| API service | `app/services/api.service.ts` | Base HTTP client |
+| WebSocket service | `app/services/websocket.service.ts` | Real-time foundation |
+| Auth guards | `app/guards/` | Route protection works |
+| Login/Register | `app/components/login/`, `register/` | Working auth flow |
+| Onboarding | `app/components/onboarding/` | Working setup flow |
+| Employee list | `app/components/employees/` | Basic CRUD works |
+| Leave management | `app/components/leave-management/` | Basic functionality |
 
 ### 4.2 Backend (Working)
 
-| Module                    | Location                                            | Reason              |
-| ------------------------- | --------------------------------------------------- | ------------------- |
-| Auth module               | `backend/src/modules/auth/`                         | JWT works           |
-| Prisma service            | `backend/src/prisma.service.ts`                     | DB connection works |
-| Personnel module          | `backend/src/modules/personnel/`                    | CRUD works          |
-| Units module              | `backend/src/modules/units/`                        | Works               |
-| Holidays module           | `backend/src/modules/holidays/`                     | Works               |
-| Swap requests module      | `backend/src/modules/swap-requests/`                | Works               |
-| Schedule workflow service | `backend/src/services/schedule-workflow.service.ts` | Logic ready         |
+| Module | Location | Reason |
+|--------|----------|--------|
+| Auth module | `backend/src/modules/auth/` | JWT works |
+| Prisma service | `backend/src/prisma.service.ts` | DB connection works |
+| Personnel module | `backend/src/modules/personnel/` | CRUD works |
+| Units module | `backend/src/modules/units/` | Works |
+| Holidays module | `backend/src/modules/holidays/` | Works |
+| Swap requests module | `backend/src/modules/swap-requests/` | Works |
+| Schedule workflow service | `backend/src/services/schedule-workflow.service.ts` | Logic ready |
 
 ### 4.3 Core Logic (Preserve)
 
-| Module                | Location                                              | Reason                   |
-| --------------------- | ----------------------------------------------------- | ------------------------ |
-| Scheduling solver     | `app/core/scheduling/schedule-generator.service.ts`   | Complex algorithm, works |
-| Constraint validation | `app/core/scheduling/constraint-validator.service.ts` | Validates correctly      |
-| Shift time configs    | `app/domain/rules/`                                   | Correct business rules   |
-| Holiday calendar      | `app/domain/rules/index.ts`                           | 2026 holidays defined    |
-| Unit configurations   | `app/domain/rules/index.ts`                           | Correct device configs   |
+| Module | Location | Reason |
+|--------|----------|--------|
+| Scheduling solver | `app/core/scheduling/schedule-generator.service.ts` | Complex algorithm, works |
+| Constraint validation | `app/core/scheduling/constraint-validator.service.ts` | Validates correctly |
+| Shift time configs | `app/domain/rules/` | Correct business rules |
+| Holiday calendar | `app/domain/rules/index.ts` | 2026 holidays defined |
+| Unit configurations | `app/domain/rules/index.ts` | Correct device configs |
 
 ---
 
@@ -375,56 +357,56 @@ model ShiftAuditLog {
 ```typescript
 export const routes: Routes = [
   // Auth (public)
-  { path: "login", component: LoginComponent },
-  { path: "register", component: RegisterComponent },
-  { path: "onboarding", component: OnboardingComponent },
+  { path: 'login', component: LoginComponent },
+  { path: 'register', component: RegisterComponent },
+  { path: 'onboarding', component: OnboardingComponent },
 
   // App Shell (auth-guarded)
   {
-    path: "app",
+    path: 'app',
     loadComponent: () => MainLayoutComponent,
     children: [
       // Dashboard (default)
-      { path: "", redirectTo: "dashboard" },
-      { path: "dashboard", component: DashboardComponent },
+      { path: '', redirectTo: 'dashboard' },
+      { path: 'dashboard', component: DashboardComponent },
 
       // Operations
-      { path: "operations", component: OperationsCenterComponent },
-      { path: "live-tracking", component: LiveTrackingComponent },
+      { path: 'operations', component: OperationsCenterComponent },
+      { path: 'live-tracking', component: LiveTrackingComponent },
 
       // Planning (UNIFIED)
-      { path: ":unit-plan", component: PlanPageComponent }, // mr, bt, rontgen, nukleer, onkoloji
+      { path: ':unit-plan', component: PlanPageComponent }, // mr, bt, rontgen, nukleer, onkoloji
 
       // Kadro
-      { path: "employees", component: EmployeesComponent },
-      { path: "leave-management", component: LeaveManagementComponent },
-      { path: "swap-requests", component: SwapRequestsComponent },
+      { path: 'employees', component: EmployeesComponent },
+      { path: 'leave-management', component: LeaveManagementComponent },
+      { path: 'swap-requests', component: SwapRequestsComponent },
 
       // Analytics
-      { path: "performance", component: PerformanceComponent },
-      { path: "fairness-analysis", component: FairnessAnalysisComponent },
-      { path: "reports", component: ReportsComponent },
+      { path: 'performance', component: PerformanceComponent },
+      { path: 'fairness-analysis', component: FairnessAnalysisComponent },
+      { path: 'reports', component: ReportsComponent },
 
       // System (NEW)
-      { path: "approval-center", component: ApprovalCenterComponent }, // NEW
-      { path: "audit-log", component: AuditLogComponent }, // NEW
-      { path: "settings", component: SettingsComponent },
-    ],
-  },
+      { path: 'approval-center', component: ApprovalCenterComponent }, // NEW
+      { path: 'audit-log', component: AuditLogComponent }, // NEW
+      { path: 'settings', component: SettingsComponent },
+    ]
+  }
 ];
 ```
 
 ### 5.2 Route Changes Summary
 
-| Action  | Route                                       | Component                 |
-| ------- | ------------------------------------------- | ------------------------- |
-| KEEP    | `/app/dashboard`                            | DashboardComponent        |
-| KEEP    | `/app/operations`                           | OperationsCenterComponent |
-| REWRITE | `/app/mr-plan` → `/app/:unit-plan`          | PlanPageComponent         |
-| REWRITE | `/app/bt-plan` → `/app/:unit-plan`          | PlanPageComponent         |
-| REWRITE | `/app/rontgen-plan` → `/app/:unit-plan`     | PlanPageComponent         |
-| REWRITE | `/app/nukleer-tip-plan` → `/app/:unit-plan` | PlanPageComponent         |
-| REWRITE | `/app/onkoloji-plan` → `/app/:unit-plan`    | PlanPageComponent         |
+| Action | Route | Component |
+|--------|-------|-----------|
+| KEEP | `/app/dashboard` | DashboardComponent |
+| KEEP | `/app/operations` | OperationsCenterComponent |
+| REWRITE | `/app/mr-plan` → `/app/:unit-plan` | PlanPageComponent |
+| REWRITE | `/app/bt-plan` → `/app/:unit-plan` | PlanPageComponent |
+| REWRITE | `/app/rontgen-plan` → `/app/:unit-plan` | PlanPageComponent |
+| REWRITE | `/app/nukleer-tip-plan` → `/app/:unit-plan` | PlanPageComponent |
+| REWRITE | `/app/onkoloji-plan` → `/app/:unit-plan` | PlanPageComponent |
 
 | **NEW** | `/app/approval-center` | ApprovalCenterComponent |
 | **NEW** | `/app/audit-log` | AuditLogComponent |
@@ -443,123 +425,48 @@ interface NavSection {
 
 const NAV_CONFIG: NavSection[] = [
   {
-    label: "OPERASYON",
+    label: 'OPERASYON',
     items: [
-      {
-        path: "/app/dashboard",
-        label: "Kontrol Paneli",
-        icon: "dashboard",
-        minRole: "staff",
-      },
-      {
-        path: "/app/operations",
-        label: "Operasyon Merkezi",
-        icon: "operations",
-        minRole: "supervisor",
-      },
-      {
-        path: "/app/live-tracking",
-        label: "Canlı Takip",
-        icon: "live",
-        minRole: "supervisor",
-      },
-    ],
+      { path: '/app/dashboard', label: 'Kontrol Paneli', icon: 'dashboard', minRole: 'staff' },
+      { path: '/app/operations', label: 'Operasyon Merkezi', icon: 'operations', minRole: 'supervisor' },
+      { path: '/app/live-tracking', label: 'Canlı Takip', icon: 'live', minRole: 'supervisor' },
+    ]
   },
   {
-    label: "PLANLAMA",
+    label: 'PLANLAMA',
     items: [
-      { path: "/app/mr-plan", label: "MR Planı", icon: "mr", unit: "mr" },
-      { path: "/app/bt-plan", label: "BT Planı", icon: "bt", unit: "bt" },
-      {
-        path: "/app/rontgen-plan",
-        label: "Röntgen Planı",
-        icon: "rontgen",
-        unit: "röntgen",
-      },
-      {
-        path: "/app/nukleer-tip-plan",
-        label: "Nükleer Tıp Planı",
-        icon: "nukleer",
-        unit: "nukleer",
-      },
-      {
-        path: "/app/onkoloji-plan",
-        label: "RONK Planı",
-        icon: "onkoloji",
-        unit: "onkoloji",
-      },
-    ],
+      { path: '/app/mr-plan', label: 'MR Planı', icon: 'mr', unit: 'mr' },
+      { path: '/app/bt-plan', label: 'BT Planı', icon: 'bt', unit: 'bt' },
+      { path: '/app/rontgen-plan', label: 'Röntgen Planı', icon: 'rontgen', unit: 'röntgen' },
+      { path: '/app/nukleer-tip-plan', label: 'Nükleer Tıp Planı', icon: 'nukleer', unit: 'nukleer' },
+      { path: '/app/onkoloji-plan', label: 'RONK Planı', icon: 'onkoloji', unit: 'onkoloji' },
+
+    ]
   },
   {
-    label: "KADRO",
+    label: 'KADRO',
     items: [
-      {
-        path: "/app/employees",
-        label: "Personeller",
-        icon: "people",
-        minRole: "head_technician",
-      },
-      {
-        path: "/app/leave-management",
-        label: "İzin Yönetimi",
-        icon: "calendar",
-        minRole: "supervisor",
-      },
-      {
-        path: "/app/swap-requests",
-        label: "Vardiya Talepleri",
-        icon: "swap",
-        minRole: "staff",
-      },
-    ],
+      { path: '/app/employees', label: 'Personeller', icon: 'people', minRole: 'head_technician' },
+      { path: '/app/leave-management', label: 'İzin Yönetimi', icon: 'calendar', minRole: 'supervisor' },
+      { path: '/app/swap-requests', label: 'Vardiya Talepleri', icon: 'swap', minRole: 'staff' },
+    ]
   },
   {
-    label: "ANALİTİK",
+    label: 'ANALİTİK',
     items: [
-      {
-        path: "/app/performance",
-        label: "Performans",
-        icon: "chart",
-        minRole: "supervisor",
-      },
-      {
-        path: "/app/fairness-analysis",
-        label: "Adalet Analizi",
-        icon: "balance",
-        minRole: "supervisor",
-      },
-      {
-        path: "/app/reports",
-        label: "Raporlama",
-        icon: "report",
-        minRole: "head_technician",
-      },
-    ],
+      { path: '/app/performance', label: 'Performans', icon: 'chart', minRole: 'supervisor' },
+      { path: '/app/fairness-analysis', label: 'Adalet Analizi', icon: 'balance', minRole: 'supervisor' },
+      { path: '/app/reports', label: 'Raporlama', icon: 'report', minRole: 'head_technician' },
+    ]
   },
   {
-    label: "SİSTEM",
+    label: 'SİSTEM',
     items: [
-      {
-        path: "/app/approval-center",
-        label: "Onay Merkezi",
-        icon: "approve",
-        minRole: "head_technician",
-        badge: pendingApprovals,
-      },
-      {
-        path: "/app/audit-log",
-        label: "Audit Log",
-        icon: "history",
-        minRole: "admin",
-      },
-      {
-        path: "/app/settings",
-        label: "Ayarlar",
-        icon: "settings",
-        minRole: "staff",
-      },
-    ],
-  },
+      { path: '/app/approval-center', label: 'Onay Merkezi', icon: 'approve', minRole: 'head_technician', badge: pendingApprovals },
+      { path: '/app/audit-log', label: 'Audit Log', icon: 'history', minRole: 'admin' },
+      { path: '/app/settings', label: 'Ayarlar', icon: 'settings', minRole: 'staff' },
+    ]
+  }
 ];
 ```
 
@@ -648,21 +555,18 @@ interface AuditTimelineEntry {
 ### Phase 3A: Frontend Core (Week 1)
 
 **Days 1-2: Layout Reconstruction**
-
 - [ ] Create `nav-config.ts`
 - [ ] Extract sidebar component
 - [ ] Extract header component
 - [ ] Update main-layout imports
 
 **Days 3-4: Unified Plan Page**
-
 - [ ] Create plan-page with workflow integration
 - [ ] Add status badge component
 - [ ] Add workflow actions component
 - [ ] Add audit timeline drawer
 
 **Days 5-7: Dashboard Enhancement**
-
 - [ ] Create KPI grid
 - [ ] Add live unit status cards
 - [ ] Add alerts panel
@@ -671,20 +575,17 @@ interface AuditTimelineEntry {
 ### Phase 3B: Backend Core (Week 2)
 
 **Days 1-2: Prisma Schema**
-
 - [ ] Add workflow tables
 - [ ] Run migrations
 - [ ] Update schema types
 
 **Days 3-4: Approval API**
-
 - [ ] Create approvals controller
 - [ ] Create approvals service
 - [ ] Add DTOs
 - [ ] Add guards
 
 **Days 5-7: Audit API**
-
 - [ ] Create audit controller
 - [ ] Create audit service
 - [ ] Add query filters
@@ -693,19 +594,16 @@ interface AuditTimelineEntry {
 ### Phase 4: Data Integration (Week 3)
 
 **Days 1-2: API Connections**
-
 - [ ] Update plan page to use API
 - [ ] Remove mock data from stores
 - [ ] Add loading/error states
 
 **Days 3-4: WebSocket Events**
-
 - [ ] Connect workflow events to WS
 - [ ] Add real-time notifications
 - [ ] Test reconnect logic
 
 **Days 5-7: Frontend Integration**
-
 - [ ] Connect approval center
 - [ ] Connect audit log UI
 - [ ] Add role-based visibility
@@ -713,19 +611,16 @@ interface AuditTimelineEntry {
 ### Phase 5: Production Hardening (Week 4)
 
 **Days 1-2: Security**
-
 - [ ] Add role guards to all routes
 - [ ] Implement refresh token
 - [ ] Add API interceptors
 
 **Days 3-4: Error Handling**
-
 - [ ] Add error boundaries
 - [ ] Add retry logic
 - [ ] Add loading states
 
 **Days 5-7: Testing & Polish**
-
 - [ ] Run all builds
 - [ ] Test all routes
 - [ ] Visual consistency check
@@ -736,28 +631,24 @@ interface AuditTimelineEntry {
 ## SECTION 9: VERIFICATION CHECKLIST
 
 ### Build Verification
-
 - [ ] `npm run build` passes
 - [ ] `npm run build:backend` passes (if exists)
 - [ ] No TypeScript errors
 - [ ] Bundle size < 600kB
 
 ### Route Verification
-
 - [ ] All routes render correctly
 - [ ] Auth guards work
 - [ ] Role guards work
 - [ ] No broken links
 
 ### Feature Verification
-
 - [ ] Plan page loads real data
 - [ ] Workflow transitions work
 - [ ] Audit logs record
 - [ ] Approval center shows pending
 
 ### Visual Verification
-
 - [ ] Dark theme consistent
 - [ ] No white backgrounds
 - [ ] No overflow issues

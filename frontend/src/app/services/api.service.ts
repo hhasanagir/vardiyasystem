@@ -19,10 +19,12 @@ export class ApiService {
     });
   }
 
-  get<T>(path: string): Observable<T> {
-    return this.http.get<T>(`${this.baseUrl}${path}`, {
-      headers: this.getHeaders()
-    }).pipe(
+  private withDefaults(options?: HttpRequestOptions): HttpRequestOptions {
+    return { ...options, headers: options?.headers ?? this.getHeaders() };
+  }
+
+  get<T>(path: string, options?: HttpRequestOptions): Observable<T> {
+    return this.http.get<T>(`${this.baseUrl}${path}`, this.withDefaults(options)).pipe(
       catchError(err => {
         console.error(`API GET ${path} failed:`, err);
         throw err;
@@ -30,10 +32,8 @@ export class ApiService {
     );
   }
 
-  post<T>(path: string, body: any): Observable<T> {
-    return this.http.post<T>(`${this.baseUrl}${path}`, body, {
-      headers: this.getHeaders()
-    }).pipe(
+  post<T>(path: string, body: any, options?: HttpRequestOptions): Observable<T> {
+    return this.http.post<T>(`${this.baseUrl}${path}`, body, this.withDefaults(options)).pipe(
       catchError(err => {
         console.error(`API POST ${path} failed:`, err);
         throw err;
@@ -41,10 +41,8 @@ export class ApiService {
     );
   }
 
-  put<T>(path: string, body: any): Observable<T> {
-    return this.http.put<T>(`${this.baseUrl}${path}`, body, {
-      headers: this.getHeaders()
-    }).pipe(
+  put<T>(path: string, body: any, options?: HttpRequestOptions): Observable<T> {
+    return this.http.put<T>(`${this.baseUrl}${path}`, body, this.withDefaults(options)).pipe(
       catchError(err => {
         console.error(`API PUT ${path} failed:`, err);
         throw err;
@@ -52,10 +50,8 @@ export class ApiService {
     );
   }
 
-  delete<T>(path: string): Observable<T> {
-    return this.http.delete<T>(`${this.baseUrl}${path}`, {
-      headers: this.getHeaders()
-    }).pipe(
+  delete<T>(path: string, options?: HttpRequestOptions): Observable<T> {
+    return this.http.delete<T>(`${this.baseUrl}${path}`, this.withDefaults(options)).pipe(
       catchError(err => {
         console.error(`API DELETE ${path} failed:`, err);
         throw err;
@@ -86,6 +82,8 @@ export class ApiService {
     );
   }
 }
+
+export type HttpRequestOptions = NonNullable<Parameters<HttpClient['get']>[1]>;
 
 export interface ScheduleApiResponse {
   id: string;
