@@ -20,6 +20,9 @@ regexes = [
   "0123456789abcdef0123456789abcdef",
   "fedcba9876543210fedcba9876543210",
   "LCOGiaom9OORU7nWAZoBeNgtFVGdf-bCjRuKBkUE-Iw",
+  # Deliberately malformed JWT-like literal in the auth refresh e2e test.
+  # It is a negative-test fixture, not credential material.
+  'eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiJ4In0\.tampered',
 ]
 paths = [
   '(^|/)\.env\.production\.example$',
