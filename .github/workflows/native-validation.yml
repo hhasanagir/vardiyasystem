@@ -1,0 +1,206 @@
+# Manual native validation for PR-1 security remediation.
+#
+# This workflow is intentionally workflow_dispatch-only: it prepares an auditable
+# JDK 21 / Xcode 26 validation path without changing any existing required PR gate.
+# It does not deploy, sign, or publish artifacts.
+
+name: Native Platform Validation
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: native-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+  JAVA_VERSION: '21'
+
+jobs:
+  android:
+    name: Android (JDK 21 / Gradle 8.14.3)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Verify JDK 21 toolchain
+        run: |
+          java -version 2>&1 | tee java-version.txt
+          java -version 2>&1 | grep -q 'version "21' || {
+            echo "JDK 21 is required by the Capacitor 8 Android plugins"
+            exit 1
+          }
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install required Android SDK packages
+        run: |
+          yes | sdkmanager --licenses > /dev/null
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Angular production build
+        run: npm run build
+        working-directory: frontend
+
+      - name: Capacitor Android doctor
+        run: npx cap doctor android
+        working-directory: frontend
+
+      - name: Capacitor Android sync
+        run: npx cap sync android
+        working-directory: frontend
+
+      - name: Verify Gradle wrapper compatibility
+        run: ./gradlew --version
+        working-directory: frontend/android
+
+      - name: Verify Android dependency resolution
+        run: ./gradlew :app:dependencies --configuration debugRuntimeClasspath --no-daemon
+        working-directory: frontend/android
+
+      - name: Lint, assemble debug APK and run unit tests
+        run: ./gradlew lintDebug assembleDebug testDebugUnitTest --no-daemon
+        working-directory: frontend/android
+
+      - name: Upload Android unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-unit-test-reports
+          path: frontend/android/app/build/reports/tests/testDebugUnitTest
+          if-no-files-found: warn
+
+      - name: Upload Android lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-lint-report
+          path: frontend/android/app/build/reports/lint-results-debug.*
+          if-no-files-found: warn
+
+      - name: Upload Gradle problems report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-gradle-problems-report
+          path: frontend/android/build/reports/problems
+          if-no-files-found: warn
+
+      - name: Upload Android debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vardiyaos-debug.apk
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  ios:
+    name: iOS (Xcode 26 / Swift Package Manager)
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Verify Xcode 26 or newer
+        run: |
+          xcodebuild -version
+          XCODE_MAJOR="$(xcodebuild -version | awk '/^Xcode/ {split($2, v, "."); print v[1]}')"
+          if [ -z "$XCODE_MAJOR" ] || [ "$XCODE_MAJOR" -lt 26 ]; then
+            echo "Capacitor 8 requires Xcode 26.0 or newer"
+            exit 1
+          fi
+
+      - name: Verify Swift Package Manager project layout
+        run: |
+          test -f frontend/ios/App/CapApp-SPM/Package.swift
+          test ! -f frontend/ios/App/Podfile
+          echo "SPM-managed Capacitor iOS project confirmed (no Podfile)"
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Angular production build
+        run: npm run build
+        working-directory: frontend
+
+      - name: Capacitor iOS doctor
+        run: npx cap doctor
+        working-directory: frontend
+
+      - name: Capacitor iOS sync
+        run: npx cap sync ios
+        working-directory: frontend
+
+      - name: Resolve Swift Package dependencies
+        run: xcodebuild -resolvePackageDependencies -project App.xcodeproj -scheme App
+        working-directory: frontend/ios/App
+
+      - name: List iOS schemes and test targets
+        run: xcodebuild -list -project App.xcodeproj
+        working-directory: frontend/ios/App
+
+      - name: Build iOS app (unsigned simulator build)
+        run: |
+          set -o pipefail
+          xcodebuild -project App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee "$RUNNER_TEMP/xcodebuild-ios.log"
+        working-directory: frontend/ios/App
+
+      - name: Run available iOS tests
+        run: |
+          set -o pipefail
+          TEST_SOURCES="$(find ../../ios -type f \( -name '*Tests.swift' -o -name '*UITests.swift' \) -print)"
+          if [ -z "$TEST_SOURCES" ]; then
+            echo "No iOS unit/UI test sources found in frontend/ios; skipping xcodebuild test."
+            exit 0
+          fi
+          echo "$TEST_SOURCES"
+          xcodebuild test \
+            -project App.xcodeproj \
+            -scheme App \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            CODE_SIGNING_ALLOWED=NO
+        working-directory: frontend/ios/App
+
+      - name: Upload iOS build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-xcodebuild.log
+          path: ${{ runner.temp }}/xcodebuild-ios.log
+          if-no-files-found: warn
