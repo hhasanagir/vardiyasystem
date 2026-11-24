@@ -78,12 +78,14 @@ jobs:
         with:
           node-version: ${{ env.CAP_CLI_NODE }}
 
-      - name: Capacitor Android doctor
-        run: npx cap doctor android
-        working-directory: frontend
-
+      # cap doctor validates generated assets (app/src/main/assets/public/index.html).
+      # Those files are produced by cap sync, so sync must run first on a fresh checkout.
       - name: Capacitor Android sync
         run: npx cap sync android
+        working-directory: frontend
+
+      - name: Capacitor Android doctor
+        run: npx cap doctor android
         working-directory: frontend
 
       - name: Verify Gradle wrapper compatibility
@@ -171,12 +173,14 @@ jobs:
         with:
           node-version: ${{ env.CAP_CLI_NODE }}
 
-      - name: Capacitor iOS doctor
-        run: npx cap doctor
-        working-directory: frontend
-
+      # Sync first: it generates the web assets that cap doctor validates.
+      # Keep doctor platform-scoped so the iOS job does not also validate Android.
       - name: Capacitor iOS sync
         run: npx cap sync ios
+        working-directory: frontend
+
+      - name: Capacitor iOS doctor
+        run: npx cap doctor ios
         working-directory: frontend
 
       - name: Resolve Swift Package dependencies
