@@ -19,6 +19,10 @@ permissions:
 env:
   NODE_VERSION: '20'
   JAVA_VERSION: '21'
+  # Capacitor CLI 8.4.0 declares engines.node ">=22". The repo-wide NODE_VERSION
+  # stays at 20 (npm/Angular are validated on it); this is used only by the
+  # `npx cap ...` steps in both native jobs.
+  CAP_CLI_NODE: '22'
 
 jobs:
   android:
@@ -50,6 +54,11 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The action defaults to `tools platform-tools`. The legacy `tools`
+          # package no longer exists in the SDK repository and makes sdkmanager
+          # exit 1. platform-tools is all the later steps need.
+          packages: platform-tools
 
       - name: Install required Android SDK packages
         run: |
@@ -63,6 +72,11 @@ jobs:
       - name: Angular production build
         run: npm run build
         working-directory: frontend
+
+      - name: Setup Node 22 for Capacitor CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.CAP_CLI_NODE }}
 
       - name: Capacitor Android doctor
         run: npx cap doctor android
@@ -151,6 +165,11 @@ jobs:
       - name: Angular production build
         run: npm run build
         working-directory: frontend
+
+      - name: Setup Node 22 for Capacitor CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.CAP_CLI_NODE }}
 
       - name: Capacitor iOS doctor
         run: npx cap doctor
