@@ -111,7 +111,7 @@ describe('Auth Refresh (e2e) — session/refresh hardening', () => {
   it('garbage / tampered refresh tokens are rejected (401/429), never 5xx and never succeed', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/auth/refresh')
-      .send({ refreshToken: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.tampered' });
+      .send({ refreshToken: 'tampered-refresh-token-not-a-jwt' });
     expect([401, 429]).toContain(res.status);
     expect(res.status).toBeLessThan(500);
   });
