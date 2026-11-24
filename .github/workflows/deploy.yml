@@ -21,6 +21,10 @@ env:
   NODE_VERSION: '20'
   REGISTRY: ghcr.io
   IMAGE_TAG: ${{ github.sha }}
+  # prisma/schema.prisma:10 reads directUrl = env("DATABASE_DIRECT_URL").
+  # `prisma migrate deploy` exits 1 with P1012 without it; keep in sync with
+  # the DATABASE_DIRECT_URL defined in pr-validation.yml.
+  DATABASE_DIRECT_URL: postgresql://postgres:postgres@localhost:5432/vardiyasystem_test
 
 jobs:
   validate:
