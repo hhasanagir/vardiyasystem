@@ -579,7 +579,7 @@ jobs:
         run: npx --yes audit-ci@6 --critical --report-type summary
         working-directory: frontend
       - name: Gitleaks secret scan
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Check for tracked secret material
