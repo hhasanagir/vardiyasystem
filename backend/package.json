@@ -42,7 +42,7 @@
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/auto-instrumentations-node": "^0.77.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.219.0",
-    "@opentelemetry/instrumentation-nestjs-core": "^0.68.0",
+    "@opentelemetry/instrumentation-nestjs-core": "^0.72.1",
     "@opentelemetry/instrumentation-socket.io": "^0.69.0",
     "@opentelemetry/resources": "^2.8.0",
     "@opentelemetry/sdk-node": "^0.219.0",
