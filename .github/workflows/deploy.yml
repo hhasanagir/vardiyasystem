@@ -240,7 +240,7 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json" \
-            "https://${repo}/manifests/${{ env.IMAGE_TAG }}")
+            "https://${{ env.REGISTRY }}/v2/${{ github.repository }}/${{ matrix.service }}/manifests/${{ env.IMAGE_TAG }}")
           if [ "$code" != "200" ]; then
             echo "::error::manifest not served for ${repo}:${{ env.IMAGE_TAG }} (HTTP $code)"
             exit 1
