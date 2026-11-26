@@ -82,7 +82,11 @@
     "js-yaml": "4.3.2",
     "lodash": "4.18.1",
     "multer": "2.5.0",
-    "systeminformation": "5.33.16"
+    "picomatch": "4.0.7",
+    "source-map-js": "1.2.4",
+    "systeminformation": "5.33.16",
+    "tmp": "0.2.7",
+    "vite": "8.3.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
