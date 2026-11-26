@@ -330,7 +330,7 @@ jobs:
           docker compose -f docker-compose.prod.yml exec -T postgres \
             pg_dump --username=vardiya --dbname=vardiyasystem \
             --format=custom --compress=9 --no-owner --no-acl \
-            > /tmp/vardiya-restore-check.dump.gz
+            | gzip -c > /tmp/vardiya-restore-check.dump.gz
           echo "dump size: $(stat -c%s /tmp/vardiya-restore-check.dump.gz) bytes"
           bash scripts/restore-check.sh /tmp/vardiya-restore-check.dump.gz
       - name: Stack diagnostics
