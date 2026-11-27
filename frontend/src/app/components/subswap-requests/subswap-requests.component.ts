@@ -46,7 +46,7 @@ import { translateAssignmentErrorPayload } from '../../core/utils/assignment-err
       </div>
 
       @if (isLoading()) {
-        <div class="loading"><p-progressSpinner></p-progressSpinner></div>
+        <div class="loading"><p-progress-spinner></p-progress-spinner></div>
       }
 
       <p-card>

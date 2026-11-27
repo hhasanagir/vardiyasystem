@@ -51,7 +51,7 @@ import type { AssetDetail, QRCodeResult } from './models/asset.models';
     }
 
     @if (isLoading()) {
-      <div class="loading"><p-progressSpinner></p-progressSpinner></div>
+      <div class="loading"><p-progress-spinner></p-progress-spinner></div>
     }
 
     @if (asset(); as a) {

@@ -56,12 +56,12 @@ import type { Schedule, ScheduleStatus } from '../../models';
                    [sortField]="'year'" [sortOrder]="-1">
             <ng-template pTemplate="header">
               <tr>
-                <th pSortableColumn="unitId">Birim <p-sortIcon field="unitId"></p-sortIcon></th>
-                <th pSortableColumn="year">Yıl <p-sortIcon field="year"></p-sortIcon></th>
-                <th pSortableColumn="month">Ay <p-sortIcon field="month"></p-sortIcon></th>
-                <th pSortableColumn="status">Durum <p-sortIcon field="status"></p-sortIcon></th>
-                <th pSortableColumn="assignments.length">Atama <p-sortIcon field="assignments.length"></p-sortIcon></th>
-                <th pSortableColumn="version">Versiyon <p-sortIcon field="version"></p-sortIcon></th>
+                <th pSortableColumn="unitId">Birim <p-sort-icon field="unitId"></p-sort-icon></th>
+                <th pSortableColumn="year">Yıl <p-sort-icon field="year"></p-sort-icon></th>
+                <th pSortableColumn="month">Ay <p-sort-icon field="month"></p-sort-icon></th>
+                <th pSortableColumn="status">Durum <p-sort-icon field="status"></p-sort-icon></th>
+                <th pSortableColumn="assignments.length">Atama <p-sort-icon field="assignments.length"></p-sort-icon></th>
+                <th pSortableColumn="version">Versiyon <p-sort-icon field="version"></p-sort-icon></th>
                 <th>İşlemler</th>
               </tr>
             </ng-template>

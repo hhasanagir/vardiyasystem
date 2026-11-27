@@ -68,7 +68,7 @@ export interface ConflictDetails {
           />
         </div>
 
-        <p-scrollPanel styleClass="w-full" [style]="{ height: '180px' }" *ngIf="details?.violations?.length">
+        <p-scroll-panel styleClass="w-full" [style]="{ height: '180px' }" *ngIf="details?.violations?.length">
           <div class="violation" *ngFor="let v of details?.violations || []">
             <p-tag
               [value]="(v.severity || 'INFO')"
@@ -78,7 +78,7 @@ export interface ConflictDetails {
             <span class="vrule" *ngIf="v.rule || v.code">{{ v.rule || v.code }}</span>
             <span class="vmsg">{{ v.message }}</span>
           </div>
-        </p-scrollPanel>
+        </p-scroll-panel>
       </div>
 
       <ng-template pTemplate="footer">
