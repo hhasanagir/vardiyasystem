@@ -2,8 +2,8 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard, seconds } from '@nestjs/throttler';
-import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import Redis from 'ioredis';
+import { ThrottlerStorageRedisService } from './infrastructure/throttler-redis.storage';
 import { PrismaModule } from './prisma.module';
 import { SeedService } from './seed.service';
 import { AuthModule } from './modules/auth/auth.module';
@@ -96,8 +96,10 @@ import { validationSchema } from './config/env.config';
       load: [configuration, rateLimitConfig],
       validationSchema,
       validationOptions: {
-        abortEarly: false,
-        allowUnknown: true,
+        libraryOptions: {
+          abortEarly: false,
+          allowUnknown: true,
+        },
       },
     }),
     PrismaModule,
