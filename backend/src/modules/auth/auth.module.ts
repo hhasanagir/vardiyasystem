@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import type { JwtSignOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
@@ -23,10 +24,16 @@ import { TokenBlacklistService } from './token-blacklist.service';
       useFactory: (configService: ConfigService) => {
         const secret = configService.get<string>('JWT_ACCESS_TOKEN_SECRET')
           || configService.get<string>('JWT_SECRET');
+        if (!secret) {
+          throw new Error('JWT access token secret is not configured');
+        }
         return {
           secret,
           signOptions: {
-            expiresIn: configService.get<string>('JWT_ACCESS_TOKEN_EXPIRES_IN', '15m'),
+            expiresIn: configService.get<string>(
+              'JWT_ACCESS_TOKEN_EXPIRES_IN',
+              '15m',
+            ) as JwtSignOptions['expiresIn'],
             algorithm: 'HS256',
           },
         };

@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException, BadRequestException, InternalServerErrorException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import type { JwtSignOptions } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -498,13 +499,17 @@ export class AuthService {
 
     const refreshSecret = this.getRefreshSecret();
 
-    const expiresIn = this.configService.get<string>('JWT_REFRESH_TOKEN_EXPIRES_IN', '7d');
+    const expiresInValue = this.configService.get<string>(
+      'JWT_REFRESH_TOKEN_EXPIRES_IN',
+      '7d',
+    );
+    const expiresIn = expiresInValue as JwtSignOptions['expiresIn'];
     const refreshToken = this.jwtService.sign(payload, {
       secret: refreshSecret,
       expiresIn,
     });
 
-    const expiresAt = new Date(Date.now() + this.parseExpiresIn(expiresIn));
+    const expiresAt = new Date(Date.now() + this.parseExpiresIn(expiresInValue));
 
     const session = await this.sessionService.createSession({
       userId: user.id,

@@ -19,11 +19,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private rbacService: RbacService,
     configService: ConfigService,
   ) {
+    const secret = configService.get<string>('JWT_ACCESS_TOKEN_SECRET')
+      || configService.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new Error('JWT access token secret is not configured');
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_ACCESS_TOKEN_SECRET')
-        || configService.get<string>('JWT_SECRET'),
+      secretOrKey: secret,
       algorithms: ['HS256'],
     });
 
