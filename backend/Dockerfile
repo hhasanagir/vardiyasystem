@@ -2,7 +2,7 @@
 # Multi-stage: builder → production
 # Uses distroless-like minimal Node.js image with non-root user
 
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 LABEL stage="builder"
 LABEL org.opencontainers.image.description="VardiyaOS Backend — build stage"
@@ -25,7 +25,7 @@ RUN npm run build && \
     rm -rf /root/.npm /tmp/*
 
 # Stage 2: Production
-FROM node:20-alpine
+FROM node:22-alpine
 
 LABEL vendor="VardiyaOS"
 LABEL org.opencontainers.image.title="VardiyaOS Backend"
@@ -33,7 +33,7 @@ LABEL org.opencontainers.image.description="Radyoloji Vardiya Yönetim Sistemi �
 LABEL org.opencontainers.image.url="https://github.com/anomalyco/vardiyasystem"
 LABEL org.opencontainers.image.source="https://github.com/anomalyco/vardiyasystem"
 LABEL org.opencontainers.image.licenses="MIT"
-LABEL org.opencontainers.image.base.name="node:20-alpine"
+LABEL org.opencontainers.image.base.name="node:22-alpine"
 
 RUN apk add --no-cache tini curl ca-certificates openssl libssl3 libcrypto3 && \
     addgroup -S vardiya && \
