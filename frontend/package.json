@@ -30,7 +30,7 @@
   "packageManager": "npm@9.9.4",
   "dependencies": {
     "@angular/animations": "^21.2.26",
-    "@angular/cdk": "^21.2.8",
+    "@angular/cdk": "^22.3.0",
     "@angular/common": "^21.2.26",
     "@angular/compiler": "^21.2.26",
     "@angular/core": "^21.2.26",
