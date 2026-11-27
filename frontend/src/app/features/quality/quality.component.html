@@ -35,7 +35,7 @@
 }
 
 <p-table [value]="records()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '60rem' }" >
-  <ng-template pTemplate="header">
+  <ng-template #header>
     <tr>
       <th style="width:130px">Kayıt No</th>
       <th>Başlık</th>
@@ -48,7 +48,7 @@
       <th style="width:80px">İşlem</th>
     </tr>
   </ng-template>
-  <ng-template pTemplate="body" let-record let-expanded="expanded">
+  <ng-template #body let-record let-expanded="expanded">
     <tr>
       <td><strong>{{ record.recordNumber }}</strong></td>
       <td>{{ record.title }}</td>
@@ -63,7 +63,7 @@
       </td>
     </tr>
   </ng-template>
-  <ng-template pTemplate="emptymessage">
+  <ng-template #emptymessage>
     <tr>
       <td colspan="9" style="text-align:center;padding:2rem;opacity:0.5">Kayıt bulunamadı</td>
     </tr>

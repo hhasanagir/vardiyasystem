@@ -36,7 +36,7 @@
 }
 
 <p-table [value]="stock()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '50rem' }">
-  <ng-template pTemplate="header">
+  <ng-template #header>
     <tr>
       <th style="width:120px">Kod</th>
       <th>Ad</th>
@@ -49,7 +49,7 @@
       <th>Güncelleme</th>
     </tr>
   </ng-template>
-  <ng-template pTemplate="body" let-item>
+  <ng-template #body let-item>
     <tr [class.low-stock]="getStockStatus(item) === 'low'">
       <td><strong>{{ item.catalogCode }}</strong></td>
       <td>{{ item.catalogName }}</td>
@@ -64,7 +64,7 @@
       <td>{{ item.lastUpdated | date:'dd.MM.yyyy HH:mm' }}</td>
     </tr>
   </ng-template>
-  <ng-template pTemplate="emptymessage">
+  <ng-template #emptymessage>
     <tr>
       <td colspan="9" style="text-align:center;padding:2rem;opacity:0.5">Kayıt bulunamadı</td>
     </tr>

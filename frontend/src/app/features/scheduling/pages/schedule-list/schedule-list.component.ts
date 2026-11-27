@@ -54,7 +54,7 @@ import type { Schedule, ScheduleStatus } from '../../models';
                    [rowsPerPageOptions]="[10, 15, 25, 50]"
                    styleClass="p-datatable-striped"
                    [sortField]="'year'" [sortOrder]="-1">
-            <ng-template pTemplate="header">
+            <ng-template #header>
               <tr>
                 <th pSortableColumn="unitId">Birim <p-sort-icon field="unitId"></p-sort-icon></th>
                 <th pSortableColumn="year">Yıl <p-sort-icon field="year"></p-sort-icon></th>
@@ -65,7 +65,7 @@ import type { Schedule, ScheduleStatus } from '../../models';
                 <th>İşlemler</th>
               </tr>
             </ng-template>
-            <ng-template pTemplate="body" let-schedule>
+            <ng-template #body let-schedule>
               <tr class="schedule-row" (click)="openSchedule(schedule)">
                 <td>
                   <span class="unit-badge" [attr.data-unit]="schedule.unitId">
@@ -86,7 +86,7 @@ import type { Schedule, ScheduleStatus } from '../../models';
                 </td>
               </tr>
             </ng-template>
-            <ng-template pTemplate="emptymessage">
+            <ng-template #emptymessage>
               <tr>
                 <td colspan="7" class="text-center">Plan bulunamadı.</td>
               </tr>

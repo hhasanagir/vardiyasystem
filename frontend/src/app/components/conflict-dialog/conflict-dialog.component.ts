@@ -81,7 +81,7 @@ export interface ConflictDetails {
         </p-scroll-panel>
       </div>
 
-      <ng-template pTemplate="footer">
+      <ng-template #footer>
         <p-button label="Kapat" severity="secondary" [text]="true" (onClick)="close()" />
         <p-button label="Güncel Veriyi Yükle / Karşılaştır" icon="pi pi-refresh" (onClick)="reload.emit()" />
       </ng-template>

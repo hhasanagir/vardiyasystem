@@ -35,7 +35,7 @@
 }
 
 <p-table [value]="contracts()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '60rem' }">
-  <ng-template pTemplate="header">
+  <ng-template #header>
     <tr>
       <th style="width:130px">Sözleşme No</th>
       <th>Başlık</th>
@@ -47,7 +47,7 @@
       <th style="width:120px">İşlemler</th>
     </tr>
   </ng-template>
-  <ng-template pTemplate="body" let-contract>
+  <ng-template #body let-contract>
     <tr [class.expiring-soon]="isExpiringSoon(contract)" [class.expired]="isExpired(contract)">
       <td><strong>{{ contract.contractNumber }}</strong></td>
       <td>{{ contract.title }}</td>
@@ -68,7 +68,7 @@
       </td>
     </tr>
   </ng-template>
-  <ng-template pTemplate="emptymessage">
+  <ng-template #emptymessage>
     <tr>
       <td colspan="8" style="text-align:center;padding:2rem;opacity:0.5">Kayıt bulunamadı</td>
     </tr>

@@ -89,7 +89,7 @@
 }
 
 <p-table [value]="assets()" [tableStyle]="{ 'min-width': '70rem' }" [paginator]="true" [rows]="15" [showCurrentPageReport]="true" currentPageReportTemplate="{first} - {last} / {totalRecords}" [rowsPerPageOptions]="[15, 25, 50, 100]">
-  <ng-template pTemplate="header">
+  <ng-template #header>
     <tr>
       <th style="width:100px">Varlık No</th>
       <th>Cihaz Adı</th>
@@ -101,7 +101,7 @@
       <th style="width:80px">Aksiyon</th>
     </tr>
   </ng-template>
-  <ng-template pTemplate="body" let-asset>
+  <ng-template #body let-asset>
     <tr (click)="viewDetail(asset)" style="cursor:pointer" class="clickable-row">
       <td><strong>{{ asset.assetNumber }}</strong></td>
       <td>{{ asset.name }}</td>
@@ -119,7 +119,7 @@
       </td>
     </tr>
   </ng-template>
-  <ng-template pTemplate="emptymessage">
+  <ng-template #emptymessage>
     <tr>
       <td colspan="8" style="text-align:center;padding:2rem;opacity:0.5">Kayıt bulunamadı</td>
     </tr>

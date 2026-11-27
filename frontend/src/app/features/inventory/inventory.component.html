@@ -58,7 +58,7 @@
   <p-tabpanels>
     <p-tabpanel value="0">
       <p-table [value]="stock()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '60rem' }">
-      <ng-template pTemplate="header">
+      <ng-template #header>
         <tr>
           <th>Katalog Kodu</th>
           <th>Ad</th>
@@ -69,7 +69,7 @@
           <th>Birim</th>
         </tr>
       </ng-template>
-      <ng-template pTemplate="body" let-item>
+      <ng-template #body let-item>
         <tr>
           <td><strong>{{ item.catalogCode }}</strong></td>
           <td>{{ item.catalogName }}</td>
@@ -80,7 +80,7 @@
           <td>{{ item.unit }}</td>
         </tr>
       </ng-template>
-      <ng-template pTemplate="emptymessage">
+      <ng-template #emptymessage>
         <tr>
           <td colspan="7" style="text-align:center;padding:2rem;opacity:0.5">Kayıt bulunamadı</td>
         </tr>
@@ -90,7 +90,7 @@
 
   <p-tabpanel value="1">
     <p-table [value]="transfers()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '60rem' }">
-      <ng-template pTemplate="header">
+      <ng-template #header>
         <tr>
           <th>Transfer No</th>
           <th>Gönderen Depo</th>
@@ -101,7 +101,7 @@
           <th>Tarih</th>
         </tr>
       </ng-template>
-      <ng-template pTemplate="body" let-transfer>
+      <ng-template #body let-transfer>
         <tr>
           <td><strong>{{ transfer.transferNumber }}</strong></td>
           <td>{{ transfer.fromWarehouseName }}</td>
@@ -112,7 +112,7 @@
           <td>{{ transfer.createdAt | date:'dd.MM.yyyy HH:mm' }}</td>
         </tr>
       </ng-template>
-      <ng-template pTemplate="emptymessage">
+      <ng-template #emptymessage>
         <tr>
           <td colspan="7" style="text-align:center;padding:2rem;opacity:0.5">Kayıt bulunamadı</td>
         </tr>
@@ -122,7 +122,7 @@
 
   <p-tabpanel value="2">
     <p-table [value]="consumptions()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '60rem' }">
-      <ng-template pTemplate="header">
+      <ng-template #header>
         <tr>
           <th>Katalog</th>
           <th>Miktar</th>
@@ -133,7 +133,7 @@
           <th>Maliyet</th>
         </tr>
       </ng-template>
-      <ng-template pTemplate="body" let-record>
+      <ng-template #body let-record>
         <tr>
           <td>{{ record.catalogName }}</td>
           <td><strong>{{ record.quantity }}</strong></td>
@@ -144,7 +144,7 @@
           <td>{{ record.cost ? (record.cost | number:'1.2-2') + ' TL' : '-' }}</td>
         </tr>
       </ng-template>
-      <ng-template pTemplate="emptymessage">
+      <ng-template #emptymessage>
         <tr>
           <td colspan="7" style="text-align:center;padding:2rem;opacity:0.5">Kayıt bulunamadı</td>
         </tr>
@@ -154,7 +154,7 @@
 
   <p-tabpanel value="3">
     <p-table [value]="counts()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '60rem' }">
-      <ng-template pTemplate="header">
+      <ng-template #header>
         <tr>
           <th>Sayım No</th>
           <th>Depo</th>
@@ -166,7 +166,7 @@
           <th>Tarih</th>
         </tr>
       </ng-template>
-      <ng-template pTemplate="body" let-count>
+      <ng-template #body let-count>
         <tr>
           <td><strong>{{ count.countNumber }}</strong></td>
           <td>{{ count.warehouseName }}</td>
@@ -178,7 +178,7 @@
           <td>{{ count.countedAt | date:'dd.MM.yyyy HH:mm' }}</td>
         </tr>
       </ng-template>
-      <ng-template pTemplate="emptymessage">
+      <ng-template #emptymessage>
         <tr>
           <td colspan="8" style="text-align:center;padding:2rem;opacity:0.5">Kayıt bulunamadı</td>
         </tr>
@@ -188,7 +188,7 @@
 
   <p-tabpanel value="4">
     <p-table [value]="alerts()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '60rem' }">
-      <ng-template pTemplate="header">
+      <ng-template #header>
         <tr>
           <th>Katalog</th>
           <th>Uyarı Türü</th>
@@ -200,7 +200,7 @@
           <th style="width:100px">İşlem</th>
         </tr>
       </ng-template>
-      <ng-template pTemplate="body" let-alert>
+      <ng-template #body let-alert>
         <tr>
           <td>{{ alert.catalogName }}</td>
           <td><p-tag [value]="alert.alertType" [rounded]="true"></p-tag></td>
@@ -216,7 +216,7 @@
           </td>
         </tr>
       </ng-template>
-      <ng-template pTemplate="emptymessage">
+      <ng-template #emptymessage>
         <tr>
           <td colspan="8" style="text-align:center;padding:2rem;opacity:0.5">Kayıt bulunamadı</td>
         </tr>
