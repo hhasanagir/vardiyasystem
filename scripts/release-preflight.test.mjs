@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 import { runChecks } from './release-preflight.mjs';
 
 const files = {
-  '.nvmrc': '20\n',
+  '.nvmrc': '22\n',
   '.gitignore': 'node_modules/\n.env\nbackend/.env\nsecrets/*.txt\n',
   'package.json': JSON.stringify({ name: 'vardiyasystem', private: true }, null, 2),
   'docker-compose.prod.yml': [
@@ -50,12 +50,12 @@ const files = {
     2,
   ),
   'backend/eslint-baseline.json': JSON.stringify({ maxErrors: 4075 }, null, 2),
-  'backend/Dockerfile': 'FROM node:20-alpine AS builder\nFROM node:20-alpine\n',
+  'backend/Dockerfile': 'FROM node:22-alpine AS builder\nFROM node:22-alpine\n',
   'backend/src/main.ts':
     "app.setGlobalPrefix('api');\napp.enableVersioning({\n  type: VersioningType.URI,\n  defaultVersion: '1',\n  prefix: 'v',\n});\n",
   'backend/src/modules/health/health.controller.ts':
     "@Controller('health')\nexport class HealthController {\n  @Get('live')\n  live() {}\n  @Get('ready')\n  ready() {}\n}\n",
-  'frontend/Dockerfile': 'FROM node:20-alpine\n',
+  'frontend/Dockerfile': 'FROM node:22-alpine\n',
   'frontend/nginx.conf': 'server {\n  location = /health {\n    return 200 "ok";\n  }\n}\n',
   'k8s/kustomization.yaml':
     'resources:\n  - service-account.yaml\n  - backend-deployment.yaml\n  - frontend-deployment.yaml\n',
@@ -174,7 +174,7 @@ const files = {
   '.github/workflows/pr-validation.yml': [
     'name: PR',
     'env:',
-    "  NODE_VERSION: '20'",
+    "  NODE_VERSION: '22'",
     'jobs:',
     '  unit-tests:',
     '    steps:',
@@ -187,7 +187,7 @@ const files = {
   '.github/workflows/deploy.yml': [
     'name: Deploy',
     'env:',
-    "  NODE_VERSION: '20'",
+    "  NODE_VERSION: '22'",
     'jobs:',
     '  integration-test:',
     '    steps:',
@@ -235,12 +235,12 @@ test('a consistent repository passes every check', () => {
 test('node-version: a workflow pinned to a different major is caught', () => {
   const root = makeFixture({
     '.github/workflows/pr-validation.yml': files['.github/workflows/pr-validation.yml'].replace(
-      "NODE_VERSION: '20'",
       "NODE_VERSION: '22'",
+      "NODE_VERSION: '24'",
     ),
   });
   try {
-    assert.match(failsOn(root, 'node-version').join(), /NODE_VERSION 22/);
+    assert.match(failsOn(root, 'node-version').join(), /NODE_VERSION 24/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

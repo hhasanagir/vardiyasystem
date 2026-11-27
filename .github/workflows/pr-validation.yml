@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   DB_NAME: vardiyasystem_test
   DB_USER: postgres
   DB_PASSWORD: postgres
