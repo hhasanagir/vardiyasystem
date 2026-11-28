@@ -18,7 +18,7 @@ RUN npm run build -- --configuration production && \
     rm -rf /root/.npm /tmp/* /app/node_modules
 
 # Stage 2: Serve with nginx
-FROM nginx:1.27-alpine
+FROM nginx:1.31-alpine
 
 LABEL vendor="VardiyaOS"
 LABEL org.opencontainers.image.title="VardiyaOS Frontend"
@@ -26,7 +26,7 @@ LABEL org.opencontainers.image.description="Radyoloji Vardiya YÃ¶netim Sistemi â
 LABEL org.opencontainers.image.url="https://github.com/anomalyco/vardiyasystem"
 LABEL org.opencontainers.image.source="https://github.com/anomalyco/vardiyasystem"
 LABEL org.opencontainers.image.licenses="MIT"
-LABEL org.opencontainers.image.base.name="nginx:1.27-alpine"
+LABEL org.opencontainers.image.base.name="nginx:1.31-alpine"
 
 RUN addgroup -S vardiya && \
     adduser -S vardiya -G vardiya && \
