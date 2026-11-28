@@ -18,3 +18,7 @@ Report security vulnerabilities to the project maintainers via email or GitHub I
 - Validation pipes strip unknown fields from API requests
 - Environment variables for all secrets — never hardcoded
 - `.env` files excluded from version control via `.gitignore`
+
+## Dependency security
+
+- Decisions, verified audit results and residual dependency risks are recorded in [docs/security/dependency-security-register.md](docs/security/dependency-security-register.md).
