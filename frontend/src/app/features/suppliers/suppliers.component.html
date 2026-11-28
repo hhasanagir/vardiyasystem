@@ -15,12 +15,12 @@
 
 @if (isLoading()) {
   <div class="loading">
-    <p-progressSpinner></p-progressSpinner>
+    <p-progress-spinner></p-progress-spinner>
   </div>
 }
 
 <p-table [value]="suppliers()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '50rem' }">
-  <ng-template pTemplate="header">
+  <ng-template #header>
     <tr>
       <th style="width:100px">Kod</th>
       <th>Ad</th>
@@ -33,7 +33,7 @@
       <th style="width:80px">İşlem</th>
     </tr>
   </ng-template>
-  <ng-template pTemplate="body" let-supplier>
+  <ng-template #body let-supplier>
     <tr>
       <td><strong>{{ supplier.code }}</strong></td>
       <td>{{ supplier.name }}</td>
@@ -54,7 +54,7 @@
       </td>
     </tr>
   </ng-template>
-  <ng-template pTemplate="emptymessage">
+  <ng-template #emptymessage>
     <tr>
       <td colspan="9" style="text-align:center;padding:2rem;opacity:0.5">Kayıt bulunamadı</td>
     </tr>

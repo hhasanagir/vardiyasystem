@@ -25,12 +25,12 @@
 
       @if (isLoading()) {
         <div class="loading">
-          <p-progressSpinner></p-progressSpinner>
+          <p-progress-spinner></p-progress-spinner>
         </div>
       }
 
       <p-table [value]="requests()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '50rem' }">
-        <ng-template pTemplate="header">
+        <ng-template #header>
           <tr>
             <th style="width:130px">Talep No</th>
             <th>Başlık</th>
@@ -42,7 +42,7 @@
             <th>Tarih</th>
           </tr>
         </ng-template>
-        <ng-template pTemplate="body" let-request>
+        <ng-template #body let-request>
           <tr>
             <td><strong>{{ request.requestNumber }}</strong></td>
             <td>{{ request.title }}</td>
@@ -54,7 +54,7 @@
             <td>{{ request.createdAt | date:'dd.MM.yyyy' }}</td>
           </tr>
         </ng-template>
-        <ng-template pTemplate="emptymessage">
+        <ng-template #emptymessage>
           <tr>
             <td colspan="8" style="text-align:center;padding:2rem;opacity:0.5">Kayıt bulunamadı</td>
           </tr>
@@ -69,12 +69,12 @@
 
       @if (isLoading()) {
         <div class="loading">
-          <p-progressSpinner></p-progressSpinner>
+          <p-progress-spinner></p-progress-spinner>
         </div>
       }
 
       <p-table [value]="orders()" [paginator]="true" [rows]="10" [tableStyle]="{ 'min-width': '50rem' }">
-        <ng-template pTemplate="header">
+        <ng-template #header>
           <tr>
             <th style="width:130px">Sipariş No</th>
             <th>Başlık</th>
@@ -86,7 +86,7 @@
             <th>Oluşturma</th>
           </tr>
         </ng-template>
-        <ng-template pTemplate="body" let-order>
+        <ng-template #body let-order>
           <tr>
             <td><strong>{{ order.orderNumber }}</strong></td>
             <td>{{ order.title }}</td>
@@ -98,7 +98,7 @@
             <td>{{ order.createdAt | date:'dd.MM.yyyy' }}</td>
           </tr>
         </ng-template>
-        <ng-template pTemplate="emptymessage">
+        <ng-template #emptymessage>
           <tr>
             <td colspan="8" style="text-align:center;padding:2rem;opacity:0.5">Kayıt bulunamadı</td>
           </tr>

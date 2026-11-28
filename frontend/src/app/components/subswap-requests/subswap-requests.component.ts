@@ -46,7 +46,7 @@ import { translateAssignmentErrorPayload } from '../../core/utils/assignment-err
       </div>
 
       @if (isLoading()) {
-        <div class="loading"><p-progressSpinner></p-progressSpinner></div>
+        <div class="loading"><p-progress-spinner></p-progress-spinner></div>
       }
 
       <p-card>
@@ -124,7 +124,7 @@ import { translateAssignmentErrorPayload } from '../../core/utils/assignment-err
           <label>Sebep</label>
           <input pInputText [(ngModel)]="reason" class="w-full" />
         </div>
-        <ng-template pTemplate="footer">
+        <ng-template #footer>
           <p-button label="İptal" [text]="true" (onClick)="showDialog = false"></p-button>
           <p-button label="Gönder" (onClick)="submitRequest()" [loading]="isSubmitting()"></p-button>
         </ng-template>

@@ -14,7 +14,7 @@
 
   @if (isLoading() && !data()) {
     <div class="sc-loading">
-      <p-progressSpinner />
+      <p-progress-spinner />
       <span>Yükleniyor...</span>
     </div>
   }
@@ -181,7 +181,7 @@
       @if (lowStockAlerts().length > 0) {
         <p-card header="Düşük Stok Uyarıları" [subheader]="lowStockAlerts().length + ' kalem'">
           <p-table [value]="lowStockAlerts()" [scrollable]="true" [rows]="5" [paginator]="lowStockAlerts().length > 5">
-            <ng-template pTemplate="header">
+            <ng-template #header>
               <tr>
                 <th>Malzeme</th>
                 <th>Birim</th>
@@ -190,7 +190,7 @@
                 <th>Durum</th>
               </tr>
             </ng-template>
-            <ng-template pTemplate="body" let-item>
+            <ng-template #body let-item>
               <tr>
                 <td>{{ item.itemName }}</td>
                 <td>{{ item.unitName }}</td>
@@ -209,7 +209,7 @@
                 </td>
               </tr>
             </ng-template>
-            <ng-template pTemplate="emptymessage">
+            <ng-template #emptymessage>
               <tr><td colspan="5" class="sc-empty">Stok uyarısı bulunmuyor</td></tr>
             </ng-template>
           </p-table>

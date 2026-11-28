@@ -37,17 +37,8 @@ export default [
   },
   {
     files: ['src/**/*.html'],
-    // @angular-eslint/template-parser 21.2.0 rejects arrow functions inside
-    // template expressions ("Bindings cannot contain assignments"), but the
-    // Angular 21.2 compiler accepts and emits them correctly (verified: `ng build`
-    // succeeds and the compiled bundle contains the generated arrow function).
-    // These files are excluded from *template* linting only; TypeScript linting is
-    // unaffected. Revisit once @angular-eslint adds arrow-function support.
-    ignores: [
-      'src/app/components/employees/employees.component.html',
-      'src/app/components/person-shift-view/person-shift-view.component.html',
-      'src/app/features/firevibe-schedule/firevibe-schedule.component.html',
-    ],
+    // @angular-eslint/template-parser 22 handles arrow functions in template
+    // expressions, so no files need to be excluded from template linting.
     languageOptions: {
       parser: angularTemplateParser,
     },

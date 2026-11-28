@@ -34,7 +34,7 @@ import { takeUntil } from 'rxjs/operators';
   template: `
     <p-toast></p-toast>
     <p-card header="Vardiya Tipleri">
-      <ng-template pTemplate="header">
+      <ng-template #header>
         <div class="flex justify-content-end p-3">
           @if (isAdmin()) {
             <p-button label="Yeni Vardiya Ekle" icon="pi pi-plus" (onClick)="showDialog()"></p-button>
@@ -44,7 +44,7 @@ import { takeUntil } from 'rxjs/operators';
 
       <div class="table-responsive scroll-container">
       <p-table [value]="shifts()" [paginator]="true" [rows]="10" styleClass="p-datatable-sm">
-        <ng-template pTemplate="header">
+        <ng-template #header>
           <tr>
             <th>Vardiya Adı</th>
             <th>Tip</th>
@@ -56,7 +56,7 @@ import { takeUntil } from 'rxjs/operators';
             }
           </tr>
         </ng-template>
-        <ng-template pTemplate="body" let-shift>
+        <ng-template #body let-shift>
           <tr>
             <td>{{ shift.name }}</td>
             <td>

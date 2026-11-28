@@ -290,7 +290,7 @@
       <p class="export-month">{{ monthLabel() }} Günlük Vardiya Raporu</p>
     </div>
 
-    <ng-template pTemplate="footer">
+    <ng-template #footer>
       <div class="dialog-footer">
         <button class="btn-cancel" (click)="showExportDialog.set(false)">İptal</button>
         <button class="btn-export" (click)="exportToExcel()">İndir</button>

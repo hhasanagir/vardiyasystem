@@ -51,7 +51,7 @@ import type { AssetDetail, QRCodeResult } from './models/asset.models';
     }
 
     @if (isLoading()) {
-      <div class="loading"><p-progressSpinner></p-progressSpinner></div>
+      <div class="loading"><p-progress-spinner></p-progress-spinner></div>
     }
 
     @if (asset(); as a) {
@@ -125,12 +125,12 @@ import type { AssetDetail, QRCodeResult } from './models/asset.models';
         <p-tabpanel value="maintenance">
           @if (a.maintenanceRecords.length) {
             <p-table [value]="a.maintenanceRecords" [tableStyle]="{ 'min-width': '50rem' }">
-              <ng-template pTemplate="header">
+              <ng-template #header>
                 <tr>
                   <th>Tür</th><th>Başlık</th><th>Durum</th><th>Öncelik</th><th>Başlangıç</th><th>Bitiş</th><th>Maliyet</th>
                 </tr>
               </ng-template>
-              <ng-template pTemplate="body" let-r>
+              <ng-template #body let-r>
                 <tr>
                   <td>{{ r.type }}</td>
                   <td>{{ r.title }}</td>
@@ -150,12 +150,12 @@ import type { AssetDetail, QRCodeResult } from './models/asset.models';
         <p-tabpanel value="calibration">
           @if (a.calibrationRecords.length) {
             <p-table [value]="a.calibrationRecords" [tableStyle]="{ 'min-width': '50rem' }">
-              <ng-template pTemplate="header">
+              <ng-template #header>
                 <tr>
                   <th>No</th><th>Tür</th><th>Durum</th><th>Planlanan</th><th>Tamamlanan</th><th>Sertifika</th><th>Bir Sonraki</th>
                 </tr>
               </ng-template>
-              <ng-template pTemplate="body" let-r>
+              <ng-template #body let-r>
                 <tr>
                   <td>{{ r.calibrationNumber }}</td>
                   <td>{{ r.type }}</td>
@@ -175,12 +175,12 @@ import type { AssetDetail, QRCodeResult } from './models/asset.models';
         <p-tabpanel value="lifecycle">
           @if (a.lifecycleEvents.length) {
             <p-table [value]="a.lifecycleEvents" [tableStyle]="{ 'min-width': '50rem' }">
-              <ng-template pTemplate="header">
+              <ng-template #header>
                 <tr>
                   <th>Olay</th><th>Tarih</th><th>Başlık</th><th>Açıklama</th><th>Referans</th><th>Konum</th>
                 </tr>
               </ng-template>
-              <ng-template pTemplate="body" let-r>
+              <ng-template #body let-r>
                 <tr>
                   <td><p-tag [value]="r.eventType"></p-tag></td>
                   <td>{{ r.eventDate | date:'dd.MM.yyyy' }}</td>
@@ -199,10 +199,10 @@ import type { AssetDetail, QRCodeResult } from './models/asset.models';
         <p-tabpanel value="documents">
           @if (a.documents.length) {
             <p-table [value]="a.documents" [tableStyle]="{ 'min-width': '50rem' }">
-              <ng-template pTemplate="header">
+              <ng-template #header>
                 <tr><th>Tür</th><th>Başlık</th><th>Açıklama</th><th>Dosya</th></tr>
               </ng-template>
-              <ng-template pTemplate="body" let-d>
+              <ng-template #body let-d>
                 <tr>
                   <td><p-tag [value]="d.type"></p-tag></td>
                   <td>{{ d.title }}</td>
@@ -219,10 +219,10 @@ import type { AssetDetail, QRCodeResult } from './models/asset.models';
         <p-tabpanel value="contracts">
           @if (a.serviceContracts.length) {
             <p-table [value]="a.serviceContracts" [tableStyle]="{ 'min-width': '50rem' }">
-              <ng-template pTemplate="header">
+              <ng-template #header>
                 <tr><th>Sözleşme No</th><th>Tür</th><th>Başlangıç</th><th>Bitiş</th><th>Durum</th></tr>
               </ng-template>
-              <ng-template pTemplate="body" let-c>
+              <ng-template #body let-c>
                 <tr>
                   <td>{{ c.contractNumber }}</td>
                   <td>{{ c.type }}</td>
@@ -240,10 +240,10 @@ import type { AssetDetail, QRCodeResult } from './models/asset.models';
         <p-tabpanel value="movements">
           @if (a.movements.length) {
             <p-table [value]="a.movements" [tableStyle]="{ 'min-width': '50rem' }">
-              <ng-template pTemplate="header">
+              <ng-template #header>
                 <tr><th>Tarih</th><th>Kaynak</th><th>Hedef</th><th>Sebep</th><th>Not</th></tr>
               </ng-template>
-              <ng-template pTemplate="body" let-m>
+              <ng-template #body let-m>
                 <tr>
                   <td>{{ m.movedAt | date:'dd.MM.yyyy' }}</td>
                   <td>{{ m.fromLocation || '-' }}</td>
