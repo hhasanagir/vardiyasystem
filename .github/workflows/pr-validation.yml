@@ -219,7 +219,7 @@ jobs:
           JWT_ACCESS_TOKEN_SECRET: ${{ env.JWT_ACCESS_TOKEN_SECRET }}
           JWT_REFRESH_TOKEN_SECRET: ${{ env.JWT_REFRESH_TOKEN_SECRET }}
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           files: ./backend/coverage/coverage-final.json
           flags: backend-unittests
@@ -451,7 +451,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Build ${{ matrix.service }} image
         uses: docker/build-push-action@v7
         with:
@@ -579,7 +579,7 @@ jobs:
         run: npx --yes audit-ci@6 --critical --report-type summary
         working-directory: frontend
       - name: Gitleaks secret scan
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Check for tracked secret material
@@ -753,7 +753,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5
       - name: Install Helm
         uses: azure/setup-helm@v5
       - name: Render and validate the release chain
